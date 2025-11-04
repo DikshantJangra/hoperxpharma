@@ -5,7 +5,7 @@ const authRoutes = require("./routes/authRouts.js")
 
 const app = express();
 app.use(cors({
-  origin: ["http://localhost:3000", "http://localhost:3001"],
+  origin: ["http://localhost:3000", "http://localhost:3001", "https://hoperxpharma.onrender.com"],
   credentials: true
 }));
 app.use(express.json());
