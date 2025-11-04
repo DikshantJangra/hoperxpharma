@@ -27,8 +27,7 @@ export default function Signup(){
         }
         try{
             const fullNumber = countryCode + number;
-            console.log('Sending data:', { name, email, password, confirmPassword, phoneNumber: fullNumber });
-            const res = await fetch("http://localhost:8000/api/auth/signup", {
+            const res = await fetch("https://hoperxpharma-backend.onrender.com/api/auth/signup", {
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
                 body: JSON.stringify({ name, email, password, confirmPassword, phoneNumber: fullNumber })
@@ -38,8 +37,7 @@ export default function Signup(){
                 setErr(message.message || `Server error: ${res.status}`)
                 return
             }
-            setErr(message.message)
-            console.log(`Res - `,res)
+            router.push("/login");
         }catch(err){
             if(err){
                 setErr("Server Error")
