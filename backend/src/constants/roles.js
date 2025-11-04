@@ -1,6 +1,8 @@
 // User Roles, ideally pulled from database schema
-export const ROLES = {
+const ROLES = {
   OWNER: 'OWNER',
   PHARMACIST: 'PHARMACIST',
   TECHNICIAN: 'TECHNICIAN',
 };
+
+module.exports = { ROLES };

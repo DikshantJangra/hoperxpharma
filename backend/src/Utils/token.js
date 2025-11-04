@@ -1,18 +1,19 @@
-import jwt from "jsonwebtoken";
-import { JWT } from "@/constants";
+const jwt = require("jsonwebtoken");
+const { JWT } = require("../constants/index.js");
 
-export const generateToken = (payload)=>{
+const generateToken = (userId)=>{
+    const payload = { userId };
     const accessTokens = jwt.sign(payload, process.env.JWT_SECRET, {
         expiresIn: JWT.ACCESS_TOKEN_EXPIRATION
     })
     const refreshToken = jwt.sign(payload, process.env.JWT_SECRET, {
-        expiresIn: JWT.ACCESS_TOKEN_EXPIRATION
+        expiresIn: JWT.REFRESH_TOKEN_EXPIRATION
     })
 
     return { accessTokens, refreshToken }
 }
 
-export const verifyTokens = (token) =>{
+const verifyTokens = (token) =>{
     try{
         return jwt.verify(token, process.env.JWT_SECRET)
     }
@@ -20,3 +21,5 @@ export const verifyTokens = (token) =>{
         return null
     }
 }
+
+module.exports = { generateToken, verifyTokens };

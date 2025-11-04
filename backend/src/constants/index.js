@@ -1,5 +1,7 @@
-export * from './roles';
-export * from './jwt';
-export * from './pagination';
-export * from './messages';
-export * from './routes';
+module.exports = {
+    ...require('./roles.js'),
+    ...require('./jwt.js'),
+    ...require('./pagination.js'),
+    ...require('./message.js'),
+    ...require('./routes.js'),
+};

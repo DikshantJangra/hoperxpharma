@@ -1,8 +1,8 @@
-import prisma from "../db/prisma.js";
-import { hashPassword } from "../utils/bcryptPass.js";
-import { generateToken } from "../Utils/token.js";
+const prisma = require("../db/prisma.js");
+const { hashPassword, verifyPassword } = require("../Utils/bcryptPassword.js");
+const { generateToken } = require("../Utils/token.js");
 
-export const signupUser = async (req, res) => {
+const signupUser = async (req, res) => {
   const { name, email, phoneNumber, password, confirmPassword } = req.body;
 
   if (!name || !email || !phoneNumber || !password || !confirmPassword) {
@@ -14,34 +14,46 @@ export const signupUser = async (req, res) => {
   }
 
   try {
-    const existingUser = await prisma.user.findFirst({
-      where: { email },
-    });
-
+    const existingUser = await prisma.user.findFirst({ where: { email } });
     if (existingUser) {
-      return res
-        .status(400)
-        .json({ message: "Try with another email or phone number!" });
+      return res.status(400).json({ message: "User already exists!" });
     }
 
     const hashedPassword = await hashPassword(password);
-
     const newUser = await prisma.user.create({
-      data: {
-        name,
-        email,
-        phoneNumber,
-        password: hashedPassword,
-      },
+      data: { name, email, phoneNumber, password: hashedPassword },
     });
 
-    const token = generateToken(newUser.id);
-
-    return res
-      .status(201)
-      .json({ message: "New user created!", token });
+    const tokens = generateToken(newUser.id);
+    return res.status(201).json({ message: "User created successfully!", token: tokens.accessTokens });
   } catch (err) {
-    console.error(err);
     return res.status(500).json({ message: "Server Error!" });
   }
 };
+
+const loginUser = async (req, res) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({ message: "Email and password required!" });
+  }
+
+  try {
+    const user = await prisma.user.findFirst({ where: { email } });
+    if (!user) {
+      return res.status(401).json({ message: "Invalid credentials!" });
+    }
+
+    const isPasswordValid = await verifyPassword(password, user.password);
+    if (!isPasswordValid) {
+      return res.status(401).json({ message: "Invalid credentials!" });
+    }
+
+    const tokens = generateToken(user.id);
+    return res.status(200).json({ message: "Login successful!", token: tokens.accessTokens });
+  } catch (err) {
+    return res.status(500).json({ message: "Server Error!" });
+  }
+};
+
+module.exports = { signupUser, loginUser };
