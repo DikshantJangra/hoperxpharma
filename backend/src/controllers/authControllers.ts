@@ -11,7 +11,7 @@ export const signupUser = async (req: Request, res: Response)=>{
     if(password !== confrimPassword){
         return res.status(400).json({message: "Passwords do not match bro!"})
     }
-
+    
     try{
         const existingUser = await prisma.users.findFirst({
             where: {email}
