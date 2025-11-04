@@ -1,0 +1,35 @@
+{
+  "compilerOptions": {
+    /* Core Environment */
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "node",
+    "rootDir": "src",
+    "outDir": "dist",
+
+    /* Interop & Syntax Support */
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true,
+
+    /* Type Checking */
+    "strict": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+
+    /* Paths (Optional, for cleaner imports) */
+    "baseUrl": "./src",
+    "paths": {
+      "@/*": ["*"]
+    },
+
+    /* Source Maps & Declarations */
+    "sourceMap": true,
+    "declaration": true,
+    "declarationMap": true
+  },
+  "include": ["src", "prisma"],
+  "exclude": ["node_modules", "dist"]
+}

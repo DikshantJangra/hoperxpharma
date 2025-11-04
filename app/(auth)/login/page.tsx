@@ -3,7 +3,7 @@ export default function login(){
         <>
         hoperxpharma login
 
-        <form action="post">
+        <form>
             <label htmlFor="name">Email</label>
             <input id="name" type="text" />
             <br />
