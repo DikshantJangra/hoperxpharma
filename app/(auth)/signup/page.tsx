@@ -4,7 +4,7 @@ import { useState } from "react"
 
 export default function Signup(){
     const [countryCode, setCountryCode] = useState("+91");
-    const [number, setNumber] = useState();
+    const [number, setNumber] = useState("");
     const [name, setName] = useState("")
     const [email, setEmail] = useState("")
     const [password, setPassword] = useState("")
@@ -27,12 +27,17 @@ export default function Signup(){
         }
         try{
             const fullNumber = countryCode + number;
-            const res = await fetch("http://localhost:8000/signup", {
+            console.log('Sending data:', { name, email, password, confirmPassword, phoneNumber: fullNumber });
+            const res = await fetch("http://localhost:8000/api/auth/signup", {
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({ name, email, password, confirmPassword, number: fullNumber })
+                body: JSON.stringify({ name, email, password, confirmPassword, phoneNumber: fullNumber })
             })
             const message = await res.json()
+            if (!res.ok) {
+                setErr(message.message || `Server error: ${res.status}`)
+                return
+            }
             setErr(message.message)
             console.log(`Res - `,res)
         }catch(err){
