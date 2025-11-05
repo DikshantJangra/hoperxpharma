@@ -27,7 +27,7 @@ export default function Signup(){
         }
         try{
             const fullNumber = countryCode + number;
-            const res = await fetch("https://hoperxpharma-backend.onrender.com/api/auth/signup", {
+            const res = await fetch("https://hoperxpharma.onrender.com/api/auth/signup", {
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
                 body: JSON.stringify({ name, email, password, confirmPassword, phoneNumber: fullNumber })

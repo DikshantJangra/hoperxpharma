@@ -13,7 +13,7 @@ export default function Login() {
         setLoading(true);
 
         try {
-            const response = await fetch("https://hoperxpharma-backend.onrender.com/api/auth/login", {
+            const response = await fetch("https://hoperxpharma.onrender.com/api/auth/login", {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
