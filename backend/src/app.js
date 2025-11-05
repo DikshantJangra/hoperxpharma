@@ -5,19 +5,13 @@ const authRoutes = require("./routes/authRouts.js")
 
 const app = express();
 
-// Handle preflight requests
-app.options('*', cors({
-  origin: 'https://hoperxpharma.vercel.app',
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
-}));
-
 app.use(cors({
   origin: 'https://hoperxpharma.vercel.app',
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  preflightContinue: false,
+  optionsSuccessStatus: 200
 }));
 
 app.use(express.json());
