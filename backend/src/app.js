@@ -5,10 +5,8 @@ const authRoutes = require("./routes/authRouts.js")
 
 const app = express();
 app.use(cors({
-  origin: ["http://localhost:3000", "http://localhost:3001", "https://hoperxpharma.onrender.com", "https://hoperxpharma.vercel.app"],
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"]
+  origin: 'https://hoperxpharma.vercel.app',
+  credentials: true
 }));
 app.use(express.json());
 
