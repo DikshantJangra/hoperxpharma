@@ -1,7 +1,8 @@
+const { configDotenv } = require("dotenv");
 const prisma = require("../db/prisma.js");
 const { hashPassword, verifyPassword } = require("../Utils/bcryptPassword.js");
 const { generateToken } = require("../Utils/token.js");
-
+configDotenv();
 const signupUser = async (req, res) => {
   const { name, email, phoneNumber, password, confirmPassword } = req.body;
 
@@ -25,7 +26,7 @@ const signupUser = async (req, res) => {
     });
 
     const tokens = generateToken(newUser.id);
-    res.cookie('token', tokens.accessTokens, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'none', maxAge: 24 * 60 * 60 * 1000 });
+    res.cookie('token', tokens.accessTokens, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', maxAge: 24 * 60 * 60 * 1000 });
     return res.status(201).json({ message: "User created successfully!", token: tokens.accessTokens });
   } catch (err) {
     return res.status(500).json({ message: "Server Error!" });
@@ -51,7 +52,7 @@ const loginUser = async (req, res) => {
     }
 
     const tokens = generateToken(user.id);
-    res.cookie('token', tokens.accessTokens, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'strict', maxAge: 24 * 60 * 60 * 1000 });
+    res.cookie('token', tokens.accessTokens, { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', maxAge: 24 * 60 * 60 * 1000 });
     return res.status(200).json({ message: "Login successful!", token: tokens.accessTokens });
   } catch (err) {
     return res.status(500).json({ message: "Server Error!" });

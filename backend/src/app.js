@@ -1,12 +1,18 @@
 // For Initialzing the express server - Connecting to server.ts further for running HTTP!
 const express = require("express");
 const cors = require("cors");
+const cookieParser = require("cookie-parser");
 const authRoutes = require("./routes/authRouts.js")
 
 const app = express();
 
+const allowedOrigins = ['https://hoperxpharma.vercel.app'];
+if (process.env.NODE_ENV !== 'production') {
+  allowedOrigins.push('http://localhost:3000');
+}
+
 app.use(cors({
-  origin: 'https://hoperxpharma.vercel.app',
+  origin: allowedOrigins,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
@@ -15,6 +21,7 @@ app.use(cors({
 }));
 
 app.use(express.json());
+app.use(cookieParser());
 
 // Basic GET route
 app.get('/', (req, res) => {
