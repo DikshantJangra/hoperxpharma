@@ -7,6 +7,7 @@ import { MdOutlineMailLock } from "react-icons/md";
 import { PiPassword } from "react-icons/pi";
 import { BiCheckShield } from "react-icons/bi";
 import { RiSecurePaymentFill } from "react-icons/ri";
+import { HiEye, HiEyeOff } from "react-icons/hi";
 import Link from "next/link"
 
 export default function Signup(){
@@ -16,6 +17,8 @@ export default function Signup(){
     const [confirmPassword, setConfirmPassword] = useState("")
     const [err, setErr] = useState("")
     const [loading, setLoading] = useState(false)
+    const [showPass, setShowPass] = useState(false);
+    const [showConfirmPass, setShowConfirmPass] = useState(false);
     const router = useRouter();
     const [showAnimation, setShowAnimation] = useState(true);
 
@@ -29,7 +32,31 @@ export default function Signup(){
 
     const signupuser = async (e: React.FormEvent) => {
         e.preventDefault();
-        setErr("")
+        setErr("");
+
+        // Frontend Validation
+        if (!number || !email || !password || !confirmPassword) {
+            setErr("All fields are required.");
+            return;
+        }
+        if (number.length !== 10) {
+            setErr("Phone number must be 10 digits.");
+            return;
+        }
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            setErr("Please enter a valid email address.");
+            return;
+        }
+        if (password.length < 8) {
+            setErr("Password must be at least 8 characters long.");
+            return;
+        }
+        if (password !== confirmPassword) {
+            setErr("Passwords do not match.");
+            return;
+        }
+
         setLoading(true);
         try{
             const fullNumber = "+91" + number;
@@ -52,7 +79,7 @@ export default function Signup(){
     }
 
     return(
-        <div className="min-h-screen bg-white flex items-center justify-center p-4 relative">
+        <div className="min-h-screen bg-white flex items-center justify-center relative">
             <div className="w-full max-w-md bg-white rounded-3xl border border-gray-100 shadow-lg px-10 py-5">
                 <div className="flex flex-col items-center text-center mb-8">
                     <div className="relative mb-5 flex justify-center items-center w-[104px] h-[104px]">
@@ -92,8 +119,6 @@ export default function Signup(){
                         Secure & Simple! Automate, compliance<br/>& Save on Inventory
                     </p>
                 </div>
-                
-                {err && <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg text-sm">{err}</div>}
                 
                 <form onSubmit={signupuser} className="space-y-4">
                     <div>
@@ -141,13 +166,16 @@ export default function Signup(){
                             <PiPassword className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                             <span className="absolute left-10 top-1/2 -translate-y-1/2 h-5 w-px bg-gray-300"></span>
                             <input 
-                                type="password" 
+                                type={showPass ? "text" : "password"}
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
-                                className="w-full pl-12 pr-4 py-3 border-transparent rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-black/5 text-gray-700 placeholder:text-gray-400"
+                                className="w-full pl-12 pr-12 py-3 border-transparent rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-black/5 text-gray-700 placeholder:text-gray-400"
                                 placeholder="**************"
                                 required
                             />
+                            <div className="absolute right-4 top-1/2 -translate-y-1/2 cursor-pointer" onClick={() => setShowPass(!showPass)}>
+                                {showPass ? <HiEyeOff className="text-[#000000]/20" size={20} /> : <HiEye className="text-[#000000]/20" size={20} />}
+                            </div>
                         </div>
                     </div>
 
@@ -159,14 +187,23 @@ export default function Signup(){
                             <PiPassword className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
                             <span className="absolute left-10 top-1/2 -translate-y-1/2 h-5 w-px bg-gray-300"></span>
                             <input 
-                                type="password" 
+                                type={showConfirmPass ? "text" : "password"}
                                 value={confirmPassword}
                                 onChange={(e) => setConfirmPassword(e.target.value)}
-                                className="w-full pl-12 pr-4 py-3 border-transparent rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-black/5 text-gray-700 placeholder:text-gray-400"
+                                className="w-full pl-12 pr-12 py-3 border-transparent rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-black/5 text-gray-700 placeholder:text-gray-400"
                                 placeholder="**************"
                                 required
                             />
+                            <div className="absolute right-4 top-1/2 -translate-y-1/2 cursor-pointer" onClick={() => setShowConfirmPass(!showConfirmPass)}>
+                                {showConfirmPass ? <HiEyeOff className="text-[#000000]/20" size={20} /> : <HiEye className="text-[#000000]/20" size={20} />}
+                            </div>
                         </div>
+                    </div>
+
+                    <div className="h-6 text-center">
+                        {err && (
+                            <p className="text-red-600 text-sm">{err}</p>
+                        )}
                     </div>
 
                     <div className="pt-2">
