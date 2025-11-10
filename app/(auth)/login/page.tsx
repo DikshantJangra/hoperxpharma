@@ -129,6 +129,13 @@ export default function Login() {
                                 {showPass ? <HiEyeOff className="text-[#000000]/20" size={18} /> : <HiEye className="text-[#000000]/20" size={18} />}
                             </div>
                         </div>
+                        <div className="flex items-center justify-between mt-3 pt-2">
+                            <label className="flex items-center cursor-pointer">
+                                <input type="checkbox" className="w-4 h-4 text-emerald-500 border-gray-300 rounded focus:ring-emerald-500" />
+                                <span className="ml-2 text-sm text-gray-600">Remember me</span>
+                            </label>
+                            <Link href="/forgot-password" className="text-sm text-emerald-500 hover:text-emerald-600 font-medium">Forgot password?</Link>
+                        </div>
                     </div>
 
                     <div className="h-5 text-center">
@@ -151,9 +158,18 @@ export default function Login() {
                     </div>
                 </form>
 
-                <p className="text-center text-gray-600 text-xs mt-6">
+                <p className="text-center text-gray-600 text-sm mt-6">
                     New to HopeRxPharma?? <Link href="/signup" className="text-emerald-500 hover:text-emerald-600 font-medium">Sign up</Link>
                 </p>
+
+                <div className="mt-6 text-center">
+                    <p className="text-sm text-gray-500 mb-2">Need assistance? Contact IT support</p>
+                    <div className="flex items-center justify-center gap-3 text-sm">
+                        <Link href="/support" className="text-emerald-500 hover:text-emerald-600">Support Portal</Link>
+                        <span className="text-gray-400">•</span>
+                        <Link href="/security-policy" className="text-emerald-500 hover:text-emerald-600">Security Policy</Link>
+                    </div>
+                </div>
 
                 <div className="mt-6 flex justify-center items-center gap-2 text-xs sm:fixed sm:p-0 sm:inset-x-auto sm:bottom-4 sm:right-4 sm:justify-end">
                     <div className="relative group flex items-center gap-1.5 bg-black/5 text-black/80 rounded-lg px-3 py-2">

@@ -8,7 +8,7 @@ const app = express();
 
 const allowedOrigins = ['https://hoperxpharma.vercel.app'];
 if (process.env.NODE_ENV !== 'production') {
-  allowedOrigins.push('http://localhost:3000');
+  allowedOrigins.push('http://localhost:3001');
 }
 
 app.use(cors({
