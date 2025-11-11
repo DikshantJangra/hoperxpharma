@@ -62,6 +62,7 @@ export default function Signup(){
             const res = await fetch("https://hoperxpharma.onrender.com/api/auth/signup", {
                 method: "POST",
                 headers: {"Content-Type": "application/json"},
+                credentials: "include",
                 body: JSON.stringify({ name, email, password, confirmPassword, phoneNumber: fullNumber })
             })
             const message = await res.json()
