@@ -26,7 +26,7 @@ export default function ActionQueues() {
     }, [selectedIndex])
 
     return (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 h-full flex flex-col">
             <div className="px-6 pt-5 border-b border-gray-100">
                 <div className="flex items-center justify-between">
                     <h3 className="text-base font-semibold text-gray-800">Action Queues</h3>
@@ -38,7 +38,7 @@ export default function ActionQueues() {
                     </div>
                 </div>
             </div>
-            <div className="p-6 space-y-3">
+            <div className="p-6 space-y-3 flex-1 overflow-y-auto min-h-0">
                 {activeTab === 'verification' && (
                     <>
                         <QueueItem patient="Sarah Johnson" drug="Metformin 500mg" prescriber="Dr. Patel" priority="high" selected={selectedIndex === 0} />

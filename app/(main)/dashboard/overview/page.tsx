@@ -87,15 +87,15 @@ export default function OverviewPage() {
                 <div className="lg:col-span-2">
                     <SalesChart />
                 </div>
-                <div className="flex flex-col gap-5">
+                <div >
                     <AIInsights />
+                </div>
+                <div className="lg:col-span-2">
+                    <ActionQueues />
+                </div>
+                <div>
                     <QuickActions />
                 </div>
-            </div>
-
-            {/* Action Queues */}
-            <div>
-                <ActionQueues />
             </div>
 
             {/* Keyboard hint */}

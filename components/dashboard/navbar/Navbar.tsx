@@ -9,7 +9,7 @@ import { TbPrescription } from "react-icons/tb"
 
 interface NavbarProps {
     onToggleSidebar: () => void
-    sidebarOpen: boolean
+    sidebarOpen?: boolean
 }
 
 export default function Navbar({ onToggleSidebar, sidebarOpen }: NavbarProps) {

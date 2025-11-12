@@ -54,35 +54,35 @@ export const sidebarConfig: SidebarSection[] = [
                 icon: <TbPrescription size={18} />,
                 label: "Prescriptions",
                 subItems: [
-                    { label: "New", path: "/dashboard/prescriptions/new" },
-                    { label: "Verified", path: "/dashboard/prescriptions/verified" },
-                    { label: "Ready", path: "/dashboard/prescriptions/ready" },
-                    { label: "Completed", path: "/dashboard/prescriptions/completed" },
-                    { label: "On Hold", path: "/dashboard/prescriptions/on-hold" },
-                    { label: "e-Rx", path: "/dashboard/prescriptions/e-rx" }
+                    { label: "New", path: "/prescriptions/new" },
+                    { label: "Verified", path: "/prescriptions/verified" },
+                    { label: "Ready", path: "/prescriptions/ready" },
+                    { label: "Completed", path: "/prescriptions/completed" },
+                    { label: "On Hold", path: "/prescriptions/on-hold" },
+                    { label: "e-Rx", path: "/prescriptions/e-rx" }
                 ]
             },
             {
                 icon: <RiCapsuleLine size={18} />,
                 label: "Dispense",
                 subItems: [
-                    { label: "Intake", path: "/dashboard/dispense/intake" },
-                    { label: "Verify", path: "/dashboard/dispense/verify" },
-                    { label: "Fill", path: "/dashboard/dispense/fill" },
-                    { label: "Label", path: "/dashboard/dispense/label" },
-                    { label: "Check", path: "/dashboard/dispense/check" },
-                    { label: "Release", path: "/dashboard/dispense/release" }
+                    { label: "Intake", path: "/dispense/intake" },
+                    { label: "Verify", path: "/dispense/verify" },
+                    { label: "Fill", path: "/dispense/fill" },
+                    { label: "Label", path: "/dispense/label" },
+                    { label: "Check", path: "/dispense/check" },
+                    { label: "Release", path: "/dispense/release" }
                 ]
             },
             {
                 icon: <MdPeople size={18} />,
                 label: "Patients",
                 subItems: [
-                    { label: "List", path: "/dashboard/patients/list" },
-                    { label: "Add / Edit", path: "/dashboard/patients/add" },
-                    { label: "History", path: "/dashboard/patients/history" },
-                    { label: "Refills", path: "/dashboard/patients/refills" },
-                    { label: "Consents", path: "/dashboard/patients/consents" }
+                    { label: "List", path: "/patients/list" },
+                    { label: "Add / Edit", path: "/patients/add" },
+                    { label: "History", path: "/patients/history" },
+                    { label: "Refills", path: "/patients/refills" },
+                    { label: "Consents", path: "/patients/consents" }
                 ]
             }
         ]
@@ -94,31 +94,31 @@ export const sidebarConfig: SidebarSection[] = [
                 icon: <MdInventory size={18} />,
                 label: "Inventory",
                 subItems: [
-                    { label: "Stock", path: "/dashboard/inventory/stock" },
-                    { label: "Batches", path: "/dashboard/inventory/batches" },
-                    { label: "Expiry", path: "/dashboard/inventory/expiry" },
-                    { label: "Adjust", path: "/dashboard/inventory/adjust" },
-                    { label: "Forecast", path: "/dashboard/inventory/forecast" }
+                    { label: "Stock", path: "/inventory/stock" },
+                    { label: "Batches", path: "/inventory/batches" },
+                    { label: "Expiry", path: "/inventory/expiry" },
+                    { label: "Adjust", path: "/inventory/adjust" },
+                    { label: "Forecast", path: "/inventory/forecast" }
                 ]
             },
             {
                 icon: <FiPackage size={18} />,
                 label: "Orders",
                 subItems: [
-                    { label: "New PO", path: "/dashboard/orders/new" },
-                    { label: "Pending", path: "/dashboard/orders/pending" },
-                    { label: "Received", path: "/dashboard/orders/received" },
-                    { label: "Suppliers", path: "/dashboard/orders/suppliers" },
-                    { label: "Returns", path: "/dashboard/orders/returns" }
+                    { label: "New PO", path: "/orders/new" },
+                    { label: "Pending", path: "/orders/pending" },
+                    { label: "Received", path: "/orders/received" },
+                    { label: "Suppliers", path: "/orders/suppliers" },
+                    { label: "Returns", path: "/orders/returns" }
                 ]
             },
             {
                 icon: <HiOutlineClipboardList size={18} />,
                 label: "Claims",
                 subItems: [
-                    { label: "Customer", path: "/dashboard/claims/customer" },
-                    { label: "Supplier", path: "/dashboard/claims/supplier" },
-                    { label: "Insurance", path: "/dashboard/claims/insurance" }
+                    { label: "Customer", path: "/claims/customer" },
+                    { label: "Supplier", path: "/claims/supplier" },
+                    { label: "Insurance", path: "/claims/insurance" }
                 ]
             }
         ]
@@ -130,29 +130,29 @@ export const sidebarConfig: SidebarSection[] = [
                 icon: <MdShoppingCart size={18} />,
                 label: "POS",
                 subItems: [
-                    { label: "New Sale", path: "/dashboard/pos/new" },
-                    { label: "Invoices", path: "/dashboard/pos/invoices" },
-                    { label: "Drafts", path: "/dashboard/pos/drafts" },
-                    { label: "Refunds", path: "/dashboard/pos/refunds" }
+                    { label: "New Sale", path: "/pos/new" },
+                    { label: "Invoices", path: "/pos/invoices" },
+                    { label: "Drafts", path: "/pos/drafts" },
+                    { label: "Refunds", path: "/pos/refunds" }
                 ]
             },
             {
                 icon: <MdReceipt size={18} />,
                 label: "GST",
                 subItems: [
-                    { label: "Invoices", path: "/dashboard/gst/invoices" },
-                    { label: "Reports", path: "/dashboard/gst/reports" },
-                    { label: "Returns", path: "/dashboard/gst/returns" },
-                    { label: "Tax Setup", path: "/dashboard/gst/setup" }
+                    { label: "Invoices", path: "/gst/invoices" },
+                    { label: "Reports", path: "/gst/reports" },
+                    { label: "Returns", path: "/gst/returns" },
+                    { label: "Tax Setup", path: "/gst/setup" }
                 ]
             },
             {
                 icon: <FiDollarSign size={18} />,
                 label: "Finance",
                 subItems: [
-                    { label: "Sales", path: "/dashboard/finance/sales" },
-                    { label: "Expenses", path: "/dashboard/finance/expenses" },
-                    { label: "Reconcile", path: "/dashboard/finance/reconcile" }
+                    { label: "Sales", path: "/finance/sales" },
+                    { label: "Expenses", path: "/finance/expenses" },
+                    { label: "Reconcile", path: "/finance/reconcile" }
                 ]
             }
         ]
@@ -164,20 +164,20 @@ export const sidebarConfig: SidebarSection[] = [
                 icon: <TbReportAnalytics size={18} />,
                 label: "Reports",
                 subItems: [
-                    { label: "Sales", path: "/dashboard/reports/sales" },
-                    { label: "Purchase", path: "/dashboard/reports/purchase" },
-                    { label: "Inventory", path: "/dashboard/reports/inventory" },
-                    { label: "Profit", path: "/dashboard/reports/profit" },
-                    { label: "Trends", path: "/dashboard/reports/trends" }
+                    { label: "Sales", path: "/reports/sales" },
+                    { label: "Purchase", path: "/reports/purchase" },
+                    { label: "Inventory", path: "/reports/inventory" },
+                    { label: "Profit", path: "/reports/profit" },
+                    { label: "Trends", path: "/reports/trends" }
                 ]
             },
             {
                 icon: <FiTrendingUp size={18} />,
                 label: "Insights",
                 subItems: [
-                    { label: "Forecast", path: "/dashboard/insights/forecast" },
-                    { label: "Adherence", path: "/dashboard/insights/adherence" },
-                    { label: "Performance", path: "/dashboard/insights/performance" }
+                    { label: "Forecast", path: "/insights/forecast" },
+                    { label: "Adherence", path: "/insights/adherence" },
+                    { label: "Performance", path: "/insights/performance" }
                 ]
             }
         ]
@@ -189,20 +189,20 @@ export const sidebarConfig: SidebarSection[] = [
                 icon: <FiMessageSquare size={18} />,
                 label: "Messages",
                 subItems: [
-                    { label: "WhatsApp", path: "/dashboard/messages/whatsapp" },
-                    { label: "SMS", path: "/dashboard/messages/sms" },
-                    { label: "Email", path: "/dashboard/messages/email" },
-                    { label: "Templates", path: "/dashboard/messages/templates" }
+                    { label: "WhatsApp", path: "/messages/whatsapp" },
+                    { label: "SMS", path: "/messages/sms" },
+                    { label: "Email", path: "/messages/email" },
+                    { label: "Templates", path: "/messages/templates" }
                 ]
             },
             {
                 icon: <BsGift size={18} />,
                 label: "Engage",
                 subItems: [
-                    { label: "Loyalty", path: "/dashboard/engage/loyalty" },
-                    { label: "Coupons", path: "/dashboard/engage/coupons" },
-                    { label: "Campaigns", path: "/dashboard/engage/campaigns" },
-                    { label: "Feedback", path: "/dashboard/engage/feedback" }
+                    { label: "Loyalty", path: "/engage/loyalty" },
+                    { label: "Coupons", path: "/engage/coupons" },
+                    { label: "Campaigns", path: "/engage/campaigns" },
+                    { label: "Feedback", path: "/engage/feedback" }
                 ]
             }
         ]
@@ -214,18 +214,18 @@ export const sidebarConfig: SidebarSection[] = [
                 icon: <AiOutlineAudit size={18} />,
                 label: "Audit",
                 subItems: [
-                    { label: "Activity Log", path: "/dashboard/audit/activity" },
-                    { label: "Access Log", path: "/dashboard/audit/access" },
-                    { label: "Exports", path: "/dashboard/audit/exports" }
+                    { label: "Activity Log", path: "/audit/activity" },
+                    { label: "Access Log", path: "/audit/access" },
+                    { label: "Exports", path: "/audit/exports" }
                 ]
             },
             {
                 icon: <FiShield size={18} />,
                 label: "Regulations",
                 subItems: [
-                    { label: "DPDPA", path: "/dashboard/regulations/dpdpa" },
-                    { label: "HIPAA / GDPR", path: "/dashboard/regulations/hipaa-gdpr" },
-                    { label: "e-Rx Rules", path: "/dashboard/regulations/erx" }
+                    { label: "DPDPA", path: "/regulations/dpdpa" },
+                    { label: "HIPAA / GDPR", path: "/regulations/hipaa-gdpr" },
+                    { label: "e-Rx Rules", path: "/regulations/erx" }
                 ]
             }
         ]
@@ -237,38 +237,38 @@ export const sidebarConfig: SidebarSection[] = [
                 icon: <MdStore size={18} />,
                 label: "Store",
                 subItems: [
-                    { label: "Profile", path: "/dashboard/store/profile" },
-                    { label: "Licenses", path: "/dashboard/store/licenses" },
-                    { label: "Hardware", path: "/dashboard/store/hardware" },
-                    { label: "Timings", path: "/dashboard/store/timings" }
+                    { label: "Profile", path: "/store/profile" },
+                    { label: "Licenses", path: "/store/licenses" },
+                    { label: "Hardware", path: "/store/hardware" },
+                    { label: "Timings", path: "/store/timings" }
                 ]
             },
             {
                 icon: <FiUsers size={18} />,
                 label: "Users",
                 subItems: [
-                    { label: "Roles", path: "/dashboard/users/roles" },
-                    { label: "Permissions", path: "/dashboard/users/permissions" },
-                    { label: "PIN Setup", path: "/dashboard/users/pin" }
+                    { label: "Roles", path: "/users/roles" },
+                    { label: "Permissions", path: "/users/permissions" },
+                    { label: "PIN Setup", path: "/users/pin" }
                 ]
             },
             {
                 icon: <MdIntegrationInstructions size={18} />,
                 label: "Integrations",
                 subItems: [
-                    { label: "APIs", path: "/dashboard/integrations/apis" },
-                    { label: "WhatsApp", path: "/dashboard/integrations/whatsapp" },
-                    { label: "Payments", path: "/dashboard/integrations/payments" },
-                    { label: "Backups", path: "/dashboard/integrations/backups" }
+                    { label: "APIs", path: "/integrations/apis" },
+                    { label: "WhatsApp", path: "/integrations/whatsapp" },
+                    { label: "Payments", path: "/integrations/payments" },
+                    { label: "Backups", path: "/integrations/backups" }
                 ]
             },
             {
                 icon: <MdStore size={18} />,
                 label: "Multi-Store",
                 subItems: [
-                    { label: "Switch", path: "/dashboard/multi-store/switch" },
-                    { label: "Transfer", path: "/dashboard/multi-store/transfer" },
-                    { label: "Summary", path: "/dashboard/multi-store/summary" }
+                    { label: "Switch", path: "/multi-store/switch" },
+                    { label: "Transfer", path: "/multi-store/transfer" },
+                    { label: "Summary", path: "/multi-store/summary" }
                 ]
             }
         ]
@@ -280,19 +280,19 @@ export const sidebarConfig: SidebarSection[] = [
                 icon: <FiBook size={18} />,
                 label: "Knowledge",
                 subItems: [
-                    { label: "Drug Info", path: "/dashboard/knowledge/drugs" },
-                    { label: "Interactions", path: "/dashboard/interactions" },
-                    { label: "Guides", path: "/dashboard/knowledge/guides" }
+                    { label: "Drug Info", path: "/knowledge/drugs" },
+                    { label: "Interactions", path: "/interactions" },
+                    { label: "Guides", path: "/knowledge/guides" }
                 ]
             },
             {
                 icon: <FiHelpCircle size={18} />,
                 label: "Help",
                 subItems: [
-                    { label: "Chat", path: "/dashboard/help/chat" },
-                    { label: "Docs", path: "/dashboard/help/docs" },
-                    { label: "Updates", path: "/dashboard/help/updates" },
-                    { label: "Feedback", path: "/dashboard/help/feedback" }
+                    { label: "Chat", path: "/help/chat" },
+                    { label: "Docs", path: "/help/docs" },
+                    { label: "Updates", path: "/help/updates" },
+                    { label: "Feedback", path: "/help/feedback" }
                 ]
             }
         ]

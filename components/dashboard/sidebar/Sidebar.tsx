@@ -34,7 +34,7 @@ function SidebarHeader({ isOpen }: { isOpen: boolean }) {
     return (
         <div className="h-16 flex items-center justify-center border-b border-gray-100 px-4">
             <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center flex-shrink-0">
+                <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center shrink-0">
                     <span className="text-white font-bold text-lg">Rx</span>
                 </div>
                 {isOpen && (
@@ -83,7 +83,7 @@ function NavItem({ item, isOpen, expanded, onToggle }: any) {
                 }`}
             >
                 <div className="flex items-center gap-3">
-                    <span className="flex-shrink-0">{item.icon}</span>
+                    <span className="shrink-0">{item.icon}</span>
                     {isOpen && <span className="text-sm">{item.label}</span>}
                 </div>
                 {isOpen && hasSubItems && (

@@ -13,7 +13,7 @@ export default function AIInsights() {
     return (
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 h-full flex flex-col">
             <h3 className="text-base font-semibold text-gray-800 mb-4">AI Inventory Insights</h3>
-            <div className="space-y-3 flex-1">
+            <div className="space-y-3 flex-1 overflow-y-auto min-h-0">
                 <InsightCard 
                     type="critical"
                     title="CRITICAL: Atorvastatin 10mg — 4 left"

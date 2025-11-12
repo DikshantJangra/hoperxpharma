@@ -13,7 +13,7 @@ export default function KPICard({ title, value, microtext, ctaLabel, icon, updat
     return (
         <button 
             onClick={onAction}
-            className={`w-full flex flex-col p-4 rounded-lg bg-white border transition-all duration-200 hover:-translate-y-1 focus:outline-none focus:ring-3 focus:ring-[#0ea5a3]/20 text-left group ${
+            className={`w-full flex flex-col p-4 pb-10 rounded-lg bg-white border transition-[transform,border-color,box-shadow] duration-200 focus:outline-none focus:ring-3 focus:ring-[#0ea5a3]/20 text-left group cursor-pointer relative ${
                 variant === 'critical' 
                     ? 'border-[#ef4444]/30 hover:border-[#ef4444] hover:shadow-[0_6px_18px_rgba(239,68,68,0.15)]' 
                     : 'border-[#e6eef2] hover:border-[#0ea5a3]/30 hover:shadow-[0_6px_18px_rgba(3,15,31,0.06)]'
@@ -34,7 +34,7 @@ export default function KPICard({ title, value, microtext, ctaLabel, icon, updat
                 <span className="text-[#6b7280]">{microtext}</span>
                 {updated && <span className="text-[#6b7280]/60">Updated {updated}</span>}
             </div>
-            <div className={`mt-3 text-xs font-semibold ${
+            <div className={`absolute bottom-3 left-4 text-xs font-semibold transition-transform duration-200 group-hover:scale-110 ${
                 variant === 'critical' ? 'text-[#ef4444]' : 'text-[#0ea5a3]'
             }`}>
                 {ctaLabel} →

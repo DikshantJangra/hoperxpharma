@@ -6,7 +6,7 @@ export default function SalesChart() {
     const hasData = true
 
     return (
-        <div className="bg-white rounded-xl border border-[#e6eef2] p-6" style={{ boxShadow: '0 6px 18px rgba(3,15,31,0.06)' }}>
+        <div className="bg-white rounded-xl border border-[#e6eef2] p-6 h-full flex flex-col" style={{ boxShadow: '0 6px 18px rgba(3,15,31,0.06)' }}>
             <div className="flex items-center justify-between mb-5">
                 <div>
                     <h3 className="text-[13px] font-semibold text-[#0f172a]">Sales Analytics</h3>
@@ -35,7 +35,7 @@ export default function SalesChart() {
             </div>
             
             {hasData ? (
-                <div className="h-64 w-full flex items-end justify-between gap-2">
+                <div className="w-full flex items-end justify-between gap-2 flex-1">
                     {[40, 60, 50, 75, 80, 65, 90].map((h, i) => (
                         <div key={i} className="flex-1 flex flex-col items-center gap-2 group">
                             <div className="w-full bg-[#0ea5a3] rounded-t-lg hover:bg-[#0ea5a3]/80 transition-all cursor-pointer relative" style={{ height: `${h}%` }}>
@@ -48,7 +48,7 @@ export default function SalesChart() {
                     ))}
                 </div>
             ) : (
-                <div className="h-64 flex flex-col items-center justify-center">
+                <div className="flex-1 flex flex-col items-center justify-center">
                     <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                         <svg className="w-10 h-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
