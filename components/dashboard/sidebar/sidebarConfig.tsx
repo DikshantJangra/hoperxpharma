@@ -130,7 +130,7 @@ export const sidebarConfig: SidebarSection[] = [
                 icon: <MdShoppingCart size={18} />,
                 label: "POS",
                 subItems: [
-                    { label: "New Sale", path: "/pos/new" },
+                    { label: "New Sale", path: "/pos/new-sale" },
                     { label: "Invoices", path: "/pos/invoices" },
                     { label: "Drafts", path: "/pos/drafts" },
                     { label: "Refunds", path: "/pos/refunds" }
@@ -214,7 +214,7 @@ export const sidebarConfig: SidebarSection[] = [
                 icon: <AiOutlineAudit size={18} />,
                 label: "Audit",
                 subItems: [
-                    { label: "Activity Log", path: "/audit/activity" },
+                    { label: "Activity Log", path: "/audit/activity-log" },
                     { label: "Access Log", path: "/audit/access" },
                     { label: "Exports", path: "/audit/exports" }
                 ]
