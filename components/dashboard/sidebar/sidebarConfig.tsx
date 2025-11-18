@@ -105,7 +105,7 @@ export const sidebarConfig: SidebarSection[] = [
                 icon: <FiPackage size={18} />,
                 label: "Orders",
                 subItems: [
-                    { label: "New PO", path: "/orders/new" },
+                    { label: "New PO", path: "/orders/new-po" },
                     { label: "Pending", path: "/orders/pending" },
                     { label: "Received", path: "/orders/received" },
                     { label: "Suppliers", path: "/orders/suppliers" },
