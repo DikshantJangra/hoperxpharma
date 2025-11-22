@@ -17,7 +17,7 @@ export default function Sidebar({ isOpen, expandedItems, onToggleItem }: Sidebar
             <SidebarHeader isOpen={isOpen} />
             <nav className="flex-1 py-4 px-3 overflow-y-auto">
                 {sidebarConfig.map((section, idx) => (
-                    <SidebarSection 
+                    <SidebarSection
                         key={idx}
                         section={section}
                         isOpen={isOpen}
@@ -53,7 +53,7 @@ function SidebarSection({ section, isOpen, expandedItems, onToggleItem }: any) {
         <div className="mb-3">
             {isOpen && <SectionLabel>{section.title}</SectionLabel>}
             {section.items.map((item: any, idx: number) => (
-                <NavItem 
+                <NavItem
                     key={idx}
                     item={item}
                     isOpen={isOpen}
@@ -72,15 +72,31 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 function NavItem({ item, isOpen, expanded, onToggle }: any) {
     const pathname = usePathname()
     const hasSubItems = item.subItems && item.subItems.length > 0
-    const isActive = hasSubItems && item.subItems.some((sub: any) => pathname === sub.path)
-    
+    const isActive = item.path ? pathname === item.path : (hasSubItems && item.subItems.some((sub: any) => pathname === sub.path))
+
+    // If item has a direct path (no subitems), render as Link
+    if (item.path && !hasSubItems) {
+        return (
+            <Link
+                href={item.path}
+                className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-md transition-colors ${isActive ? 'bg-emerald-50 text-emerald-600 font-semibold' : 'text-gray-700 hover:bg-gray-50'
+                    }`}
+            >
+                <div className="flex items-center gap-3">
+                    <span className="shrink-0">{item.icon}</span>
+                    {isOpen && <span className="text-sm">{item.label}</span>}
+                </div>
+            </Link>
+        )
+    }
+
+    // If item has subitems, render as expandable button
     return (
         <div className="mb-0.5">
-            <button 
+            <button
                 onClick={hasSubItems ? onToggle : undefined}
-                className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-md transition-colors ${
-                    isActive ? 'bg-emerald-50 text-emerald-600 font-semibold' : 'text-gray-700 hover:bg-gray-50'
-                }`}
+                className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-md transition-colors ${isActive ? 'bg-emerald-50 text-emerald-600 font-semibold' : 'text-gray-700 hover:bg-gray-50'
+                    }`}
             >
                 <div className="flex items-center gap-3">
                     <span className="shrink-0">{item.icon}</span>
@@ -101,9 +117,8 @@ function NavItem({ item, isOpen, expanded, onToggle }: any) {
 
 function SubItem({ label, path, active }: { label: string, path: string, active: boolean }) {
     return (
-        <Link href={path} className={`block w-full text-left px-3 py-2 text-sm rounded-md transition-colors ${
-            active ? 'text-emerald-600 font-semibold bg-emerald-50' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
-        }`}>
+        <Link href={path} className={`block w-full text-left px-3 py-2 text-sm rounded-md transition-colors ${active ? 'text-emerald-600 font-semibold bg-emerald-50' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+            }`}>
             {label}
         </Link>
     )

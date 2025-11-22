@@ -1,17 +1,23 @@
-import Link from "next/link";
+'use client';
+
+import Navbar from '@/components/landing/Navbar';
+import Hero from '@/components/landing/Hero';
+import ProblemSolution from '@/components/landing/ProblemSolution';
+import Features from '@/components/landing/Features';
+import SocialProof from '@/components/landing/SocialProof';
+import Pricing from '@/components/landing/Pricing';
+import Footer from '@/components/landing/Footer';
 
 export default function Home() {
   return (
-    <div className="flex justify-between p-5">
-      <h1 className="text-2xl font-medium">
-        <span>Hope</span>
-        <span className="text-emerald-600 font-bold">rx</span>
-        <span>pharma</span>
-      </h1>
-      <div className="flex gap-4">
-        <Link href="/login">Login</Link>
-        <Link href="/signup">Signup</Link>
-      </div>
-    </div>
-  )
+    <main className="min-h-screen bg-white font-sans text-slate-900">
+      <Navbar />
+      <Hero />
+      <ProblemSolution />
+      <Features />
+      <SocialProof />
+      <Pricing />
+      <Footer />
+    </main>
+  );
 }

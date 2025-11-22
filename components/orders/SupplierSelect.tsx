@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { Supplier } from '@/types/po';
 import { HiOutlineChevronDown, HiOutlineMagnifyingGlass } from 'react-icons/hi2';
+import SupplierForm from '@/components/inventory/suppliers/SupplierForm';
+import { FiPlus } from 'react-icons/fi';
 
 interface SupplierSelectProps {
   value?: Supplier;
@@ -11,6 +13,7 @@ interface SupplierSelectProps {
 
 export default function SupplierSelect({ value, onChange }: SupplierSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false); // New state for modal
   const [search, setSearch] = useState('');
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(false);
@@ -20,6 +23,7 @@ export default function SupplierSelect({ value, onChange }: SupplierSelectProps)
   }, []);
 
   const loadSuppliers = async () => {
+    // ... (keep existing loadSuppliers logic)
     setLoading(true);
     try {
       // Mock data - replace with actual API call
@@ -77,6 +81,25 @@ export default function SupplierSelect({ value, onChange }: SupplierSelectProps)
     setSearch('');
   };
 
+  const handleAddNew = (newSupplierData: any) => {
+    // In a real app, you'd save to DB first, then add to list
+    const newSupplier: Supplier = {
+      id: `sup_${Date.now()}`,
+      name: newSupplierData.name,
+      defaultLeadTimeDays: 7, // Default
+      contact: {
+        email: newSupplierData.contact?.email,
+        phone: newSupplierData.contact?.phone
+      },
+      paymentTerms: newSupplierData.paymentTerms
+    };
+
+    setSuppliers(prev => [...prev, newSupplier]);
+    onChange(newSupplier);
+    setIsAddModalOpen(false);
+    setIsOpen(false);
+  };
+
   return (
     <div className="relative">
       <button
@@ -94,7 +117,7 @@ export default function SupplierSelect({ value, onChange }: SupplierSelectProps)
 
       {isOpen && (
         <div className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-60 rounded-md py-1 text-base ring-1 ring-black ring-opacity-5 overflow-auto focus:outline-none">
-          <div className="sticky top-0 z-10 bg-white px-3 py-2 border-b">
+          <div className="sticky top-0 z-10 bg-white px-3 py-2 border-b space-y-2">
             <div className="relative">
               <HiOutlineMagnifyingGlass className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <input
@@ -106,6 +129,12 @@ export default function SupplierSelect({ value, onChange }: SupplierSelectProps)
                 autoFocus
               />
             </div>
+            <button
+              onClick={() => setIsAddModalOpen(true)}
+              className="w-full flex items-center justify-center gap-2 px-3 py-1.5 bg-emerald-50 text-emerald-600 rounded-md text-sm font-medium hover:bg-emerald-100 transition-colors"
+            >
+              <FiPlus /> Add New Supplier
+            </button>
           </div>
 
           {loading ? (
@@ -133,6 +162,18 @@ export default function SupplierSelect({ value, onChange }: SupplierSelectProps)
               </button>
             ))
           )}
+        </div>
+      )}
+
+      {/* Add Supplier Modal Overlay */}
+      {isAddModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-white rounded-lg">
+            <SupplierForm
+              onSave={handleAddNew}
+              onCancel={() => setIsAddModalOpen(false)}
+            />
+          </div>
         </div>
       )}
     </div>

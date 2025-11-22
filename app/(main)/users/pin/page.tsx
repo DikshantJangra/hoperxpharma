@@ -7,7 +7,7 @@ import BackupCodes from "@/components/users/pin/BackupCodes";
 import AuditLogSnippet from "@/components/users/pin/AuditLogSnippet";
 
 export default function PINSetupPage() {
-  const pinStatus = "active"; // "not_set" | "active" | "locked"
+  const pinStatus: "not_set" | "active" | "locked" = "active" as any;
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">

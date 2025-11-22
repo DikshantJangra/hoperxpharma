@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { FiFilter, FiX } from 'react-icons/fi';
-import { HistoryFilters } from '@/hooks/usePatientHistory';
+import type { HistoryFilters } from '@/hooks/usePatientHistory';
 
 interface HistoryFiltersProps {
   filters: HistoryFilters;

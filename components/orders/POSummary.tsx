@@ -16,42 +16,42 @@ export default function POSummary({ po }: POSummaryProps) {
   return (
     <div className="space-y-4">
       {/* PO Summary */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-        <div className="px-4 py-3 border-b border-gray-200">
-          <h3 className="text-sm font-medium text-gray-800">Order Summary</h3>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
+          <h3 className="font-semibold text-gray-800">Order Summary</h3>
         </div>
-        <div className="p-4 space-y-3">
+        <div className="p-6 space-y-4">
           <div className="flex justify-between text-sm">
-            <span className="text-gray-600">Items</span>
-            <span className="text-gray-900">{po.lines.length}</span>
-          </div>
-          
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-600">Subtotal</span>
-            <span className="text-gray-900">{formatCurrency(po.subtotal)}</span>
+            <span className="text-gray-500">Items ({po.lines.length})</span>
+            <span className="text-gray-900 font-medium">{formatCurrency(po.subtotal)}</span>
           </div>
 
           {po.taxBreakdown.map((tax) => (
             <div key={tax.gstPercent} className="flex justify-between text-sm">
-              <span className="text-gray-600">GST {tax.gstPercent}%</span>
-              <span className="text-gray-900">{formatCurrency(tax.tax)}</span>
+              <span className="text-gray-500">GST {tax.gstPercent}%</span>
+              <span className="text-gray-900 font-medium">{formatCurrency(tax.tax)}</span>
             </div>
           ))}
 
-          <div className="border-t border-gray-200 pt-3">
-            <div className="flex justify-between text-base font-medium">
-              <span className="text-gray-900">Total</span>
-              <span className="text-gray-900">{formatCurrency(po.total)}</span>
+          <div className="border-t border-dashed border-gray-200 pt-4 mt-2">
+            <div className="flex justify-between items-end">
+              <span className="text-gray-900 font-semibold text-lg">Total</span>
+              <span className="text-emerald-600 font-bold text-2xl">{formatCurrency(po.total)}</span>
             </div>
           </div>
 
           {needsApproval && (
-            <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-              <div className="text-xs text-yellow-800">
-                <strong>Approval Required</strong>
+            <div className="mt-4 p-3 bg-amber-50 border border-amber-100 rounded-lg flex gap-3">
+              <div className="shrink-0 mt-0.5 text-amber-600">
+                {/* Icon could go here */}
               </div>
-              <div className="text-xs text-yellow-700 mt-1">
-                Orders above {formatCurrency(po.approvalThreshold || 50000)} require manager approval
+              <div>
+                <div className="text-xs font-semibold text-amber-800 uppercase tracking-wide">
+                  Approval Required
+                </div>
+                <div className="text-xs text-amber-700 mt-1">
+                  Total exceeds {formatCurrency(po.approvalThreshold || 50000)} limit.
+                </div>
               </div>
             </div>
           )}
@@ -71,13 +71,13 @@ export default function POSummary({ po }: POSummaryProps) {
                 <div className="text-xs text-gray-500">GSTIN: {po.supplier.gstin}</div>
               )}
             </div>
-            
+
             {po.supplier.contact.email && (
               <div className="text-xs text-gray-600">
                 Email: {po.supplier.contact.email}
               </div>
             )}
-            
+
             {po.supplier.contact.phone && (
               <div className="text-xs text-gray-600">
                 Phone: {po.supplier.contact.phone}
@@ -87,7 +87,7 @@ export default function POSummary({ po }: POSummaryProps) {
             <div className="text-xs text-gray-500 mt-2">
               Lead time: {po.supplier.defaultLeadTimeDays} days
             </div>
-            
+
             {po.paymentTerms && (
               <div className="text-xs text-gray-500">
                 Payment: {po.paymentTerms}
@@ -140,15 +140,14 @@ export default function POSummary({ po }: POSummaryProps) {
             <h3 className="text-sm font-medium text-gray-800">Status</h3>
           </div>
           <div className="p-4">
-            <div className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-              po.status === 'sent' ? 'bg-green-100 text-green-800' :
-              po.status === 'approved' ? 'bg-blue-100 text-blue-800' :
-              po.status === 'pending_approval' ? 'bg-yellow-100 text-yellow-800' :
-              'bg-gray-100 text-gray-800'
-            }`}>
+            <div className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${po.status === 'sent' ? 'bg-green-100 text-green-800' :
+                po.status === 'approved' ? 'bg-blue-100 text-blue-800' :
+                  po.status === 'pending_approval' ? 'bg-yellow-100 text-yellow-800' :
+                    'bg-gray-100 text-gray-800'
+              }`}>
               {po.status.replace('_', ' ').toUpperCase()}
             </div>
-            
+
             {po.poId && (
               <div className="text-xs text-gray-500 mt-2">
                 PO ID: {po.poId}

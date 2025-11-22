@@ -1,23 +1,23 @@
-import { 
-    MdDashboard, MdInventory, MdPeople, MdShoppingCart, MdReceipt, MdStore, MdIntegrationInstructions 
+import {
+    MdDashboard, MdInventory, MdPeople, MdShoppingCart, MdReceipt, MdStore, MdIntegrationInstructions
 } from "react-icons/md"
-import { 
-    TbPrescription, TbReportAnalytics 
+import {
+    TbPrescription, TbReportAnalytics
 } from "react-icons/tb"
-import { 
-    RiCapsuleLine 
+import {
+    RiCapsuleLine
 } from "react-icons/ri"
-import { 
-    FiPackage, FiDollarSign, FiTrendingUp, FiMessageSquare, FiShield, FiBook, FiHelpCircle, FiUsers 
+import {
+    FiPackage, FiDollarSign, FiTrendingUp, FiMessageSquare, FiShield, FiBook, FiHelpCircle, FiUsers
 } from "react-icons/fi"
-import { 
-    HiOutlineClipboardList 
+import {
+    HiOutlineClipboardList
 } from "react-icons/hi"
-import { 
-    BsGift 
+import {
+    BsGift
 } from "react-icons/bs"
-import { 
-    AiOutlineAudit 
+import {
+    AiOutlineAudit
 } from "react-icons/ai"
 
 export interface SubMenuItem {
@@ -66,12 +66,12 @@ export const sidebarConfig: SidebarSection[] = [
                 icon: <RiCapsuleLine size={18} />,
                 label: "Dispense",
                 subItems: [
-                    { label: "Intake", path: "/dispense/intake" },
+                    { label: "Queue", path: "/dispense/queue" },
                     { label: "Verify", path: "/dispense/verify" },
                     { label: "Fill", path: "/dispense/fill" },
                     { label: "Label", path: "/dispense/label" },
                     { label: "Check", path: "/dispense/check" },
-                    { label: "Release", path: "/dispense/release" }
+                    { label: "Dispense", path: "/dispense/dispense" }
                 ]
             },
             {
@@ -108,8 +108,17 @@ export const sidebarConfig: SidebarSection[] = [
                     { label: "New PO", path: "/orders/new-po" },
                     { label: "Pending", path: "/orders/pending" },
                     { label: "Received", path: "/orders/received" },
-                    { label: "Suppliers", path: "/orders/suppliers" },
                     { label: "Returns", path: "/orders/returns" }
+                ]
+            },
+            {
+                icon: <FiUsers size={18} />,
+                label: "Suppliers",
+                subItems: [
+                    { label: "Overview", path: "/inventory/suppliers" },
+                    { label: "Payables", path: "/inventory/suppliers/payables" },
+                    { label: "Compliance", path: "/inventory/suppliers/compliance" },
+                    { label: "Analytics", path: "/inventory/suppliers/analytics" }
                 ]
             },
             {
@@ -140,10 +149,13 @@ export const sidebarConfig: SidebarSection[] = [
                 icon: <MdReceipt size={18} />,
                 label: "GST",
                 subItems: [
+                    { label: "Dashboard", path: "/gst" },
                     { label: "Invoices", path: "/gst/invoices" },
-                    { label: "Reports", path: "/gst/reports" },
-                    { label: "Returns", path: "/gst/returns" },
-                    { label: "Tax Setup", path: "/gst/setup" }
+                    { label: "GSTR Filing", path: "/gst/returns" },
+                    { label: "Tax Slabs", path: "/gst/tax-slabs" },
+                    { label: "HSN Codes", path: "/gst/hsn-codes" },
+                    { label: "Mismatches", path: "/gst/mismatches" },
+                    { label: "Exports", path: "/gst/exports" }
                 ]
             },
             {
@@ -280,8 +292,8 @@ export const sidebarConfig: SidebarSection[] = [
                 icon: <FiBook size={18} />,
                 label: "Knowledge",
                 subItems: [
-                    { label: "Drug Info", path: "/knowledge/drugs" },
-                    { label: "Interactions", path: "/interactions" },
+                    { label: "Drug Info", path: "/knowledge/drug-info" },
+                    { label: "Interactions", path: "/knowledge/interactions" },
                     { label: "Guides", path: "/knowledge/guides" }
                 ]
             },

@@ -24,8 +24,8 @@ export default function AlertDetailDrawer({ alert, onClose }: AlertDetailDrawerP
 
     return (
         <>
-            <div className="fixed inset-0 bg-black/20 z-40" onClick={onClose} />
-            <div className="fixed right-0 top-0 bottom-0 w-[480px] bg-white shadow-2xl z-50 overflow-y-auto">
+            <div className="fixed inset-0 bg-black/20 z-30 mt-16" onClick={onClose} />
+            <div className="fixed right-0 top-16 bottom-0 w-[480px] bg-white shadow-2xl z-40 overflow-y-auto">
                 <div className="sticky top-0 bg-white border-b border-gray-200 p-6 flex items-start justify-between">
                     <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
