@@ -19,13 +19,12 @@ const EVENT_TYPES = [
 ];
 
 export default function HistoryFiltersBar({ filters, onChange }: HistoryFiltersBarProps) {
-  const hasActiveFilters = filters.types.length > 0 || filters.search || filters.dateRange;
+  const hasActiveFilters = filters.types.length > 0 || filters.search || filters.tags.length > 0;
 
   const clearFilters = () => {
     onChange({
-      dateRange: null,
       types: [],
-      providers: [],
+      tags: [],
       search: ""
     });
   };
@@ -59,7 +58,7 @@ export default function HistoryFiltersBar({ filters, onChange }: HistoryFiltersB
         {/* Event Types */}
         <div className="flex items-center gap-2">
           <FiFilter className="text-gray-400 w-4 h-4" />
-          <select 
+          <select
             multiple
             className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
             value={filters.types}
@@ -97,9 +96,9 @@ export default function HistoryFiltersBar({ filters, onChange }: HistoryFiltersB
             >
               {EVENT_TYPES.find(t => t.value === type)?.label}
               <button
-                onClick={() => onChange({ 
-                  ...filters, 
-                  types: filters.types.filter(t => t !== type) 
+                onClick={() => onChange({
+                  ...filters,
+                  types: filters.types.filter(t => t !== type)
                 })}
                 className="hover:text-blue-900"
               >

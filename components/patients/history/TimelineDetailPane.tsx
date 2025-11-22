@@ -9,22 +9,32 @@ interface TimelineDetailPaneProps {
   onClose: () => void;
 }
 
-const EVENT_ICONS = {
-  prescription: FiFileText,
-  visit: FiUser,
-  lab: FiActivity,
-  allergy: FiAlertTriangle,
-  note: FiEdit,
-  refill: FiRefreshCw
+const EVENT_ICONS: Record<string, any> = {
+  PRESCRIPTION_CREATED: FiFileText,
+  PRESCRIPTION_VERIFIED: FiFileText,
+  DISPENSE: FiRefreshCw,
+  INVOICE: FiFileText,
+  VISIT: FiUser,
+  LAB_RESULT: FiActivity,
+  DOCUMENT_UPLOAD: FiFileText,
+  CONSENT: FiFileText,
+  MESSAGE: FiEdit,
+  NOTE: FiEdit,
+  CLINICAL_FLAG: FiAlertTriangle
 };
 
-const EVENT_COLORS = {
-  prescription: 'bg-blue-100 text-blue-600',
-  visit: 'bg-green-100 text-green-600',
-  lab: 'bg-purple-100 text-purple-600',
-  allergy: 'bg-red-100 text-red-600',
-  note: 'bg-yellow-100 text-yellow-600',
-  refill: 'bg-indigo-100 text-indigo-600'
+const EVENT_COLORS: Record<string, string> = {
+  PRESCRIPTION_CREATED: 'bg-blue-100 text-blue-600',
+  PRESCRIPTION_VERIFIED: 'bg-green-100 text-green-600',
+  DISPENSE: 'bg-purple-100 text-purple-600',
+  INVOICE: 'bg-indigo-100 text-indigo-600',
+  VISIT: 'bg-green-100 text-green-600',
+  LAB_RESULT: 'bg-purple-100 text-purple-600',
+  DOCUMENT_UPLOAD: 'bg-gray-100 text-gray-600',
+  CONSENT: 'bg-blue-100 text-blue-600',
+  MESSAGE: 'bg-yellow-100 text-yellow-600',
+  NOTE: 'bg-yellow-100 text-yellow-600',
+  CLINICAL_FLAG: 'bg-red-100 text-red-600'
 };
 
 export default function TimelineDetailPane({ event, onClose }: TimelineDetailPaneProps) {
@@ -39,7 +49,9 @@ export default function TimelineDetailPane({ event, onClose }: TimelineDetailPan
     );
   }
 
-  const Icon = EVENT_ICONS[event.type];
+  const Icon = EVENT_ICONS[event.type] || FiFileText;
+  const colorClass = EVENT_COLORS[event.type] || 'bg-gray-100 text-gray-600';
+
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleString('en-US', {
@@ -57,7 +69,7 @@ export default function TimelineDetailPane({ event, onClose }: TimelineDetailPan
       {/* Header */}
       <div className="flex items-center justify-between p-4 border-b border-gray-200">
         <div className="flex items-center gap-3">
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${EVENT_COLORS[event.type]}`}>
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${colorClass}`}>
             <Icon className="w-4 h-4" />
           </div>
           <h3 className="font-medium text-gray-900">Event Details</h3>
@@ -75,88 +87,43 @@ export default function TimelineDetailPane({ event, onClose }: TimelineDetailPan
         {/* Title & Description */}
         <div>
           <h4 className="font-medium text-gray-900 mb-2">{event.title}</h4>
-          <p className="text-sm text-gray-600">{event.description}</p>
+          <p className="text-sm text-gray-600">{event.summary}</p>
         </div>
 
         {/* Metadata */}
         <div className="space-y-3">
           <div className="flex items-center gap-2 text-sm">
             <FiClock className="w-4 h-4 text-gray-400" />
-            <span className="text-gray-600">{formatDate(event.date)}</span>
+            <span className="text-gray-600">{formatDate(event.timestamp)}</span>
           </div>
 
-          {event.provider && (
-            <div className="flex items-center gap-2 text-sm">
-              <FiUser className="w-4 h-4 text-gray-400" />
-              <span className="text-gray-600">{event.provider}</span>
-            </div>
-          )}
-
-          {event.status && (
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-500">Status:</span>
-              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                event.status === 'active' ? 'bg-green-100 text-green-800' :
-                event.status === 'completed' ? 'bg-gray-100 text-gray-800' :
-                'bg-red-100 text-red-800'
-              }`}>
-                {event.status}
-              </span>
-            </div>
-          )}
+          <div className="flex items-center gap-2 text-sm">
+            <FiUser className="w-4 h-4 text-gray-400" />
+            <span className="text-gray-600">{event.actor.name} ({event.actor.role})</span>
+          </div>
         </div>
 
-        {/* Medications */}
-        {event.medications && event.medications.length > 0 && (
+        {/* Tags */}
+        {event.tags && event.tags.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {event.tags.map((tag, i) => (
+              <span key={i} className="px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded">
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
+
+        {/* Related Items */}
+        {event.related && event.related.length > 0 && (
           <div>
-            <h5 className="text-sm font-medium text-gray-900 mb-2">Medications</h5>
+            <h5 className="text-sm font-medium text-gray-900 mb-2">Related</h5>
             <div className="space-y-2">
-              {event.medications.map((med, i) => (
+              {event.related.map((item, i) => (
                 <div key={i} className="p-2 bg-blue-50 rounded-lg">
-                  <span className="text-sm text-blue-900">{med}</span>
+                  <span className="text-sm text-blue-900">{item.type}: {item.id}</span>
                 </div>
               ))}
-            </div>
-          </div>
-        )}
-
-        {/* Attachments */}
-        {event.attachments && event.attachments.length > 0 && (
-          <div>
-            <h5 className="text-sm font-medium text-gray-900 mb-2">Attachments</h5>
-            <div className="space-y-2">
-              {event.attachments.map((attachment, i) => (
-                <div key={i} className="flex items-center justify-between p-2 bg-gray-50 rounded-lg">
-                  <span className="text-sm text-gray-700">{attachment.name}</span>
-                  <button className="text-blue-600 hover:text-blue-800">
-                    <FiDownload className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Additional Details based on type */}
-        {event.type === 'prescription' && (
-          <div className="pt-4 border-t border-gray-100">
-            <h5 className="text-sm font-medium text-gray-900 mb-2">Prescription Details</h5>
-            <div className="text-sm text-gray-600 space-y-1">
-              <p>Dosage: As prescribed</p>
-              <p>Duration: 30 days</p>
-              <p>Refills: 2 remaining</p>
-            </div>
-          </div>
-        )}
-
-        {event.type === 'lab' && (
-          <div className="pt-4 border-t border-gray-100">
-            <h5 className="text-sm font-medium text-gray-900 mb-2">Lab Results</h5>
-            <div className="text-sm text-gray-600 space-y-1">
-              <p>Test Type: HbA1c</p>
-              <p>Result: 7.2%</p>
-              <p>Reference Range: 4.0-5.6%</p>
-              <p className="text-green-600">Status: Normal for diabetic patient</p>
             </div>
           </div>
         )}

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { FiSend, FiUsers, FiTrendingUp, FiPlus, FiEdit, FiPause, FiPlay } from "react-icons/fi";
-import { MdWhatsApp, MdEmail } from "react-icons/md";
+import { MdWhatsapp, MdEmail } from "react-icons/md";
 import { TbMessageCircle } from "react-icons/tb";
 
 const mockCampaigns = [
@@ -101,8 +101,8 @@ export default function CampaignsPage() {
                                                 {campaign.type}
                                             </span>
                                             <span className={`px-3 py-1 rounded-full text-xs font-medium ${campaign.status === "Running" ? "bg-green-100 text-green-700" :
-                                                    campaign.status === "Scheduled" ? "bg-blue-100 text-blue-700" :
-                                                        "bg-gray-100 text-gray-700"
+                                                campaign.status === "Scheduled" ? "bg-blue-100 text-blue-700" :
+                                                    "bg-gray-100 text-gray-700"
                                                 }`}>
                                                 {campaign.status}
                                             </span>
@@ -110,7 +110,7 @@ export default function CampaignsPage() {
                                         <div className="flex items-center gap-3 text-sm text-[#64748b]">
                                             {campaign.channels.map((channel) => (
                                                 <div key={channel} className="flex items-center gap-1">
-                                                    {channel === "WhatsApp" && <MdWhatsApp className="w-4 h-4 text-green-600" />}
+                                                    {channel === "WhatsApp" && <MdWhatsapp className="w-4 h-4 text-green-600" />}
                                                     {channel === "SMS" && <TbMessageCircle className="w-4 h-4 text-blue-600" />}
                                                     {channel === "Email" && <MdEmail className="w-4 h-4 text-purple-600" />}
                                                     <span>{channel}</span>
