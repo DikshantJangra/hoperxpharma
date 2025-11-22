@@ -9,7 +9,7 @@ const Footer = () => {
                     {/* Brand */}
                     <div className="col-span-1 md:col-span-1">
                         <Link href="/" className="text-2xl font-bold text-white tracking-tight mb-4 block">
-                            HopeRxPharma
+                            HopeRx Pharma
                         </Link>
                         <p className="text-slate-400 text-sm leading-relaxed mb-6">
                             The AI-powered operating system for modern independent pharmacies. Automate, optimize, and grow.
@@ -58,7 +58,7 @@ const Footer = () => {
 
                 <div className="border-t border-slate-800 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
                     <p className="text-sm text-slate-500">
-                        © {new Date().getFullYear()} HopeRxPharma. All rights reserved.
+                        © {new Date().getFullYear()} HopeRx Pharma. All rights reserved.
                     </p>
                     <div className="flex items-center gap-2 text-sm text-slate-500">
                         <div className="w-2 h-2 rounded-full bg-emerald-500"></div>

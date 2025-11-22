@@ -6,7 +6,7 @@ import { MdLocalPharmacy } from "react-icons/md";
 
 const mockPrescriptions = [
     { id: "rx001", patientName: "Rajesh Kumar", rxId: "RX-2024-001", doctor: "Dr. Anjali Patel", timeInQueue: "15 min", priority: "urgent", isControlled: false, drugCount: 2, assignedTo: null, status: "new" },
-    { id: "rx002", patientName: "Priya Sharma", rxId: "RX-2024-002", doctor: "Dr. Rahul Mehta", timeInQueue: "45 min", priority: "normal", isControlled: true, drugCount: 1, assignedTo: "John Doe", status: "in-progress" },
+    { id: "rx002", patientName: "Priya Sharma", rxId: "RX-2024-002", doctor: "Dr. Rahul Mehta", timeInQueue: "45 min", priority: "normal", isControlled: true, drugCount: 1, assignedTo: "Anoop Jangra", status: "in-progress" },
     { id: "rx003", patientName: "Amit Verma", rxId: "RX-2024-003", doctor: "Dr. Sunita Rao", timeInQueue: "30 min", priority: "normal", isControlled: false, drugCount: 3, assignedTo: null, status: "new" },
     { id: "rx004", patientName: "Sneha Reddy", rxId: "RX-2024-004", doctor: "Dr. Vikram Singh", timeInQueue: "2 hr", priority: "normal", isControlled: false, drugCount: 1, assignedTo: null, status: "ready" }
 ];

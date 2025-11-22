@@ -16,7 +16,7 @@ export default function PatientDrawer({ onClose }: { onClose: () => void }) {
               JD
             </div>
             <div>
-              <div className="text-xl font-semibold text-gray-900">John Doe</div>
+              <div className="text-xl font-semibold text-gray-900">Anoop Jangra</div>
               <div className="text-sm text-gray-500">Patient ID: P-2025-00456</div>
             </div>
           </div>
@@ -32,7 +32,7 @@ export default function PatientDrawer({ onClose }: { onClose: () => void }) {
               </div>
               <div className="flex items-center gap-3">
                 <FiMail className="text-gray-400" />
-                <span className="text-gray-900">john.doe@email.com</span>
+                <span className="text-gray-900">anoop.jangra@email.com</span>
               </div>
               <div className="flex items-start gap-3">
                 <FiMapPin className="text-gray-400 mt-0.5" />

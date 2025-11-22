@@ -33,7 +33,7 @@ const Features = () => {
                             Inventory that Thinks for You.
                         </h2>
                         <p className="text-lg text-slate-600 leading-relaxed mb-8">
-                            Stop guessing. HopeRx analyzes local trends to tell you exactly what to order and when. Reduce dead stock and ensure you always have what your patients need.
+                            Stop guessing. HopeRx Pharma analyzes local trends to tell you exactly what to order and when. Reduce dead stock and ensure you always have what your patients need.
                         </p>
                         <ul className="space-y-4">
                             {['Predictive Reordering', 'Expiry Date Tracking', 'Demand Forecasting'].map((item, i) => (

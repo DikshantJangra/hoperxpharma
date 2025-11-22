@@ -1,73 +1,124 @@
+'use client';
+
 import Link from 'next/link';
 import Image from 'next/image';
+import { FiCheck, FiArrowRight } from 'react-icons/fi';
+import { FadeIn, FadeInStagger, FadeInItem } from '@/components/landing/animations/FadeIn';
 
 const Hero = () => {
     return (
-        <section className="relative pt-20 pb-32 overflow-hidden bg-gradient-to-b from-emerald-50/50 to-white">
+        <section className="relative pt-32 pb-32 overflow-hidden">
+            {/* Animated Mesh Gradient Background */}
+            <div className="absolute inset-0 -z-10 overflow-hidden">
+                <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] rounded-full bg-emerald-400/20 blur-[120px] animate-pulse" />
+                <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] rounded-full bg-blue-400/20 blur-[120px] animate-pulse delay-1000" />
+                <div className="absolute top-[20%] right-[20%] w-[30%] h-[30%] rounded-full bg-purple-400/20 blur-[120px] animate-pulse delay-2000" />
+                <div className="absolute inset-0 bg-[url('/noise.png')] opacity-[0.02] mix-blend-overlay"></div>
+            </div>
+
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-                <div className="text-center max-w-4xl mx-auto">
-                    <h1 className="text-5xl md:text-6xl font-bold text-slate-900 tracking-tight mb-6 leading-tight">
-                        Turn Your Pharmacy into a <span className="text-emerald-600">Profit Engine</span>.
-                    </h1>
-                    <p className="text-xl text-slate-600 mb-10 max-w-2xl mx-auto leading-relaxed">
-                        Stop losing money to expired stock and DIR fees. HopeRxPharma automates your inventory, simplifies compliance, and modernizes your workflow—all in the cloud.
-                    </p>
+                <FadeInStagger className="text-center max-w-5xl mx-auto">
+                    <FadeInItem>
+                        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-50 border border-emerald-100 text-emerald-700 text-sm font-medium mb-8 shadow-sm hover:shadow-md transition-shadow cursor-default">
+                            <span className="relative flex h-2 w-2">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                            </span>
+                            Trusted by 500+ Pharmacies across India
+                        </div>
+                    </FadeInItem>
 
-                    <div className="flex flex-col sm:flex-row justify-center gap-4 mb-12">
-                        <Link
-                            href="/signup"
-                            className="bg-emerald-500 hover:bg-emerald-600 text-white px-8 py-4 rounded-xl font-bold text-lg transition-all shadow-xl shadow-emerald-500/30 hover:scale-105"
-                        >
-                            Start Your 14-Day Free Trial
-                        </Link>
-                        <Link
-                            href="/demo"
-                            className="bg-white hover:bg-gray-50 text-slate-700 border border-gray-200 px-8 py-4 rounded-xl font-bold text-lg transition-all hover:shadow-lg"
-                        >
-                            Book a Demo
-                        </Link>
-                    </div>
+                    <FadeInItem>
+                        <h1 className="text-5xl md:text-7xl font-bold text-slate-900 tracking-tight mb-8 leading-[1.1]">
+                            Manage Your Entire Pharmacy in <br className="hidden md:block" />
+                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-blue-600">
+                                One Powerful Dashboard
+                            </span>
+                        </h1>
+                    </FadeInItem>
 
-                    <div className="flex items-center justify-center gap-6 text-sm text-slate-500 font-medium mb-16">
-                        <span className="flex items-center gap-2">
-                            <svg className="w-5 h-5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
-                            HIPAA & DPDPA Compliant
-                        </span>
-                        <span className="flex items-center gap-2">
-                            <svg className="w-5 h-5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
-                            Trusted by 50+ Pharmacies
-                        </span>
-                        <span className="flex items-center gap-2">
-                            <svg className="w-5 h-5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
-                            99.9% Uptime
-                        </span>
-                    </div>
-                </div>
+                    <FadeInItem>
+                        <p className="text-xl md:text-2xl text-slate-600 mb-12 max-w-3xl mx-auto leading-relaxed font-light">
+                            Billing. Inventory. Prescriptions. GST. WhatsApp. All automated.
+                            <br />
+                            <span className="font-medium text-slate-900">Stop losing money to expiry and start growing today.</span>
+                        </p>
+                    </FadeInItem>
 
-                {/* Dashboard Mockup Placeholder */}
-                <div className="relative mx-auto max-w-5xl">
-                    <div className="bg-slate-900 rounded-xl shadow-2xl border border-slate-800 p-2 aspect-[16/9] flex items-center justify-center overflow-hidden">
-                        {/* In a real app, this would be an Image component */}
-                        <div className="text-center">
-                            <p className="text-slate-400 text-lg mb-2">Dashboard Preview</p>
-                            <div className="w-full h-full bg-slate-800/50 rounded-lg flex items-center justify-center">
-                                <span className="text-slate-600">Verification Queue & Profitability Widget</span>
+                    <FadeInItem>
+                        <div className="flex flex-col sm:flex-row justify-center gap-5 mb-16">
+                            <Link
+                                href="/signup"
+                                className="group bg-emerald-600 hover:bg-emerald-500 text-white px-8 py-4 rounded-xl font-bold text-lg transition-all shadow-xl shadow-emerald-500/30 hover:shadow-2xl hover:scale-105 flex items-center justify-center gap-2"
+                            >
+                                Start Free Trial
+                                <FiArrowRight className="group-hover:translate-x-1 transition-transform" />
+                            </Link>
+                            <Link
+                                href="/demo"
+                                className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-8 py-4 rounded-xl font-bold text-lg transition-all hover:shadow-lg hover:border-slate-300 flex items-center justify-center"
+                            >
+                                Book a Demo
+                            </Link>
+                        </div>
+                    </FadeInItem>
+
+                    <FadeInItem>
+                        <div className="flex flex-wrap justify-center gap-x-8 gap-y-4 text-sm font-medium text-slate-500 mb-20">
+                            <div className="flex items-center gap-2">
+                                <FiCheck className="text-emerald-500 text-lg" />
+                                <span>DPDPA Compliant</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <FiCheck className="text-emerald-500 text-lg" />
+                                <span>99.9% Uptime</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <FiCheck className="text-emerald-500 text-lg" />
+                                <span>No Credit Card Required</span>
                             </div>
                         </div>
-                        {/* 
-             <Image 
-               src="/dashboard-mockup.png" 
-               alt="HopeRxPharma Dashboard" 
-               width={1200} 
-               height={675} 
-               className="rounded-lg"
-             /> 
-             */}
+                    </FadeInItem>
+                </FadeInStagger>
+
+                {/* Dashboard Preview - Real Screenshot with Premium Glassmorphism */}
+                <FadeIn delay={0.4} direction="up">
+                    <div className="relative mx-auto max-w-6xl group">
+                        <div className="relative rounded-2xl overflow-hidden border border-white/40 shadow-2xl bg-white/40 backdrop-blur-xl p-3 transition-transform duration-700 hover:scale-[1.01]">
+                            {/* Browser-like header */}
+                            <div className="flex items-center gap-2 mb-3 pb-3 border-b border-white/20">
+                                <div className="flex gap-2 ml-2">
+                                    <div className="w-3 h-3 rounded-full bg-red-400/80 shadow-inner"></div>
+                                    <div className="w-3 h-3 rounded-full bg-yellow-400/80 shadow-inner"></div>
+                                    <div className="w-3 h-3 rounded-full bg-green-400/80 shadow-inner"></div>
+                                </div>
+                                <div className="flex-1 text-center">
+                                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-md bg-white/50 text-xs font-medium text-slate-500 border border-white/20 shadow-sm">
+                                        <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                                        hoperxpharma.com/dashboard
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Real Dashboard Screenshot */}
+                            <div className="relative rounded-lg overflow-hidden shadow-inner border border-slate-200/50">
+                                <Image
+                                    src="/screenshots/dashboard.png"
+                                    alt="HopeRx Pharma Dashboard"
+                                    width={1200}
+                                    height={800}
+                                    className="w-full h-auto"
+                                    priority
+                                />
+                                {/* Screen reflection effect */}
+                                <div className="absolute inset-0 bg-gradient-to-tr from-white/10 via-transparent to-transparent pointer-events-none"></div>
+                            </div>
+                        </div>
+
+                        {/* Decorative glow behind dashboard */}
+                        <div className="absolute -inset-4 bg-gradient-to-r from-emerald-500/30 via-blue-500/30 to-purple-500/30 rounded-[2rem] blur-3xl -z-10 opacity-60 group-hover:opacity-80 transition-opacity duration-700"></div>
                     </div>
-                    {/* Decorative blobs */}
-                    <div className="absolute -top-20 -right-20 w-72 h-72 bg-emerald-400/20 rounded-full blur-3xl -z-10"></div>
-                    <div className="absolute -bottom-20 -left-20 w-72 h-72 bg-blue-400/20 rounded-full blur-3xl -z-10"></div>
-                </div>
+                </FadeIn>
             </div>
         </section>
     );

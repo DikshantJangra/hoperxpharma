@@ -35,7 +35,7 @@ export default function LabelModal({ onClose }: { onClose: () => void }) {
             <p className="text-xs text-gray-600">123 Health St, Wellness City</p>
             <hr className="my-2" />
             <div className="text-left text-sm">
-              <p><strong>Patient:</strong> John Doe</p>
+              <p><strong>Patient:</strong> Anoop Jangra</p>
               <p><strong>Rx#:</strong> 123456</p>
               <p className="mt-2"><strong>Atorvastatin 10mg</strong></p>
               <p className="font-bold">Take 1 tablet daily at bedtime</p>

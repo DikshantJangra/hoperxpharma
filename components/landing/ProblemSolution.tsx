@@ -33,7 +33,7 @@ const ProblemSolution = () => {
                         Is Your Pharmacy System Holding You Back?
                     </h2>
                     <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-                        Legacy systems weren't built for today's challenges. See how HopeRxPharma solves the problems that cost you money.
+                        Legacy systems weren't built for today's challenges. See how HopeRx Pharma solves the problems that cost you money.
                     </p>
                 </div>
 
