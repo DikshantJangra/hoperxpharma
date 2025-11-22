@@ -99,20 +99,16 @@ export default function NewPrescriptionPage() {
           </div>
 
           <div className="mt-3 flex items-center gap-3">
-            <button onClick={() => setShowPatientDrawer(true)} className="flex items-center gap-3 px-4 py-2 bg-gray-50 rounded-lg hover:bg-gray-100 border border-gray-200">
-              <div className="w-8 h-8 bg-blue-500 rounded-full flex items-center justify-center text-white font-medium text-sm">JD</div>
+            <button onClick={() => setShowPatientDrawer(true)} className="flex items-center gap-3 px-4 py-2 bg-gray-50 rounded-lg hover:bg-gray-100 border border-gray-200 w-full md:w-auto">
+              <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-gray-500 font-medium text-sm">?</div>
               <div className="text-left">
-                <div className="text-sm font-medium text-gray-900">Anoop Jangra</div>
-                <div className="text-xs text-gray-500">45/M • +1 234-567-8900</div>
-              </div>
-              <div className="flex gap-1">
-                <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">Aetna</span>
-                <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-xs rounded-full">VIP</span>
+                <div className="text-sm font-medium text-gray-900">Select Patient</div>
+                <div className="text-xs text-gray-500">Click to search</div>
               </div>
             </button>
             <button className="p-2 hover:bg-gray-100 rounded-lg"><FiPhone className="text-gray-600" size={18} /></button>
             <button className="p-2 hover:bg-gray-100 rounded-lg"><FiMessageSquare className="text-gray-600" size={18} /></button>
-            <div className="ml-auto text-xs text-gray-500"><FiClock className="inline mr-1" />Last sync: 03:12 PM</div>
+            <div className="ml-auto text-xs text-gray-500"><FiClock className="inline mr-1" />Last sync: Just now</div>
           </div>
         </div>
       </header>
@@ -124,61 +120,18 @@ export default function NewPrescriptionPage() {
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Verification Panel</h3>
             <div className="space-y-3">
-              <DrugRow
-                drug={{
-                  id: "1",
-                  name: "Atorvastatin",
-                  strength: "10mg",
-                  form: "Tablet",
-                  qtyPrescribed: 30,
-                  qtyToDispense: 30,
-                  sig: "Take 1 tablet daily at bedtime",
-                  daysSupply: 30,
-                  status: "in-stock",
-                  batchId: "B2025-01",
-                  price: 15.99,
-                  gst: 2.4
-                }}
-                onPickBatch={() => setShowBatchModal(true)}
-              />
-              <DrugRow
-                drug={{
-                  id: "2",
-                  name: "Metformin",
-                  strength: "500mg",
-                  form: "Tablet",
-                  qtyPrescribed: 60,
-                  qtyToDispense: 60,
-                  sig: "Take 1 tablet twice daily with meals",
-                  daysSupply: 30,
-                  status: "in-stock",
-                  batchId: "B2024-33",
-                  price: 8.5,
-                  gst: 1.28,
-                  interactions: ["Atorvastatin - Low risk"]
-                }}
-                onPickBatch={() => setShowBatchModal(true)}
-              />
-            </div>
-
-            <div className="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-              <div className="flex items-start gap-3">
-                <FiAlertTriangle className="text-amber-600 mt-0.5" size={20} />
-                <div className="flex-1">
-                  <div className="text-sm font-medium text-amber-900">High Severity Interaction</div>
-                  <div className="text-sm text-amber-700 mt-1">Atorvastatin + Metformin: Requires mandatory acknowledgement.</div>
-                </div>
-                <button className="text-sm text-white bg-red-600 hover:bg-red-700 font-medium px-3 py-1 rounded-md">Override</button>
+              <div className="text-center py-8 text-gray-500 bg-gray-50 rounded-lg border border-dashed border-gray-300">
+                No drugs added yet. Scan or search to add medications.
               </div>
             </div>
 
             <div className="mt-6 pt-6 border-t border-gray-200">
               <div className="space-y-2 text-sm">
-                <div className="flex justify-between"><span className="text-gray-600">Subtotal</span><span className="text-gray-900">$24.49</span></div>
-                <div className="flex justify-between"><span className="text-gray-600">GST (15%)</span><span className="text-gray-900">$3.68</span></div>
-                <div className="flex justify-between"><span className="text-gray-600">Insurance (Aetna)</span><span className="text-green-600">-$20.00</span></div>
+                <div className="flex justify-between"><span className="text-gray-600">Subtotal</span><span className="text-gray-900">₹0.00</span></div>
+                <div className="flex justify-between"><span className="text-gray-600">GST (18%)</span><span className="text-gray-900">₹0.00</span></div>
+                <div className="flex justify-between"><span className="text-gray-600">Insurance</span><span className="text-green-600">-₹0.00</span></div>
                 <div className="flex justify-between pt-2 border-t border-gray-200 font-semibold">
-                  <span className="text-gray-900">Patient OOP</span><span className="text-gray-900">$8.17</span>
+                  <span className="text-gray-900">Patient OOP</span><span className="text-gray-900">₹0.00</span>
                 </div>
               </div>
             </div>
@@ -203,18 +156,7 @@ export default function NewPrescriptionPage() {
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
             <h3 className="text-base font-semibold text-gray-900 mb-4">Patient Summary</h3>
             <div className="space-y-3 text-sm">
-              <div>
-                <div className="text-gray-500 text-xs mb-1">Allergies</div>
-                <div className="flex flex-wrap gap-1">
-                  <span className="px-2 py-1 bg-red-50 text-red-700 rounded text-xs">Penicillin</span>
-                  <span className="px-2 py-1 bg-red-50 text-red-700 rounded text-xs">Sulfa drugs</span>
-                </div>
-              </div>
-              <div>
-                <div className="text-gray-500 text-xs mb-1">Chronic Conditions</div>
-                <div className="text-gray-900">Type 2 Diabetes, Hypertension</div>
-              </div>
-              <button className="text-blue-600 hover:text-blue-700 text-sm font-medium">View full history →</button>
+              <div className="text-gray-500 text-center py-4">No patient selected</div>
             </div>
           </div>
 
@@ -236,14 +178,7 @@ export default function NewPrescriptionPage() {
           <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
             <h3 className="text-base font-semibold text-gray-900 mb-4">Inventory Status</h3>
             <div className="space-y-3 text-sm">
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">Atorvastatin 10mg</span>
-                <span className="text-green-600 font-medium">245 units</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <span className="text-gray-600">Metformin 500mg</span>
-                <span className="text-green-600 font-medium">180 units</span>
-              </div>
+              <div className="text-gray-500 text-center py-4">No items in prescription</div>
             </div>
           </div>
         </div>
@@ -273,21 +208,21 @@ export default function NewPrescriptionPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowShortcuts(false)}>
           <div className="bg-white rounded-xl shadow-2xl p-6 max-w-2xl w-full mx-4" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-bold text-gray-900">Keyboard Shortcuts</h2>
-                <button onClick={() => setShowShortcuts(false)} className="p-2 hover:bg-gray-100 rounded-lg">
-                    <FiX size={20} />
-                </button>
+              <h2 className="text-xl font-bold text-gray-900">Keyboard Shortcuts</h2>
+              <button onClick={() => setShowShortcuts(false)} className="p-2 hover:bg-gray-100 rounded-lg">
+                <FiX size={20} />
+              </button>
             </div>
             <div className="grid grid-cols-2 gap-x-12 gap-y-6">
               <ShortcutSection title="Actions">
                 <ShortcutItem keys={["S"]} description="Start Fill" />
                 <ShortcutItem keys={["B"]} description="Open Batch selector" />
                 <ShortcutItem keys={["L"]} description="Open Label print" />
-                <ShortcutItem keys={["Ctrl","Enter"]} description="Finalize & Mark Filled" />
+                <ShortcutItem keys={["Ctrl", "Enter"]} description="Finalize & Mark Filled" />
               </ShortcutSection>
               <ShortcutSection title="Navigation">
                 <ShortcutItem keys={["/"]} description="Global search" />
-                <ShortcutItem keys={["g","p"]} description="Go to Prescriptions" />
+                <ShortcutItem keys={["g", "p"]} description="Go to Prescriptions" />
                 <ShortcutItem keys={["n"]} description="Next Rx in queue" />
                 <ShortcutItem keys={["p"]} description="Previous Rx" />
               </ShortcutSection>
@@ -311,25 +246,25 @@ export default function NewPrescriptionPage() {
 }
 
 function ShortcutSection({ title, children }: { title: string, children: React.ReactNode }) {
-    return (
-        <div>
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">{title}</h3>
-            <div className="space-y-2">{children}</div>
-        </div>
-    )
+  return (
+    <div>
+      <h3 className="text-sm font-semibold text-gray-700 mb-3">{title}</h3>
+      <div className="space-y-2">{children}</div>
+    </div>
+  )
 }
 
 function ShortcutItem({ keys, description }: { keys: string[], description: string }) {
-    return (
-        <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-600">{description}</span>
-            <div className="flex items-center gap-1">
-                {keys.map((key, idx) => (
-                    <kbd key={idx} className="px-2 py-1 bg-gray-100 border border-gray-300 rounded text-xs font-medium text-gray-700">
-                        {key}
-                    </kbd>
-                ))}
-            </div>
-        </div>
-    )
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-sm text-gray-600">{description}</span>
+      <div className="flex items-center gap-1">
+        {keys.map((key, idx) => (
+          <kbd key={idx} className="px-2 py-1 bg-gray-100 border border-gray-300 rounded text-xs font-medium text-gray-700">
+            {key}
+          </kbd>
+        ))}
+      </div>
+    </div>
+  )
 }

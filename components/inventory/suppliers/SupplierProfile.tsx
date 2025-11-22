@@ -107,9 +107,9 @@ export default function SupplierProfile({ id }: { id: string }) {
                             </button>
                         </div>
                         <div className="flex items-center gap-4 text-sm">
-                            <div className="text-right">
-                                <div className="text-gray-500 text-xs">Outstanding</div>
-                                <div className="font-bold text-red-600">₹{supplier.performance.outstandingBalance.toLocaleString()}</div>
+                            <div className="p-4 bg-red-50 rounded-lg border border-red-100">
+                                <div className="text-sm text-red-600 mb-1">Outstanding Balance</div>
+                                <div className="h-4 w-12 bg-gray-200 rounded animate-pulse"></div>
                             </div>
                             <div className="text-right border-l border-gray-200 pl-4">
                                 <div className="text-gray-500 text-xs">Rating</div>
@@ -130,8 +130,8 @@ export default function SupplierProfile({ id }: { id: string }) {
                             key={tab}
                             onClick={() => setActiveTab(tab.toLowerCase())}
                             className={`pb-4 text-sm font-medium border-b-2 transition-colors ${activeTab === tab.toLowerCase()
-                                    ? 'border-emerald-500 text-emerald-600'
-                                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                                ? 'border-emerald-500 text-emerald-600'
+                                : 'border-transparent text-gray-500 hover:text-gray-700'
                                 }`}
                         >
                             {tab}
@@ -202,9 +202,11 @@ export default function SupplierProfile({ id }: { id: string }) {
                                 <div className="font-medium text-gray-900 mt-1">{supplier.paymentTerms}</div>
                             </div>
                             <div>
-                                <div className="text-xs text-gray-500 uppercase tracking-wide">Credit Limit</div>
-                                <div className="font-medium text-gray-900 mt-1">
-                                    {supplier.creditLimit ? `₹${supplier.creditLimit.toLocaleString()}` : 'N/A'}
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-gray-500">Credit Limit</span>
+                                    <span className="font-medium text-gray-900">
+                                        {supplier.creditLimit ? `₹${supplier.creditLimit.toLocaleString()}` : 'N/A'}
+                                    </span>
                                 </div>
                             </div>
                             <div>

@@ -138,7 +138,6 @@ export default function SupplierForm({ initialData, onSave, onCancel }: Supplier
                             <input
                                 type="email"
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500"
-                                value={formData.contact?.email || ''}
                                 onChange={e => handleContactChange('email', e.target.value)}
                             />
                         </div>

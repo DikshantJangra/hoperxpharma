@@ -122,22 +122,24 @@ export default function StockDetailPanel({ item, onClose }: any) {
           </div>
 
           {/* Recent Activity */}
-          <div>
+          <div className="mt-6">
             <h3 className="text-sm font-semibold text-[#64748b] mb-2">Recent Activity</h3>
-            <div className="space-y-2">
-              {[
-                { action: 'Received 100 units', batch: 'B-2025-11', time: '2 days ago', user: 'Aman' },
-                { action: 'Sold 45 units', batch: 'B-2025-01', time: '3 days ago', user: 'POS' },
-                { action: 'Adjusted -5 units', batch: 'B-2024-33', time: '5 days ago', user: 'Meera' },
-              ].map((activity, idx) => (
-                <div key={idx} className="flex items-start gap-2 text-xs">
-                  <FiClock className="w-3 h-3 text-[#64748b] mt-0.5 shrink-0" />
-                  <div className="flex-1">
-                    <p className="text-[#0f172a]">{activity.action}</p>
-                    <p className="text-[#64748b]">{activity.batch} • {activity.time} • {activity.user}</p>
-                  </div>
+            <div className="space-y-3">
+              {/* Loading State */}
+              <div className="flex items-start gap-3">
+                <div className="w-2 h-2 mt-1.5 rounded-full bg-gray-300 animate-pulse"></div>
+                <div className="space-y-1 w-full">
+                  <div className="h-3 w-3/4 bg-gray-200 rounded animate-pulse"></div>
+                  <div className="h-2 w-1/2 bg-gray-100 rounded animate-pulse"></div>
                 </div>
-              ))}
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="w-2 h-2 mt-1.5 rounded-full bg-gray-300 animate-pulse"></div>
+                <div className="space-y-1 w-full">
+                  <div className="h-3 w-2/3 bg-gray-200 rounded animate-pulse"></div>
+                  <div className="h-2 w-1/2 bg-gray-100 rounded animate-pulse"></div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

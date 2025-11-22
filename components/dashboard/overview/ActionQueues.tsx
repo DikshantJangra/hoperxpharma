@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 export default function ActionQueues() {
     const [activeTab, setActiveTab] = useState('verification')
     const [selectedIndex, setSelectedIndex] = useState(0)
+    const [loading, setLoading] = useState(true)
 
     useEffect(() => {
         const handleKeyPress = (e: KeyboardEvent) => {
@@ -31,26 +32,21 @@ export default function ActionQueues() {
                 <div className="flex items-center justify-between">
                     <h3 className="text-base font-semibold text-gray-800">Action Queues</h3>
                     <div className="flex items-center gap-2 border border-gray-200 rounded-lg p-1">
-                        <TabButton label="Verification" count={4} active={activeTab === 'verification'} onClick={() => setActiveTab('verification')} />
-                        <TabButton label="e-Rx" count={3} active={activeTab === 'erx'} onClick={() => setActiveTab('erx')} />
-                        <TabButton label="Dispensing" count={6} active={activeTab === 'dispensing'} onClick={() => setActiveTab('dispensing')} />
-                        <TabButton label="Returns" count={1} active={activeTab === 'returns'} onClick={() => setActiveTab('returns')} />
+                        <TabButton label="Verification" count={0} active={activeTab === 'verification'} onClick={() => setActiveTab('verification')} />
+                        <TabButton label="e-Rx" count={0} active={activeTab === 'erx'} onClick={() => setActiveTab('erx')} />
+                        <TabButton label="Dispensing" count={0} active={activeTab === 'dispensing'} onClick={() => setActiveTab('dispensing')} />
+                        <TabButton label="Returns" count={0} active={activeTab === 'returns'} onClick={() => setActiveTab('returns')} />
                     </div>
                 </div>
             </div>
-            <div className="p-6 space-y-3 flex-1 overflow-y-auto min-h-0">
-                {activeTab === 'verification' && (
-                    <>
-                        <QueueItem patient="Sarah Johnson" drug="Metformin 500mg" prescriber="Dr. Patel" priority="high" selected={selectedIndex === 0} />
-                        <QueueItem patient="Michael Chen" drug="Lisinopril 10mg" prescriber="Dr. Singh" selected={selectedIndex === 1} />
-                        <QueueItem patient="Emma Davis" drug="Atorvastatin 20mg" prescriber="Dr. Kumar" selected={selectedIndex === 2} />
-                    </>
-                )}
-                {activeTab === 'erx' && (
-                    <>
-                        <QueueItem patient="David Martinez" drug="Amoxicillin 500mg" prescriber="Dr. Sharma" selected={selectedIndex === 0} />
-                        <QueueItem patient="Lisa Anderson" drug="Azithromycin 250mg" prescriber="Dr. Gupta" selected={selectedIndex === 1} />
-                    </>
+            <div className="p-6 space-y-3 flex-1 overflow-y-auto min-h-0 flex flex-col items-center justify-center">
+                {loading ? (
+                    <div className="text-center">
+                        <div className="w-8 h-8 border-2 border-gray-200 border-t-[#0ea5a3] rounded-full animate-spin mx-auto mb-2"></div>
+                        <p className="text-sm text-gray-500">Fetching action queues...</p>
+                    </div>
+                ) : (
+                    <p className="text-sm text-gray-500">No items in queue</p>
                 )}
             </div>
         </div>
@@ -59,7 +55,7 @@ export default function ActionQueues() {
 
 function TabButton({ label, count, active, onClick }: any) {
     return (
-        <button 
+        <button
             onClick={onClick}
             className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${active ? 'bg-emerald-500 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'}`}
         >

@@ -152,8 +152,9 @@ export default function SupplierList({ onAddClick }: SupplierListProps) {
                                         </div>
                                     </div>
                                 </td>
-                                <td className="px-6 py-4 text-right font-medium text-gray-900">
-                                    ₹{supplier.performance.outstandingBalance.toLocaleString()}
+                                <td className="px-6 py-4 text-right">
+                                    <div className="text-xs text-gray-500 mb-1">Outstanding</div>
+                                    <div className="h-4 w-12 bg-gray-200 rounded animate-pulse"></div>
                                 </td>
                                 <td className="px-6 py-4 text-center">
                                     <div className="inline-flex items-center gap-1 px-2 py-1 rounded bg-yellow-50 text-yellow-700 border border-yellow-100">

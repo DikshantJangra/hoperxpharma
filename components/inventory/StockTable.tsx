@@ -4,70 +4,10 @@ import React, { useState } from 'react';
 import { FiChevronDown, FiChevronRight, FiAlertCircle, FiPackage } from 'react-icons/fi';
 import { BsSnow } from 'react-icons/bs';
 
-const MOCK_STOCK = [
-  {
-    id: '1',
-    sku: 'PAR-500-10',
-    name: 'Paracetamol',
-    generic: 'Acetaminophen',
-    pack: '10 x 10 tablets',
-    hsn: '30049099',
-    batchCount: 3,
-    onHand: 250,
-    available: 240,
-    reorderPoint: 100,
-    expiringCount: 1,
-    avgUsage: 45,
-    supplier: 'MedSupply Co',
-    batches: [
-      { id: 'B-2025-01', expiry: '2025-12-15', qty: 100, location: 'A1', cost: 35, mrp: 45, daysToExpiry: 180 },
-      { id: 'B-2025-11', expiry: '2026-01-20', qty: 90, location: 'A2', cost: 35, mrp: 45, daysToExpiry: 215 },
-      { id: 'B-2024-33', expiry: '2025-02-10', qty: 50, location: 'B1', cost: 35, mrp: 45, daysToExpiry: 25 },
-    ],
-  },
-  {
-    id: '2',
-    sku: 'ATO-10-15',
-    name: 'Atorvastatin',
-    generic: 'Atorvastatin Calcium',
-    pack: '15 tablets',
-    hsn: '30039011',
-    batchCount: 2,
-    onHand: 120,
-    available: 120,
-    reorderPoint: 50,
-    expiringCount: 0,
-    avgUsage: 20,
-    supplier: 'PharmaCorp',
-    coldChain: true,
-    batches: [
-      { id: 'B-2025-22', expiry: '2026-03-10', qty: 70, location: 'C1', cost: 120, mrp: 150, daysToExpiry: 280 },
-      { id: 'B-2025-15', expiry: '2026-02-05', qty: 50, location: 'C2', cost: 120, mrp: 150, daysToExpiry: 245 },
-    ],
-  },
-  {
-    id: '3',
-    sku: 'AMX-500-10',
-    name: 'Amoxicillin',
-    generic: 'Amoxicillin Trihydrate',
-    pack: '10 capsules',
-    hsn: '30041099',
-    batchCount: 1,
-    onHand: 15,
-    available: 15,
-    reorderPoint: 50,
-    expiringCount: 0,
-    avgUsage: 30,
-    supplier: 'MedSupply Co',
-    lowStock: true,
-    batches: [
-      { id: 'B-2025-08', expiry: '2026-06-20', qty: 15, location: 'D3', cost: 65, mrp: 85, daysToExpiry: 365 },
-    ],
-  },
-];
-
 export default function StockTable({ searchQuery, onSelectItem, selectedItem }: any) {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  const [stock, setStock] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const toggleRow = (id: string) => {
     const newExpanded = new Set(expandedRows);
@@ -79,11 +19,21 @@ export default function StockTable({ searchQuery, onSelectItem, selectedItem }: 
     setExpandedRows(newExpanded);
   };
 
-  const filtered = MOCK_STOCK.filter(item =>
+  const filtered = stock.filter(item =>
     item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     item.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
     item.hsn.includes(searchQuery)
   );
+
+  if (loading) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center bg-white">
+        <div className="w-12 h-12 border-4 border-gray-100 border-t-[#0ea5a3] rounded-full animate-spin mb-4"></div>
+        <p className="text-gray-500 font-medium">Fetching inventory...</p>
+        <p className="text-sm text-gray-400 mt-1">Syncing with database</p>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full overflow-y-auto bg-white">
@@ -106,11 +56,9 @@ export default function StockTable({ searchQuery, onSelectItem, selectedItem }: 
             <React.Fragment key={item.id}>
               <tr
                 onClick={() => onSelectItem(item)}
-                className={`border-b border-[#f1f5f9] hover:bg-[#f8fafc] cursor-pointer group ${
-                  selectedItem?.id === item.id ? 'bg-[#f0fdfa]' : ''
-                } ${item.lowStock ? 'border-l-4 border-l-[#f59e0b]' : ''} ${
-                  item.expiringCount > 0 ? 'border-l-4 border-l-[#ef4444]' : ''
-                }`}
+                className={`border-b border-[#f1f5f9] hover:bg-[#f8fafc] cursor-pointer group ${selectedItem?.id === item.id ? 'bg-[#f0fdfa]' : ''
+                  } ${item.lowStock ? 'border-l-4 border-l-[#f59e0b]' : ''} ${item.expiringCount > 0 ? 'border-l-4 border-l-[#ef4444]' : ''
+                  }`}
               >
                 <td className="px-4 py-3">
                   <button
@@ -164,7 +112,7 @@ export default function StockTable({ searchQuery, onSelectItem, selectedItem }: 
               </tr>
 
               {/* Expanded Batch Rows */}
-              {expandedRows.has(item.id) && item.batches.map((batch) => (
+              {expandedRows.has(item.id) && item.batches.map((batch: any) => (
                 <tr key={batch.id} className="bg-[#f8fafc] border-b border-[#f1f5f9]">
                   <td className="px-4 py-2"></td>
                   <td className="px-4 py-2 pl-12" colSpan={2}>

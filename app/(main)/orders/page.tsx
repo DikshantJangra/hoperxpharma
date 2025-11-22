@@ -1,7 +1,12 @@
+"use client"
 import Link from 'next/link';
+import { useState } from 'react';
 import { HiOutlinePlus, HiOutlineDocumentText, HiOutlineClock, HiOutlineCheckCircle } from 'react-icons/hi2';
 
 export default function OrdersPage() {
+    const [loading, setLoading] = useState(true);
+    const [orders, setOrders] = useState([]);
+
     return (
         <div className="p-6">
             <div className="flex items-center justify-between mb-6">
@@ -27,7 +32,7 @@ export default function OrdersPage() {
                         </div>
                         <div>
                             <div className="text-sm text-gray-600">Draft POs</div>
-                            <div className="text-xl font-semibold text-gray-900">3</div>
+                            <div className="text-xl font-semibold text-gray-900">{loading ? '-' : 0}</div>
                         </div>
                     </div>
                 </div>
@@ -39,7 +44,7 @@ export default function OrdersPage() {
                         </div>
                         <div>
                             <div className="text-sm text-gray-600">Pending</div>
-                            <div className="text-xl font-semibold text-gray-900">7</div>
+                            <div className="text-xl font-semibold text-gray-900">{loading ? '-' : 0}</div>
                         </div>
                     </div>
                 </div>
@@ -51,7 +56,7 @@ export default function OrdersPage() {
                         </div>
                         <div>
                             <div className="text-sm text-gray-600">Received</div>
-                            <div className="text-xl font-semibold text-gray-900">24</div>
+                            <div className="text-xl font-semibold text-gray-900">{loading ? '-' : 0}</div>
                         </div>
                     </div>
                 </div>
@@ -63,14 +68,14 @@ export default function OrdersPage() {
                         </div>
                         <div>
                             <div className="text-sm text-gray-600">This Month</div>
-                            <div className="text-xl font-semibold text-gray-900">₹2.4L</div>
+                            <div className="text-xl font-semibold text-gray-900">{loading ? '-' : '₹0'}</div>
                         </div>
                     </div>
                 </div>
             </div>
 
             {/* Recent Orders Table */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 min-h-[300px]">
                 <div className="px-6 py-4 border-b border-gray-200">
                     <h2 className="text-lg font-medium text-gray-900">Recent Purchase Orders</h2>
                 </div>
@@ -99,50 +104,25 @@ export default function OrdersPage() {
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                            <tr>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                    PO-2025-000123
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    ABC Pharma Distributors
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    Nov 14, 2025
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    ₹45,600
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                    <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800">
-                                        Sent
-                                    </span>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    <button className="text-blue-600 hover:text-blue-800">View</button>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                    PO-2025-000122
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    MediCore Supplies
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    Nov 13, 2025
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    ₹32,400
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap">
-                                    <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-yellow-100 text-yellow-800">
-                                        Pending
-                                    </span>
-                                </td>
-                                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                    <button className="text-blue-600 hover:text-blue-800">View</button>
-                                </td>
-                            </tr>
+                            {loading ? (
+                                <tr>
+                                    <td colSpan={6} className="px-6 py-12 text-center">
+                                        <div className="flex flex-col items-center justify-center">
+                                            <div className="w-8 h-8 border-2 border-gray-200 border-t-blue-600 rounded-full animate-spin mb-2"></div>
+                                            <p className="text-sm text-gray-500">Fetching orders...</p>
+                                        </div>
+                                    </td>
+                                </tr>
+                            ) : orders.length === 0 ? (
+                                <tr>
+                                    <td colSpan={6} className="px-6 py-12 text-center text-gray-500 text-sm">
+                                        No orders found. Create a new purchase order to get started.
+                                    </td>
+                                </tr>
+                            ) : (
+                                // Map orders here when data is available
+                                null
+                            )}
                         </tbody>
                     </table>
                 </div>

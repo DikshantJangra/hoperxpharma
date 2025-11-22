@@ -58,7 +58,7 @@ export default function OverviewDashboard() {
               <span className="text-xs text-[#64748b]">This month:</span>
               <span className="text-sm font-semibold text-[#0f172a]">₹3,456</span>
             </div>
-            <div className="text-xs text-[#64748b]">Avg per msg: <span className="font-semibold text-[#0f172a]">₹0.50</span></div>
+            <div className="text-xs text-[#64748b]">Avg per msg: <span className="inline-block w-12 h-4 bg-gray-200 rounded animate-pulse"></span></div>
           </div>
         </div>
       </div>

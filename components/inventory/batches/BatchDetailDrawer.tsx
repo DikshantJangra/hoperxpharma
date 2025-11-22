@@ -19,9 +19,8 @@ export default function BatchDetailDrawer({ batch, onClose }: any) {
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
               <h2 className="text-lg font-bold text-[#0f172a]">{batch.id}</h2>
-              <span className={`px-2 py-1 text-xs font-medium rounded border ${
-                batch.status === 'Quarantine' ? 'border-[#ef4444] text-[#ef4444] bg-[#fef2f2]' : 'border-[#10b981] text-[#10b981] bg-[#d1fae5]'
-              }`}>
+              <span className={`px-2 py-1 text-xs font-medium rounded border ${batch.status === 'Quarantine' ? 'border-[#ef4444] text-[#ef4444] bg-[#fef2f2]' : 'border-[#10b981] text-[#10b981] bg-[#d1fae5]'
+                }`}>
                 {batch.status}
               </span>
             </div>
@@ -62,11 +61,10 @@ export default function BatchDetailDrawer({ batch, onClose }: any) {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === tab.id
-                  ? 'border-[#0ea5a3] text-[#0ea5a3]'
-                  : 'border-transparent text-[#64748b] hover:text-[#0f172a]'
-              }`}
+              className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === tab.id
+                ? 'border-[#0ea5a3] text-[#0ea5a3]'
+                : 'border-transparent text-[#64748b] hover:text-[#0f172a]'
+                }`}
             >
               {tab.label}
             </button>
@@ -125,13 +123,13 @@ export default function BatchDetailDrawer({ batch, onClose }: any) {
                   <span className="text-[#64748b]">Supplier</span>
                   <span className="font-medium text-[#0f172a]">{batch.supplier}</span>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-[#64748b]">Cost</span>
-                  <span className="font-medium text-[#0f172a]">₹{batch.cost}</span>
+                <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                  <span className="text-[#64748b]">Unit Cost</span>
+                  <span className="inline-block w-12 h-4 bg-gray-200 rounded animate-pulse"></span>
                 </div>
-                <div className="flex justify-between text-sm">
+                <div className="flex justify-between items-center py-2 border-b border-gray-100">
                   <span className="text-[#64748b]">MRP</span>
-                  <span className="font-medium text-[#0f172a]">₹{batch.mrp}</span>
+                  <span className="inline-block w-12 h-4 bg-gray-200 rounded animate-pulse"></span>
                 </div>
               </div>
 

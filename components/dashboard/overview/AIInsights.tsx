@@ -1,92 +1,49 @@
-import { FiChevronRight } from "react-icons/fi"
-
-interface InsightProps {
-    type: 'critical' | 'forecast' | 'warning'
-    title: string
-    description: string
-    confidence?: number
-    primaryAction: string
-    secondaryAction?: string
-}
+"use client"
+import { FiZap, FiTrendingUp, FiAlertTriangle, FiClock } from "react-icons/fi"
 
 export default function AIInsights() {
-    return (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 h-full flex flex-col">
-            <h3 className="text-base font-semibold text-gray-800 mb-4">AI Inventory Insights</h3>
-            <div className="space-y-3 flex-1 overflow-y-auto min-h-0">
-                <InsightCard 
-                    type="critical"
-                    title="CRITICAL: Atorvastatin 10mg — 4 left"
-                    description="Stock critically low. Reorder recommended immediately."
-                    primaryAction="Create PO"
-                    secondaryAction="View Stock"
-                />
-                <InsightCard 
-                    type="forecast"
-                    title="AI FORECAST: High demand for Amoxicillin"
-                    description="Predicted 40% increase based on seasonal trends."
-                    confidence={72}
-                    primaryAction="Review"
-                    secondaryAction="Snooze"
-                />
-                <InsightCard 
-                    type="warning"
-                    title="NEAR EXPIRY: 2 items in < 7 days"
-                    description="Metformin 500mg, Paracetamol 650mg"
-                    primaryAction="View Items"
-                    secondaryAction="Dismiss"
-                />
-            </div>
-        </div>
-    )
-}
-
-function InsightCard({ type, title, description, confidence, primaryAction, secondaryAction }: InsightProps) {
-    const styles = {
-        critical: { 
-            bg: 'bg-[#fff6f6]', 
-            border: 'border-l-4 border-l-[#ef4444] border-[#ef4444]/20', 
-            text: 'text-[#ef4444]', 
-            btnPrimary: 'bg-[#ef4444] text-white hover:bg-[#ef4444]/90',
-            btnSecondary: 'text-[#ef4444] hover:text-[#ef4444]/80'
-        },
-        forecast: { 
-            bg: 'bg-blue-50', 
-            border: 'border-l-4 border-l-blue-500 border-blue-200', 
-            text: 'text-blue-700', 
-            btnPrimary: 'bg-blue-600 text-white hover:bg-blue-700',
-            btnSecondary: 'text-blue-600 hover:text-blue-700'
-        },
-        warning: { 
-            bg: 'bg-amber-50', 
-            border: 'border-l-4 border-l-amber-500 border-amber-200', 
-            text: 'text-amber-700', 
-            btnPrimary: 'bg-amber-600 text-white hover:bg-amber-700',
-            btnSecondary: 'text-amber-600 hover:text-amber-700'
-        }
-    }
-    const style = styles[type]
+    const loading = true; // Default to loading state
 
     return (
-        <div className={`p-4 rounded-lg border ${style.border} ${style.bg}`}>
-            <div className="flex items-start justify-between gap-2 mb-2">
-                <p className={`text-xs font-bold ${style.text} uppercase tracking-wide`}>{title}</p>
-                {confidence && (
-                    <span className="text-xs bg-white px-2 py-0.5 rounded-full font-semibold text-[#6b7280] border border-gray-200">
-                        {confidence}% confidence
-                    </span>
-                )}
-            </div>
-            <p className="text-xs text-[#0f172a] mb-4 leading-relaxed">{description}</p>
-            <div className="flex items-center gap-2">
-                <button className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${style.btnPrimary}`}>
-                    {primaryAction}
+        <div className="bg-gradient-to-br from-[#0ea5a3] to-[#0b8d8b] rounded-xl p-6 text-white h-full relative overflow-hidden">
+            {/* Background Pattern */}
+            <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-10 -mt-10 blur-2xl"></div>
+            <div className="absolute bottom-0 left-0 w-24 h-24 bg-black/10 rounded-full -ml-8 -mb-8 blur-xl"></div>
+
+            <div className="relative z-10">
+                <div className="flex items-center gap-2 mb-6">
+                    <div className="p-2 bg-white/20 rounded-lg backdrop-blur-sm">
+                        <FiZap className="text-yellow-300" size={20} />
+                    </div>
+                    <h3 className="font-bold text-lg">AI Insights</h3>
+                </div>
+
+                <div className="space-y-4">
+                    {loading ? (
+                        <>
+                            <div className="bg-white/10 p-3 rounded-lg backdrop-blur-sm border border-white/10 animate-pulse">
+                                <div className="h-4 w-3/4 bg-white/20 rounded mb-2"></div>
+                                <div className="h-3 w-1/2 bg-white/10 rounded"></div>
+                            </div>
+                            <div className="bg-white/10 p-3 rounded-lg backdrop-blur-sm border border-white/10 animate-pulse">
+                                <div className="h-4 w-2/3 bg-white/20 rounded mb-2"></div>
+                                <div className="h-3 w-1/2 bg-white/10 rounded"></div>
+                            </div>
+                            <div className="bg-white/10 p-3 rounded-lg backdrop-blur-sm border border-white/10 animate-pulse">
+                                <div className="h-4 w-3/4 bg-white/20 rounded mb-2"></div>
+                                <div className="h-3 w-1/2 bg-white/10 rounded"></div>
+                            </div>
+                        </>
+                    ) : (
+                        <div className="text-center py-8 text-white/80 text-sm">
+                            No insights available
+                        </div>
+                    )}
+                </div>
+
+                <button className="w-full mt-6 py-2.5 bg-white text-[#0ea5a3] font-semibold rounded-lg hover:bg-gray-50 transition-colors text-sm shadow-lg shadow-black/5">
+                    View All Insights
                 </button>
-                {secondaryAction && (
-                    <button className={`text-xs font-semibold ${style.btnSecondary} transition-colors`}>
-                        {secondaryAction}
-                    </button>
-                )}
             </div>
         </div>
     )

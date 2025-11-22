@@ -26,45 +26,17 @@ export default function SupplierSelect({ value, onChange }: SupplierSelectProps)
     // ... (keep existing loadSuppliers logic)
     setLoading(true);
     try {
-      // Mock data - replace with actual API call
-      const mockSuppliers: Supplier[] = [
-        {
-          id: 'sup_001',
-          name: 'ABC Pharma Distributors',
-          gstin: '07AAXPS1234J1Z',
-          defaultLeadTimeDays: 5,
-          contact: {
-            email: 'sales@abcpharma.com',
-            phone: '+919812345678',
-            whatsapp: '+919812345678'
-          },
-          paymentTerms: '30 days'
-        },
-        {
-          id: 'sup_002',
-          name: 'MediCore Supplies',
-          gstin: '27BBXPS5678K2A',
-          defaultLeadTimeDays: 3,
-          contact: {
-            email: 'orders@medicore.com',
-            phone: '+919876543210'
-          },
-          paymentTerms: '15 days'
-        },
-        {
-          id: 'sup_003',
-          name: 'HealthFirst Distributors',
-          defaultLeadTimeDays: 7,
-          contact: {
-            email: 'procurement@healthfirst.com',
-            phone: '+919123456789'
-          },
-          paymentTerms: '45 days'
-        }
-      ];
-      setSuppliers(mockSuppliers);
+      // TODO: Replace with actual API call
+      const response = await fetch('/api/suppliers');
+      if (response.ok) {
+        const data = await response.json();
+        setSuppliers(data);
+      } else {
+        setSuppliers([]);
+      }
     } catch (error) {
       console.error('Failed to load suppliers:', error);
+      setSuppliers([]);
     } finally {
       setLoading(false);
     }

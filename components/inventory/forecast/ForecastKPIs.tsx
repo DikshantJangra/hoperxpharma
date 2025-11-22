@@ -1,77 +1,71 @@
 'use client';
 
-import { FiAlertTriangle, FiShoppingCart, FiTrendingUp, FiTarget } from 'react-icons/fi';
+import { FiAlertTriangle, FiShoppingCart, FiTrendingUp, FiDollarSign, FiTarget } from 'react-icons/fi';
 import { BsLightningChargeFill } from 'react-icons/bs';
 
 export default function ForecastKPIs({ forecastWindow }: any) {
   const kpis = [
     {
-      icon: FiAlertTriangle,
-      label: `Stock-out Risk (Next ${forecastWindow}d)`,
-      value: '27 SKUs',
-      subtext: 'at risk',
-      color: 'text-[#ef4444]',
-      bg: 'bg-[#fee2e2]',
-      cta: 'View risks',
-    },
-    {
-      icon: FiShoppingCart,
-      label: 'Reorder Needed This Week',
-      value: '₹48,200',
-      subtext: 'total order value',
-      color: 'text-[#f59e0b]',
-      bg: 'bg-[#fef3c7]',
-      cta: 'Generate PO',
-    },
-    {
+      label: 'Forecasted Demand',
+      value: '0 units',
+      change: '+0%',
+      trend: 'neutral',
       icon: FiTrendingUp,
-      label: 'Predicted High-Demand',
-      value: '6 SKUs',
-      subtext: 'ORS, Vitamin D, Amoxicillin',
-      color: 'text-[#0ea5a3]',
-      bg: 'bg-[#f0fdfa]',
-      cta: 'View list',
+      color: 'blue'
     },
     {
-      icon: BsLightningChargeFill,
-      label: 'Seasonal Surge Detected',
-      value: '+32%',
-      subtext: 'Cough & Cold medicines',
-      color: 'text-[#8b5cf6]',
-      bg: 'bg-[#f3e8ff]',
-      cta: 'See trends',
+      label: 'Est. Revenue Impact',
+      value: '₹0',
+      change: '+0%',
+      trend: 'neutral',
+      icon: FiDollarSign,
+      color: 'emerald'
     },
     {
-      icon: FiTarget,
-      label: 'AI Forecast Accuracy',
-      value: '92.4%',
-      subtext: 'last 30 days',
-      color: 'text-[#10b981]',
-      bg: 'bg-[#d1fae5]',
-      cta: null,
+      label: 'Stockout Risk',
+      value: '0 items',
+      change: 'Low',
+      trend: 'neutral',
+      icon: FiAlertTriangle,
+      color: 'amber'
     },
+    {
+      label: 'Reorder Value',
+      value: '₹0',
+      change: 'Pending',
+      trend: 'neutral',
+      icon: FiShoppingCart,
+      color: 'purple'
+    }
   ];
 
   return (
     <div className="p-4 bg-white border-b border-[#e2e8f0]">
-      <div className="grid grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {kpis.map((kpi, idx) => (
-          <div key={idx} className="bg-[#f8fafc] rounded-lg p-4 border border-[#e2e8f0]">
-            <div className="flex items-start justify-between mb-3">
-              <div className={`w-10 h-10 ${kpi.bg} rounded-lg flex items-center justify-center`}>
-                <kpi.icon className={`w-5 h-5 ${kpi.color}`} />
+          <div
+            key={idx}
+            className="p-4 rounded-xl border border-[#f1f5f9] bg-white hover:shadow-sm transition-shadow"
+          >
+            <div className="flex items-start justify-between mb-2">
+              <div className={`p-2 rounded-lg bg-${kpi.color}-50 text-${kpi.color}-600`}>
+                <kpi.icon className="w-5 h-5" />
               </div>
+              <span
+                className={`text-xs font-medium px-2 py-1 rounded-full ${kpi.trend === 'up'
+                    ? 'bg-emerald-50 text-emerald-700'
+                    : kpi.trend === 'down'
+                      ? 'bg-red-50 text-red-700'
+                      : 'bg-gray-100 text-gray-600'
+                  }`}
+              >
+                {kpi.change}
+              </span>
             </div>
-            <div className="mb-2">
-              <div className={`text-2xl font-bold ${kpi.color}`}>{kpi.value}</div>
-              <div className="text-xs text-[#64748b] mt-1">{kpi.subtext}</div>
+            <div>
+              <div className="text-sm text-[#64748b] mb-1">{kpi.label}</div>
+              <div className="text-2xl font-bold text-[#0f172a]">{kpi.value}</div>
             </div>
-            <div className="text-xs font-medium text-[#64748b] mb-2">{kpi.label}</div>
-            {kpi.cta && (
-              <button className="text-xs text-[#0ea5a3] hover:underline font-medium">
-                {kpi.cta} →
-              </button>
-            )}
           </div>
         ))}
       </div>

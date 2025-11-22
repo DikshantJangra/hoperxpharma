@@ -17,19 +17,16 @@ export default function AdjustmentSummary({ items, onSubmit }: any) {
             </div>
             <div>
               <p className="text-[#64748b] mb-1">Total Delta</p>
-              <p className={`text-xl font-bold ${
-                totalDelta > 0 ? 'text-[#10b981]' : totalDelta < 0 ? 'text-[#ef4444]' : 'text-[#64748b]'
-              }`}>
+              <p className={`text-xl font-bold ${totalDelta > 0 ? 'text-[#10b981]' : totalDelta < 0 ? 'text-[#ef4444]' : 'text-[#64748b]'
+                }`}>
                 {totalDelta > 0 ? '+' : ''}{totalDelta} units
               </p>
             </div>
-            <div>
-              <p className="text-[#64748b] mb-1">Financial Impact</p>
-              <p className={`text-xl font-bold ${
-                financialImpact > 0 ? 'text-[#10b981]' : financialImpact < 0 ? 'text-[#ef4444]' : 'text-[#64748b]'
-              }`}>
-                ₹{Math.abs(financialImpact).toFixed(2)}
-              </p>
+            <div className="text-right">
+              <div className="text-sm text-gray-500 mb-1">Net Financial Impact</div>
+              <div className={`text-xl font-bold ${financialImpact >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                ₹{financialImpact.toFixed(2)}
+              </div>
             </div>
             <div>
               <p className="text-[#64748b] mb-1">Audit Impact</p>
