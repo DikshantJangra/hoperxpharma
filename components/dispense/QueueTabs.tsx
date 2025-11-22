@@ -14,6 +14,7 @@ interface QueueTabsProps {
     activeStep: DispenseStep;
     onStepChange: (step: DispenseStep) => void;
     counts: Record<DispenseStep, QueueCount>;
+    isLoading: boolean;
 }
 
 const STEP_CONFIG: Record<DispenseStep, { label: string; icon: any; color: string; shortcut: string }> = {
@@ -25,7 +26,7 @@ const STEP_CONFIG: Record<DispenseStep, { label: string; icon: any; color: strin
     release: { label: "Release", icon: FiSend, color: "emerald", shortcut: "6" }
 };
 
-export default function QueueTabs({ activeStep, onStepChange, counts }: QueueTabsProps) {
+export default function QueueTabs({ activeStep, onStepChange, counts, isLoading }: QueueTabsProps) {
     return (
         <div className="h-full bg-white border-r border-gray-200 flex flex-col">
             {/* Header */}
@@ -35,7 +36,7 @@ export default function QueueTabs({ activeStep, onStepChange, counts }: QueueTab
             </div>
 
             {/* Tabs */}
-            <div className="flex-1 overflow-y-auto">
+            <div className={`flex-1 overflow-y-auto ${isLoading ? 'animate-pulse' : ''}`}>
                 {(Object.keys(STEP_CONFIG) as DispenseStep[]).map((step) => {
                     const config = STEP_CONFIG[step];
                     const Icon = config.icon;
@@ -50,6 +51,7 @@ export default function QueueTabs({ activeStep, onStepChange, counts }: QueueTab
                                     ? `border-${config.color}-600 bg-${config.color}-50`
                                     : "border-transparent hover:bg-gray-50"
                                 }`}
+                            disabled={isLoading}
                         >
                             <div
                                 className={`p-2 rounded-lg ${isActive ? `bg-${config.color}-100` : "bg-gray-100"
@@ -74,16 +76,25 @@ export default function QueueTabs({ activeStep, onStepChange, counts }: QueueTab
                                     </span>
                                 </div>
                                 <div className="flex items-center gap-2 mt-1">
-                                    <span
-                                        className={`text-xs font-semibold ${isActive ? `text-${config.color}-700` : "text-gray-600"
-                                            }`}
-                                    >
-                                        {count.total}
-                                    </span>
-                                    {count.urgent > 0 && (
-                                        <span className="px-1.5 py-0.5 bg-red-100 text-red-700 text-xs font-bold rounded">
-                                            {count.urgent} urgent
+                                    {isLoading ? (
+                                        <span className="text-xs font-semibold h-4 bg-gray-200 rounded-md w-8"></span>
+                                    ) : (
+                                        <span
+                                            className={`text-xs font-semibold ${isActive ? `text-${config.color}-700` : "text-gray-600"
+                                                }`}
+                                        >
+                                            {count.total}
                                         </span>
+                                    )}
+                                    
+                                    {isLoading ? (
+                                        <span className="h-4 bg-gray-200 rounded-md w-16"></span>
+                                    ) : (
+                                        count.urgent > 0 && (
+                                            <span className="px-1.5 py-0.5 bg-red-100 text-red-700 text-xs font-bold rounded">
+                                                {count.urgent} urgent
+                                            </span>
+                                        )
                                     )}
                                 </div>
                             </div>

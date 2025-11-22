@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { FiArrowLeft, FiPauseCircle, FiClock, FiAlertTriangle, FiPlay } from "react-icons/fi";
 import StatusBadge from "@/components/prescriptions/StatusBadge";
@@ -19,43 +19,21 @@ interface OnHoldPrescription {
     notes?: string;
 }
 
-// Mock data
-const MOCK_ON_HOLD: OnHoldPrescription[] = [
-    {
-        id: "RX006",
-        patientName: "Deepak Sharma",
-        doctorName: "Dr. Sunita Rao",
-        date: new Date(Date.now() - 1000 * 60 * 60 * 6),
-        drugCount: 2,
-        holdReason: "Missing doctor signature",
-        holdCategory: "signature",
-        priority: "urgent",
-        reminderTime: new Date(Date.now() + 1000 * 60 * 60 * 2),
-        notes: "Patient called, will bring signed copy tomorrow"
-    },
-    {
-        id: "RX007",
-        patientName: "Anita Verma",
-        doctorName: "Dr. Rajesh Patel",
-        date: new Date(Date.now() - 1000 * 60 * 60 * 12),
-        drugCount: 3,
-        holdReason: "Out of stock - Metformin 500mg",
-        holdCategory: "stock",
-        priority: "normal",
-        reminderTime: new Date(Date.now() + 1000 * 60 * 60 * 24),
-        notes: "Stock expected in 2 days"
-    },
-    {
-        id: "RX008",
-        patientName: "Karan Singh",
-        doctorName: "Dr. Priya Nair",
-        date: new Date(Date.now() - 1000 * 60 * 60 * 24),
-        drugCount: 1,
-        holdReason: "Insurance approval pending",
-        holdCategory: "insurance",
-        priority: "normal"
-    }
-];
+const PrescriptionCardSkeleton = () => (
+    <div className="bg-white border-2 border-gray-200 rounded-xl p-6 animate-pulse">
+        <div className="flex items-start justify-between mb-4">
+            <div className="flex-1 space-y-3">
+                <div className="h-6 bg-gray-200 rounded w-1/2 mb-3"></div>
+                <div className="h-4 bg-gray-100 rounded w-3/4"></div>
+                <div className="h-8 bg-gray-100 rounded-lg w-full"></div>
+            </div>
+            <div className="flex flex-col gap-2 ml-6">
+                <div className="h-10 w-24 bg-gray-200 rounded-lg"></div>
+                <div className="h-10 w-24 bg-gray-200 rounded-lg"></div>
+            </div>
+        </div>
+    </div>
+)
 
 const HOLD_CATEGORIES = {
     signature: { label: "Missing Signature", color: "red", icon: FiAlertTriangle },
@@ -66,7 +44,17 @@ const HOLD_CATEGORIES = {
 };
 
 export default function OnHoldPrescriptionsPage() {
-    const [prescriptions] = useState<OnHoldPrescription[]>(MOCK_ON_HOLD);
+    const [prescriptions, setPrescriptions] = useState<OnHoldPrescription[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        setIsLoading(true);
+        const timer = setTimeout(() => {
+            setPrescriptions([]);
+            setIsLoading(false);
+        }, 1500)
+        return () => clearTimeout(timer);
+    }, []);
 
     const formatTime = (date: Date) => {
         const now = new Date();
@@ -107,13 +95,21 @@ export default function OnHoldPrescriptionsPage() {
                             {urgentCount > 0 && (
                                 <div className="px-4 py-2 bg-red-50 border border-red-200 rounded-lg">
                                     <span className="text-sm text-gray-600">Urgent:</span>
-                                    <span className="ml-2 font-bold text-red-700">{urgentCount}</span>
+                                    {isLoading ? (
+                                        <span className="ml-2 font-bold text-red-700 animate-pulse w-4 h-4 bg-gray-200 rounded"></span>
+                                    ) : (
+                                        <span className="ml-2 font-bold text-red-700">{urgentCount}</span>
+                                    )}
                                 </div>
                             )}
                             {overdueCount > 0 && (
                                 <div className="px-4 py-2 bg-amber-50 border border-amber-200 rounded-lg">
                                     <span className="text-sm text-gray-600">Overdue:</span>
-                                    <span className="ml-2 font-bold text-amber-700">{overdueCount}</span>
+                                    {isLoading ? (
+                                        <span className="ml-2 font-bold text-amber-700 animate-pulse w-4 h-4 bg-gray-200 rounded"></span>
+                                    ) : (
+                                        <span className="ml-2 font-bold text-amber-700">{overdueCount}</span>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -127,111 +123,118 @@ export default function OnHoldPrescriptionsPage() {
 
                 {/* Prescriptions List */}
                 <div className="space-y-4">
-                    {prescriptions.map((prescription) => {
-                        const category = HOLD_CATEGORIES[prescription.holdCategory];
-                        const CategoryIcon = category.icon;
-                        const isOverdue = prescription.reminderTime && prescription.reminderTime < new Date();
+                    {isLoading ? (
+                        <>
+                            <PrescriptionCardSkeleton/>
+                            <PrescriptionCardSkeleton/>
+                        </>
+                    ) : prescriptions.length > 0 ? (
+                        prescriptions.map((prescription) => {
+                            const category = HOLD_CATEGORIES[prescription.holdCategory];
+                            const CategoryIcon = category.icon;
+                            const isOverdue = prescription.reminderTime && prescription.reminderTime < new Date();
 
-                        return (
-                            <div
-                                key={prescription.id}
-                                className={`bg-white border-2 rounded-xl p-6 hover:shadow-md transition-all ${prescription.priority === "urgent"
-                                        ? "border-red-200 bg-red-50/30"
-                                        : "border-amber-200 bg-amber-50/20"
-                                    }`}
-                            >
-                                <div className="flex items-start justify-between mb-4">
-                                    <div className="flex-1">
-                                        <div className="flex items-center gap-3 mb-2">
-                                            <h3 className="font-bold text-gray-900 text-xl">{prescription.patientName}</h3>
-                                            <StatusBadge status="on-hold" />
-                                            {prescription.priority === "urgent" && (
-                                                <span className="px-2 py-1 bg-red-600 text-white text-xs font-bold rounded-full">
-                                                    URGENT
-                                                </span>
+                            return (
+                                <div
+                                    key={prescription.id}
+                                    className={`bg-white border-2 rounded-xl p-6 hover:shadow-md transition-all ${prescription.priority === "urgent"
+                                            ? "border-red-200 bg-red-50/30"
+                                            : "border-amber-200 bg-amber-50/20"
+                                        }`}
+                                >
+                                    <div className="flex items-start justify-between mb-4">
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-3 mb-2">
+                                                <h3 className="font-bold text-gray-900 text-xl">{prescription.patientName}</h3>
+                                                <StatusBadge status="on-hold" />
+                                                {prescription.priority === "urgent" && (
+                                                    <span className="px-2 py-1 bg-red-600 text-white text-xs font-bold rounded-full">
+                                                        URGENT
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm mb-3">
+                                                <div>
+                                                    <div className="text-gray-500 mb-1">Rx ID</div>
+                                                    <div className="font-semibold text-gray-900">{prescription.id}</div>
+                                                </div>
+                                                <div>
+                                                    <div className="text-gray-500 mb-1">Doctor</div>
+                                                    <div className="font-medium text-gray-900">{prescription.doctorName}</div>
+                                                </div>
+                                                <div>
+                                                    <div className="text-gray-500 mb-1">Drugs</div>
+                                                    <div className="font-medium text-gray-900">{prescription.drugCount} items</div>
+                                                </div>
+                                            </div>
+
+                                            {/* Hold Reason */}
+                                            <div className={`inline-flex items-center gap-2 px-4 py-2 bg-${category.color}-100 border border-${category.color}-200 rounded-lg mb-3`}>
+                                                <CategoryIcon className={`h-5 w-5 text-${category.color}-700`} />
+                                                <div>
+                                                    <div className={`text-xs font-semibold text-${category.color}-900 uppercase`}>
+                                                        {category.label}
+                                                    </div>
+                                                    <div className={`text-sm text-${category.color}-800 font-medium`}>
+                                                        {prescription.holdReason}
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Reminder */}
+                                            {prescription.reminderTime && (
+                                                <div className={`flex items-center gap-2 text-sm ${isOverdue ? "text-red-700" : "text-gray-600"}`}>
+                                                    <FiClock className="h-4 w-4" />
+                                                    <span className="font-medium">
+                                                        {isOverdue ? "Overdue" : `Reminder ${formatTime(prescription.reminderTime)}`}
+                                                    </span>
+                                                </div>
+                                            )}
+
+                                            {/* Notes */}
+                                            {prescription.notes && (
+                                                <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                                                    <p className="text-sm text-gray-700">
+                                                        <span className="font-semibold">Notes:</span> {prescription.notes}
+                                                    </p>
+                                                </div>
                                             )}
                                         </div>
 
-                                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm mb-3">
-                                            <div>
-                                                <div className="text-gray-500 mb-1">Rx ID</div>
-                                                <div className="font-semibold text-gray-900">{prescription.id}</div>
-                                            </div>
-                                            <div>
-                                                <div className="text-gray-500 mb-1">Doctor</div>
-                                                <div className="font-medium text-gray-900">{prescription.doctorName}</div>
-                                            </div>
-                                            <div>
-                                                <div className="text-gray-500 mb-1">Drugs</div>
-                                                <div className="font-medium text-gray-900">{prescription.drugCount} items</div>
-                                            </div>
+                                        {/* Actions */}
+                                        <div className="flex flex-col gap-2 ml-6">
+                                            <Link
+                                                href={`/prescriptions/on-hold/${prescription.id}`}
+                                                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors text-center whitespace-nowrap"
+                                            >
+                                                View Details
+                                            </Link>
+                                            <button className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors flex items-center gap-2 whitespace-nowrap" disabled={isLoading}>
+                                                <FiPlay className="h-4 w-4" />
+                                                Resume
+                                            </button>
+                                            <button className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-200 transition-colors whitespace-nowrap" disabled={isLoading}>
+                                                Add Note
+                                            </button>
                                         </div>
-
-                                        {/* Hold Reason */}
-                                        <div className={`inline-flex items-center gap-2 px-4 py-2 bg-${category.color}-100 border border-${category.color}-200 rounded-lg mb-3`}>
-                                            <CategoryIcon className={`h-5 w-5 text-${category.color}-700`} />
-                                            <div>
-                                                <div className={`text-xs font-semibold text-${category.color}-900 uppercase`}>
-                                                    {category.label}
-                                                </div>
-                                                <div className={`text-sm text-${category.color}-800 font-medium`}>
-                                                    {prescription.holdReason}
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Reminder */}
-                                        {prescription.reminderTime && (
-                                            <div className={`flex items-center gap-2 text-sm ${isOverdue ? "text-red-700" : "text-gray-600"}`}>
-                                                <FiClock className="h-4 w-4" />
-                                                <span className="font-medium">
-                                                    {isOverdue ? "Overdue" : `Reminder ${formatTime(prescription.reminderTime)}`}
-                                                </span>
-                                            </div>
-                                        )}
-
-                                        {/* Notes */}
-                                        {prescription.notes && (
-                                            <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
-                                                <p className="text-sm text-gray-700">
-                                                    <span className="font-semibold">Notes:</span> {prescription.notes}
-                                                </p>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Actions */}
-                                    <div className="flex flex-col gap-2 ml-6">
-                                        <Link
-                                            href={`/prescriptions/on-hold/${prescription.id}`}
-                                            className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors text-center whitespace-nowrap"
-                                        >
-                                            View Details
-                                        </Link>
-                                        <button className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors flex items-center gap-2 whitespace-nowrap">
-                                            <FiPlay className="h-4 w-4" />
-                                            Resume
-                                        </button>
-                                        <button className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-200 transition-colors whitespace-nowrap">
-                                            Add Note
-                                        </button>
                                     </div>
                                 </div>
-                            </div>
-                        );
-                    })}
-                </div>
-
-                {/* Empty State */}
-                {prescriptions.length === 0 && (
-                    <div className="text-center py-16">
-                        <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
-                            <FiPauseCircle className="h-8 w-8 text-green-600" />
-                        </div>
-                        <h3 className="text-lg font-semibold text-gray-900 mb-2">No prescriptions on hold</h3>
-                        <p className="text-gray-600">All prescriptions are flowing smoothly through the pipeline</p>
+                            );
+                        })}
                     </div>
-                )}
+
+                    {/* Empty State */}
+                    {prescriptions.length === 0 && (
+                        <div className="text-center py-16">
+                            <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
+                                <FiPauseCircle className="h-8 w-8 text-green-600" />
+                            </div>
+                            <h3 className="text-lg font-semibold text-gray-900 mb-2">No prescriptions on hold</h3>
+                            <p className="text-gray-600">All prescriptions are flowing smoothly through the pipeline</p>
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );

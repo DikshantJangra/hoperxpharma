@@ -1,20 +1,35 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FiPaperclip, FiSend, FiFileText, FiImage, FiShoppingCart, FiMoreVertical } from 'react-icons/fi';
 import { BsReceipt } from 'react-icons/bs';
 import { RiCapsuleLine } from 'react-icons/ri';
 
-const MOCK_MESSAGES = [
-  { id: '1', type: 'incoming', text: 'Can I get a refill of telmisartan?', time: '10:30 AM', status: 'read' },
-  { id: '2', type: 'outgoing', text: 'Yes, we have it in stock. The price is ₹150 for 15 tablets.', time: '10:32 AM', status: 'read' },
-  { id: '3', type: 'incoming', text: 'Great! Can you prepare it? I will pick up in 30 mins', time: '10:33 AM', status: 'read' },
-  { id: '4', type: 'outgoing', text: 'Sure! Your order is being prepared. I will send you the invoice.', time: '10:34 AM', status: 'delivered' },
-];
+const MessageSkeleton = ({ outgoing }: { outgoing?: boolean }) => (
+    <div className={`flex ${outgoing ? 'justify-end' : 'justify-start'}`}>
+        <div className={`max-w-md px-4 py-2 rounded-lg animate-pulse ${outgoing ? 'bg-gray-200' : 'bg-gray-100'}`}>
+            <div className="h-4 bg-gray-300 rounded w-48 mb-2"></div>
+            <div className="h-3 bg-gray-300 rounded w-32"></div>
+        </div>
+    </div>
+)
 
-export default function ChatWindow({ conversation }: any) {
+export default function ChatWindow({ conversation, isLoading: parentLoading }: any) {
   const [message, setMessage] = useState('');
   const [showTemplates, setShowTemplates] = useState(false);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (conversation) {
+        setIsLoading(true);
+        const timer = setTimeout(() => {
+            setMessages([]);
+            setIsLoading(false);
+        }, 1500)
+        return () => clearTimeout(timer);
+    }
+  }, [conversation]);
 
   if (!conversation) {
     return (
@@ -45,19 +60,19 @@ export default function ChatWindow({ conversation }: any) {
         </div>
 
         <div className="flex items-center gap-2">
-          <button className="px-3 py-1.5 border border-[#cbd5e1] rounded-lg hover:bg-[#f8fafc] flex items-center gap-2 text-sm">
+          <button className="px-3 py-1.5 border border-[#cbd5e1] rounded-lg hover:bg-[#f8fafc] flex items-center gap-2 text-sm" disabled={isLoading || parentLoading}>
             <BsReceipt className="w-4 h-4" />
             Invoice
           </button>
-          <button className="px-3 py-1.5 border border-[#cbd5e1] rounded-lg hover:bg-[#f8fafc] flex items-center gap-2 text-sm">
+          <button className="px-3 py-1.5 border border-[#cbd5e1] rounded-lg hover:bg-[#f8fafc] flex items-center gap-2 text-sm" disabled={isLoading || parentLoading}>
             <RiCapsuleLine className="w-4 h-4" />
             Rx
           </button>
-          <button className="px-3 py-1.5 border border-[#cbd5e1] rounded-lg hover:bg-[#f8fafc] flex items-center gap-2 text-sm">
+          <button className="px-3 py-1.5 border border-[#cbd5e1] rounded-lg hover:bg-[#f8fafc] flex items-center gap-2 text-sm" disabled={isLoading || parentLoading}>
             <FiShoppingCart className="w-4 h-4" />
             Order
           </button>
-          <button className="p-2 hover:bg-[#f8fafc] rounded-lg">
+          <button className="p-2 hover:bg-[#f8fafc] rounded-lg" disabled={isLoading || parentLoading}>
             <FiMoreVertical className="w-4 h-4" />
           </button>
         </div>
@@ -69,7 +84,13 @@ export default function ChatWindow({ conversation }: any) {
           <span className="px-3 py-1 bg-white text-[#64748b] text-xs rounded-full shadow-sm">Today</span>
         </div>
 
-        {MOCK_MESSAGES.map((msg) => (
+        {isLoading || parentLoading ? (
+            <>
+                <MessageSkeleton/>
+                <MessageSkeleton outgoing/>
+                <MessageSkeleton/>
+            </>
+        ) : messages.map((msg) => (
           <div key={msg.id} className={`flex ${msg.type === 'outgoing' ? 'justify-end' : 'justify-start'}`}>
             <div
               className={`max-w-md px-4 py-2 rounded-lg ${
@@ -97,6 +118,7 @@ export default function ChatWindow({ conversation }: any) {
             <button
               onClick={() => setShowTemplates(!showTemplates)}
               className="p-2 hover:bg-[#f8fafc] rounded-lg"
+              disabled={isLoading || parentLoading}
             >
               <FiPaperclip className="w-5 h-5 text-[#64748b]" />
             </button>
@@ -129,9 +151,10 @@ export default function ChatWindow({ conversation }: any) {
             onChange={(e) => setMessage(e.target.value)}
             placeholder="Type a message..."
             className="flex-1 px-4 py-2 border border-[#cbd5e1] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#25d366]"
+            disabled={isLoading || parentLoading}
           />
 
-          <button className="p-2 bg-[#25d366] text-white rounded-lg hover:bg-[#20ba5a]">
+          <button className="p-2 bg-[#25d366] text-white rounded-lg hover:bg-[#20ba5a]" disabled={isLoading || parentLoading}>
             <FiSend className="w-5 h-5" />
           </button>
         </div>

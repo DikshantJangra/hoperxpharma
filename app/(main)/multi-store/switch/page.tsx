@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FiStar, FiMapPin, FiTrendingUp, FiAlertTriangle, FiClock, FiUsers, FiCheck } from "react-icons/fi";
 
 interface Store {
@@ -20,74 +20,48 @@ interface Store {
     lastAccessed?: Date;
 }
 
-const MOCK_STORES: Store[] = [
-    {
-        id: "1",
-        name: "HopeRx Main Branch",
-        location: "Mumbai, Maharashtra",
-        region: "West",
-        status: "online",
-        isPinned: true,
-        stats: {
-            todaySales: 45000,
-            stockValue: 1200000,
-            lowStockCount: 12,
-            expiringCount: 8,
-            staffCount: 5
-        },
-        lastAccessed: new Date()
-    },
-    {
-        id: "2",
-        name: "HopeRx Andheri",
-        location: "Andheri, Mumbai",
-        region: "West",
-        status: "online",
-        isPinned: true,
-        stats: {
-            todaySales: 32000,
-            stockValue: 850000,
-            lowStockCount: 8,
-            expiringCount: 5,
-            staffCount: 4
-        }
-    },
-    {
-        id: "3",
-        name: "HopeRx Thane",
-        location: "Thane, Maharashtra",
-        region: "West",
-        status: "online",
-        isPinned: false,
-        stats: {
-            todaySales: 28000,
-            stockValue: 720000,
-            lowStockCount: 15,
-            expiringCount: 10,
-            staffCount: 3
-        }
-    },
-    {
-        id: "4",
-        name: "HopeRx Pune",
-        location: "Pune, Maharashtra",
-        region: "West",
-        status: "offline",
-        isPinned: false,
-        stats: {
-            todaySales: 0,
-            stockValue: 950000,
-            lowStockCount: 20,
-            expiringCount: 12,
-            staffCount: 4
-        }
-    }
-];
+const StoreCardSkeleton = () => (
+    <div className="bg-white border-2 border-[#e2e8f0] rounded-xl overflow-hidden animate-pulse">
+        <div className="p-4 border-b border-[#e2e8f0]">
+            <div className="flex items-start justify-between mb-2">
+                <div className="flex-1">
+                    <div className="h-5 bg-gray-200 rounded w-32 mb-2"></div>
+                    <div className="h-3 bg-gray-100 rounded w-24"></div>
+                </div>
+                <div className="w-6 h-6 bg-gray-200 rounded"></div>
+            </div>
+            <div className="flex items-center gap-2 mt-3">
+                <div className="w-2 h-2 bg-gray-200 rounded-full"></div>
+                <div className="h-3 bg-gray-100 rounded w-16"></div>
+            </div>
+        </div>
+        <div className="p-4 space-y-3">
+            <div className="h-4 bg-gray-100 rounded"></div>
+            <div className="h-4 bg-gray-100 rounded"></div>
+            <div className="h-4 bg-gray-100 rounded"></div>
+            <div className="h-4 bg-gray-100 rounded"></div>
+            <div className="h-4 bg-gray-100 rounded"></div>
+        </div>
+        <div className="p-4 border-t border-[#e2e8f0]">
+            <div className="h-10 bg-gray-200 rounded-lg"></div>
+        </div>
+    </div>
+);
 
 export default function SwitchStorePage() {
     const [currentStoreId, setCurrentStoreId] = useState("1");
-    const [stores, setStores] = useState(MOCK_STORES);
+    const [stores, setStores] = useState<Store[]>([]);
     const [searchQuery, setSearchQuery] = useState("");
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        setIsLoading(true);
+        const timer = setTimeout(() => {
+            setStores([]);
+            setIsLoading(false);
+        }, 1500);
+        return () => clearTimeout(timer);
+    }, []);
 
     const currentStore = stores.find((s) => s.id === currentStoreId);
     const pinnedStores = stores.filter((s) => s.isPinned);
@@ -136,7 +110,23 @@ export default function SwitchStorePage() {
 
             <div className="max-w-7xl mx-auto px-6 py-8">
                 {/* Pinned Stores */}
-                {pinnedStores.length > 0 && (
+                {isLoading ? (
+                    <div className="mb-8">
+                        <h3 className="text-sm font-semibold text-[#64748b] uppercase mb-3 flex items-center gap-2">
+                            <FiStar className="w-4 h-4" />
+                            Favorite Stores
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            {[1,2,3].map(i => (
+                                <div key={i} className="p-4 border-2 border-[#e2e8f0] rounded-xl animate-pulse">
+                                    <div className="h-5 bg-gray-200 rounded w-32 mb-2"></div>
+                                    <div className="h-3 bg-gray-100 rounded w-24 mb-3"></div>
+                                    <div className="h-6 bg-gray-200 rounded w-20"></div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                ) : pinnedStores.length > 0 && (
                     <div className="mb-8">
                         <h3 className="text-sm font-semibold text-[#64748b] uppercase mb-3 flex items-center gap-2">
                             <FiStar className="w-4 h-4" />
@@ -184,17 +174,28 @@ export default function SwitchStorePage() {
                         onChange={(e) => setSearchQuery(e.target.value)}
                         placeholder="Search stores by name or location..."
                         className="w-full px-4 py-3 border border-[#cbd5e1] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0ea5a3]"
+                        disabled={isLoading}
                     />
                 </div>
 
                 {/* All Stores Grid */}
                 <div>
                     <h3 className="text-sm font-semibold text-[#64748b] uppercase mb-3">
-                        All Stores ({filteredStores.length})
+                        All Stores ({isLoading ? '...' : filteredStores.length})
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {filteredStores.map((store) => (
-                            <div
+                        {isLoading ? (
+                            <>
+                                <StoreCardSkeleton/>
+                                <StoreCardSkeleton/>
+                                <StoreCardSkeleton/>
+                                <StoreCardSkeleton/>
+                                <StoreCardSkeleton/>
+                                <StoreCardSkeleton/>
+                            </>
+                        ) : filteredStores.length > 0 ? (
+                            filteredStores.map((store) => (
+                                <div
                                 key={store.id}
                                 className={`bg-white border-2 rounded-xl overflow-hidden transition-all ${store.id === currentStoreId
                                         ? "border-[#0ea5a3] shadow-lg"
@@ -296,7 +297,10 @@ export default function SwitchStorePage() {
                                     )}
                                 </div>
                             </div>
-                        ))}
+                        ))
+                        ) : (
+                            <div className="col-span-3 text-center py-10 text-gray-500">No stores found.</div>
+                        )}
                     </div>
                 </div>
             </div>

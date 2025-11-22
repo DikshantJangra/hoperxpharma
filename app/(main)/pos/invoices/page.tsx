@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FiSearch, FiFilter, FiDownload, FiCalendar } from 'react-icons/fi';
 import InvoiceTable from '@/components/pos/invoices/InvoiceTable';
 import InvoiceDrawer from '@/components/pos/invoices/InvoiceDrawer';
@@ -10,6 +10,15 @@ export default function InvoicesPage() {
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    setIsLoading(true);
+    const timer = setTimeout(() => {
+        setIsLoading(false);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <div className="h-screen flex flex-col bg-[#f8fafc]">
@@ -17,7 +26,7 @@ export default function InvoicesPage() {
       <div className="bg-white border-b border-[#e2e8f0] p-4">
         <div className="flex items-center justify-between mb-4">
           <h1 className="text-2xl font-bold text-[#0f172a]">Invoices</h1>
-          <button className="px-4 py-2 bg-[#0ea5a3] text-white rounded-lg hover:bg-[#0d9391] flex items-center gap-2">
+          <button className="px-4 py-2 bg-[#0ea5a3] text-white rounded-lg hover:bg-[#0d9391] flex items-center gap-2" disabled={isLoading}>
             <FiDownload className="w-4 h-4" />
             Export
           </button>
@@ -32,6 +41,7 @@ export default function InvoicesPage() {
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search by invoice #, customer, phone, SKU, batch..."
               className="w-full pl-10 pr-4 py-2.5 border border-[#cbd5e1] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0ea5a3]"
+              disabled={isLoading}
             />
           </div>
 
@@ -40,12 +50,13 @@ export default function InvoicesPage() {
             className={`px-4 py-2.5 border rounded-lg flex items-center gap-2 ${
               showFilters ? 'bg-[#f0fdfa] border-[#0ea5a3] text-[#0ea5a3]' : 'border-[#cbd5e1] hover:bg-[#f8fafc]'
             }`}
+            disabled={isLoading}
           >
             <FiFilter className="w-4 h-4" />
             Filters
           </button>
 
-          <button className="px-4 py-2.5 border border-[#cbd5e1] rounded-lg hover:bg-[#f8fafc] flex items-center gap-2">
+          <button className="px-4 py-2.5 border border-[#cbd5e1] rounded-lg hover:bg-[#f8fafc] flex items-center gap-2" disabled={isLoading}>
             <FiCalendar className="w-4 h-4" />
             Today
           </button>
@@ -61,6 +72,7 @@ export default function InvoicesPage() {
             searchQuery={searchQuery}
             onSelectInvoice={setSelectedInvoice}
             selectedInvoice={selectedInvoice}
+            isLoading={isLoading}
           />
         </div>
 
@@ -68,6 +80,7 @@ export default function InvoicesPage() {
           <InvoiceDrawer
             invoice={selectedInvoice}
             onClose={() => setSelectedInvoice(null)}
+            isLoading={isLoading && !selectedInvoice}
           />
         )}
       </div>

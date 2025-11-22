@@ -1,25 +1,34 @@
 "use client";
+
+import { useState, useEffect } from "react";
 import { FiFilter, FiBell, FiPlus } from "react-icons/fi";
 import { MdSecurity, MdDevices, MdLocationOn, MdPerson } from "react-icons/md";
 
-export default function AccessFilters() {
-  const savedFilters = [
-    { name: "All Successful Logins", icon: <MdSecurity size={16} />, count: 1847 },
-    { name: "Failed Attempts Only", icon: <MdSecurity size={16} />, count: 34 },
-    { name: "New Device Logins", icon: <MdDevices size={16} />, count: 12 },
-    { name: "Geo-anomalies", icon: <MdLocationOn size={16} />, count: 5 },
-    { name: "Login from new IP", icon: <MdLocationOn size={16} />, count: 18 },
-    { name: "Inactive user attempts", icon: <MdPerson size={16} />, count: 2 },
-    { name: "Root/Admin access", icon: <MdSecurity size={16} />, count: 67 },
-  ];
+const FilterSkeleton = () => (
+    <div className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-gray-100 animate-pulse">
+        <div className="flex items-center gap-2">
+            <div className="h-4 w-4 bg-gray-300 rounded"></div>
+            <div className="h-4 w-32 bg-gray-200 rounded"></div>
+        </div>
+        <div className="h-4 w-8 bg-gray-200 rounded"></div>
+    </div>
+)
 
-  const watchlists = [
-    { name: "Too many failed attempts", triggered: 3, severity: "high" },
-    { name: "Login outside India", triggered: 0, severity: "medium" },
-    { name: "Repeated login from IP", triggered: 1, severity: "low" },
-    { name: "Login on restricted roles", triggered: 0, severity: "high" },
-    { name: "OTP/MFA failure spikes", triggered: 2, severity: "medium" },
-  ];
+export default function AccessFilters() {
+  const [savedFilters, setSavedFilters] = useState<any[]>([]);
+  const [watchlists, setWatchlists] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [activeView, setActiveView] = useState<string | null>(null);
+
+  useEffect(() => {
+    setIsLoading(true);
+    const timer = setTimeout(() => {
+        setSavedFilters([]);
+        setWatchlists([]);
+        setIsLoading(false);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <div className="w-72 bg-gray-50 border-r border-gray-200 flex flex-col">
@@ -35,10 +44,18 @@ export default function AccessFilters() {
         <div>
           <div className="text-xs font-medium text-gray-500 uppercase mb-2">My Filters</div>
           <div className="space-y-1">
-            {savedFilters.map((filter, idx) => (
+            {isLoading ? (
+                <>
+                    <FilterSkeleton/>
+                    <FilterSkeleton/>
+                    <FilterSkeleton/>
+                </>
+            ) : savedFilters.map((filter, idx) => (
               <button
                 key={idx}
-                className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-100"
+                onClick={() => setActiveView(filter.id)}
+                className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-100`}
+                disabled={isLoading}
               >
                 <div className="flex items-center gap-2">
                   {filter.icon}
@@ -57,7 +74,12 @@ export default function AccessFilters() {
             Security Watchlists
           </div>
           <div className="space-y-2">
-            {watchlists.map((watch, idx) => (
+            {isLoading ? (
+                <>
+                    <FilterSkeleton/>
+                    <FilterSkeleton/>
+                </>
+            ) : watchlists.map((watch, idx) => (
               <div
                 key={idx}
                 className="bg-white border border-gray-200 rounded-lg p-3 hover:shadow-sm transition-shadow"
@@ -94,7 +116,7 @@ export default function AccessFilters() {
           </div>
         </div>
 
-        <button className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 text-sm font-medium">
+        <button className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 text-sm font-medium" disabled={isLoading}>
           <FiPlus size={16} />
           Create Alert Rule
         </button>

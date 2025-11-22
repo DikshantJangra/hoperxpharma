@@ -113,7 +113,7 @@ export default function IntakePage() {
                                         </label>
                                         <input
                                             type="text"
-                                            defaultValue="Rajesh Kumar"
+                                            placeholder="Enter patient name"
                                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                                         />
                                     </div>
@@ -123,7 +123,6 @@ export default function IntakePage() {
                                         </label>
                                         <input
                                             type="date"
-                                            defaultValue="1985-06-15"
                                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                                         />
                                     </div>
@@ -133,7 +132,7 @@ export default function IntakePage() {
                                         </label>
                                         <input
                                             type="tel"
-                                            defaultValue="+91 98765 43210"
+                                            placeholder="Enter phone number"
                                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                                         />
                                     </div>
@@ -143,7 +142,7 @@ export default function IntakePage() {
                                         </label>
                                         <input
                                             type="text"
-                                            defaultValue="INS-123456"
+                                            placeholder="Enter insurance ID"
                                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                                         />
                                     </div>

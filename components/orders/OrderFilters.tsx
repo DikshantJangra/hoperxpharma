@@ -5,6 +5,7 @@ import { FiSearch, FiCalendar, FiFilter } from 'react-icons/fi';
 
 interface OrderFiltersProps {
     onFilterChange: (filters: FilterState) => void;
+    disabled?: boolean;
 }
 
 export interface FilterState {
@@ -15,7 +16,7 @@ export interface FilterState {
     dateTo: string;
 }
 
-export default function OrderFilters({ onFilterChange }: OrderFiltersProps) {
+export default function OrderFilters({ onFilterChange, disabled = false }: OrderFiltersProps) {
     const [filters, setFilters] = useState<FilterState>({
         search: '',
         status: 'all',
@@ -44,6 +45,7 @@ export default function OrderFilters({ onFilterChange }: OrderFiltersProps) {
                         value={filters.search}
                         onChange={(e) => handleChange('search', e.target.value)}
                         className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                        disabled={disabled}
                     />
                 </div>
 
@@ -52,6 +54,7 @@ export default function OrderFilters({ onFilterChange }: OrderFiltersProps) {
                     value={filters.status}
                     onChange={(e) => handleChange('status', e.target.value)}
                     className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                    disabled={disabled}
                 >
                     <option value="all">All Status</option>
                     <option value="draft">Draft</option>
@@ -65,6 +68,7 @@ export default function OrderFilters({ onFilterChange }: OrderFiltersProps) {
                 <button
                     onClick={() => setShowAdvanced(!showAdvanced)}
                     className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                    disabled={disabled}
                 >
                     <FiFilter size={18} />
                     {showAdvanced ? 'Hide' : 'More'} Filters
@@ -82,6 +86,7 @@ export default function OrderFilters({ onFilterChange }: OrderFiltersProps) {
                             value={filters.supplier}
                             onChange={(e) => handleChange('supplier', e.target.value)}
                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                            disabled={disabled}
                         >
                             <option value="all">All Suppliers</option>
                             <option value="abc-pharma">ABC Pharma Distributors</option>
@@ -100,6 +105,7 @@ export default function OrderFilters({ onFilterChange }: OrderFiltersProps) {
                             value={filters.dateFrom}
                             onChange={(e) => handleChange('dateFrom', e.target.value)}
                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                            disabled={disabled}
                         />
                     </div>
 
@@ -113,6 +119,7 @@ export default function OrderFilters({ onFilterChange }: OrderFiltersProps) {
                             value={filters.dateTo}
                             onChange={(e) => handleChange('dateTo', e.target.value)}
                             className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none"
+                            disabled={disabled}
                         />
                     </div>
                 </div>

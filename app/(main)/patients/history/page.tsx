@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useState } from "react";
 import HistoryHeader from "@/components/patients/history/HistoryHeader";
 import HistoryFilters from "@/components/patients/history/HistoryFilters";
 import TimelineList from "@/components/patients/history/TimelineList";
@@ -15,10 +15,17 @@ export default function PatientHistoryPage() {
   const { events, loading, selectedEvent, selectEvent, filters, setFilters, loadMore, hasMore } = usePatientHistory(patientId);
   const [showExport, setShowExport] = React.useState(false);
   const [showCalendar, setShowCalendar] = React.useState(false);
+  const [patient, setPatient] = React.useState<any>(null);
 
   React.useEffect(() => {
     // Telemetry
     console.log('patient.history.view', { patientId, timeframe: filters });
+    
+    // In a real app, you'd fetch the patient details here
+    setTimeout(() => {
+        setPatient({ name: 'Loading...', mrn: '-', lastVisit: '-' })
+    }, 1000)
+
   }, [patientId, filters]);
 
   return (
@@ -64,7 +71,11 @@ export default function PatientHistoryPage() {
       <main className="col-span-6">
         <div className="mb-4">
           <h1 className="text-2xl font-semibold text-gray-900">Activity & History</h1>
-          <p className="text-sm text-gray-500 mt-1">Riya Sharma • MRN-1001 • Last visit: Jan 15, 2025</p>
+          {patient ? (
+            <p className="text-sm text-gray-500 mt-1">{patient.name} • {patient.mrn} • Last visit: {patient.lastVisit}</p>
+          ) : (
+            <div className="h-5 w-1/2 bg-gray-200 rounded animate-pulse mt-1"></div>
+          )}
         </div>
         
         <TimelineList 

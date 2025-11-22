@@ -41,40 +41,37 @@ export default function DispensePage() {
                             <div className="space-y-3">
                                 <div>
                                     <div className="text-sm text-[#64748b]">Name</div>
-                                    <div className="font-semibold text-[#0f172a] text-lg">Rajesh Kumar</div>
+                                    <div className="font-semibold text-[#0f172a] text-lg">-</div>
                                 </div>
                                 <div className="grid grid-cols-2 gap-3">
                                     <div>
                                         <div className="text-sm text-[#64748b]">DOB</div>
-                                        <div className="font-medium text-[#0f172a]">June 15, 1985</div>
+                                        <div className="font-medium text-[#0f172a]">-</div>
                                     </div>
                                     <div>
                                         <div className="text-sm text-[#64748b]">Age</div>
-                                        <div className="font-medium text-[#0f172a]">39 years</div>
+                                        <div className="font-medium text-[#0f172a]">-</div>
                                     </div>
                                 </div>
                                 <div>
                                     <div className="text-sm text-[#64748b]">Phone</div>
-                                    <div className="font-medium text-[#0f172a]">+91 98765 43210</div>
+                                    <div className="font-medium text-[#0f172a]">-</div>
                                 </div>
                                 <div>
                                     <div className="text-sm text-[#64748b]">Address</div>
-                                    <div className="text-[#0f172a]">123 Main Street, Mumbai, MH 400001</div>
+                                    <div className="text-[#0f172a]">-</div>
                                 </div>
                             </div>
                         </div>
 
                         <div className="bg-red-50 border-2 border-red-200 rounded-xl p-4">
                             <h3 className="font-semibold text-red-900 mb-2">Allergies</h3>
-                            <div className="text-red-700">Penicillin</div>
+                            <div className="text-red-700">No allergies recorded</div>
                         </div>
 
                         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
                             <h3 className="font-semibold text-blue-900 mb-2">Current Medications</h3>
-                            <ul className="space-y-1 text-sm text-blue-800">
-                                <li>• Aspirin 81mg daily</li>
-                                <li>• Lisinopril 10mg daily</li>
-                            </ul>
+                            <div className="text-sm text-blue-800">No current medications</div>
                         </div>
                     </div>
                 </div>
@@ -103,28 +100,7 @@ export default function DispensePage() {
 
                             <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg mb-4">
                                 <h3 className="font-semibold text-blue-900 mb-3">Key Counseling Points</h3>
-                                <ul className="space-y-2 text-sm text-blue-800">
-                                    <li className="flex items-start gap-2">
-                                        <span className="text-blue-600 mt-0.5">•</span>
-                                        <span><strong>How to take:</strong> Take 1 tablet daily at bedtime</span>
-                                    </li>
-                                    <li className="flex items-start gap-2">
-                                        <span className="text-blue-600 mt-0.5">•</span>
-                                        <span><strong>Side effects:</strong> Watch for unusual bleeding or bruising</span>
-                                    </li>
-                                    <li className="flex items-start gap-2">
-                                        <span className="text-blue-600 mt-0.5">•</span>
-                                        <span><strong>Drug interactions:</strong> Avoid NSAIDs, monitor with Aspirin</span>
-                                    </li>
-                                    <li className="flex items-start gap-2">
-                                        <span className="text-blue-600 mt-0.5">•</span>
-                                        <span><strong>Storage:</strong> Store at room temperature, away from moisture</span>
-                                    </li>
-                                    <li className="flex items-start gap-2">
-                                        <span className="text-blue-600 mt-0.5">•</span>
-                                        <span><strong>Important:</strong> Monitor INR levels regularly, avoid vitamin K-rich foods</span>
-                                    </li>
-                                </ul>
+                                <div className="text-sm text-blue-800">No counseling points available</div>
                             </div>
 
                             <label className="flex items-center gap-3 p-4 bg-[#f8fafc] rounded-lg cursor-pointer hover:bg-[#f1f5f9] transition-colors">

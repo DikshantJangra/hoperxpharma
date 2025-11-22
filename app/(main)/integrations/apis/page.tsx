@@ -58,12 +58,12 @@ export default function APIsPage() {
           </div>
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-600">Connected Apps:</span>
-            <span className="text-sm font-medium text-gray-900">2</span>
+            <span className="text-sm font-medium text-gray-900">0</span>
           </div>
           <div className="flex items-center gap-2">
             <FiActivity size={16} className="text-gray-600" />
             <span className="text-sm text-gray-600">Usage Today:</span>
-            <span className="text-sm font-medium text-gray-900">1,247 requests</span>
+            <span className="text-sm font-medium text-gray-900">0 requests</span>
           </div>
           <div className="flex items-center gap-2">
             <FiCheckCircle size={16} className="text-green-600" />

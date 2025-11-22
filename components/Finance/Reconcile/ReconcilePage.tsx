@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BankTransaction, ReconcileSummary, Allocation } from '@/types/reconcile';
 import FeedListPanel from './FeedListPanel';
 import TxnListView from './TxnListView';
@@ -12,70 +12,35 @@ interface ReconcilePageProps {
 }
 
 export default function ReconcilePage({ storeId }: ReconcilePageProps) {
-  const [summary] = useState<ReconcileSummary>({
-    lastSync: '2 hours ago',
-    unmatched: 12,
-    suggested: 8,
-    suspicious: 2
+  const [summary, setSummary] = useState<ReconcileSummary>({
+    lastSync: 'fetching...',
+    unmatched: 0,
+    suggested: 0,
+    suspicious: 0
   });
 
-  const [transactions, setTransactions] = useState<BankTransaction[]>([
-    {
-      txnId: 'bank_001',
-      accountId: 'acct_01',
-      date: '2025-11-14T10:12:00Z',
-      amount: 1500,
-      currency: 'INR',
-      direction: 'CR',
-      description: 'UPI-PAYMENT INV#INV-12345 REF UPI:1234567890',
-      bankRef: 'UTR000123',
-      normalized: { invoiceIds: ['INV-12345'], upiId: '1234567890' },
-      status: 'SUGGESTED',
-      suggestions: [
-        {
-          candidateId: 'inv_12345',
-          type: 'INVOICE',
-          score: 98,
-          reason: 'invoice id in narration; amount exact',
-          amount: 1500,
-          reference: 'INV-12345'
-        }
-      ],
-      audit: { createdBy: 'system', createdAt: '2025-11-14T10:12:00Z' }
-    },
-    {
-      txnId: 'bank_002',
-      accountId: 'acct_01',
-      date: '2025-11-14T11:30:00Z',
-      amount: 850,
-      currency: 'INR',
-      direction: 'CR',
-      description: 'NEFT PAYMENT FROM CUSTOMER',
-      bankRef: 'UTR000124',
-      normalized: { invoiceIds: [] },
-      status: 'UNMATCHED',
-      suggestions: [],
-      audit: { createdBy: 'system', createdAt: '2025-11-14T11:30:00Z' }
-    },
-    {
-      txnId: 'bank_003',
-      accountId: 'acct_01',
-      date: '2025-11-14T14:20:00Z',
-      amount: 1500,
-      currency: 'INR',
-      direction: 'CR',
-      description: 'UPI DUPLICATE AMOUNT',
-      bankRef: 'UTR000125',
-      normalized: { invoiceIds: [] },
-      status: 'SUSPICIOUS',
-      suggestions: [],
-      audit: { createdBy: 'system', createdAt: '2025-11-14T14:20:00Z' }
-    }
-  ]);
+  const [transactions, setTransactions] = useState<BankTransaction[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const [selectedTxn, setSelectedTxn] = useState<BankTransaction | null>(null);
   const [showUploadWizard, setShowUploadWizard] = useState(false);
   const [activeQueue, setActiveQueue] = useState<string>('unmatched');
+
+  useEffect(() => {
+    setIsLoading(true);
+    const timer = setTimeout(() => {
+        setSummary({
+            lastSync: 'Just now',
+            unmatched: 0,
+            suggested: 0,
+            suspicious: 0
+        });
+        setTransactions([]);
+        setIsLoading(false);
+    }, 1500)
+    return () => clearTimeout(timer);
+  }, []); // Empty dependency array means this runs once on mount
+
 
   const filteredTransactions = transactions.filter(txn => {
     if (activeQueue === 'unmatched') return txn.status === 'UNMATCHED';
@@ -85,30 +50,12 @@ export default function ReconcilePage({ storeId }: ReconcilePageProps) {
   });
 
   const handleMatch = async (txnId: string, allocations: Allocation[], note: string) => {
-    try {
-      const response = await fetch('/api/reconcile/match', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          txnId,
-          allocations,
-          matchedBy: 'u_01',
-          note,
-          idempotencyKey: `match-${txnId}-${Date.now()}`
-        })
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        setTransactions(transactions.map(t =>
-          t.txnId === txnId ? { ...t, status: 'MATCHED' } : t
-        ));
-        alert(`Matched • Audit ${result.auditEventId}`);
-        setSelectedTxn(null);
-      }
-    } catch (error) {
-      alert('Failed to match transaction');
-    }
+    // Simulate API call
+    alert(`Matching transaction ${txnId}...`);
+    setTransactions(prevTxns => prevTxns.map(t =>
+      t.txnId === txnId ? { ...t, status: 'MATCHED' } : t
+    ));
+    setSelectedTxn(null);
   };
 
   const handleCreateAdjustment = (txnId: string) => {
@@ -132,7 +79,7 @@ export default function ReconcilePage({ storeId }: ReconcilePageProps) {
       suggestions: [],
       audit: { createdBy: 'u_01', createdAt: new Date().toISOString() }
     };
-    setTransactions([newTxn, ...transactions]);
+    setTransactions(prevTxns => [newTxn, ...prevTxns]);
   };
 
   return (
@@ -142,10 +89,10 @@ export default function ReconcilePage({ storeId }: ReconcilePageProps) {
           <h1 className="text-2xl font-semibold text-gray-900">Reconciliation</h1>
           <div className="flex gap-4 text-sm">
             <div className="text-gray-600">
-              Last sync: <span className="font-medium text-gray-900">{summary.lastSync}</span>
+              Last sync: {isLoading ? <span className="font-medium text-gray-400 animate-pulse">fetching...</span> : <span className="font-medium text-gray-900">{summary.lastSync}</span>}
             </div>
             <div className="text-gray-600">
-              Unmatched: <span className="font-medium text-orange-600">{summary.unmatched}</span>
+              Unmatched: {isLoading ? <span className="font-medium text-gray-400 animate-pulse">...</span> : <span className="font-medium text-orange-600">{summary.unmatched}</span>}
             </div>
           </div>
         </div>
@@ -157,6 +104,7 @@ export default function ReconcilePage({ storeId }: ReconcilePageProps) {
             summary={summary}
             onUploadClick={() => setShowUploadWizard(true)}
             onQueueClick={setActiveQueue}
+            isLoading={isLoading}
           />
         </div>
 
@@ -165,6 +113,7 @@ export default function ReconcilePage({ storeId }: ReconcilePageProps) {
             transactions={filteredTransactions}
             selectedId={selectedTxn?.txnId}
             onRowClick={setSelectedTxn}
+            isLoading={isLoading}
           />
         </div>
 
@@ -173,6 +122,7 @@ export default function ReconcilePage({ storeId }: ReconcilePageProps) {
             txn={selectedTxn}
             onMatch={handleMatch}
             onCreateAdjustment={handleCreateAdjustment}
+            isLoading={isLoading && !selectedTxn}
           />
         </div>
       </div>

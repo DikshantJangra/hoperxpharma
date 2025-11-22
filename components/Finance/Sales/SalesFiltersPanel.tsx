@@ -7,9 +7,10 @@ interface SalesFiltersPanelProps {
   filters: SalesFilters;
   onChange: (filters: SalesFilters) => void;
   onSavedViewClick: (view: string) => void;
+  isLoading: boolean;
 }
 
-export default function SalesFiltersPanel({ filters, onChange, onSavedViewClick }: SalesFiltersPanelProps) {
+export default function SalesFiltersPanel({ filters, onChange, onSavedViewClick, isLoading }: SalesFiltersPanelProps) {
   const savedViews = [
     { id: 'monthly-close', label: 'Monthly Close' },
     { id: 'pending-reconcile', label: 'Pending Reconcile' },
@@ -27,6 +28,7 @@ export default function SalesFiltersPanel({ filters, onChange, onSavedViewClick 
               key={view.id}
               onClick={() => onSavedViewClick(view.id)}
               className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
+              disabled={isLoading}
             >
               {view.label}
             </button>
@@ -44,6 +46,7 @@ export default function SalesFiltersPanel({ filters, onChange, onSavedViewClick 
               value={filters.storeId || ''}
               onChange={(e) => onChange({ ...filters, storeId: e.target.value || undefined })}
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+              disabled={isLoading}
             >
               <option value="">All Stores</option>
               <option value="store_01">Main Store</option>
@@ -57,6 +60,7 @@ export default function SalesFiltersPanel({ filters, onChange, onSavedViewClick 
               value={filters.source || ''}
               onChange={(e) => onChange({ ...filters, source: e.target.value as PaymentSource || undefined })}
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+              disabled={isLoading}
             >
               <option value="">All Sources</option>
               <option value="POS">POS</option>
@@ -71,6 +75,7 @@ export default function SalesFiltersPanel({ filters, onChange, onSavedViewClick 
               value={filters.paymentMethod || ''}
               onChange={(e) => onChange({ ...filters, paymentMethod: e.target.value as PaymentMethod || undefined })}
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+              disabled={isLoading}
             >
               <option value="">All Methods</option>
               <option value="CASH">Cash</option>
@@ -86,6 +91,7 @@ export default function SalesFiltersPanel({ filters, onChange, onSavedViewClick 
               value={filters.reconStatus || ''}
               onChange={(e) => onChange({ ...filters, reconStatus: e.target.value as ReconStatus || undefined })}
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+              disabled={isLoading}
             >
               <option value="">All Status</option>
               <option value="MATCHED">Matched</option>
@@ -97,6 +103,7 @@ export default function SalesFiltersPanel({ filters, onChange, onSavedViewClick 
           <button
             onClick={() => onChange({ from: filters.from, to: filters.to })}
             className="w-full px-3 py-2 text-sm text-gray-600 border border-gray-300 rounded-md hover:bg-gray-50"
+            disabled={isLoading}
           >
             Clear Filters
           </button>
@@ -105,8 +112,15 @@ export default function SalesFiltersPanel({ filters, onChange, onSavedViewClick 
 
       <div className="pt-4 border-t border-gray-200">
         <h3 className="text-sm font-medium text-gray-900 mb-2">Bank Feed</h3>
-        <div className="text-xs text-gray-500 mb-2">Last sync: 2 hours ago</div>
-        <button className="w-full px-3 py-2 text-sm text-blue-600 border border-blue-300 rounded-md hover:bg-blue-50">
+        {isLoading ? (
+            <div className="h-3 bg-gray-200 rounded w-1/2 mb-2 animate-pulse"></div>
+        ) : (
+            <div className="text-xs text-gray-500 mb-2">Last sync: 2 hours ago</div>
+        )}
+        <button 
+            className="w-full px-3 py-2 text-sm text-blue-600 border border-blue-300 rounded-md hover:bg-blue-50"
+            disabled={isLoading}
+        >
           Upload Bank Statement
         </button>
       </div>

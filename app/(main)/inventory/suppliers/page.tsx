@@ -1,12 +1,38 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import SupplierList from '@/components/inventory/suppliers/SupplierList';
 import SupplierForm from '@/components/inventory/suppliers/SupplierForm';
 import { FiUsers, FiAlertTriangle, FiDollarSign, FiCheckCircle } from 'react-icons/fi';
 
+const StatCardSkeleton = () => (
+    <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm flex items-center gap-4 animate-pulse">
+        <div className="w-12 h-12 rounded-full bg-gray-200"></div>
+        <div>
+            <div className="h-4 bg-gray-200 rounded w-24 mb-1"></div>
+            <div className="h-7 bg-gray-300 rounded w-16"></div>
+        </div>
+    </div>
+)
+
 export default function SuppliersDashboardPage() {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+    const [stats, setStats] = useState<any>(null);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        setIsLoading(true);
+        const timer = setTimeout(() => {
+            setStats({
+                total: 0,
+                outstanding: '₹0',
+                expiringLicenses: 0,
+                activeOrders: 0,
+            });
+            setIsLoading(false);
+        }, 1500)
+        return () => clearTimeout(timer);
+    }, []);
 
     const handleSaveSupplier = (data: any) => {
         console.log('Saving supplier:', data);
@@ -29,46 +55,57 @@ export default function SuppliersDashboardPage() {
 
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
-                        <FiUsers size={24} />
-                    </div>
-                    <div>
-                        <div className="text-sm text-gray-500">Total Suppliers</div>
-                        <div className="text-2xl font-bold text-gray-900">24</div>
-                    </div>
-                </div>
-                <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center text-red-600">
-                        <FiDollarSign size={24} />
-                    </div>
-                    <div>
-                        <div className="text-sm text-gray-500">Outstanding</div>
-                        <div className="text-2xl font-bold text-gray-900">₹1.2L</div>
-                    </div>
-                </div>
-                <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-yellow-50 flex items-center justify-center text-yellow-600">
-                        <FiAlertTriangle size={24} />
-                    </div>
-                    <div>
-                        <div className="text-sm text-gray-500">Expiring Licenses</div>
-                        <div className="text-2xl font-bold text-gray-900">3</div>
-                    </div>
-                </div>
-                <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
-                        <FiCheckCircle size={24} />
-                    </div>
-                    <div>
-                        <div className="text-sm text-gray-500">Active Orders</div>
-                        <div className="text-2xl font-bold text-gray-900">8</div>
-                    </div>
-                </div>
+                {isLoading ? (
+                    <>
+                        <StatCardSkeleton/>
+                        <StatCardSkeleton/>
+                        <StatCardSkeleton/>
+                        <StatCardSkeleton/>
+                    </>
+                ) : (
+                    <>
+                        <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+                                <FiUsers size={24} />
+                            </div>
+                            <div>
+                                <div className="text-sm text-gray-500">Total Suppliers</div>
+                                <div className="text-2xl font-bold text-gray-900">{stats?.total}</div>
+                            </div>
+                        </div>
+                        <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center text-red-600">
+                                <FiDollarSign size={24} />
+                            </div>
+                            <div>
+                                <div className="text-sm text-gray-500">Outstanding</div>
+                                <div className="text-2xl font-bold text-gray-900">{stats?.outstanding}</div>
+                            </div>
+                        </div>
+                        <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-full bg-yellow-50 flex items-center justify-center text-yellow-600">
+                                <FiAlertTriangle size={24} />
+                            </div>
+                            <div>
+                                <div className="text-sm text-gray-500">Expiring Licenses</div>
+                                <div className="text-2xl font-bold text-gray-900">{stats?.expiringLicenses}</div>
+                            </div>
+                        </div>
+                        <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm flex items-center gap-4">
+                            <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
+                                <FiCheckCircle size={24} />
+                            </div>
+                            <div>
+                                <div className="text-sm text-gray-500">Active Orders</div>
+                                <div className="text-2xl font-bold text-gray-900">{stats?.activeOrders}</div>
+                            </div>
+                        </div>
+                    </>
+                )}
             </div>
 
             {/* Main List */}
-            <SupplierList onAddClick={() => setIsAddModalOpen(true)} />
+            <SupplierList onAddClick={() => setIsAddModalOpen(true)} isLoading={isLoading} />
 
             {/* Add Modal */}
             {isAddModalOpen && (

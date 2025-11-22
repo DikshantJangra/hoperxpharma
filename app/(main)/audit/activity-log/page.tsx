@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FiSearch, FiDownload, FiEye, FiClock, FiAlertTriangle, FiUsers, FiActivity } from "react-icons/fi";
 import { MdPlayArrow, MdPause } from "react-icons/md";
 import SavedFilters from "@/components/audit/activity-log/SavedFilters";
@@ -9,6 +9,16 @@ import EventDetailDrawer from "@/components/audit/activity-log/EventDetailDrawer
 import ExportModal from "@/components/audit/activity-log/ExportModal";
 import AnnotateModal from "@/components/audit/activity-log/AnnotateModal";
 import RevertModal from "@/components/audit/activity-log/RevertModal";
+
+const StatCardSkeleton = () => (
+    <div className="bg-gray-50 border border-gray-100 rounded-lg p-3 animate-pulse">
+        <div className="flex items-center gap-2 text-gray-400 text-xs font-medium">
+            <div className="h-4 w-4 bg-gray-200 rounded"></div>
+            <div className="h-3 w-20 bg-gray-200 rounded"></div>
+        </div>
+        <div className="text-2xl h-7 w-12 bg-gray-300 rounded mt-1"></div>
+    </div>
+)
 
 export default function ActivityLogPage() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -20,6 +30,23 @@ export default function ActivityLogPage() {
   const [showRevertModal, setShowRevertModal] = useState(false);
   const [dateRange, setDateRange] = useState("24h");
   const [selectedEvents, setSelectedEvents] = useState<string[]>([]);
+  const [stats, setStats] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    setIsLoading(true);
+    const timer = setTimeout(() => {
+        setStats({
+            events: 0,
+            users: 0,
+            highSeverity: 0,
+            pending: 0
+        });
+        setIsLoading(false);
+    }, 1500)
+    return () => clearTimeout(timer);
+  }, [dateRange]);
+
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
@@ -81,34 +108,40 @@ export default function ActivityLogPage() {
 
         {/* Quick Stats */}
         <div className="grid grid-cols-4 gap-4 mt-4">
-          <div className="bg-blue-50 border border-blue-100 rounded-lg p-3">
-            <div className="flex items-center gap-2 text-blue-700 text-sm font-medium">
-              <FiActivity size={16} />
-              Events (24h)
-            </div>
-            <div className="text-2xl font-bold text-blue-900 mt-1">2,847</div>
-          </div>
-          <div className="bg-purple-50 border border-purple-100 rounded-lg p-3">
-            <div className="flex items-center gap-2 text-purple-700 text-sm font-medium">
-              <FiUsers size={16} />
-              Unique Users
-            </div>
-            <div className="text-2xl font-bold text-purple-900 mt-1">34</div>
-          </div>
-          <div className="bg-orange-50 border border-orange-100 rounded-lg p-3">
-            <div className="flex items-center gap-2 text-orange-700 text-sm font-medium">
-              <FiAlertTriangle size={16} />
-              High Severity
-            </div>
-            <div className="text-2xl font-bold text-orange-900 mt-1">12</div>
-          </div>
-          <div className="bg-red-50 border border-red-100 rounded-lg p-3">
-            <div className="flex items-center gap-2 text-red-700 text-sm font-medium">
-              <FiEye size={16} />
-              Pending Investigations
-            </div>
-            <div className="text-2xl font-bold text-red-900 mt-1">3</div>
-          </div>
+            {isLoading ? (
+                <><StatCardSkeleton/><StatCardSkeleton/><StatCardSkeleton/><StatCardSkeleton/></>
+            ) : (
+                <>
+                    <div className="bg-blue-50 border border-blue-100 rounded-lg p-3">
+                        <div className="flex items-center gap-2 text-blue-700 text-sm font-medium">
+                        <FiActivity size={16} />
+                        Events (24h)
+                        </div>
+                        <div className="text-2xl font-bold text-blue-900 mt-1">{stats.events}</div>
+                    </div>
+                    <div className="bg-purple-50 border border-purple-100 rounded-lg p-3">
+                        <div className="flex items-center gap-2 text-purple-700 text-sm font-medium">
+                        <FiUsers size={16} />
+                        Unique Users
+                        </div>
+                        <div className="text-2xl font-bold text-purple-900 mt-1">{stats.users}</div>
+                    </div>
+                    <div className="bg-orange-50 border border-orange-100 rounded-lg p-3">
+                        <div className="flex items-center gap-2 text-orange-700 text-sm font-medium">
+                        <FiAlertTriangle size={16} />
+                        High Severity
+                        </div>
+                        <div className="text-2xl font-bold text-orange-900 mt-1">{stats.highSeverity}</div>
+                    </div>
+                    <div className="bg-red-50 border border-red-100 rounded-lg p-3">
+                        <div className="flex items-center gap-2 text-red-700 text-sm font-medium">
+                        <FiEye size={16} />
+                        Pending Investigations
+                        </div>
+                        <div className="text-2xl font-bold text-red-900 mt-1">{stats.pending}</div>
+                    </div>
+                </>
+            )}
         </div>
 
         {/* Ingestion Status */}
@@ -175,12 +208,14 @@ export default function ActivityLogPage() {
                 onEventClick={setSelectedEvent}
                 selectedEvents={selectedEvents}
                 onSelectionChange={setSelectedEvents}
+                isLoading={isLoading}
               />
             ) : (
               <TimelineView
                 searchQuery={searchQuery}
                 isLive={isLive}
                 onEventClick={setSelectedEvent}
+                isLoading={isLoading}
               />
             )}
           </div>

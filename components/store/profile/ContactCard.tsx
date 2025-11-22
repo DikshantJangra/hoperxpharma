@@ -25,7 +25,7 @@ export default function ContactCard({ profile, onChange, errors }: ContactCardPr
               value={profile?.primaryContact?.name || ""}
               onChange={(e) => onChange("primaryContact.name", e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
-              placeholder="Aman Verma"
+              placeholder="Enter contact person name"
             />
           </div>
           <div>
@@ -53,7 +53,7 @@ export default function ContactCard({ profile, onChange, errors }: ContactCardPr
               className={`flex-1 px-3 py-2 border rounded-lg focus:ring-2 focus:ring-teal-500 ${
                 errors?.phone ? "border-red-500" : "border-gray-300"
               }`}
-              placeholder="+91 98123 45678"
+              placeholder="Enter phone number"
             />
             {profile?.primaryContact?.phoneVerified ? (
               <FiCheckCircle className="text-green-600" size={20} />
@@ -77,7 +77,7 @@ export default function ContactCard({ profile, onChange, errors }: ContactCardPr
               value={profile?.primaryContact?.email || ""}
               onChange={(e) => onChange("primaryContact.email", e.target.value)}
               className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
-              placeholder="aman@hope.com"
+              placeholder="Enter email address"
             />
             {profile?.primaryContact?.emailVerified && (
               <FiCheckCircle className="text-green-600" size={20} />

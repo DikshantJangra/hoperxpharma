@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FiSearch, FiBook, FiPlay, FiBookmark, FiExternalLink } from "react-icons/fi";
 
 interface DocArticle {
@@ -23,62 +23,41 @@ const CATEGORIES = [
     { id: "reports", label: "Reports", icon: "📊" }
 ];
 
-const MOCK_ARTICLES: DocArticle[] = [
-    {
-        id: "1",
-        title: "How to Create a New Sale",
-        category: "billing",
-        content: "Learn how to process a sale transaction in HopeRx POS system.",
-        videoUrl: "https://example.com/video1",
-        steps: [
-            "Navigate to POS → New Sale",
-            "Scan or search for medicines",
-            "Add quantities and apply discounts",
-            "Select payment method",
-            "Generate invoice"
-        ],
-        troubleshooting: [
-            "If barcode scanner not working, check USB connection",
-            "For payment gateway errors, verify internet connection",
-            "Invoice not printing? Check printer settings"
-        ],
-        relatedArticles: ["How to Process Refunds", "GST Invoice Requirements"]
-    },
-    {
-        id: "2",
-        title: "Stock Management Guide",
-        category: "inventory",
-        content: "Complete guide to managing your pharmacy inventory efficiently.",
-        steps: [
-            "Go to Inventory → Stock",
-            "Use search to find medicines",
-            "View stock levels and batches",
-            "Set reorder points",
-            "Track expiry dates"
-        ],
-        troubleshooting: [
-            "Stock not updating? Sync with server",
-            "Missing batches? Check import logs",
-            "Expiry alerts not showing? Verify settings"
-        ],
-        relatedArticles: ["Batch Management", "Expiry Tracking", "Stock Adjustment"]
-    }
-];
+const PopularArticleSkeleton = () => (
+    <div className="px-3 py-1.5 bg-gray-100 rounded-lg text-sm h-8 w-32 animate-pulse"></div>
+)
 
-const POPULAR_ARTICLES = [
-    "How to Create a New Sale",
-    "Stock Management Guide",
-    "GST Return Filing",
-    "WhatsApp Integration Setup"
-];
+const ArticleCardSkeleton = () => (
+    <div className="p-6 bg-white border-2 border-gray-200 rounded-xl animate-pulse">
+        <div className="flex items-start justify-between mb-2">
+            <div className="h-6 bg-gray-200 rounded w-3/4"></div>
+            <div className="h-5 w-5 bg-gray-100 rounded-full"></div>
+        </div>
+        <div className="h-4 bg-gray-100 rounded w-full mb-3"></div>
+        <div className="h-4 bg-gray-100 rounded w-1/2"></div>
+    </div>
+)
 
 export default function DocsPage() {
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedCategory, setSelectedCategory] = useState("start");
     const [selectedArticle, setSelectedArticle] = useState<DocArticle | null>(null);
     const [bookmarked, setBookmarked] = useState<string[]>([]);
+    const [articles, setArticles] = useState<DocArticle[]>([]);
+    const [popularArticles, setPopularArticles] = useState<string[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
 
-    const filteredArticles = MOCK_ARTICLES.filter(
+    useEffect(() => {
+        setIsLoading(true);
+        const timer = setTimeout(() => {
+            setArticles([]);
+            setPopularArticles([]);
+            setIsLoading(false);
+        }, 1500)
+        return () => clearTimeout(timer);
+    }, [selectedCategory, searchQuery]);
+
+    const filteredArticles = articles.filter(
         (article) =>
             (selectedCategory === "all" || article.category === selectedCategory) &&
             (article.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -108,6 +87,7 @@ export default function DocsPage() {
                             onChange={(e) => setSearchQuery(e.target.value)}
                             placeholder="Search documentation... (try 'stock', 'invoice', 'GST')"
                             className="w-full pl-12 pr-4 py-3 border-2 border-[#cbd5e1] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0ea5a3] text-lg"
+                            disabled={isLoading}
                         />
                     </div>
 
@@ -115,14 +95,24 @@ export default function DocsPage() {
                     <div>
                         <h3 className="text-sm font-semibold text-[#64748b] uppercase mb-2">Popular Articles</h3>
                         <div className="flex flex-wrap gap-2">
-                            {POPULAR_ARTICLES.map((article, idx) => (
-                                <button
-                                    key={idx}
-                                    className="px-3 py-1.5 bg-[#f1f5f9] text-[#475569] rounded-lg text-sm hover:bg-[#e2e8f0] transition-colors"
-                                >
-                                    {article}
-                                </button>
-                            ))}
+                            {isLoading ? (
+                                <>
+                                    <PopularArticleSkeleton/>
+                                    <PopularArticleSkeleton/>
+                                </>
+                            ) : popularArticles.length > 0 ? (
+                                popularArticles.map((article, idx) => (
+                                    <button
+                                        key={idx}
+                                        className="px-3 py-1.5 bg-[#f1f5f9] text-[#475569] rounded-lg text-sm hover:bg-[#e2e8f0] transition-colors"
+                                        disabled={isLoading}
+                                    >
+                                        {article}
+                                    </button>
+                                ))
+                            ) : (
+                                <p className="text-sm text-gray-500">No popular articles found.</p>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -142,6 +132,7 @@ export default function DocsPage() {
                                         ? "bg-[#f0fdfa] border-2 border-[#0ea5a3] text-[#0f172a]"
                                         : "border-2 border-transparent hover:bg-[#f8fafc]"
                                     }`}
+                                disabled={isLoading}
                             >
                                 <span className="text-xl">{category.icon}</span>
                                 <span className="font-medium text-sm">{category.label}</span>
@@ -158,42 +149,51 @@ export default function DocsPage() {
                                 {CATEGORIES.find((c) => c.id === selectedCategory)?.label || "All Articles"}
                             </h2>
                             <div className="space-y-4">
-                                {filteredArticles.map((article) => (
-                                    <div
-                                        key={article.id}
-                                        onClick={() => setSelectedArticle(article)}
-                                        className="p-6 bg-white border-2 border-[#e2e8f0] rounded-xl hover:border-[#0ea5a3] transition-all cursor-pointer"
-                                    >
-                                        <div className="flex items-start justify-between mb-2">
-                                            <h3 className="text-lg font-bold text-[#0f172a]">{article.title}</h3>
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    toggleBookmark(article.id);
-                                                }}
-                                                className="p-2 hover:bg-[#f8fafc] rounded-lg transition-colors"
-                                            >
-                                                <FiBookmark
-                                                    className={`w-5 h-5 ${bookmarked.includes(article.id) ? "fill-[#0ea5a3] text-[#0ea5a3]" : "text-[#94a3b8]"
-                                                        }`}
-                                                />
-                                            </button>
-                                        </div>
-                                        <p className="text-sm text-[#64748b] mb-3">{article.content}</p>
-                                        <div className="flex items-center gap-4 text-xs text-[#94a3b8]">
-                                            {article.videoUrl && (
+                                {isLoading ? (
+                                    <>
+                                        <ArticleCardSkeleton/>
+                                        <ArticleCardSkeleton/>
+                                    </>
+                                ) : filteredArticles.length > 0 ? (
+                                    filteredArticles.map((article) => (
+                                        <div
+                                            key={article.id}
+                                            onClick={() => setSelectedArticle(article)}
+                                            className="p-6 bg-white border-2 border-[#e2e8f0] rounded-xl hover:border-[#0ea5a3] transition-all cursor-pointer"
+                                        >
+                                            <div className="flex items-start justify-between mb-2">
+                                                <h3 className="text-lg font-bold text-[#0f172a]">{article.title}</h3>
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        toggleBookmark(article.id);
+                                                    }}
+                                                    className="p-2 hover:bg-[#f8fafc] rounded-lg transition-colors"
+                                                >
+                                                    <FiBookmark
+                                                        className={`w-5 h-5 ${bookmarked.includes(article.id) ? "fill-[#0ea5a3] text-[#0ea5a3]" : "text-[#94a3b8]"
+                                                            }`}
+                                                    />
+                                                </button>
+                                            </div>
+                                            <p className="text-sm text-[#64748b] mb-3">{article.content}</p>
+                                            <div className="flex items-center gap-4 text-xs text-[#94a3b8]">
+                                                {article.videoUrl && (
+                                                    <div className="flex items-center gap-1">
+                                                        <FiPlay className="w-3 h-3" />
+                                                        <span>Video included</span>
+                                                    </div>
+                                                )}
                                                 <div className="flex items-center gap-1">
-                                                    <FiPlay className="w-3 h-3" />
-                                                    <span>Video included</span>
+                                                    <FiBook className="w-3 h-3" />
+                                                    <span>{article.steps.length} steps</span>
                                                 </div>
-                                            )}
-                                            <div className="flex items-center gap-1">
-                                                <FiBook className="w-3 h-3" />
-                                                <span>{article.steps.length} steps</span>
                                             </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    ))
+                                ) : (
+                                    <div className="text-center py-10 text-gray-500">No articles found for this category.</div>
+                                )}
                             </div>
                         </div>
                     </div>

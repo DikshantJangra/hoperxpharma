@@ -19,9 +19,9 @@ export default function PrescriptionCard() {
         <div className="flex-1">
           <div className="flex justify-between items-start">
             <div>
-              <div className="text-xs text-gray-500">Prescription ID: <span className="text-gray-700 font-medium">RX12345678</span></div>
-              <div className="text-xs text-gray-500 mt-1">Prescriber: <a href="#" className="text-blue-600 font-medium">Dr. Anjali Patel, MD</a></div>
-              <div className="text-xs text-gray-500 mt-1">Repeats: <span className="text-gray-700 font-medium">1 of 3</span></div>
+              <div className="text-xs text-gray-500">Prescription ID: <span className="text-gray-700 font-medium">-</span></div>
+              <div className="text-xs text-gray-500 mt-1">Prescriber: <span className="text-gray-700 font-medium">-</span></div>
+              <div className="text-xs text-gray-500 mt-1">Repeats: <span className="text-gray-700 font-medium">-</span></div>
             </div>
             <div className="flex items-center gap-2">
               <span className="px-2 py-1 bg-red-100 text-red-700 text-xs rounded-full font-medium">Controlled</span>
@@ -39,21 +39,21 @@ export default function PrescriptionCard() {
             <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 text-sm">
               <div>
                 <label className="block text-xs text-gray-500">Drug Name</label>
-                <input type="text" defaultValue="Atorvastatin" className="w-full bg-transparent text-gray-900 font-medium focus:outline-none" />
+                <input type="text" placeholder="Enter drug name" className="w-full bg-transparent text-gray-900 font-medium focus:outline-none" />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs text-gray-500">Strength</label>
-                  <input type="text" defaultValue="10mg" className="w-full bg-transparent text-gray-900 font-medium focus:outline-none" />
+                  <input type="text" placeholder="Enter strength" className="w-full bg-transparent text-gray-900 font-medium focus:outline-none" />
                 </div>
                 <div>
                   <label className="block text-xs text-gray-500">Quantity</label>
-                  <input type="text" defaultValue="30" className="w-full bg-transparent text-gray-900 font-medium focus:outline-none" />
+                  <input type="text" placeholder="Enter quantity" className="w-full bg-transparent text-gray-900 font-medium focus:outline-none" />
                 </div>
               </div>
               <div>
                 <label className="block text-xs text-gray-500">SIG (Directions)</label>
-                <input type="text" defaultValue="Take 1 tablet daily at bedtime" className="w-full bg-transparent text-gray-900 font-medium focus:outline-none" />
+                <input type="text" placeholder="Enter directions" className="w-full bg-transparent text-gray-900 font-medium focus:outline-none" />
               </div>
             </div>
           </div>

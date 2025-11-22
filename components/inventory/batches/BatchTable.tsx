@@ -4,61 +4,28 @@ import React from 'react';
 import { FiAlertCircle, FiThermometer } from 'react-icons/fi';
 import { BsSnow } from 'react-icons/bs';
 
-const MOCK_BATCHES = [
-  {
-    id: 'B-2025-01',
-    sku: 'PAR-500-10',
-    itemName: 'Paracetamol 500mg',
-    generic: 'Acetaminophen',
-    expiry: '2025-02-15',
-    daysToExpiry: 25,
-    qtyOnHand: 100,
-    qtyAvailable: 95,
-    location: 'A1',
-    status: 'Active',
-    lastReceived: '2024-12-01',
-    supplier: 'MedSupply Co',
-    cost: 35,
-    mrp: 45,
-  },
-  {
-    id: 'B-2025-22',
-    sku: 'ATO-10-15',
-    itemName: 'Atorvastatin 10mg',
-    generic: 'Atorvastatin Calcium',
-    expiry: '2026-03-10',
-    daysToExpiry: 280,
-    qtyOnHand: 70,
-    qtyAvailable: 70,
-    location: 'C1',
-    status: 'Active',
-    lastReceived: '2025-01-05',
-    supplier: 'PharmaCorp',
-    cost: 120,
-    mrp: 150,
-    coldChain: true,
-  },
-  {
-    id: 'B-2024-88',
-    sku: 'AMX-500-10',
-    itemName: 'Amoxicillin 500mg',
-    generic: 'Amoxicillin Trihydrate',
-    expiry: '2025-01-20',
-    daysToExpiry: 5,
-    qtyOnHand: 30,
-    qtyAvailable: 0,
-    location: 'D3',
-    status: 'Quarantine',
-    lastReceived: '2024-11-15',
-    supplier: 'MedSupply Co',
-    cost: 65,
-    mrp: 85,
-    tempBreach: true,
-  },
-];
+const BatchRowSkeleton = () => (
+  <tr className="animate-pulse border-b border-[#f1f5f9]">
+    <td className="px-4 py-3"><div className="w-4 h-4 bg-gray-200 rounded"></div></td>
+    <td className="px-4 py-3"><div className="h-4 bg-gray-200 rounded w-20"></div></td>
+    <td className="px-4 py-3">
+      <div className="h-4 bg-gray-200 rounded w-32 mb-1"></div>
+      <div className="h-3 bg-gray-100 rounded w-24"></div>
+    </td>
+    <td className="px-4 py-3">
+      <div className="h-4 bg-gray-200 rounded w-20 mb-1"></div>
+      <div className="h-5 bg-gray-100 rounded w-10"></div>
+    </td>
+    <td className="px-4 py-3 text-right"><div className="h-4 bg-gray-200 rounded w-8 ml-auto"></div></td>
+    <td className="px-4 py-3 text-right"><div className="h-4 bg-gray-200 rounded w-8 ml-auto"></div></td>
+    <td className="px-4 py-3"><div className="h-4 bg-gray-100 rounded w-8"></div></td>
+    <td className="px-4 py-3"><div className="h-6 bg-gray-200 rounded w-16"></div></td>
+    <td className="px-4 py-3"><div className="h-4 bg-gray-100 rounded w-20"></div></td>
+  </tr>
+)
 
-export default function BatchTable({ searchQuery, onSelectBatch, selectedBatch }: any) {
-  const filtered = MOCK_BATCHES.filter(batch =>
+export default function BatchTable({ batches, isLoading, searchQuery, onSelectBatch, selectedBatch }: any) {
+  const filtered = batches.filter((batch: any) =>
     batch.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
     batch.itemName.toLowerCase().includes(searchQuery.toLowerCase()) ||
     batch.sku.toLowerCase().includes(searchQuery.toLowerCase())
@@ -97,7 +64,13 @@ export default function BatchTable({ searchQuery, onSelectBatch, selectedBatch }
           </tr>
         </thead>
         <tbody>
-          {filtered.map((batch) => (
+          {isLoading ? (
+            <>
+              <BatchRowSkeleton/>
+              <BatchRowSkeleton/>
+              <BatchRowSkeleton/>
+            </>
+          ) : filtered.map((batch: any) => (
             <tr
               key={batch.id}
               onClick={() => onSelectBatch(batch)}
@@ -149,7 +122,7 @@ export default function BatchTable({ searchQuery, onSelectBatch, selectedBatch }
         </tbody>
       </table>
 
-      {filtered.length === 0 && (
+      {!isLoading && filtered.length === 0 && (
         <div className="flex flex-col items-center justify-center h-64">
           <FiAlertCircle className="w-12 h-12 text-[#cbd5e1] mb-3" />
           <p className="text-[#64748b]">No batches found</p>

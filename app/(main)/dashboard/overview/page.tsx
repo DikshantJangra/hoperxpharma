@@ -19,18 +19,18 @@ export default function OverviewPage() {
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-2xl font-semibold text-gray-800">Welcome back, Krishan!</h1>
+                        <h1 className="text-2xl font-semibold text-gray-800">Welcome back!</h1>
                         <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
                             <div className="flex items-center gap-2">
                                 <MdStore size={16} className="text-emerald-600" />
-                                <span>Store: <span className="font-medium text-gray-800">Hope Medicos Pharmacy</span></span>
+                                <span>Store: <span className="font-medium text-gray-800">Loading...</span></span>
                             </div>
                             <span className="text-gray-400">•</span>
-                            <span>Shift: <span className="font-medium text-gray-800">Day (08:00–16:00)</span></span>
+                            <span>Shift: <span className="font-medium text-gray-800">Loading...</span></span>
                         </div>
                     </div>
                     <div className="text-right text-sm text-gray-600">
-                        <p>Last sync: <span className="font-medium text-gray-800">03:12 PM</span></p>
+                        <p>Last sync: <span className="font-medium text-gray-800">-</span></p>
                         <p className="text-xs text-emerald-600 mt-1">Auto-sync ON</p>
                     </div>
                 </div>

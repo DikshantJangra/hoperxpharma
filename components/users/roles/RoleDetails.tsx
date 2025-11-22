@@ -11,15 +11,12 @@ export default function RoleDetails({ roleId }: RoleDetailsProps) {
     name: "Admin",
     description: "Full system access with all permissions",
     category: "System",
-    usersAssigned: 2,
-    lastModified: "2 days ago",
+    usersAssigned: 0,
+    lastModified: "-",
     status: "Active",
   };
 
-  const assignedUsers = [
-    { name: "Priya Singh", email: "priya@hope.com", status: "Active", assignedAt: "12 Jan" },
-    { name: "Vikram Rao", email: "vikram@hope.com", status: "Active", assignedAt: "5 Jan" },
-  ];
+  const assignedUsers: any[] = [];
 
   return (
     <div className="p-6 space-y-6">

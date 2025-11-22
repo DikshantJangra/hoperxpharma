@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FiPlus, FiUpload, FiDownload, FiSearch } from 'react-icons/fi';
 import DeviceFilters from '@/components/store/hardware/DeviceFilters';
 import DeviceList from '@/components/store/hardware/DeviceList';
@@ -12,6 +12,15 @@ export default function HardwarePage() {
   const [selectedDevice, setSelectedDevice] = useState<any>(null);
   const [filter, setFilter] = useState({ type: 'all', status: 'all' });
   const [searchQuery, setSearchQuery] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    setIsLoading(true);
+    const timer = setTimeout(() => {
+        setIsLoading(false);
+    }, 1500)
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <div className="h-screen flex flex-col bg-[#f8fafc]">
@@ -22,15 +31,15 @@ export default function HardwarePage() {
             <p className="text-sm text-[#64748b]">Store › Hardware</p>
           </div>
           <div className="flex items-center gap-3">
-            <button className="px-4 py-2 border border-[#cbd5e1] rounded-lg hover:bg-[#f8fafc] flex items-center gap-2 text-sm font-medium">
+            <button className="px-4 py-2 border border-[#cbd5e1] rounded-lg hover:bg-[#f8fafc] flex items-center gap-2 text-sm font-medium" disabled={isLoading}>
               <FiUpload className="w-4 h-4" />
               Bulk Import
             </button>
-            <button className="px-4 py-2 border border-[#cbd5e1] rounded-lg hover:bg-[#f8fafc] flex items-center gap-2 text-sm font-medium">
+            <button className="px-4 py-2 border border-[#cbd5e1] rounded-lg hover:bg-[#f8fafc] flex items-center gap-2 text-sm font-medium" disabled={isLoading}>
               <FiDownload className="w-4 h-4" />
               Export
             </button>
-            <button onClick={() => setShowAddModal(true)} className="px-4 py-2 bg-[#0ea5a3] text-white rounded-lg hover:bg-[#0d9391] flex items-center gap-2 text-sm font-medium">
+            <button onClick={() => setShowAddModal(true)} className="px-4 py-2 bg-[#0ea5a3] text-white rounded-lg hover:bg-[#0d9391] flex items-center gap-2 text-sm font-medium" disabled={isLoading}>
               <FiPlus className="w-4 h-4" />
               Add Device
             </button>
@@ -39,14 +48,14 @@ export default function HardwarePage() {
 
         <div className="relative mb-4">
           <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#94a3b8]" />
-          <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search by name, serial, IP, MAC..." className="w-full pl-10 pr-4 py-2 border border-[#cbd5e1] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0ea5a3]" />
+          <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search by name, serial, IP, MAC..." className="w-full pl-10 pr-4 py-2 border border-[#cbd5e1] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0ea5a3]" disabled={isLoading} />
         </div>
 
         <DeviceFilters filter={filter} onFilterChange={setFilter} />
       </div>
 
       <div className="flex-1 flex overflow-hidden">
-        <DeviceList filter={filter} searchQuery={searchQuery} onSelectDevice={setSelectedDevice} />
+        <DeviceList filter={filter} searchQuery={searchQuery} onSelectDevice={setSelectedDevice} isLoading={isLoading} />
         {selectedDevice && <DeviceDetailDrawer device={selectedDevice} onClose={() => setSelectedDevice(null)} />}
       </div>
 

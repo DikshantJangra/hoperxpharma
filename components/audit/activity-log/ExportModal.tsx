@@ -33,7 +33,7 @@ export default function ExportModal({ selectedEvents, onClose }: ExportModalProp
               <div className="text-sm text-blue-900">
                 {selectedEvents.length > 0
                   ? `${selectedEvents.length} selected events`
-                  : "All events matching current filters (2,847 events)"}
+                  : "All events matching current filters (0 events)"}
               </div>
               <div className="text-xs text-blue-600 mt-1">
                 Estimated size: {estimatedSize.toFixed(1)} KB
@@ -124,10 +124,10 @@ export default function ExportModal({ selectedEvents, onClose }: ExportModalProp
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 max-h-40 overflow-auto">
               <pre className="text-xs font-mono text-gray-700">
                 {format === "csv" &&
-                  "eventId,timestamp,severity,actor,action,resource\nevt_001,2025-11-13T10:12:34Z,high,Aman Verma,inventory.adjust,B2025-01\nevt_002,2025-11-13T10:08:15Z,critical,Priya Singh,prescription.override,RX-5678"}
+                  "eventId,timestamp,severity,actor,action,resource\nevt_001,2025-11-13T10:12:34Z,high,-,inventory.adjust,B2025-01\nevt_002,2025-11-13T10:08:15Z,critical,-,prescription.override,RX-5678"}
                 {format === "json" &&
-                  '[\n  {\n    "eventId": "evt_001",\n    "timestamp": "2025-11-13T10:12:34Z",\n    "severity": "high",\n    "actor": {"name": "Aman Verma"},\n    ...\n  }\n]'}
-                {format === "pdf" && "PDF Report Preview:\n\nActivity Log Export\nGenerated: Nov 13, 2025\nEvents: 2,847\nSigned: Yes\n\n[Event details follow...]"}
+                  '[\n  {\n    "eventId": "evt_001",\n    "timestamp": "2025-11-13T10:12:34Z",\n    "severity": "high",\n    "actor": {"name": "-"},\n    ...\n  }\n]'}
+                {format === "pdf" && "PDF Report Preview:\n\nActivity Log Export\nGenerated: Nov 13, 2025\nEvents: 0\nSigned: Yes\n\n[Event details follow...]"}
               </pre>
             </div>
           </div>

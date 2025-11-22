@@ -8,11 +8,40 @@ interface ExpenseDetailDrawerProps {
   expense: Expense | null;
   onApprove: (expenseId: string, comment: string) => void;
   onReject: (expenseId: string, comment: string) => void;
+  isLoading: boolean;
 }
 
-export default function ExpenseDetailDrawer({ expense, onApprove, onReject }: ExpenseDetailDrawerProps) {
+const ExpenseDetailDrawerSkeleton = () => (
+    <div className="bg-white border-l border-gray-200 p-6 space-y-6 animate-pulse">
+        <div>
+            <div className="h-4 bg-gray-200 rounded w-1/3 mb-3"></div>
+            <div className="space-y-2 text-sm">
+                {[...Array(10)].map((_, i) => (
+                    <div key={i} className="flex justify-between">
+                        <div className="h-4 bg-gray-100 rounded w-1/4"></div>
+                        <div className="h-4 bg-gray-200 rounded w-1/3"></div>
+                    </div>
+                ))}
+            </div>
+        </div>
+        <div>
+            <div className="h-4 bg-gray-200 rounded w-1/4 mb-3"></div>
+            <div className="h-10 bg-gray-100 rounded w-full"></div>
+        </div>
+        <div className="space-y-2">
+            <div className="h-10 bg-gray-200 rounded w-full"></div>
+            <div className="h-10 bg-gray-100 rounded w-full"></div>
+        </div>
+    </div>
+)
+
+export default function ExpenseDetailDrawer({ expense, onApprove, onReject, isLoading }: ExpenseDetailDrawerProps) {
   const [showApproveModal, setShowApproveModal] = useState(false);
   const [comment, setComment] = useState('');
+
+  if (isLoading) {
+    return <ExpenseDetailDrawerSkeleton />;
+  }
 
   if (!expense) {
     return (
@@ -113,6 +142,7 @@ export default function ExpenseDetailDrawer({ expense, onApprove, onReject }: Ex
           <button
             onClick={() => setShowApproveModal(true)}
             className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm text-white bg-green-600 rounded-md hover:bg-green-700"
+            disabled={isLoading}
           >
             <HiOutlineCheckCircle className="h-4 w-4" />
             Approve
@@ -120,6 +150,7 @@ export default function ExpenseDetailDrawer({ expense, onApprove, onReject }: Ex
           <button
             onClick={() => onReject(expense.expenseId, 'Rejected')}
             className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+            disabled={isLoading}
           >
             <HiOutlineXCircle className="h-4 w-4" />
             Reject
@@ -139,17 +170,20 @@ export default function ExpenseDetailDrawer({ expense, onApprove, onReject }: Ex
               placeholder="Add comment (optional)"
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm mb-4"
               rows={3}
+              disabled={isLoading}
             />
             <div className="flex gap-3">
               <button
                 onClick={() => setShowApproveModal(false)}
                 className="flex-1 px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+                disabled={isLoading}
               >
                 Cancel
               </button>
               <button
                 onClick={handleApprove}
                 className="flex-1 px-4 py-2 text-sm text-white bg-green-600 rounded-md hover:bg-green-700"
+                disabled={isLoading}
               >
                 Approve
               </button>

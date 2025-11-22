@@ -372,15 +372,15 @@ function UserMenu({ show, setShow }: any) {
                 className="flex items-center gap-2 p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
             >
                 <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-semibold text-sm">
-                    KK
+                    -
                 </div>
                 <FiChevronDown size={16} className={`text-gray-400 transition-transform ${show ? 'rotate-180' : ''}`} />
             </button>
             {show && (
                 <div className="absolute right-0 top-12 w-56 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50">
                     <div className="px-4 py-3 border-b border-gray-100">
-                        <p className="text-sm font-semibold text-gray-800">Krishan Kumar</p>
-                        <p className="text-xs text-gray-500">Admin Pharmacist</p>
+                        <p className="text-sm font-semibold text-gray-800">-</p>
+                        <p className="text-xs text-gray-500">-</p>
                     </div>
                     <UserMenuItem icon={<FiUser size={16} />} label="Profile" href="/profile" onClick={() => setShow(false)} />
                     <UserMenuItem icon={<FiSettings size={16} />} label="Settings" href="/settings" onClick={() => setShow(false)} />

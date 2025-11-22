@@ -48,7 +48,7 @@ export default function NewPatientModal({ onClose, onCreated }: NewPatientModalP
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Riya Sharma"
+              placeholder="Enter full name"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
               autoFocus
             />
@@ -63,7 +63,7 @@ export default function NewPatientModal({ onClose, onCreated }: NewPatientModalP
               type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              placeholder="+91 98123 45678"
+              placeholder="Enter phone number"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
             />
           </div>

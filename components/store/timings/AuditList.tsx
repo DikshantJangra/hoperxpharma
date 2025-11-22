@@ -8,9 +8,9 @@ interface AuditListProps {
 
 export default function AuditList({ storeId }: AuditListProps) {
   const events = [
-    { id: "EVT-3401", action: "Published hours", user: "Aman Verma", time: "2 hours ago" },
-    { id: "EVT-3400", action: "Added holiday exception", user: "Aman Verma", time: "1 day ago" },
-    { id: "EVT-3399", action: "Updated Monday hours", user: "Priya Sharma", time: "3 days ago" }
+    { id: "EVT-3401", action: "Published hours", user: "-", time: "2 hours ago" },
+    { id: "EVT-3400", action: "Added holiday exception", user: "-", time: "1 day ago" },
+    { id: "EVT-3399", action: "Updated Monday hours", user: "-", time: "3 days ago" }
   ];
 
   return (

@@ -1,67 +1,59 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Supplier } from '@/types/supplier';
 import { FiPhone, FiMail, FiMapPin, FiEdit2, FiClock, FiDollarSign, FiPackage, FiAlertCircle } from 'react-icons/fi';
 
-// Mock Data for a single supplier (would come from API)
-const MOCK_SUPPLIER: Supplier = {
-    id: 'sup_1',
-    name: 'MediCore Distributors',
-    category: 'Distributor',
-    status: 'Active',
-    gstin: '27AABCU9603R1ZM',
-    dlNumber: 'MH-MZ1-123456',
-    contact: {
-        primaryName: 'Rajesh Kumar',
-        phone: '+91 98765 43210',
-        email: 'orders@medicore.com',
-        address: {
-            line1: '123, Pharma Park',
-            line2: 'Andheri East',
-            city: 'Mumbai',
-            state: 'Maharashtra',
-            pincode: '400001',
-            country: 'India'
-        }
-    },
-    paymentTerms: 'Net 30',
-    creditLimit: 500000,
-    licenses: [
-        {
-            id: 'lic_1',
-            type: 'Drug License',
-            number: 'MH-MZ1-123456',
-            validFrom: '2020-01-01',
-            validTo: '2025-01-01',
-            status: 'Active'
-        },
-        {
-            id: 'lic_2',
-            type: 'GST Certificate',
-            number: '27AABCU9603R1ZM',
-            validFrom: '2018-07-01',
-            validTo: '2099-12-31',
-            status: 'Active'
-        }
-    ],
-    performance: {
-        rating: 4.5,
-        onTimeDeliveryRate: 95,
-        returnRate: 2,
-        qualityScore: 9,
-        totalOrders: 150,
-        totalSpent: 500000,
-        outstandingBalance: 25000
-    },
-    tags: ['Critical', 'Fast Moving'],
-    createdAt: '2024-01-01',
-    updatedAt: '2024-01-01'
-};
+const ProfileSkeleton = () => (
+    <div className="space-y-6 animate-pulse">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className="flex flex-col md:flex-row md:items-start justify-between gap-6">
+                <div className="flex items-start gap-4">
+                    <div className="w-16 h-16 rounded-full bg-gray-200"></div>
+                    <div>
+                        <div className="h-8 bg-gray-200 rounded w-48 mb-2"></div>
+                        <div className="h-4 bg-gray-100 rounded w-32"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div className="h-10 bg-gray-200 rounded w-1/2"></div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-6">
+                <div className="grid grid-cols-3 gap-4">
+                    <div className="h-24 bg-white rounded-lg border border-gray-200"></div>
+                    <div className="h-24 bg-white rounded-lg border border-gray-200"></div>
+                    <div className="h-24 bg-white rounded-lg border border-gray-200"></div>
+                </div>
+                <div className="h-48 bg-white rounded-lg border border-gray-200"></div>
+            </div>
+            <div className="h-64 bg-white rounded-lg border border-gray-200"></div>
+        </div>
+    </div>
+)
+
 
 export default function SupplierProfile({ id }: { id: string }) {
     const [activeTab, setActiveTab] = useState('overview');
-    const supplier = MOCK_SUPPLIER; // In real app, fetch by ID
+    const [supplier, setSupplier] = useState<Supplier | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        setIsLoading(true);
+        const timer = setTimeout(() => {
+            setSupplier(null);
+            setIsLoading(false);
+        }, 1500)
+        return () => clearTimeout(timer);
+    }, [id])
+    
+    if (isLoading) {
+        return <ProfileSkeleton />;
+    }
+
+    if (!supplier) {
+        return <div className="text-center py-10">Supplier not found.</div>;
+    }
 
     return (
         <div className="space-y-6">
@@ -109,7 +101,7 @@ export default function SupplierProfile({ id }: { id: string }) {
                         <div className="flex items-center gap-4 text-sm">
                             <div className="p-4 bg-red-50 rounded-lg border border-red-100">
                                 <div className="text-sm text-red-600 mb-1">Outstanding Balance</div>
-                                <div className="h-4 w-12 bg-gray-200 rounded animate-pulse"></div>
+                                <div className="text-xl font-bold text-red-700">₹{supplier.performance.outstandingBalance.toLocaleString('en-IN')}</div>
                             </div>
                             <div className="text-right border-l border-gray-200 pl-4">
                                 <div className="text-gray-500 text-xs">Rating</div>

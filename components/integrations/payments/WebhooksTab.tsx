@@ -1,14 +1,32 @@
 "use client";
+
+import { useState, useEffect } from "react";
 import { FiCopy, FiRefreshCw, FiCheckCircle, FiXCircle, FiAlertCircle } from "react-icons/fi";
 
-const webhookLogs = [
-  { id: "1", event: "payment.success", provider: "Razorpay", status: "received", timestamp: "2025-11-13 14:30:22", latency: "45ms" },
-  { id: "2", event: "payment.failed", provider: "PhonePe", status: "failed", timestamp: "2025-11-13 14:28:15", latency: "—", error: "Signature mismatch" },
-  { id: "3", event: "refund.processed", provider: "Razorpay", status: "received", timestamp: "2025-11-13 14:15:08", latency: "52ms" },
-  { id: "4", event: "settlement.completed", provider: "HDFC POS", status: "retried", timestamp: "2025-11-13 13:45:33", latency: "120ms" },
-];
+const WebhookLogRowSkeleton = () => (
+    <tr className="animate-pulse">
+        <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-32"></div></td>
+        <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-24"></div></td>
+        <td className="px-6 py-4"><div className="h-6 w-20 bg-gray-200 rounded-full"></div></td>
+        <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-32"></div></td>
+        <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-16"></div></td>
+        <td className="px-6 py-4"><div className="h-6 w-16 bg-gray-200 rounded-lg"></div></td>
+    </tr>
+)
 
 export default function WebhooksTab() {
+    const [webhookLogs, setWebhookLogs] = useState<any[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        setIsLoading(true);
+        const timer = setTimeout(() => {
+            setWebhookLogs([]);
+            setIsLoading(false);
+        }, 1500)
+        return () => clearTimeout(timer);
+    }, []);
+
   return (
     <div className="space-y-6">
       {/* Webhook Endpoint */}
@@ -91,34 +109,44 @@ export default function WebhooksTab() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {webhookLogs.map((log) => (
-                <tr key={log.id} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 text-sm font-mono text-gray-900">{log.event}</td>
-                  <td className="px-6 py-4 text-sm text-gray-700">{log.provider}</td>
-                  <td className="px-6 py-4">
-                    <span
-                      className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${
-                        log.status === "received"
-                          ? "bg-green-100 text-green-700"
-                          : log.status === "failed"
-                          ? "bg-red-100 text-red-700"
-                          : "bg-orange-100 text-orange-700"
-                      }`}
-                    >
-                      {log.status === "received" && <FiCheckCircle size={12} />}
-                      {log.status === "failed" && <FiXCircle size={12} />}
-                      {log.status === "retried" && <FiAlertCircle size={12} />}
-                      {log.status}
-                    </span>
-                    {log.error && <div className="text-xs text-red-600 mt-1">{log.error}</div>}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-700">{log.timestamp}</td>
-                  <td className="px-6 py-4 text-sm text-gray-700">{log.latency}</td>
-                  <td className="px-6 py-4">
-                    <button className="text-sm text-teal-600 hover:text-teal-700">Replay</button>
-                  </td>
-                </tr>
-              ))}
+              {isLoading ? (
+                <>
+                    <WebhookLogRowSkeleton/>
+                    <WebhookLogRowSkeleton/>
+                    <WebhookLogRowSkeleton/>
+                </>
+              ) : webhookLogs.length > 0 ? (
+                webhookLogs.map((log) => (
+                    <tr key={log.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 text-sm font-mono text-gray-900">{log.event}</td>
+                    <td className="px-6 py-4 text-sm text-gray-700">{log.provider}</td>
+                    <td className="px-6 py-4">
+                        <span
+                        className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${
+                            log.status === "received"
+                            ? "bg-green-100 text-green-700"
+                            : log.status === "failed"
+                            ? "bg-red-100 text-red-700"
+                            : "bg-orange-100 text-orange-700"
+                        }`}
+                        >
+                        {log.status === "received" && <FiCheckCircle size={12} />}
+                        {log.status === "failed" && <FiXCircle size={12} />}
+                        {log.status === "retried" && <FiAlertCircle size={12} />}
+                        {log.status}
+                        </span>
+                        {log.error && <div className="text-xs text-red-600 mt-1">{log.error}</div>}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-700">{log.timestamp}</td>
+                    <td className="px-6 py-4 text-sm text-gray-700">{log.latency}</td>
+                    <td className="px-6 py-4">
+                        <button className="text-sm text-teal-600 hover:text-teal-700" disabled={isLoading}>Replay</button>
+                    </td>
+                    </tr>
+                ))
+              ) : (
+                <tr><td colSpan={6} className="text-center py-10 text-gray-500">No webhook events to display.</td></tr>
+              )}
             </tbody>
           </table>
         </div>

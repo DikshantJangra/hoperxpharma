@@ -52,15 +52,9 @@ export default function PermissionDrawer({ permission, onClose }: any) {
             Assigned Users ({permission.users})
           </h3>
           <div className="space-y-2">
-            {['Aman Kumar', 'Riya Sharma', 'Priya Patel'].map(user => (
-              <div key={user} className="flex items-center justify-between p-3 bg-[#f8fafc] rounded-lg">
-                <div>
-                  <div className="text-sm font-medium text-[#0f172a]">{user}</div>
-                  <div className="text-xs text-[#64748b]">via Admin role</div>
-                </div>
-                <button className="text-xs text-[#64748b] hover:text-[#0ea5a3]">Remove</button>
-              </div>
-            ))}
+            <div className="text-sm text-[#64748b] p-3 bg-[#f8fafc] rounded-lg text-center">
+              No users assigned
+            </div>
           </div>
         </div>
 

@@ -5,46 +5,29 @@ import { FiX, FiRefreshCw, FiAlertCircle } from "react-icons/fi";
 import DrugMultiSearch from "./DrugMultiSearch";
 import InteractionResult, { Interaction } from "./InteractionResult";
 
-// Mock Interaction Database
-const MOCK_INTERACTIONS: Interaction[] = [
-    {
-        id: "1",
-        pair: ["Warfarin", "Aspirin"],
-        severity: "Major",
-        mechanism: "Pharmacodynamic synergism. Both agents inhibit platelet function and impair hemostasis.",
-        guidance: "Avoid concurrent use if possible. If combination is necessary, monitor INR closely and watch for signs of bleeding.",
-        description: "Concurrent use significantly increases the risk of major bleeding events, including gastrointestinal bleeding and intracranial hemorrhage."
-    },
-    {
-        id: "2",
-        pair: ["Metformin", "Alcohol"],
-        severity: "Moderate",
-        mechanism: "Additive effect on lactate metabolism.",
-        guidance: "Limit alcohol consumption. Excessive intake increases risk of lactic acidosis.",
-        description: "Alcohol potentiates the effect of metformin on lactate metabolism, increasing the risk of lactic acidosis, a rare but potentially fatal metabolic complication."
-    },
-    {
-        id: "3",
-        pair: ["Lisinopril", "Potassium"],
-        severity: "Moderate",
-        mechanism: "Additive potassium-sparing effect.",
-        guidance: "Monitor serum potassium levels regularly.",
-        description: "Concurrent use may result in hyperkalemia, especially in patients with renal impairment or diabetes."
-    },
-    {
-        id: "4",
-        pair: ["Atorvastatin", "Clarithromycin"],
-        severity: "Major",
-        mechanism: "CYP3A4 inhibition by Clarithromycin increases Atorvastatin exposure.",
-        guidance: "Avoid combination or limit Atorvastatin dose to 20mg/day. Monitor for myopathy.",
-        description: "Significantly increased risk of myopathy and rhabdomyolysis due to increased statin concentrations."
-    }
-];
+const InteractionSkeleton = () => (
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 animate-pulse">
+        <div className="h-6 bg-gray-200 rounded w-1/2 mb-4"></div>
+        <div className="h-4 bg-gray-100 rounded w-full mb-2"></div>
+        <div className="h-4 bg-gray-100 rounded w-5/6"></div>
+    </div>
+)
 
 export default function InteractionChecker() {
     const [selectedDrugs, setSelectedDrugs] = useState<string[]>([]);
     const [results, setResults] = useState<Interaction[]>([]);
     const [isChecking, setIsChecking] = useState(false);
+    const [interactions, setInteractions] = useState<Interaction[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        setIsLoading(true);
+        const timer = setTimeout(() => {
+            setInteractions([]);
+            setIsLoading(false);
+        }, 1500)
+        return () => clearTimeout(timer);
+    }, [])
 
     const addDrug = (drug: string) => {
         if (!selectedDrugs.includes(drug)) {
@@ -69,7 +52,7 @@ export default function InteractionChecker() {
                     const drugA = selectedDrugs[i];
                     const drugB = selectedDrugs[j];
 
-                    const match = MOCK_INTERACTIONS.find(interaction =>
+                    const match = interactions.find(interaction =>
                         (interaction.pair.includes(drugA) && interaction.pair.includes(drugB))
                     );
 
@@ -91,7 +74,7 @@ export default function InteractionChecker() {
         } else {
             setResults([]);
         }
-    }, [selectedDrugs]);
+    }, [selectedDrugs, interactions]);
 
     return (
         <div className="space-y-8">
@@ -113,6 +96,7 @@ export default function InteractionChecker() {
                             <button
                                 onClick={() => removeDrug(drug)}
                                 className="ml-2 p-0.5 hover:bg-blue-200 rounded-full transition-colors"
+                                disabled={isLoading}
                             >
                                 <FiX className="h-3 w-3" />
                             </button>
@@ -139,7 +123,12 @@ export default function InteractionChecker() {
                     )}
                 </div>
 
-                {selectedDrugs.length < 2 ? (
+                {isLoading ? (
+                    <>
+                        <InteractionSkeleton/>
+                        <InteractionSkeleton/>
+                    </>
+                ) : selectedDrugs.length < 2 ? (
                     <div className="bg-gray-50 rounded-xl border border-dashed border-gray-300 p-12 text-center">
                         <div className="mx-auto w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                             <FiAlertCircle className="h-6 w-6 text-gray-400" />

@@ -23,74 +23,6 @@ interface ExpiryItem {
     currentDiscount?: number;
 }
 
-// Mock data
-const MOCK_EXPIRY_ITEMS: ExpiryItem[] = [
-    {
-        id: "1",
-        medicineName: "Paracetamol",
-        strength: "500mg",
-        batchNumber: "B2024-001",
-        expiryDate: "2024-12-15",
-        daysUntilExpiry: 23,
-        quantity: 150,
-        costPrice: 2.5,
-        mrp: 5,
-        totalCostValue: 375,
-        totalMRPValue: 750,
-        supplier: "Apollo Pharma",
-        category: "critical",
-        suggestedDiscount: 50
-    },
-    {
-        id: "2",
-        medicineName: "Amoxicillin",
-        strength: "250mg",
-        batchNumber: "B2024-045",
-        expiryDate: "2025-02-20",
-        daysUntilExpiry: 60,
-        quantity: 200,
-        costPrice: 8,
-        mrp: 15,
-        totalCostValue: 1600,
-        totalMRPValue: 3000,
-        supplier: "Sun Pharma",
-        category: "90days",
-        suggestedDiscount: 30
-    },
-    {
-        id: "3",
-        medicineName: "Metformin",
-        strength: "500mg",
-        batchNumber: "B2024-078",
-        expiryDate: "2025-05-10",
-        daysUntilExpiry: 140,
-        quantity: 500,
-        costPrice: 3,
-        mrp: 6,
-        totalCostValue: 1500,
-        totalMRPValue: 3000,
-        supplier: "Cipla",
-        category: "180days",
-        suggestedDiscount: 15
-    },
-    {
-        id: "4",
-        medicineName: "Aspirin",
-        strength: "75mg",
-        batchNumber: "B2023-120",
-        expiryDate: "2024-10-30",
-        daysUntilExpiry: -22,
-        quantity: 80,
-        costPrice: 1.5,
-        mrp: 3,
-        totalCostValue: 120,
-        totalMRPValue: 240,
-        supplier: "Bayer",
-        category: "dead",
-        suggestedDiscount: 0
-    }
-];
-
 const CATEGORY_CONFIG = {
     critical: {
         label: "Critical (<30 days)",
@@ -126,12 +58,35 @@ const CATEGORY_CONFIG = {
     }
 };
 
+const TableRowSkeleton = () => (
+    <tr className="animate-pulse">
+        <td className="px-4 py-3"><div className="h-4 bg-gray-200 rounded w-3/4"></div></td>
+        <td className="px-4 py-3"><div className="h-4 bg-gray-200 rounded w-1/2"></div></td>
+        <td className="px-4 py-3"><div className="h-4 bg-gray-200 rounded w-24"></div></td>
+        <td className="px-4 py-3 text-right"><div className="h-6 w-16 bg-gray-200 rounded-full ml-auto"></div></td>
+        <td className="px-4 py-3 text-right"><div className="h-4 bg-gray-200 rounded w-10 ml-auto"></div></td>
+        <td className="px-4 py-3 text-right"><div className="h-4 bg-gray-200 rounded w-12 ml-auto"></div></td>
+        <td className="px-4 py-3 text-center"><div className="h-6 w-12 bg-gray-200 rounded-full mx-auto"></div></td>
+    </tr>
+)
+
 export default function ExpiryPage() {
     const [activeCategory, setActiveCategory] = useState<ExpiryCategory>("critical");
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedItem, setSelectedItem] = useState<ExpiryItem | null>(null);
+    const [expiryItems, setExpiryItems] = useState<ExpiryItem[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
 
-    const filteredItems = MOCK_EXPIRY_ITEMS.filter(
+    useEffect(() => {
+        setIsLoading(true);
+        const timer = setTimeout(() => {
+            setExpiryItems([]);
+            setIsLoading(false);
+        }, 1500)
+        return () => clearTimeout(timer);
+    }, []);
+
+    const filteredItems = expiryItems.filter(
         (item) =>
             item.category === activeCategory &&
             (item.medicineName.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -139,10 +94,10 @@ export default function ExpiryPage() {
     );
 
     const stats = {
-        critical: MOCK_EXPIRY_ITEMS.filter((i) => i.category === "critical"),
-        "90days": MOCK_EXPIRY_ITEMS.filter((i) => i.category === "90days"),
-        "180days": MOCK_EXPIRY_ITEMS.filter((i) => i.category === "180days"),
-        dead: MOCK_EXPIRY_ITEMS.filter((i) => i.category === "dead")
+        critical: expiryItems.filter((i) => i.category === "critical"),
+        "90days": expiryItems.filter((i) => i.category === "90days"),
+        "180days": expiryItems.filter((i) => i.category === "180days"),
+        dead: expiryItems.filter((i) => i.category === "dead")
     };
 
     useEffect(() => {
@@ -166,7 +121,7 @@ export default function ExpiryPage() {
                         <p className="text-sm text-[#64748b]">Inventory › Expiry</p>
                     </div>
                     <div className="flex items-center gap-2">
-                        <button className="px-3 py-2 border border-[#cbd5e1] rounded-lg hover:bg-[#f8fafc] flex items-center gap-2 text-sm">
+                        <button className="px-3 py-2 border border-[#cbd5e1] rounded-lg hover:bg-[#f8fafc] flex items-center gap-2 text-sm" disabled={isLoading}>
                             <FiDownload className="w-4 h-4" />
                             Export Report
                         </button>
@@ -183,40 +138,52 @@ export default function ExpiryPage() {
                             onChange={(e) => setSearchQuery(e.target.value)}
                             placeholder="Search medicine / batch# — press /"
                             className="w-full pl-10 pr-4 py-2.5 border border-[#cbd5e1] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0ea5a3]"
+                            disabled={isLoading}
                         />
                     </div>
                 </div>
 
                 {/* Quick Stats */}
                 <div className="flex items-center gap-3">
-                    <div className="px-3 py-1.5 bg-[#fee2e2] rounded-lg text-sm">
-                        <span className="text-[#991b1b]">Critical:</span>{" "}
-                        <span className="font-semibold text-[#991b1b]">
-                            {stats.critical.length} | ₹
-                            {stats.critical.reduce((sum, i) => sum + i.totalMRPValue, 0).toLocaleString()}
-                        </span>
-                    </div>
-                    <div className="px-3 py-1.5 bg-[#fed7aa] rounded-lg text-sm">
-                        <span className="text-[#9a3412]">90 Days:</span>{" "}
-                        <span className="font-semibold text-[#9a3412]">
-                            {stats["90days"].length} | ₹
-                            {stats["90days"].reduce((sum, i) => sum + i.totalMRPValue, 0).toLocaleString()}
-                        </span>
-                    </div>
-                    <div className="px-3 py-1.5 bg-[#fef3c7] rounded-lg text-sm">
-                        <span className="text-[#92400e]">180 Days:</span>{" "}
-                        <span className="font-semibold text-[#92400e]">
-                            {stats["180days"].length} | ₹
-                            {stats["180days"].reduce((sum, i) => sum + i.totalMRPValue, 0).toLocaleString()}
-                        </span>
-                    </div>
-                    <div className="px-3 py-1.5 bg-[#f1f5f9] rounded-lg text-sm">
-                        <span className="text-[#475569]">Dead Stock:</span>{" "}
-                        <span className="font-semibold text-[#475569]">
-                            {stats.dead.length} | ₹
-                            {stats.dead.reduce((sum, i) => sum + i.totalMRPValue, 0).toLocaleString()}
-                        </span>
-                    </div>
+                    {isLoading ? (
+                        <>
+                            <div className="h-8 w-48 bg-gray-200 rounded-lg animate-pulse"></div>
+                            <div className="h-8 w-48 bg-gray-200 rounded-lg animate-pulse"></div>
+                            <div className="h-8 w-48 bg-gray-200 rounded-lg animate-pulse"></div>
+                            <div className="h-8 w-48 bg-gray-200 rounded-lg animate-pulse"></div>
+                        </>
+                    ) : (
+                        <>
+                            <div className="px-3 py-1.5 bg-[#fee2e2] rounded-lg text-sm">
+                                <span className="text-[#991b1b]">Critical:</span>{" "}
+                                <span className="font-semibold text-[#991b1b]">
+                                    {stats.critical.length} | ₹
+                                    {stats.critical.reduce((sum, i) => sum + i.totalMRPValue, 0).toLocaleString()}
+                                </span>
+                            </div>
+                            <div className="px-3 py-1.5 bg-[#fed7aa] rounded-lg text-sm">
+                                <span className="text-[#9a3412]">90 Days:</span>{" "}
+                                <span className="font-semibold text-[#9a3412]">
+                                    {stats["90days"].length} | ₹
+                                    {stats["90days"].reduce((sum, i) => sum + i.totalMRPValue, 0).toLocaleString()}
+                                </span>
+                            </div>
+                            <div className="px-3 py-1.5 bg-[#fef3c7] rounded-lg text-sm">
+                                <span className="text-[#92400e]">180 Days:</span>{" "}
+                                <span className="font-semibold text-[#92400e]">
+                                    {stats["180days"].length} | ₹
+                                    {stats["180days"].reduce((sum, i) => sum + i.totalMRPValue, 0).toLocaleString()}
+                                </span>
+                            </div>
+                            <div className="px-3 py-1.5 bg-[#f1f5f9] rounded-lg text-sm">
+                                <span className="text-[#475569]">Dead Stock:</span>{" "}
+                                <span className="font-semibold text-[#475569]">
+                                    {stats.dead.length} | ₹
+                                    {stats.dead.reduce((sum, i) => sum + i.totalMRPValue, 0).toLocaleString()}
+                                </span>
+                            </div>
+                        </>
+                    )}
                 </div>
             </div>
 
@@ -242,13 +209,14 @@ export default function ExpiryPage() {
                                             ? `${config.bg} border-2 ${config.border}`
                                             : "border-2 border-transparent hover:bg-[#f8fafc]"
                                         }`}
+                                    disabled={isLoading}
                                 >
                                     <div className="flex items-center justify-between mb-1">
                                         <span className={`font-semibold text-sm ${isActive ? config.text : "text-[#475569]"}`}>
                                             {config.label}
                                         </span>
                                         <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${config.badge}`}>
-                                            {count}
+                                            {isLoading ? '...' : count}
                                         </span>
                                     </div>
                                     <div className="text-xs text-[#64748b]">
@@ -276,64 +244,73 @@ export default function ExpiryPage() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {filteredItems.map((item) => {
-                                    const config = CATEGORY_CONFIG[item.category];
-                                    const isSelected = selectedItem?.id === item.id;
+                                {isLoading ? (
+                                    <>
+                                        <TableRowSkeleton/>
+                                        <TableRowSkeleton/>
+                                        <TableRowSkeleton/>
+                                        <TableRowSkeleton/>
+                                    </>
+                                ) : filteredItems.length > 0 ? (
+                                    filteredItems.map((item) => {
+                                        const config = CATEGORY_CONFIG[item.category];
+                                        const isSelected = selectedItem?.id === item.id;
 
-                                    return (
-                                        <tr
-                                            key={item.id}
-                                            onClick={() => setSelectedItem(item)}
-                                            className={`border-b border-[#e2e8f0] cursor-pointer transition-all ${isSelected ? `${config.bg} border-l-4 ${config.border}` : "hover:bg-[#f8fafc]"
-                                                }`}
-                                        >
-                                            <td className="px-4 py-3">
-                                                <div className="font-semibold text-[#0f172a]">{item.medicineName}</div>
-                                                <div className="text-xs text-[#64748b]">{item.strength}</div>
-                                            </td>
-                                            <td className="px-4 py-3">
-                                                <span className="font-mono text-sm text-[#475569]">{item.batchNumber}</span>
-                                            </td>
-                                            <td className="px-4 py-3 text-sm text-[#475569]">{item.expiryDate}</td>
-                                            <td className="px-4 py-3 text-right">
-                                                <span
-                                                    className={`px-2 py-1 rounded-full text-xs font-bold ${item.daysUntilExpiry < 0
-                                                            ? "bg-black text-white"
-                                                            : item.daysUntilExpiry < 30
-                                                                ? "bg-red-100 text-red-800"
-                                                                : item.daysUntilExpiry < 90
-                                                                    ? "bg-orange-100 text-orange-800"
-                                                                    : "bg-yellow-100 text-yellow-800"
-                                                        }`}
-                                                >
-                                                    {item.daysUntilExpiry < 0 ? "EXPIRED" : `${item.daysUntilExpiry}d`}
-                                                </span>
-                                            </td>
-                                            <td className="px-4 py-3 text-right font-semibold text-[#0f172a]">{item.quantity}</td>
-                                            <td className="px-4 py-3 text-right font-semibold text-[#0f172a]">
-                                                ₹{item.totalMRPValue.toLocaleString()}
-                                            </td>
-                                            <td className="px-4 py-3 text-center">
-                                                {item.suggestedDiscount > 0 ? (
-                                                    <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-bold">
-                                                        {item.suggestedDiscount}%
+                                        return (
+                                            <tr
+                                                key={item.id}
+                                                onClick={() => setSelectedItem(item)}
+                                                className={`border-b border-[#e2e8f0] cursor-pointer transition-all ${isSelected ? `${config.bg} border-l-4 ${config.border}` : "hover:bg-[#f8fafc]"
+                                                    }`}
+                                            >
+                                                <td className="px-4 py-3">
+                                                    <div className="font-semibold text-[#0f172a]">{item.medicineName}</div>
+                                                    <div className="text-xs text-[#64748b]">{item.strength}</div>
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    <span className="font-mono text-sm text-[#475569]">{item.batchNumber}</span>
+                                                </td>
+                                                <td className="px-4 py-3 text-sm text-[#475569]">{item.expiryDate}</td>
+                                                <td className="px-4 py-3 text-right">
+                                                    <span
+                                                        className={`px-2 py-1 rounded-full text-xs font-bold ${item.daysUntilExpiry < 0
+                                                                ? "bg-black text-white"
+                                                                : item.daysUntilExpiry < 30
+                                                                    ? "bg-red-100 text-red-800"
+                                                                    : item.daysUntilExpiry < 90
+                                                                        ? "bg-orange-100 text-orange-800"
+                                                                        : "bg-yellow-100 text-yellow-800"
+                                                            }`}
+                                                    >
+                                                        {item.daysUntilExpiry < 0 ? "EXPIRED" : `${item.daysUntilExpiry}d`}
                                                     </span>
-                                                ) : (
-                                                    <span className="text-xs text-[#94a3b8]">-</span>
-                                                )}
-                                            </td>
-                                        </tr>
-                                    );
-                                })}
+                                                </td>
+                                                <td className="px-4 py-3 text-right font-semibold text-[#0f172a]">{item.quantity}</td>
+                                                <td className="px-4 py-3 text-right font-semibold text-[#0f172a]">
+                                                    ₹{item.totalMRPValue.toLocaleString()}
+                                                </td>
+                                                <td className="px-4 py-3 text-center">
+                                                    {item.suggestedDiscount > 0 ? (
+                                                        <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs font-bold">
+                                                            {item.suggestedDiscount}%
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-xs text-[#94a3b8]">-</span>
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        );
+                                    })
+                                ) : (
+                                    <tr>
+                                        <td colSpan={7} className="text-center py-12 text-[#94a3b8]">
+                                            <FiAlertTriangle className="w-12 h-12 mx-auto mb-3 opacity-50" />
+                                            <p>No items found in this category</p>
+                                        </td>
+                                    </tr>
+                                )}
                             </tbody>
                         </table>
-
-                        {filteredItems.length === 0 && (
-                            <div className="text-center py-12 text-[#94a3b8]">
-                                <FiAlertTriangle className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                                <p>No items found in this category</p>
-                            </div>
-                        )}
                     </div>
                 </div>
 

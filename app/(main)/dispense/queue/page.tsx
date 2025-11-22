@@ -1,35 +1,54 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FiSearch, FiClock, FiAlertCircle, FiUser, FiArrowRight } from "react-icons/fi";
 import { MdLocalPharmacy } from "react-icons/md";
 
-const mockPrescriptions = [
-    { id: "rx001", patientName: "Rajesh Kumar", rxId: "RX-2024-001", doctor: "Dr. Anjali Patel", timeInQueue: "15 min", priority: "urgent", isControlled: false, drugCount: 2, assignedTo: null, status: "new" },
-    { id: "rx002", patientName: "Priya Sharma", rxId: "RX-2024-002", doctor: "Dr. Rahul Mehta", timeInQueue: "45 min", priority: "normal", isControlled: true, drugCount: 1, assignedTo: "Anoop Jangra", status: "in-progress" },
-    { id: "rx003", patientName: "Amit Verma", rxId: "RX-2024-003", doctor: "Dr. Sunita Rao", timeInQueue: "30 min", priority: "normal", isControlled: false, drugCount: 3, assignedTo: null, status: "new" },
-    { id: "rx004", patientName: "Sneha Reddy", rxId: "RX-2024-004", doctor: "Dr. Vikram Singh", timeInQueue: "2 hr", priority: "normal", isControlled: false, drugCount: 1, assignedTo: null, status: "ready" }
-];
+const PrescriptionCardSkeleton = () => (
+    <div className="p-4 rounded-xl border-2 border-[#e2e8f0] animate-pulse">
+        <div className="flex items-start justify-between mb-2">
+            <div className="flex-1">
+                <div className="h-5 bg-gray-200 rounded w-32 mb-2"></div>
+                <div className="h-4 bg-gray-100 rounded w-24"></div>
+            </div>
+        </div>
+        <div className="flex items-center justify-between">
+            <div className="h-4 bg-gray-100 rounded w-16"></div>
+            <div className="h-4 bg-gray-100 rounded w-12"></div>
+        </div>
+    </div>
+);
 
 export default function QueuePage() {
-    const [selectedId, setSelectedId] = useState("rx001");
+    const [prescriptions, setPrescriptions] = useState<any[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [selectedId, setSelectedId] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState("");
     const [filterStatus, setFilterStatus] = useState("all");
 
-    const filteredPrescriptions = mockPrescriptions.filter(rx => {
+    useEffect(() => {
+        setIsLoading(true);
+        const timer = setTimeout(() => {
+            setPrescriptions([]);
+            setIsLoading(false);
+        }, 1500);
+        return () => clearTimeout(timer);
+    }, []);
+
+    const filteredPrescriptions = prescriptions.filter(rx => {
         const matchesSearch = rx.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
             rx.rxId.toLowerCase().includes(searchTerm.toLowerCase());
         const matchesFilter = filterStatus === "all" || rx.status === filterStatus;
         return matchesSearch && matchesFilter;
     });
 
-    const selectedRx = mockPrescriptions.find(rx => rx.id === selectedId);
+    const selectedRx = prescriptions.find(rx => rx.id === selectedId);
 
     const stats = {
-        total: mockPrescriptions.length,
-        urgent: mockPrescriptions.filter(rx => rx.priority === "urgent").length,
-        controlled: mockPrescriptions.filter(rx => rx.isControlled).length,
-        avgWaitTime: "35 min"
+        total: prescriptions.length,
+        urgent: prescriptions.filter(rx => rx.priority === "urgent").length,
+        controlled: prescriptions.filter(rx => rx.isControlled).length,
+        avgWaitTime: prescriptions.length > 0 ? "Calculating..." : "-"
     };
 
     return (
@@ -51,7 +70,7 @@ export default function QueuePage() {
                         </div>
                         <div>
                             <div className="text-sm text-[#64748b]">Total in Queue</div>
-                            <div className="text-2xl font-bold text-blue-600">{stats.total}</div>
+                            <div className="text-2xl font-bold text-blue-600">{isLoading ? '...' : stats.total}</div>
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -60,7 +79,7 @@ export default function QueuePage() {
                         </div>
                         <div>
                             <div className="text-sm text-[#64748b]">Urgent</div>
-                            <div className="text-2xl font-bold text-red-600">{stats.urgent}</div>
+                            <div className="text-2xl font-bold text-red-600">{isLoading ? '...' : stats.urgent}</div>
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -69,7 +88,7 @@ export default function QueuePage() {
                         </div>
                         <div>
                             <div className="text-sm text-[#64748b]">Controlled</div>
-                            <div className="text-2xl font-bold text-amber-600">{stats.controlled}</div>
+                            <div className="text-2xl font-bold text-amber-600">{isLoading ? '...' : stats.controlled}</div>
                         </div>
                     </div>
                     <div className="flex items-center gap-3">
@@ -78,7 +97,7 @@ export default function QueuePage() {
                         </div>
                         <div>
                             <div className="text-sm text-[#64748b]">Avg Wait Time</div>
-                            <div className="text-2xl font-bold text-green-600">{stats.avgWaitTime}</div>
+                            <div className="text-2xl font-bold text-green-600">{isLoading ? '...' : stats.avgWaitTime}</div>
                         </div>
                     </div>
                 </div>
@@ -97,6 +116,7 @@ export default function QueuePage() {
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 placeholder="Search by patient name or Rx ID..."
                                 className="w-full pl-10 pr-4 py-2 border border-[#cbd5e1] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0ea5a3]"
+                                disabled={isLoading}
                             />
                         </div>
                         <div className="flex gap-2">
@@ -114,7 +134,14 @@ export default function QueuePage() {
                     </div>
 
                     <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                        {filteredPrescriptions.map((rx) => (
+                        {isLoading ? (
+                            <>
+                                <PrescriptionCardSkeleton />
+                                <PrescriptionCardSkeleton />
+                                <PrescriptionCardSkeleton />
+                            </>
+                        ) : filteredPrescriptions.length > 0 ? (
+                            filteredPrescriptions.map((rx) => (
                             <div
                                 key={rx.id}
                                 onClick={() => setSelectedId(rx.id)}
@@ -153,7 +180,10 @@ export default function QueuePage() {
                                     </div>
                                 )}
                             </div>
-                        ))}
+                        ))
+                        ) : (
+                            <div className="text-center py-10 text-gray-500">No prescriptions in queue</div>
+                        )}
                     </div>
                 </div>
 
@@ -171,15 +201,15 @@ export default function QueuePage() {
                                     </div>
                                     <div>
                                         <div className="text-sm text-[#64748b]">DOB</div>
-                                        <div className="font-medium text-[#0f172a]">June 15, 1985</div>
+                                        <div className="font-medium text-[#0f172a]">-</div>
                                     </div>
                                     <div>
                                         <div className="text-sm text-[#64748b]">Phone</div>
-                                        <div className="font-medium text-[#0f172a]">+91 98765 43210</div>
+                                        <div className="font-medium text-[#0f172a]">-</div>
                                     </div>
                                     <div>
                                         <div className="text-sm text-[#64748b]">Allergies</div>
-                                        <div className="font-medium text-red-600">Penicillin</div>
+                                        <div className="font-medium text-[#0f172a]">-</div>
                                     </div>
                                 </div>
                             </div>
@@ -194,7 +224,7 @@ export default function QueuePage() {
                                     </div>
                                     <div>
                                         <div className="text-sm text-[#64748b]">License</div>
-                                        <div className="font-medium text-[#0f172a]">MH-12345</div>
+                                        <div className="font-medium text-[#0f172a]">-</div>
                                     </div>
                                 </div>
                             </div>
@@ -202,24 +232,8 @@ export default function QueuePage() {
                             {/* Prescription Details */}
                             <div className="bg-white border border-[#e2e8f0] rounded-xl p-6">
                                 <h2 className="text-lg font-semibold text-[#0f172a] mb-4">Prescription Details</h2>
-                                <div className="space-y-4">
-                                    <div className="p-4 bg-[#f8fafc] rounded-lg">
-                                        <div className="font-semibold text-[#0f172a] mb-2">Warfarin 5mg</div>
-                                        <div className="grid grid-cols-2 gap-2 text-sm">
-                                            <div>
-                                                <span className="text-[#64748b]">Dosage:</span>
-                                                <span className="ml-2 text-[#0f172a]">5mg</span>
-                                            </div>
-                                            <div>
-                                                <span className="text-[#64748b]">Quantity:</span>
-                                                <span className="ml-2 text-[#0f172a]">30 tablets</span>
-                                            </div>
-                                        </div>
-                                        <div className="mt-2 text-sm">
-                                            <span className="text-[#64748b]">Sig:</span>
-                                            <span className="ml-2 text-[#0f172a]">Take 1 tablet daily at bedtime</span>
-                                        </div>
-                                    </div>
+                                <div className="text-center py-6 text-gray-500">
+                                    No prescription details available
                                 </div>
                             </div>
 

@@ -1,27 +1,64 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import LicenseCard from './LicenseCard';
 
-const MOCK_LICENSES = [
-  { id: '1', type: 'Drug License', number: 'DL-IN-12345', authority: 'State Drug Controller - JK', status: 'approved', validFrom: '2023-05-01', validTo: '2026-04-30', uploader: 'Aman Kumar', lastUpdated: '2025-10-01', daysToExpiry: 120 },
-  { id: '2', type: 'GST Registration', number: 'GST-27AABCU9603R1ZM', authority: 'GST Department', status: 'approved', validFrom: '2022-01-15', validTo: '2027-01-14', uploader: 'Riya Sharma', lastUpdated: '2024-12-15', daysToExpiry: 450 },
-  { id: '3', type: 'Pharmacy License', number: 'PH-MH-67890', authority: 'Maharashtra FDA', status: 'expiring', validFrom: '2024-03-01', validTo: '2025-02-28', uploader: 'Priya Patel', lastUpdated: '2024-11-20', daysToExpiry: 28 },
-  { id: '4', type: 'Narcotic License', number: 'NL-DL-11223', authority: 'Narcotics Control Bureau', status: 'pending', validFrom: '2025-01-01', validTo: '2026-12-31', uploader: 'Amit Singh', lastUpdated: '2025-01-05', daysToExpiry: 365 },
-];
+const LicenseCardSkeleton = () => (
+    <div className="bg-white border border-[#e2e8f0] rounded-lg p-4 animate-pulse">
+        <div className="flex items-start justify-between mb-3">
+            <div className="flex-1 space-y-2">
+                <div className="h-5 bg-gray-200 rounded w-1/2"></div>
+                <div className="h-4 bg-gray-100 rounded w-1/3"></div>
+            </div>
+            <div className="h-6 w-20 bg-gray-200 rounded-full"></div>
+        </div>
+        <div className="space-y-2">
+            <div className="h-3 bg-gray-100 rounded w-full"></div>
+            <div className="h-3 bg-gray-100 rounded w-3/4"></div>
+        </div>
+    </div>
+)
 
-export default function LicenseList({ filter, searchQuery, onSelectLicense }: any) {
-  const filtered = MOCK_LICENSES.filter(lic => {
+export default function LicenseList({ filter, searchQuery, onSelectLicense, isLoading: parentLoading }: any) {
+  const [licenses, setLicenses] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    setIsLoading(true);
+    const timer = setTimeout(() => {
+        setLicenses([]);
+        setIsLoading(false);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [filter, searchQuery]);
+  
+  const filtered = licenses.filter(lic => {
     const matchesFilter = filter === 'all' || lic.status === filter || (filter === 'expiring' && lic.daysToExpiry < 60);
     const matchesSearch = lic.number.toLowerCase().includes(searchQuery.toLowerCase()) || lic.type.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesFilter && matchesSearch;
   });
 
+  const isLoadingCombined = isLoading || parentLoading;
+
   return (
     <div className="flex-1 overflow-y-auto p-6">
       <div className="grid grid-cols-2 gap-4">
-        {filtered.map(license => (
-          <LicenseCard key={license.id} license={license} onClick={() => onSelectLicense(license)} />
-        ))}
+        {isLoadingCombined ? (
+            <>
+                <LicenseCardSkeleton/>
+                <LicenseCardSkeleton/>
+                <LicenseCardSkeleton/>
+                <LicenseCardSkeleton/>
+            </>
+        ) : filtered.length > 0 ? (
+            filtered.map(license => (
+                <LicenseCard key={license.id} license={license} onClick={() => onSelectLicense(license)} />
+            ))
+        ) : (
+            <div className="col-span-2 text-center py-10 text-gray-500">
+                No licenses found.
+            </div>
+        )}
       </div>
     </div>
   );

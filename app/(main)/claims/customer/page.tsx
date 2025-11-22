@@ -3,12 +3,7 @@
 import { useState } from "react";
 import { FiSearch, FiDollarSign, FiCheckCircle, FiXCircle, FiClock, FiAlertCircle } from "react-icons/fi";
 
-const mockClaims = [
-    { id: "CLM001", patientName: "Rajesh Kumar", rxId: "RX-2024-001", invoiceId: "INV-2024-456", claimDate: "2024-11-20", returnReason: "Pharmacy Error", medicationCondition: "Unopened", originalAmount: 500, refundAmount: 500, restockingFee: 0, insuranceClaimId: "IC-2024-789", reversalStatus: "Completed", status: "approved", priority: "normal" },
-    { id: "CLM002", patientName: "Priya Sharma", rxId: "RX-2024-002", invoiceId: "INV-2024-457", claimDate: "2024-11-21", returnReason: "Adverse Reaction", medicationCondition: "Opened", originalAmount: 850, refundAmount: 800, restockingFee: 50, insuranceClaimId: null, reversalStatus: "N/A", status: "pending", priority: "urgent" },
-    { id: "CLM003", patientName: "Amit Verma", rxId: "RX-2024-003", invoiceId: "INV-2024-458", claimDate: "2024-11-19", returnReason: "Wrong Medication", medicationCondition: "Unopened", originalAmount: 1200, refundAmount: 1200, restockingFee: 0, insuranceClaimId: "IC-2024-790", reversalStatus: "Pending", status: "pending", priority: "normal" },
-    { id: "CLM004", patientName: "Sneha Reddy", rxId: "RX-2024-004", invoiceId: "INV-2024-459", claimDate: "2024-11-18", returnReason: "Patient Changed Mind", medicationCondition: "Unopened", originalAmount: 650, refundAmount: 0, restockingFee: 0, insuranceClaimId: null, reversalStatus: "N/A", status: "rejected", priority: "normal" }
-];
+const mockClaims: any[] = [];
 
 export default function CustomerClaimsPage() {
     const [selectedId, setSelectedId] = useState("CLM001");

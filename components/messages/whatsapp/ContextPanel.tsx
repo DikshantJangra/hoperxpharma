@@ -1,10 +1,36 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { FiUser, FiAlertCircle, FiClock, FiFileText } from 'react-icons/fi';
 import { RiCapsuleLine } from 'react-icons/ri';
 import { BsReceipt } from 'react-icons/bs';
 
-export default function ContextPanel({ conversation }: any) {
+const ItemSkeleton = () => (
+    <div className="p-2 bg-gray-100 rounded-lg animate-pulse">
+        <div className="h-4 bg-gray-200 rounded w-1/2 mb-1"></div>
+        <div className="h-3 bg-gray-200 rounded w-1/4"></div>
+    </div>
+)
+
+export default function ContextPanel({ conversation, isLoading: parentLoading }: any) {
+  const [recentPrescriptions, setRecentPrescriptions] = useState<any[]>([]);
+  const [orderHistory, setOrderHistory] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    if (conversation) {
+        setIsLoading(true);
+        const timer = setTimeout(() => {
+            setRecentPrescriptions([]);
+            setOrderHistory([]);
+            setIsLoading(false);
+        }, 1500)
+        return () => clearTimeout(timer);
+    }
+  }, [conversation]);
+  
+  const isLoadingCombined = isLoading || parentLoading;
+
   return (
     <div className="w-80 bg-white border-l border-[#e2e8f0] overflow-y-auto">
       {/* Patient Profile */}
@@ -58,18 +84,21 @@ export default function ContextPanel({ conversation }: any) {
           <h3 className="text-sm font-semibold text-[#0f172a]">Recent Prescriptions</h3>
         </div>
         <div className="space-y-2">
-          {[
-            { id: 'RX-1021', drug: 'Telmisartan 40mg', date: '6 days ago' },
-            { id: 'RX-0987', drug: 'Metformin 500mg', date: '12 days ago' },
-          ].map((rx) => (
-            <div key={rx.id} className="p-2 bg-[#f8fafc] rounded-lg hover:bg-[#f1f5f9] cursor-pointer">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-semibold text-[#0f172a]">#{rx.id}</span>
-                <span className="text-xs text-[#64748b]">{rx.date}</span>
-              </div>
-              <p className="text-xs text-[#64748b]">{rx.drug}</p>
-            </div>
-          ))}
+          {isLoadingCombined ? (
+            <><ItemSkeleton/><ItemSkeleton/></>
+          ) : recentPrescriptions.length > 0 ? (
+            recentPrescriptions.map((rx) => (
+                <div key={rx.id} className="p-2 bg-[#f8fafc] rounded-lg hover:bg-[#f1f5f9] cursor-pointer">
+                <div className="flex items-center justify-between mb-1">
+                    <span className="text-xs font-semibold text-[#0f172a]">#{rx.id}</span>
+                    <span className="text-xs text-[#64748b]">{rx.date}</span>
+                </div>
+                <p className="text-xs text-[#64748b]">{rx.drug}</p>
+                </div>
+            ))
+          ) : (
+            <p className="text-xs text-center text-gray-400 py-2">No recent prescriptions</p>
+          )}
         </div>
       </div>
 
@@ -80,30 +109,33 @@ export default function ContextPanel({ conversation }: any) {
           <h3 className="text-sm font-semibold text-[#0f172a]">Order History</h3>
         </div>
         <div className="space-y-2">
-          {[
-            { id: 'INV-234', amount: 850, date: '2 days ago', status: 'Paid' },
-            { id: 'INV-198', amount: 320, date: '15 days ago', status: 'Paid' },
-          ].map((order) => (
-            <div key={order.id} className="p-2 bg-[#f8fafc] rounded-lg">
-              <div className="flex items-center justify-between mb-1">
-                <span className="text-xs font-semibold text-[#0f172a]">{order.id}</span>
-                <span className="px-2 py-0.5 bg-[#d1fae5] text-[#065f46] text-xs rounded">
-                  {order.status}
-                </span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-[#64748b]">{order.date}</span>
-                <span className="text-xs font-semibold text-[#0f172a]">₹{order.amount}</span>
-              </div>
-            </div>
-          ))}
+            {isLoadingCombined ? (
+                <><ItemSkeleton/><ItemSkeleton/></>
+            ) : orderHistory.length > 0 ? (
+                orderHistory.map((order) => (
+                    <div key={order.id} className="p-2 bg-[#f8fafc] rounded-lg">
+                    <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs font-semibold text-[#0f172a]">{order.id}</span>
+                        <span className="px-2 py-0.5 bg-[#d1fae5] text-[#065f46] text-xs rounded">
+                        {order.status}
+                        </span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                        <span className="text-xs text-[#64748b]">{order.date}</span>
+                        <span className="text-xs font-semibold text-[#0f172a]">₹{order.amount}</span>
+                    </div>
+                    </div>
+                ))
+            ) : (
+                <p className="text-xs text-center text-gray-400 py-2">No order history</p>
+            )}
         </div>
 
         <div className="mt-3 space-y-1">
-          <button className="w-full py-1.5 text-xs text-[#0ea5a3] border border-[#0ea5a3] rounded hover:bg-[#f0fdfa]">
+          <button className="w-full py-1.5 text-xs text-[#0ea5a3] border border-[#0ea5a3] rounded hover:bg-[#f0fdfa]" disabled={isLoadingCombined}>
             Resend Invoice
           </button>
-          <button className="w-full py-1.5 text-xs text-[#0ea5a3] border border-[#0ea5a3] rounded hover:bg-[#f0fdfa]">
+          <button className="w-full py-1.5 text-xs text-[#0ea5a3] border border-[#0ea5a3] rounded hover:bg-[#f0fdfa]" disabled={isLoadingCombined}>
             Repeat Order
           </button>
         </div>
@@ -124,7 +156,7 @@ export default function ContextPanel({ conversation }: any) {
             <p className="text-xs text-[#92400e]">Regular customer. Prefers home delivery.</p>
           </div>
         </div>
-        <button className="w-full mt-2 py-1.5 text-xs border border-dashed border-[#cbd5e1] rounded hover:border-[#0ea5a3] hover:bg-[#f0fdfa]">
+        <button className="w-full mt-2 py-1.5 text-xs border border-dashed border-[#cbd5e1] rounded hover:border-[#0ea5a3] hover:bg-[#f0fdfa]" disabled={isLoadingCombined}>
           + Add Note
         </button>
       </div>

@@ -1,17 +1,40 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FiPlus, FiPlay, FiPause, FiEdit, FiTrash2, FiZap } from 'react-icons/fi';
 
-const MOCK_FLOWS = [
-  { id: '1', name: 'Prescription Ready Notification', trigger: 'Prescription finalized', actions: 3, status: 'active', lastRun: '5 min ago', successRate: 98 },
-  { id: '2', name: 'Refill Reminder (7 days)', trigger: 'Refill due in 7 days', actions: 2, status: 'active', lastRun: '2 hours ago', successRate: 95 },
-  { id: '3', name: 'Batch Recall Alert', trigger: 'Batch recall initiated', actions: 4, status: 'paused', lastRun: 'Never', successRate: 0 },
-  { id: '4', name: 'Invoice Auto-send', trigger: 'Sale completed', actions: 2, status: 'active', lastRun: '1 min ago', successRate: 99 },
-];
+const FlowCardSkeleton = () => (
+    <div className="bg-white rounded-lg border border-[#e2e8f0] p-4 animate-pulse">
+        <div className="flex items-start justify-between">
+            <div className="flex-1 space-y-3">
+                <div className="flex items-center gap-3">
+                    <div className="w-5 h-5 bg-gray-200 rounded"></div>
+                    <div className="h-5 bg-gray-200 rounded w-1/2"></div>
+                </div>
+                <div className="h-4 bg-gray-100 rounded w-3/4"></div>
+                <div className="h-3 bg-gray-100 rounded w-1/4"></div>
+            </div>
+            <div className="flex items-center gap-2">
+                <div className="h-8 w-8 bg-gray-200 rounded-lg"></div>
+                <div className="h-8 w-8 bg-gray-200 rounded-lg"></div>
+            </div>
+        </div>
+    </div>
+)
 
 export default function AutomationFlows() {
   const [showBuilder, setShowBuilder] = useState(false);
+  const [flows, setFlows] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    setIsLoading(true);
+    const timer = setTimeout(() => {
+        setFlows([]);
+        setIsLoading(false);
+    }, 1500)
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <div className="h-full flex flex-col">
@@ -21,7 +44,7 @@ export default function AutomationFlows() {
             <h2 className="text-lg font-semibold text-[#0f172a]">Automation Flows</h2>
             <p className="text-sm text-[#64748b]">Configure triggers and automated message sequences</p>
           </div>
-          <button onClick={() => setShowBuilder(true)} className="px-4 py-2 bg-[#0ea5a3] text-white rounded-lg hover:bg-[#0d9391] flex items-center gap-2 text-sm font-medium">
+          <button onClick={() => setShowBuilder(true)} className="px-4 py-2 bg-[#0ea5a3] text-white rounded-lg hover:bg-[#0d9391] flex items-center gap-2 text-sm font-medium" disabled={isLoading}>
             <FiPlus className="w-4 h-4" />
             Create Flow
           </button>
@@ -30,51 +53,63 @@ export default function AutomationFlows() {
 
       <div className="flex-1 overflow-y-auto p-6">
         <div className="space-y-3">
-          {MOCK_FLOWS.map(flow => (
-            <div key={flow.id} className="bg-white rounded-lg border border-[#e2e8f0] p-4 hover:border-[#0ea5a3] transition-colors">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <FiZap className="w-5 h-5 text-[#f59e0b]" />
-                    <h3 className="font-semibold text-[#0f172a]">{flow.name}</h3>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                      flow.status === 'active' ? 'bg-[#d1fae5] text-[#065f46]' : 'bg-[#f1f5f9] text-[#64748b]'
-                    }`}>
-                      {flow.status === 'active' ? <FiPlay className="inline w-3 h-3 mr-1" /> : <FiPause className="inline w-3 h-3 mr-1" />}
-                      {flow.status}
-                    </span>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-sm">
-                      <span className="text-[#64748b]">Trigger:</span>
-                      <span className="px-2 py-1 bg-[#f1f5f9] text-[#0f172a] rounded text-xs font-medium">{flow.trigger}</span>
-                      <span className="text-[#64748b]">→</span>
-                      <span className="text-[#64748b]">{flow.actions} actions</span>
-                    </div>
-                    <div className="flex items-center gap-4 text-xs text-[#94a3b8]">
-                      <span>Last run: {flow.lastRun}</span>
-                      {flow.successRate > 0 && (
-                        <span className="flex items-center gap-1">
-                          Success rate: <span className="font-semibold text-[#10b981]">{flow.successRate}%</span>
+          {isLoading ? (
+            <>
+                <FlowCardSkeleton/>
+                <FlowCardSkeleton/>
+                <FlowCardSkeleton/>
+            </>
+          ) : flows.length > 0 ? (
+            flows.map(flow => (
+                <div key={flow.id} className="bg-white rounded-lg border border-[#e2e8f0] p-4 hover:border-[#0ea5a3] transition-colors">
+                <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                    <div className="flex items-center gap-3 mb-2">
+                        <FiZap className="w-5 h-5 text-[#f59e0b]" />
+                        <h3 className="font-semibold text-[#0f172a]">{flow.name}</h3>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        flow.status === 'active' ? 'bg-[#d1fae5] text-[#065f46]' : 'bg-[#f1f5f9] text-[#64748b]'
+                        }`}>
+                        {flow.status === 'active' ? <FiPlay className="inline w-3 h-3 mr-1" /> : <FiPause className="inline w-3 h-3 mr-1" />}
+                        {flow.status}
                         </span>
-                      )}
                     </div>
-                  </div>
+                    <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-sm">
+                        <span className="text-[#64748b]">Trigger:</span>
+                        <span className="px-2 py-1 bg-[#f1f5f9] text-[#0f172a] rounded text-xs font-medium">{flow.trigger}</span>
+                        <span className="text-[#64748b]">→</span>
+                        <span className="text-[#64748b]">{flow.actions} actions</span>
+                        </div>
+                        <div className="flex items-center gap-4 text-xs text-[#94a3b8]">
+                        <span>Last run: {flow.lastRun}</span>
+                        {flow.successRate > 0 && (
+                            <span className="flex items-center gap-1">
+                            Success rate: <span className="font-semibold text-[#10b981]">{flow.successRate}%</span>
+                            </span>
+                        )}
+                        </div>
+                    </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                    <button className="p-2 hover:bg-[#f1f5f9] rounded-lg" title={flow.status === 'active' ? 'Pause' : 'Activate'}>
+                        {flow.status === 'active' ? <FiPause className="w-4 h-4 text-[#64748b]" /> : <FiPlay className="w-4 h-4 text-[#10b981]" />}
+                    </button>
+                    <button className="p-2 hover:bg-[#f1f5f9] rounded-lg" title="Edit">
+                        <FiEdit className="w-4 h-4 text-[#64748b]" />
+                    </button>
+                    <button className="p-2 hover:bg-[#fee2e2] rounded-lg" title="Delete">
+                        <FiTrash2 className="w-4 h-4 text-[#ef4444]" />
+                    </button>
+                    </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button className="p-2 hover:bg-[#f1f5f9] rounded-lg" title={flow.status === 'active' ? 'Pause' : 'Activate'}>
-                    {flow.status === 'active' ? <FiPause className="w-4 h-4 text-[#64748b]" /> : <FiPlay className="w-4 h-4 text-[#10b981]" />}
-                  </button>
-                  <button className="p-2 hover:bg-[#f1f5f9] rounded-lg" title="Edit">
-                    <FiEdit className="w-4 h-4 text-[#64748b]" />
-                  </button>
-                  <button className="p-2 hover:bg-[#fee2e2] rounded-lg" title="Delete">
-                    <FiTrash2 className="w-4 h-4 text-[#ef4444]" />
-                  </button>
                 </div>
-              </div>
+            ))
+          ) : (
+            <div className="text-center py-10 text-gray-500">
+                No automation flows created yet.
             </div>
-          ))}
+          )}
         </div>
 
         <div className="mt-6 bg-white rounded-lg border border-[#e2e8f0] p-6">

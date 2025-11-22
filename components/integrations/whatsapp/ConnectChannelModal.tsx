@@ -121,7 +121,7 @@ export default function ConnectChannelModal({ onClose }: { onClose: () => void }
                   </div>
                   <div className="flex justify-between">
                     <span className="text-[#64748b]">Phone:</span>
-                    <span className="font-semibold text-[#0f172a]">+91 98765 43210</span>
+                    <span className="font-semibold text-[#0f172a]">-</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-[#64748b]">Status:</span>

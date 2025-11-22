@@ -4,14 +4,50 @@ import { useState } from 'react';
 import { FiX, FiPrinter, FiMail, FiMessageSquare, FiRotateCcw, FiDownload, FiClock } from 'react-icons/fi';
 import { BsQrCode } from 'react-icons/bs';
 
-const MOCK_ITEMS = [
-  { name: 'Paracetamol', strength: '500mg', pack: '10 tabs', qty: 2, batch: 'B-2025-01', expiry: 'Dec 2025', price: 45, gst: 12, total: 90 },
-  { name: 'Atorvastatin', strength: '10mg', pack: '15 tabs', qty: 1, batch: 'B-2024-33', expiry: 'Nov 2025', price: 150, gst: 12, total: 150 },
-];
+const DrawerSkeleton = () => (
+    <div className="w-[40%] bg-white border-l border-[#e2e8f0] flex flex-col h-full animate-pulse">
+        <div className="p-4 border-b border-[#e2e8f0]">
+            <div className="h-6 bg-gray-200 rounded w-1/3 mb-2"></div>
+            <div className="h-4 bg-gray-100 rounded w-1/4"></div>
+        </div>
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="flex items-center gap-2">
+                <div className="h-6 w-20 bg-gray-200 rounded-full"></div>
+                <div className="h-6 w-24 bg-gray-100 rounded-full"></div>
+            </div>
+            <div className="h-20 bg-gray-100 rounded-lg"></div>
+            <div className="h-20 bg-gray-100 rounded-lg"></div>
+            <div>
+                <div className="h-4 bg-gray-200 rounded w-1/4 mb-2"></div>
+                <div className="h-16 bg-gray-100 rounded-lg mb-2"></div>
+                <div className="h-16 bg-gray-100 rounded-lg"></div>
+            </div>
+            <div className="h-24 bg-gray-100 rounded-lg"></div>
+        </div>
+        <div className="border-t border-[#e2e8f0] p-4 space-y-2">
+            <div className="h-10 bg-gray-200 rounded-lg"></div>
+            <div className="h-10 bg-gray-100 rounded-lg"></div>
+        </div>
+    </div>
+)
 
-export default function InvoiceDrawer({ invoice, onClose }: any) {
+export default function InvoiceDrawer({ invoice, onClose, isLoading }: any) {
   const [showAuditLog, setShowAuditLog] = useState(false);
   const [showReturnModal, setShowReturnModal] = useState(false);
+
+  if (isLoading) {
+    return <DrawerSkeleton />;
+  }
+
+  if (!invoice) {
+      return (
+        <div className="w-[40%] bg-white border-l border-[#e2e8f0] flex flex-col h-full items-center justify-center text-gray-500">
+            Select an invoice to see details.
+        </div>
+      )
+  }
+
+  const items = invoice.items || [];
 
   return (
     <>
@@ -52,8 +88,8 @@ export default function InvoiceDrawer({ invoice, onClose }: any) {
             <div className="space-y-1">
               <p className="text-sm font-medium text-[#0f172a]">{invoice.customer.name}</p>
               <p className="text-sm text-[#64748b]">{invoice.customer.phone}</p>
-              {invoice.type === 'GST' && (
-                <p className="text-xs text-[#64748b]">GSTIN: 29ABCDE1234F1Z5</p>
+              {invoice.type === 'GST' && invoice.customer.gstin && (
+                <p className="text-xs text-[#64748b]">GSTIN: {invoice.customer.gstin}</p>
               )}
             </div>
           </div>
@@ -62,32 +98,20 @@ export default function InvoiceDrawer({ invoice, onClose }: any) {
           <div className="bg-[#f8fafc] rounded-lg p-4">
             <h3 className="text-sm font-semibold text-[#64748b] mb-2">Payment Details</h3>
             <div className="space-y-2">
-              {invoice.paymentModes.includes('Cash') && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-[#64748b]">Cash</span>
-                  <span className="font-medium text-[#0f172a]">₹500</span>
+              {invoice.paymentModes.map((payment: any, idx: number) => (
+                <div key={idx} className="flex justify-between text-sm">
+                    <span className="text-[#64748b]">{payment.mode}</span>
+                    <span className="font-medium text-[#0f172a]">₹{payment.amount}</span>
                 </div>
-              )}
-              {invoice.paymentModes.includes('UPI') && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-[#64748b]">UPI (GPay)</span>
-                  <span className="font-medium text-[#0f172a]">₹350</span>
-                </div>
-              )}
-              {invoice.paymentModes.includes('Card') && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-[#64748b]">Card (HDFC)</span>
-                  <span className="font-medium text-[#0f172a]">₹{invoice.amount}</span>
-                </div>
-              )}
+              ))}
             </div>
           </div>
 
           {/* Items */}
           <div>
-            <h3 className="text-sm font-semibold text-[#64748b] mb-2">Items</h3>
+            <h3 className="text-sm font-semibold text-[#64748b] mb-2">Items ({items.length})</h3>
             <div className="space-y-2">
-              {MOCK_ITEMS.map((item, idx) => (
+              {items.map((item: any, idx: number) => (
                 <div key={idx} className="bg-white border border-[#e2e8f0] rounded-lg p-3">
                   <div className="flex justify-between mb-1">
                     <div className="flex-1">
@@ -113,19 +137,19 @@ export default function InvoiceDrawer({ invoice, onClose }: any) {
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span className="text-[#64748b]">Subtotal</span>
-                <span className="text-[#0f172a]">₹800</span>
+                <span className="text-[#0f172a]">₹{invoice.summary.subtotal}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-[#64748b]">Discount</span>
-                <span className="text-[#10b981]">-₹50</span>
+                <span className="text-[#10b981]">-₹{invoice.summary.discount}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-[#64748b]">GST</span>
-                <span className="text-[#0f172a]">₹102</span>
+                <span className="text-[#0f172a]">₹{invoice.summary.gst}</span>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-[#64748b]">Round-off</span>
-                <span className="text-[#0f172a]">-₹2</span>
+                <span className="text-[#0f172a]">{invoice.summary.roundOff < 0 ? '-' : ''}₹{Math.abs(invoice.summary.roundOff)}</span>
               </div>
               <div className="border-t border-[#e2e8f0] pt-2 flex justify-between">
                 <span className="font-semibold text-[#0f172a]">Total</span>
@@ -138,7 +162,7 @@ export default function InvoiceDrawer({ invoice, onClose }: any) {
           {invoice.hasRx && (
             <div className="bg-[#dbeafe] rounded-lg p-4">
               <h3 className="text-sm font-semibold text-[#1e40af] mb-2">Prescription Linked</h3>
-              <p className="text-sm text-[#1e40af]">Dr. Sharma • Rx #RX-2025-00045</p>
+              <p className="text-sm text-[#1e40af]">-</p>
               <button className="text-xs text-[#1e40af] hover:underline mt-1">View Prescription →</button>
             </div>
           )}
@@ -148,8 +172,8 @@ export default function InvoiceDrawer({ invoice, onClose }: any) {
             <div className="bg-[#f3e8ff] rounded-lg p-4">
               <h3 className="text-sm font-semibold text-[#6b21a8] mb-2">E-Invoice Details</h3>
               <div className="space-y-1 text-xs text-[#6b21a8]">
-                <p>IRN: 8f3d2a1b9c4e5f6a7b8c9d0e1f2a3b4c</p>
-                <p>Ack No: 112025012345678</p>
+                <p>IRN: {invoice.eInvoice.irn}</p>
+                <p>Ack No: {invoice.eInvoice.ackNo}</p>
                 <div className="flex items-center gap-2 mt-2">
                   <BsQrCode className="w-8 h-8" />
                   <button className="text-xs hover:underline">Download JSON</button>
@@ -207,12 +231,7 @@ export default function InvoiceDrawer({ invoice, onClose }: any) {
               </button>
             </div>
             <div className="p-4 max-h-[400px] overflow-y-auto space-y-3">
-              {[
-                { action: 'Sale created by Aman', time: '2:12 PM' },
-                { action: 'Payment received (UPI)', time: '2:13 PM' },
-                { action: 'Invoice printed', time: '2:13 PM' },
-                { action: 'WhatsApp sent to +91 98765XXXX', time: '2:14 PM' },
-              ].map((log, idx) => (
+              {invoice.auditLog?.map((log: any, idx: number) => (
                 <div key={idx} className="flex items-start gap-3">
                   <div className="w-2 h-2 rounded-full bg-[#0ea5a3] mt-1.5" />
                   <div className="flex-1">
@@ -237,7 +256,7 @@ export default function InvoiceDrawer({ invoice, onClose }: any) {
               </button>
             </div>
             <div className="p-4 space-y-3">
-              {MOCK_ITEMS.map((item, idx) => (
+              {items.map((item: any, idx: number) => (
                 <label key={idx} className="flex items-center gap-3 p-3 border border-[#e2e8f0] rounded-lg hover:bg-[#f8fafc] cursor-pointer">
                   <input type="checkbox" className="w-4 h-4 text-[#0ea5a3] rounded" />
                   <div className="flex-1">

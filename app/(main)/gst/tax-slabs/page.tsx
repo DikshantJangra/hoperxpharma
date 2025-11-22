@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FiEdit2, FiSave, FiPlus } from "react-icons/fi";
 
 interface TaxSlab {
@@ -11,17 +11,29 @@ interface TaxSlab {
     description: string;
 }
 
-const INITIAL_TAX_SLABS: TaxSlab[] = [
-    { id: "1", hsnCode: "3002", category: "Vaccines & Sera", gstRate: 5, description: "Essential medicines - vaccines and immunization products" },
-    { id: "2", hsnCode: "300431", category: "Insulin", gstRate: 5, description: "Essential medicine - insulin and derivatives" },
-    { id: "3", hsnCode: "3003", category: "Generic Medicines", gstRate: 12, description: "Standard pharmaceutical products" },
-    { id: "4", hsnCode: "3004", category: "Medicaments", gstRate: 12, description: "Tablets, syrups, ointments" },
-    { id: "5", hsnCode: "9018", category: "Medical Devices", gstRate: 18, description: "Diagnostic tools and surgical instruments" }
-];
+const SlabRowSkeleton = () => (
+    <tr className="animate-pulse">
+        <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-24"></div></td>
+        <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-32"></div></td>
+        <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-48"></div></td>
+        <td className="px-6 py-4"><div className="h-6 bg-gray-200 rounded-full w-16 mx-auto"></div></td>
+        <td className="px-6 py-4"><div className="h-8 bg-gray-200 rounded-md w-24 mx-auto"></div></td>
+    </tr>
+)
 
 export default function TaxSlabManagementPage() {
-    const [taxSlabs, setTaxSlabs] = useState<TaxSlab[]>(INITIAL_TAX_SLABS);
+    const [taxSlabs, setTaxSlabs] = useState<TaxSlab[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
     const [editingId, setEditingId] = useState<string | null>(null);
+
+    useEffect(() => {
+        setIsLoading(true);
+        const timer = setTimeout(() => {
+            setTaxSlabs([]);
+            setIsLoading(false);
+        }, 1500)
+        return () => clearTimeout(timer);
+    }, [])
 
     const handleEdit = (id: string) => {
         setEditingId(id);
@@ -63,6 +75,7 @@ export default function TaxSlabManagementPage() {
                         <button
                             onClick={addNewSlab}
                             className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center gap-2"
+                            disabled={isLoading}
                         >
                             <FiPlus className="h-4 w-4" />
                             Add Tax Slab
@@ -96,87 +109,99 @@ export default function TaxSlabManagementPage() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200">
-                            {taxSlabs.map((slab) => (
-                                <tr key={slab.id} className="hover:bg-gray-50 transition-colors">
-                                    <td className="px-6 py-4">
-                                        {editingId === slab.id ? (
-                                            <input
-                                                type="text"
-                                                value={slab.hsnCode}
-                                                onChange={(e) => handleUpdate(slab.id, "hsnCode", e.target.value)}
-                                                className="w-full px-2 py-1 border border-gray-300 rounded font-mono text-sm"
-                                            />
-                                        ) : (
-                                            <span className="font-mono font-semibold text-gray-900">{slab.hsnCode}</span>
-                                        )}
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        {editingId === slab.id ? (
-                                            <input
-                                                type="text"
-                                                value={slab.category}
-                                                onChange={(e) => handleUpdate(slab.id, "category", e.target.value)}
-                                                className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
-                                            />
-                                        ) : (
-                                            <span className="font-medium text-gray-900">{slab.category}</span>
-                                        )}
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        {editingId === slab.id ? (
-                                            <input
-                                                type="text"
-                                                value={slab.description}
-                                                onChange={(e) => handleUpdate(slab.id, "description", e.target.value)}
-                                                className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
-                                            />
-                                        ) : (
-                                            <span className="text-sm text-gray-600">{slab.description}</span>
-                                        )}
-                                    </td>
-                                    <td className="px-6 py-4 text-center">
-                                        {editingId === slab.id ? (
-                                            <select
-                                                value={slab.gstRate}
-                                                onChange={(e) => handleUpdate(slab.id, "gstRate", parseInt(e.target.value))}
-                                                className="px-3 py-1 border border-gray-300 rounded font-semibold"
-                                            >
-                                                <option value={0}>0%</option>
-                                                <option value={5}>5%</option>
-                                                <option value={12}>12%</option>
-                                                <option value={18}>18%</option>
-                                            </select>
-                                        ) : (
-                                            <span className={`px-3 py-1 rounded-full text-sm font-bold ${slab.gstRate === 0 ? "bg-gray-100 text-gray-700" :
-                                                    slab.gstRate === 5 ? "bg-green-100 text-green-700" :
-                                                        slab.gstRate === 12 ? "bg-blue-100 text-blue-700" :
-                                                            "bg-amber-100 text-amber-700"
-                                                }`}>
-                                                {slab.gstRate}%
-                                            </span>
-                                        )}
-                                    </td>
-                                    <td className="px-6 py-4 text-center">
-                                        {editingId === slab.id ? (
-                                            <button
-                                                onClick={handleSave}
-                                                className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors flex items-center gap-2 mx-auto"
-                                            >
-                                                <FiSave className="h-4 w-4" />
-                                                Save
-                                            </button>
-                                        ) : (
-                                            <button
-                                                onClick={() => handleEdit(slab.id)}
-                                                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors flex items-center gap-2 mx-auto"
-                                            >
-                                                <FiEdit2 className="h-4 w-4" />
-                                                Edit
-                                            </button>
-                                        )}
-                                    </td>
+                            {isLoading ? (
+                                <>
+                                    <SlabRowSkeleton/>
+                                    <SlabRowSkeleton/>
+                                    <SlabRowSkeleton/>
+                                </>
+                            ) : taxSlabs.length > 0 ? (
+                                taxSlabs.map((slab) => (
+                                    <tr key={slab.id} className="hover:bg-gray-50 transition-colors">
+                                        <td className="px-6 py-4">
+                                            {editingId === slab.id ? (
+                                                <input
+                                                    type="text"
+                                                    value={slab.hsnCode}
+                                                    onChange={(e) => handleUpdate(slab.id, "hsnCode", e.target.value)}
+                                                    className="w-full px-2 py-1 border border-gray-300 rounded font-mono text-sm"
+                                                />
+                                            ) : (
+                                                <span className="font-mono font-semibold text-gray-900">{slab.hsnCode}</span>
+                                            )}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            {editingId === slab.id ? (
+                                                <input
+                                                    type="text"
+                                                    value={slab.category}
+                                                    onChange={(e) => handleUpdate(slab.id, "category", e.target.value)}
+                                                    className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                                />
+                                            ) : (
+                                                <span className="font-medium text-gray-900">{slab.category}</span>
+                                            )}
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            {editingId === slab.id ? (
+                                                <input
+                                                    type="text"
+                                                    value={slab.description}
+                                                    onChange={(e) => handleUpdate(slab.id, "description", e.target.value)}
+                                                    className="w-full px-2 py-1 border border-gray-300 rounded text-sm"
+                                                />
+                                            ) : (
+                                                <span className="text-sm text-gray-600">{slab.description}</span>
+                                            )}
+                                        </td>
+                                        <td className="px-6 py-4 text-center">
+                                            {editingId === slab.id ? (
+                                                <select
+                                                    value={slab.gstRate}
+                                                    onChange={(e) => handleUpdate(slab.id, "gstRate", parseInt(e.target.value))}
+                                                    className="px-3 py-1 border border-gray-300 rounded font-semibold"
+                                                >
+                                                    <option value={0}>0%</option>
+                                                    <option value={5}>5%</option>
+                                                    <option value={12}>12%</option>
+                                                    <option value={18}>18%</option>
+                                                </select>
+                                            ) : (
+                                                <span className={`px-3 py-1 rounded-full text-sm font-bold ${slab.gstRate === 0 ? "bg-gray-100 text-gray-700" :
+                                                        slab.gstRate === 5 ? "bg-green-100 text-green-700" :
+                                                            slab.gstRate === 12 ? "bg-blue-100 text-blue-700" :
+                                                                "bg-amber-100 text-amber-700"
+                                                    }`}>
+                                                    {slab.gstRate}%
+                                                </span>
+                                            )}
+                                        </td>
+                                        <td className="px-6 py-4 text-center">
+                                            {editingId === slab.id ? (
+                                                <button
+                                                    onClick={handleSave}
+                                                    className="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors flex items-center gap-2 mx-auto"
+                                                >
+                                                    <FiSave className="h-4 w-4" />
+                                                    Save
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    onClick={() => handleEdit(slab.id)}
+                                                    className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors flex items-center gap-2 mx-auto"
+                                                >
+                                                    <FiEdit2 className="h-4 w-4" />
+                                                    Edit
+                                                </button>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan={5} className="text-center py-8 text-gray-500">No tax slabs found.</td>
                                 </tr>
-                            ))}
+                            )}
                         </tbody>
                     </table>
                 </div>

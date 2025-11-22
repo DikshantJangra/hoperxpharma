@@ -1,52 +1,47 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FiClock, FiTrash2, FiEdit, FiSave } from "react-icons/fi";
 import { MdDrafts } from "react-icons/md";
 
-const mockDrafts = [
-    {
-        id: "DRF001",
-        customerName: "Rajesh Kumar",
-        customerPhone: "+91 98765 43210",
-        items: [
-            { name: "Paracetamol 500mg", qty: 2, price: 50 },
-            { name: "Cough Syrup 100ml", qty: 1, price: 150 }
-        ],
-        subtotal: 250,
-        createdAt: "2025-01-22T10:30:00",
-        lastModified: "2025-01-22T10:35:00",
-        expiresAt: "2025-01-29T10:30:00"
-    },
-    {
-        id: "DRF002",
-        customerName: "Priya Singh",
-        customerPhone: "+91 98765 43211",
-        items: [
-            { name: "Vitamin D3 60K", qty: 1, price: 425 },
-            { name: "Calcium 500mg", qty: 1, price: 180 }
-        ],
-        subtotal: 605,
-        createdAt: "2025-01-22T09:15:00",
-        lastModified: "2025-01-22T09:20:00",
-        expiresAt: "2025-01-29T09:15:00"
-    },
-    {
-        id: "DRF003",
-        customerName: "Walk-in Customer",
-        customerPhone: "",
-        items: [
-            { name: "Band-Aid Pack", qty: 2, price: 45 }
-        ],
-        subtotal: 90,
-        createdAt: "2025-01-21T16:45:00",
-        lastModified: "2025-01-21T16:45:00",
-        expiresAt: "2025-01-28T16:45:00"
-    }
-];
+const DraftCardSkeleton = () => (
+    <div className="bg-white border border-[#e2e8f0] rounded-xl p-6 animate-pulse">
+        <div className="flex items-start justify-between mb-4">
+            <div className="flex-1">
+                <div className="h-6 bg-gray-200 rounded w-1/2 mb-2"></div>
+                <div className="h-4 bg-gray-100 rounded w-3/4"></div>
+            </div>
+            <div className="flex gap-2">
+                <div className="h-10 w-24 bg-gray-200 rounded-lg"></div>
+                <div className="h-10 w-24 bg-gray-100 rounded-lg"></div>
+            </div>
+        </div>
+        <div className="border-t border-[#e2e8f0] pt-4">
+            <div className="h-4 bg-gray-200 rounded w-1/4 mb-3"></div>
+            <div className="space-y-2">
+                <div className="h-12 bg-gray-100 rounded-lg"></div>
+                <div className="h-12 bg-gray-100 rounded-lg"></div>
+            </div>
+        </div>
+        <div className="mt-4 pt-4 border-t border-[#e2e8f0] flex items-center justify-between">
+            <div className="h-4 bg-gray-100 rounded w-1/3"></div>
+            <div className="h-8 bg-gray-200 rounded w-1/4"></div>
+        </div>
+    </div>
+)
 
 export default function POSDraftsPage() {
-    const [drafts, setDrafts] = useState(mockDrafts);
+    const [drafts, setDrafts] = useState<any[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        setIsLoading(true);
+        const timer = setTimeout(() => {
+            setDrafts([]);
+            setIsLoading(false);
+        }, 1500)
+        return () => clearTimeout(timer);
+    }, [])
 
     const getTimeRemaining = (expiresAt: string) => {
         const now = new Date();
@@ -85,7 +80,7 @@ export default function POSDraftsPage() {
                             <span className="text-sm text-[#64748b]">Total Drafts</span>
                             <MdDrafts className="w-5 h-5 text-[#0ea5a3]" />
                         </div>
-                        <div className="text-3xl font-bold text-[#0ea5a3]">{totalDrafts}</div>
+                        {isLoading ? <div className="h-8 w-1/4 bg-gray-200 rounded-md animate-pulse"></div> : <div className="text-3xl font-bold text-[#0ea5a3]">{totalDrafts}</div>}
                     </div>
 
                     <div className="bg-white border border-[#e2e8f0] rounded-xl p-6">
@@ -93,7 +88,7 @@ export default function POSDraftsPage() {
                             <span className="text-sm text-[#64748b]">Total Value</span>
                             <FiSave className="w-5 h-5 text-blue-500" />
                         </div>
-                        <div className="text-3xl font-bold text-blue-600">₹{totalValue.toLocaleString()}</div>
+                        {isLoading ? <div className="h-8 w-1/2 bg-gray-200 rounded-md animate-pulse"></div> : <div className="text-3xl font-bold text-blue-600">₹{totalValue.toLocaleString()}</div>}
                     </div>
 
                     <div className="bg-white border border-[#e2e8f0] rounded-xl p-6">
@@ -116,7 +111,12 @@ export default function POSDraftsPage() {
                 </div>
 
                 {/* Drafts List */}
-                {drafts.length > 0 ? (
+                {isLoading ? (
+                    <div className="space-y-4">
+                        <DraftCardSkeleton/>
+                        <DraftCardSkeleton/>
+                    </div>
+                ) : drafts.length > 0 ? (
                     <div className="space-y-4">
                         {drafts.map((draft) => (
                             <div key={draft.id} className="bg-white border border-[#e2e8f0] rounded-xl p-6 hover:shadow-md transition-shadow">

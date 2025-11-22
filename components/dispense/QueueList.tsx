@@ -19,9 +19,28 @@ interface QueueListProps {
     items: QueueItem[];
     selectedId?: string;
     onSelect: (id: string) => void;
+    isLoading: boolean;
 }
 
-export default function QueueList({ step, items, selectedId, onSelect }: QueueListProps) {
+const QueueItemSkeleton = () => (
+    <div className="w-full px-4 py-3 border-b border-gray-200 animate-pulse">
+        <div className="flex items-start justify-between mb-2">
+            <div className="flex-1">
+                <div className="h-5 bg-gray-200 rounded-md w-3/4 mb-2"></div>
+                <div className="h-3 bg-gray-200 rounded-md w-1/4"></div>
+            </div>
+            <div className="flex flex-col items-end gap-1">
+                <div className="h-4 bg-gray-200 rounded w-12"></div>
+            </div>
+        </div>
+        <div className="flex items-center justify-between text-xs">
+            <div className="h-3 bg-gray-200 rounded-md w-10"></div>
+            <div className="h-3 bg-gray-200 rounded-md w-12"></div>
+        </div>
+    </div>
+)
+
+export default function QueueList({ step, items, selectedId, onSelect, isLoading }: QueueListProps) {
     const formatTime = (minutes: number) => {
         if (minutes < 60) return `${minutes}m`;
         const hours = Math.floor(minutes / 60);
@@ -29,13 +48,25 @@ export default function QueueList({ step, items, selectedId, onSelect }: QueueLi
         return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
     };
 
+    if (isLoading) {
+        return (
+            <div className="h-full overflow-y-auto">
+                <QueueItemSkeleton />
+                <QueueItemSkeleton />
+                <QueueItemSkeleton />
+                <QueueItemSkeleton />
+                <QueueItemSkeleton />
+            </div>
+        )
+    }
+
     if (items.length === 0) {
         return (
             <div className="h-full flex items-center justify-center text-gray-500">
                 <div className="text-center">
                     <FiAlertCircle className="h-12 w-12 mx-auto mb-3 text-gray-400" />
                     <p className="font-medium">No items in queue</p>
-                    <p className="text-sm mt-1">All prescriptions processed</p>
+                    <p className="text-sm mt-1">All prescriptions for this step are processed.</p>
                 </div>
             </div>
         );

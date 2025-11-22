@@ -111,11 +111,11 @@ export default function VerificationPanel() {
                       </div>
                       <div>
                         <div className="text-xs text-green-600 mb-1">Requested By</div>
-                        <div>Priya Singh</div>
+                        <div>-</div>
                       </div>
                       <div>
                         <div className="text-xs text-green-600 mb-1">Row Count</div>
-                        <div>12,345 rows</div>
+                        <div>0 rows</div>
                       </div>
                       <div>
                         <div className="text-xs text-green-600 mb-1">Date Range</div>

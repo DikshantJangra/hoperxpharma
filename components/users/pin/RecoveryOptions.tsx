@@ -3,8 +3,8 @@ import { FiMail, FiSmartphone, FiCheckCircle, FiXCircle } from "react-icons/fi";
 
 export default function RecoveryOptions() {
   const methods = [
-    { name: "Email Recovery", icon: <FiMail size={18} />, status: "verified", value: "aman@hope.com" },
-    { name: "Mobile OTP", icon: <FiSmartphone size={18} />, status: "verified", value: "+91 98765 43210" },
+    { name: "Email Recovery", icon: <FiMail size={18} />, status: "verified", value: "-" },
+    { name: "Mobile OTP", icon: <FiSmartphone size={18} />, status: "verified", value: "-" },
     { name: "Backup Codes", icon: <FiCheckCircle size={18} />, status: "active", value: "5 codes remaining" },
   ];
 

@@ -6,17 +6,34 @@ import AdjustmentTable from './AdjustmentTable';
 import AdjustmentSummary from './AdjustmentSummary';
 import ConfirmationModal from './ConfirmationModal';
 
-const MOCK_ITEMS = [
-  { id: '1', sku: 'PAR-500-10', name: 'Paracetamol 500mg', pack: '10 tabs', stock: 250, batches: 3 },
-  { id: '2', sku: 'ATO-10-15', name: 'Atorvastatin 10mg', pack: '15 tabs', stock: 120, batches: 2 },
-  { id: '3', sku: 'AMX-500-10', name: 'Amoxicillin 500mg', pack: '10 caps', stock: 180, batches: 4 },
-];
+const SearchResultSkeleton = () => (
+    <div className="p-3 animate-pulse border-b border-[#f1f5f9] last:border-0">
+        <div className="flex items-center justify-between">
+            <div className='space-y-1'>
+                <div className="h-4 bg-gray-200 rounded w-48"></div>
+                <div className="h-3 bg-gray-100 rounded w-32"></div>
+            </div>
+            <div className="h-8 w-16 bg-gray-200 rounded-lg"></div>
+        </div>
+    </div>
+)
 
 export default function NewAdjustment() {
   const [searchQuery, setSearchQuery] = useState('');
+  const [availableItems, setAvailableItems] = useState<any[]>([]);
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [adjustmentItems, setAdjustmentItems] = useState<any[]>([]);
   const [showConfirmation, setShowConfirmation] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    setIsLoading(true);
+    const timer = setTimeout(() => {
+        setAvailableItems([]);
+        setIsLoading(false);
+    }, 1500)
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -31,7 +48,7 @@ export default function NewAdjustment() {
 
   useEffect(() => {
     if (searchQuery.length > 0) {
-      const filtered = MOCK_ITEMS.filter(item =>
+      const filtered = availableItems.filter(item =>
         item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.sku.toLowerCase().includes(searchQuery.toLowerCase())
       );
@@ -39,7 +56,7 @@ export default function NewAdjustment() {
     } else {
       setSearchResults([]);
     }
-  }, [searchQuery]);
+  }, [searchQuery, availableItems]);
 
   const addItem = (item: any) => {
     setAdjustmentItems(prev => [...prev, {
@@ -96,11 +113,18 @@ export default function NewAdjustment() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Type to search... (/)"
                 className="w-full pl-10 pr-4 py-3 border border-[#cbd5e1] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0ea5a3]"
+                disabled={isLoading}
               />
             </div>
 
             {/* Search Results */}
-            {searchResults.length > 0 && (
+            {isLoading ? (
+                <div className="mt-2 bg-white border border-[#e2e8f0] rounded-lg shadow-lg max-h-64 overflow-y-auto">
+                    <SearchResultSkeleton/>
+                    <SearchResultSkeleton/>
+                    <SearchResultSkeleton/>
+                </div>
+            ) : searchResults.length > 0 && (
               <div className="mt-2 bg-white border border-[#e2e8f0] rounded-lg shadow-lg max-h-64 overflow-y-auto">
                 {searchResults.map((item) => (
                   <div
@@ -115,7 +139,7 @@ export default function NewAdjustment() {
                           {item.pack} • SKU: {item.sku} • Stock: {item.stock} • {item.batches} batches
                         </div>
                       </div>
-                      <button className="px-3 py-1.5 bg-[#0ea5a3] text-white rounded-lg text-sm hover:bg-[#0d9391] flex items-center gap-1">
+                      <button className="px-3 py-1.5 bg-[#0ea5a3] text-white rounded-lg text-sm hover:bg-[#0d9391] flex items-center gap-1" disabled={isLoading}>
                         <FiPlus className="w-3 h-3" />
                         Add
                       </button>

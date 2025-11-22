@@ -20,19 +20,19 @@ export default function HistoryHeader({ patientId, filters, onChange, onExport, 
             <FiUser className="w-6 h-6 text-blue-600" />
           </div>
           <div>
-            <h2 className="font-medium text-gray-900">Riya Sharma</h2>
-            <p className="text-sm text-gray-500">MRN-1001</p>
+            <h2 className="font-medium text-gray-900">-</h2>
+            <p className="text-sm text-gray-500">-</p>
           </div>
         </div>
         
         <div className="space-y-2 text-sm text-gray-600">
           <div className="flex items-center gap-2">
             <FiPhone className="w-4 h-4" />
-            <span>+91-98****5678</span>
+            <span>-</span>
           </div>
           <div className="flex items-center gap-2">
             <FiMail className="w-4 h-4" />
-            <span>r****@email.com</span>
+            <span>-</span>
           </div>
         </div>
       </div>

@@ -9,11 +9,42 @@ interface ReconciliationPanelProps {
   candidates: MatchCandidate[];
   onMatch: (ledgerId: string, bankTxId: string) => void;
   onAdjustment: (ledgerId: string) => void;
+  isLoading: boolean;
 }
 
-export default function ReconciliationPanel({ row, candidates, onMatch, onAdjustment }: ReconciliationPanelProps) {
+const ReconciliationPanelSkeleton = () => (
+    <div className="bg-white border-l border-gray-200 p-6 space-y-6 animate-pulse">
+        <div>
+            <div className="h-4 bg-gray-200 rounded w-1/3 mb-3"></div>
+            <div className="space-y-2 text-sm">
+                {[...Array(5)].map((_, i) => (
+                    <div key={i} className="flex justify-between">
+                        <div className="h-4 bg-gray-100 rounded w-1/4"></div>
+                        <div className="h-4 bg-gray-200 rounded w-1/3"></div>
+                    </div>
+                ))}
+            </div>
+        </div>
+
+        <div>
+            <div className="h-4 bg-gray-200 rounded w-1/3 mb-3"></div>
+            <div className="space-y-2">
+                <div className="h-16 bg-gray-100 rounded-lg"></div>
+                <div className="h-16 bg-gray-100 rounded-lg"></div>
+            </div>
+        </div>
+
+        <div className="h-10 bg-gray-200 rounded-md w-full"></div>
+    </div>
+)
+
+export default function ReconciliationPanel({ row, candidates, onMatch, onAdjustment, isLoading }: ReconciliationPanelProps) {
   const [showMatchModal, setShowMatchModal] = useState(false);
   const [selectedCandidate, setSelectedCandidate] = useState<MatchCandidate | null>(null);
+
+  if (isLoading) {
+    return <ReconciliationPanelSkeleton />;
+  }
 
   if (!row) {
     return (
@@ -81,6 +112,7 @@ export default function ReconciliationPanel({ row, candidates, onMatch, onAdjust
                 key={candidate.bankTx.id}
                 onClick={() => handleMatchClick(candidate)}
                 className="w-full p-3 border border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 text-left"
+                disabled={isLoading}
               >
                 <div className="flex justify-between items-start mb-1">
                   <span className="text-sm font-medium text-gray-900">
@@ -102,6 +134,7 @@ export default function ReconciliationPanel({ row, candidates, onMatch, onAdjust
         <button
           onClick={() => onAdjustment(row.id)}
           className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+          disabled={isLoading}
         >
           <HiOutlineDocumentText className="h-4 w-4" />
           Create Adjustment
@@ -119,12 +152,14 @@ export default function ReconciliationPanel({ row, candidates, onMatch, onAdjust
               <button
                 onClick={() => setShowMatchModal(false)}
                 className="flex-1 px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+                disabled={isLoading}
               >
                 Cancel
               </button>
               <button
                 onClick={confirmMatch}
                 className="flex-1 px-4 py-2 text-sm text-white bg-green-600 rounded-md hover:bg-green-700"
+                disabled={isLoading}
               >
                 <HiOutlineCheckCircle className="inline h-4 w-4 mr-1" />
                 Match

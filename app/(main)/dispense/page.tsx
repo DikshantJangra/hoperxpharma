@@ -7,81 +7,9 @@ import QueueList from "@/components/dispense/QueueList";
 import DispenseDetailPanel from "@/components/dispense/DispenseDetailPanel";
 import DispenseContextDrawer from "@/components/dispense/DispenseContextDrawer";
 
-// Mock data
-const MOCK_PRESCRIPTIONS = {
-    intake: [
-        {
-            id: "rx001",
-            patientName: "Rajesh Kumar",
-            rxId: "RX-2024-001",
-            patientDOB: "June 15, 1985",
-            patientPhone: "+91 98765 43210",
-            doctorName: "Dr. Anjali Patel",
-            timeInQueue: 15,
-            priority: "urgent" as const,
-            isControlled: false,
-            drugCount: 2,
-            drugs: [
-                {
-                    name: "Warfarin 5mg",
-                    dosage: "5mg",
-                    quantity: "30 tablets",
-                    instructions: "Take 1 tablet daily at bedtime"
-                }
-            ]
-        },
-        {
-            id: "rx002",
-            patientName: "Priya Sharma",
-            rxId: "RX-2024-002",
-            patientDOB: "March 22, 1990",
-            patientPhone: "+91 98765 43211",
-            doctorName: "Dr. Rahul Mehta",
-            timeInQueue: 45,
-            priority: "normal" as const,
-            isControlled: true,
-            drugCount: 1,
-            drugs: [
-                {
-                    name: "Alprazolam 0.5mg",
-                    dosage: "0.5mg",
-                    quantity: "15 tablets",
-                    instructions: "Take 1 tablet twice daily as needed for anxiety"
-                }
-            ]
-        }
-    ],
-    verify: [
-        {
-            id: "rx003",
-            patientName: "Amit Verma",
-            rxId: "RX-2024-003",
-            patientDOB: "July 10, 1978",
-            patientPhone: "+91 98765 43212",
-            doctorName: "Dr. Sunita Rao",
-            timeInQueue: 30,
-            priority: "normal" as const,
-            isControlled: false,
-            drugCount: 3,
-            drugs: [
-                {
-                    name: "Metformin 500mg",
-                    dosage: "500mg",
-                    quantity: "60 tablets",
-                    instructions: "Take 1 tablet twice daily with meals"
-                }
-            ]
-        }
-    ],
-    fill: [],
-    label: [],
-    check: [],
-    release: []
-};
-
-const QUEUE_COUNTS = {
-    intake: { total: 2, urgent: 1 },
-    verify: { total: 1, urgent: 0 },
+const initialCounts = {
+    intake: { total: 0, urgent: 0 },
+    verify: { total: 0, urgent: 0 },
     fill: { total: 0, urgent: 0 },
     label: { total: 0, urgent: 0 },
     check: { total: 0, urgent: 0 },
@@ -93,29 +21,46 @@ export default function DispensePage() {
     const [selectedId, setSelectedId] = useState<string | undefined>();
     const [isDrawerOpen, setIsDrawerOpen] = useState(true);
     const [showShortcuts, setShowShortcuts] = useState(false);
+    
+    const [prescriptions, setPrescriptions] = useState<Record<DispenseStep, any[]>>({ intake: [], verify: [], fill: [], label: [], check: [], release: [] });
+    const [queueCounts, setQueueCounts] = useState(initialCounts);
+    const [isLoading, setIsLoading] = useState(true);
 
-    const currentQueue = MOCK_PRESCRIPTIONS[activeStep];
+    useEffect(() => {
+        setIsLoading(true);
+        // Simulate fetching data for all queues
+        const timer = setTimeout(() => {
+            setPrescriptions({ intake: [], verify: [], fill: [], label: [], check: [], release: [] });
+            setQueueCounts(initialCounts);
+            setIsLoading(false);
+        }, 1500);
+
+        return () => clearTimeout(timer);
+    }, []);
+
+    const currentQueue = prescriptions[activeStep] || [];
     const selectedPrescription = currentQueue.find(p => p.id === selectedId);
 
-    // Auto-select first item when changing steps
+    // Auto-select first item when changing steps or after loading
     useEffect(() => {
-        if (currentQueue.length > 0 && !selectedId) {
+        if (!isLoading && currentQueue.length > 0 && !currentQueue.some(p => p.id === selectedId)) {
             setSelectedId(currentQueue[0].id);
+        } else if (!isLoading && currentQueue.length === 0) {
+            setSelectedId(undefined);
         }
-    }, [activeStep, currentQueue, selectedId]);
+    }, [activeStep, currentQueue, selectedId, isLoading]);
 
     // Keyboard shortcuts
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
-            // Step switching (1-6)
+            if (isLoading) return; // Disable shortcuts while loading
+
             if (e.key >= "1" && e.key <= "6" && !e.metaKey && !e.ctrlKey) {
                 const steps: DispenseStep[] = ["intake", "verify", "fill", "label", "check", "release"];
                 setActiveStep(steps[parseInt(e.key) - 1]);
-                setSelectedId(undefined);
                 return;
             }
 
-            // Arrow navigation
             if (e.key === "ArrowUp" || e.key === "ArrowDown") {
                 e.preventDefault();
                 const currentIndex = currentQueue.findIndex(p => p.id === selectedId);
@@ -127,21 +72,18 @@ export default function DispensePage() {
                 return;
             }
 
-            // Show shortcuts (Cmd+/)
             if ((e.metaKey || e.ctrlKey) && e.key === "/") {
                 e.preventDefault();
                 setShowShortcuts(!showShortcuts);
                 return;
             }
 
-            // Toggle drawer (Cmd+D)
             if ((e.metaKey || e.ctrlKey) && e.key === "d") {
                 e.preventDefault();
                 setIsDrawerOpen(!isDrawerOpen);
                 return;
             }
 
-            // Primary action (Cmd+Enter)
             if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
                 e.preventDefault();
                 handleAction("primary");
@@ -151,20 +93,21 @@ export default function DispensePage() {
 
         window.addEventListener("keydown", handleKeyDown);
         return () => window.removeEventListener("keydown", handleKeyDown);
-    }, [activeStep, selectedId, currentQueue, showShortcuts, isDrawerOpen]);
+    }, [activeStep, selectedId, currentQueue, showShortcuts, isDrawerOpen, isLoading]);
 
     const handleAction = (action: string, data?: any) => {
         console.log(`Action: ${action}`, data);
-        // In real implementation, this would update state and move prescription to next step
         if (action === "primary") {
-            alert(`Moving prescription to next step...`);
-            // Move to next item in queue
+            // alert(`Moving prescription to next step...`);
             const currentIndex = currentQueue.findIndex(p => p.id === selectedId);
             if (currentIndex < currentQueue.length - 1) {
                 setSelectedId(currentQueue[currentIndex + 1].id);
             }
         }
     };
+
+    const totalCount = Object.values(queueCounts).reduce((sum, c) => sum + c.total, 0);
+    const urgentCount = Object.values(queueCounts).reduce((sum, c) => sum + c.urgent, 0);
 
     return (
         <div className="h-screen flex flex-col bg-gray-50">
@@ -178,17 +121,13 @@ export default function DispensePage() {
                     <div className="flex items-center gap-4">
                         {/* Stats */}
                         <div className="flex items-center gap-3 text-sm">
-                            <div className="px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg">
+                            <div className="px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg min-w-[100px] text-center">
                                 <span className="text-gray-600">Total:</span>
-                                <span className="ml-2 font-bold text-blue-700">
-                                    {Object.values(QUEUE_COUNTS).reduce((sum, c) => sum + c.total, 0)}
-                                </span>
+                                {isLoading ? <span className="ml-2 font-bold text-blue-700 animate-pulse">...</span> : <span className="ml-2 font-bold text-blue-700">{totalCount}</span>}
                             </div>
-                            <div className="px-3 py-1.5 bg-red-50 border border-red-200 rounded-lg">
+                            <div className="px-3 py-1.5 bg-red-50 border border-red-200 rounded-lg min-w-[100px] text-center">
                                 <span className="text-gray-600">Urgent:</span>
-                                <span className="ml-2 font-bold text-red-700">
-                                    {Object.values(QUEUE_COUNTS).reduce((sum, c) => sum + c.urgent, 0)}
-                                </span>
+                                 {isLoading ? <span className="ml-2 font-bold text-red-700 animate-pulse">...</span> : <span className="ml-2 font-bold text-red-700">{urgentCount}</span>}
                             </div>
                         </div>
 
@@ -212,9 +151,9 @@ export default function DispensePage() {
                         activeStep={activeStep}
                         onStepChange={(step) => {
                             setActiveStep(step);
-                            setSelectedId(undefined);
                         }}
-                        counts={QUEUE_COUNTS}
+                        counts={queueCounts}
+                        isLoading={isLoading}
                     />
                 </div>
 
@@ -225,6 +164,7 @@ export default function DispensePage() {
                         items={currentQueue}
                         selectedId={selectedId}
                         onSelect={setSelectedId}
+                        isLoading={isLoading}
                     />
                 </div>
 
@@ -234,6 +174,7 @@ export default function DispensePage() {
                         step={activeStep}
                         prescription={selectedPrescription || null}
                         onAction={handleAction}
+                        isLoading={isLoading && !selectedPrescription}
                     />
                 </div>
 
@@ -244,6 +185,7 @@ export default function DispensePage() {
                         step={activeStep}
                         isOpen={isDrawerOpen}
                         onClose={() => setIsDrawerOpen(false)}
+                        isLoading={isLoading && !selectedPrescription}
                     />
                 )}
             </div>

@@ -1,62 +1,45 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FiSearch, FiCheck, FiX, FiDollarSign, FiPackage, FiCalendar, FiAlertTriangle } from "react-icons/fi";
 import { MdReceipt } from "react-icons/md";
 
-const mockRefunds = [
-    {
-        id: "REF001",
-        invoiceId: "INV-2025-001234",
-        customerName: "Rajesh Kumar",
-        customerPhone: "+91 98765 43210",
-        originalAmount: 1250,
-        refundAmount: 1250,
-        items: [
-            { name: "Paracetamol 500mg", qty: 2, price: 50, reason: "Expired product" },
-            { name: "Cough Syrup 100ml", qty: 1, price: 150, reason: "Wrong product" }
-        ],
-        refundReason: "Product quality issue",
-        requestDate: "2025-01-22",
-        status: "pending",
-        paymentMethod: "Cash"
-    },
-    {
-        id: "REF002",
-        invoiceId: "INV-2025-001198",
-        customerName: "Priya Singh",
-        customerPhone: "+91 98765 43211",
-        originalAmount: 850,
-        refundAmount: 425,
-        items: [
-            { name: "Vitamin D3 60K", qty: 1, price: 425, reason: "Duplicate purchase" }
-        ],
-        refundReason: "Customer changed mind",
-        requestDate: "2025-01-21",
-        status: "approved",
-        paymentMethod: "UPI"
-    },
-    {
-        id: "REF003",
-        invoiceId: "INV-2025-001156",
-        customerName: "Amit Verma",
-        customerPhone: "+91 98765 43212",
-        originalAmount: 2100,
-        refundAmount: 2100,
-        items: [
-            { name: "Insulin Glargine 100IU", qty: 1, price: 2100, reason: "Wrong strength" }
-        ],
-        refundReason: "Prescription error",
-        requestDate: "2025-01-20",
-        status: "completed",
-        paymentMethod: "Card"
-    }
-];
+const RefundCardSkeleton = () => (
+    <div className="bg-white border border-[#e2e8f0] rounded-xl p-6 animate-pulse">
+        <div className="flex items-start justify-between mb-4">
+            <div className="flex-1 space-y-2">
+                <div className="h-6 bg-gray-200 rounded w-1/2"></div>
+                <div className="h-4 bg-gray-100 rounded w-3/4"></div>
+            </div>
+            <div className="flex gap-2">
+                <div className="h-10 w-24 bg-gray-200 rounded-lg"></div>
+                <div className="h-10 w-24 bg-gray-100 rounded-lg"></div>
+            </div>
+        </div>
+        <div className="h-16 bg-gray-100 rounded-lg mb-4"></div>
+        <div className="border-t border-[#e2e8f0] pt-4">
+            <div className="h-4 bg-gray-200 rounded w-1/4 mb-3"></div>
+            <div className="space-y-2">
+                <div className="h-12 bg-gray-100 rounded-lg"></div>
+            </div>
+        </div>
+    </div>
+)
 
 export default function POSRefundsPage() {
     const [filter, setFilter] = useState("all");
     const [searchQuery, setSearchQuery] = useState("");
-    const [selectedRefund, setSelectedRefund] = useState<any>(null);
+    const [refunds, setRefunds] = useState<any[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        setIsLoading(true);
+        const timer = setTimeout(() => {
+            setRefunds([]);
+            setIsLoading(false);
+        }, 1500)
+        return () => clearTimeout(timer);
+    }, [filter]);
 
     const getStatusColor = (status: string) => {
         switch (status) {
@@ -68,7 +51,17 @@ export default function POSRefundsPage() {
         }
     };
 
-    const filteredRefunds = mockRefunds.filter(refund => {
+    const getStatusLabel = (status: string) => {
+        switch (status) {
+            case "pending": return "Pending";
+            case "approved": return "Approved";
+            case "completed": return "Completed";
+            case "rejected": return "Rejected";
+            default: return "Unknown";
+        }
+    };
+
+    const filteredRefunds = refunds.filter(refund => {
         const matchesFilter = filter === "all" || refund.status === filter;
         const matchesSearch = refund.customerName.toLowerCase().includes(searchQuery.toLowerCase()) ||
             refund.invoiceId.toLowerCase().includes(searchQuery.toLowerCase());

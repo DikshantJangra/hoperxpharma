@@ -118,13 +118,13 @@ export default function ReleasePage() {
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
                                         Patient Name
                                     </label>
-                                    <div className="text-lg font-semibold text-gray-900">Rajesh Kumar</div>
+                                    <div className="text-lg font-semibold text-gray-900">-</div>
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
                                         Date of Birth
                                     </label>
-                                    <div className="text-lg font-semibold text-gray-900">June 15, 1985</div>
+                                    <div className="text-lg font-semibold text-gray-900">-</div>
                                 </div>
                             </div>
                             <button className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors">
@@ -142,31 +142,28 @@ export default function ReleasePage() {
                                 <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                                     <h4 className="font-semibold text-blue-900 mb-2">Medication Information</h4>
                                     <p className="text-sm text-blue-800">
-                                        "This is Warfarin 5mg, a blood thinner that prevents blood clots. It's important to take it exactly as prescribed."
+                                        No medication information available
                                     </p>
                                 </div>
 
                                 <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
                                     <h4 className="font-semibold text-green-900 mb-2">Dosage Instructions</h4>
                                     <p className="text-sm text-green-800">
-                                        "Take 1 tablet every day at bedtime. Try to take it at the same time each day for best results."
+                                        No dosage instructions available
                                     </p>
                                 </div>
 
                                 <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
                                     <h4 className="font-semibold text-amber-900 mb-2">Important Warnings</h4>
-                                    <ul className="text-sm text-amber-800 space-y-1 list-disc list-inside">
-                                        <li>May cause bleeding - report unusual bruising or bleeding</li>
-                                        <li>Avoid alcohol while taking this medication</li>
-                                        <li>Regular blood tests (INR) are required</li>
-                                        <li>Inform all healthcare providers you're taking Warfarin</li>
-                                    </ul>
+                                    <p className="text-sm text-amber-800">
+                                        No warnings available
+                                    </p>
                                 </div>
 
                                 <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
                                     <h4 className="font-semibold text-purple-900 mb-2">Storage</h4>
                                     <p className="text-sm text-purple-800">
-                                        "Store at room temperature, away from heat and moisture. Keep out of reach of children."
+                                        No storage instructions available
                                     </p>
                                 </div>
                             </div>

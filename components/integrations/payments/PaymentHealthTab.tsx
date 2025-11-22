@@ -1,23 +1,44 @@
 "use client";
+
+import { useState, useEffect } from "react";
 import { FiActivity, FiAlertTriangle, FiCheckCircle, FiXCircle } from "react-icons/fi";
 
-const providerHealth = [
-  { name: "Razorpay", uptime: 99.8, latency: 45, failed: 2, status: "healthy" },
-  { name: "PhonePe PG", uptime: 99.2, latency: 52, failed: 5, status: "healthy" },
-  { name: "HDFC POS", uptime: 98.5, latency: 120, failed: 12, status: "degraded" },
-  { name: "BharatPe QR", uptime: 99.9, latency: 38, failed: 1, status: "healthy" },
-];
+const HealthRowSkeleton = () => (
+    <tr className="animate-pulse">
+        <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-24"></div></td>
+        <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-32"></div></td>
+        <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-16"></div></td>
+        <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-12"></div></td>
+        <td className="px-6 py-4"><div className="h-6 w-20 bg-gray-200 rounded-full"></div></td>
+    </tr>
+)
 
-const bankStatus = [
-  { bank: "HDFC Bank", status: "operational", upi: true },
-  { bank: "ICICI Bank", status: "operational", upi: true },
-  { bank: "SBI", status: "degraded", upi: true },
-  { bank: "Axis Bank", status: "operational", upi: true },
-  { bank: "Kotak Mahindra", status: "operational", upi: true },
-  { bank: "Yes Bank", status: "down", upi: false },
-];
+const BankStatusSkeleton = () => (
+    <div className="border-2 border-gray-200 bg-gray-50 rounded-lg p-4 animate-pulse">
+        <div className="flex items-center justify-between mb-2">
+            <div className="h-5 bg-gray-200 rounded w-2/3"></div>
+            <div className="h-4 w-4 bg-gray-200 rounded-full"></div>
+        </div>
+        <div className="h-4 bg-gray-100 rounded w-1/2"></div>
+    </div>
+)
+
 
 export default function PaymentHealthTab() {
+    const [providerHealth, setProviderHealth] = useState<any[]>([]);
+    const [bankStatus, setBankStatus] = useState<any[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        setIsLoading(true);
+        const timer = setTimeout(() => {
+            setProviderHealth([]);
+            setBankStatus([]);
+            setIsLoading(false);
+        }, 1500)
+        return () => clearTimeout(timer);
+    }, [])
+
   return (
     <div className="space-y-6">
       {/* Alerts */}
@@ -55,40 +76,50 @@ export default function PaymentHealthTab() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {providerHealth.map((provider, idx) => (
-                <tr key={idx} className="hover:bg-gray-50">
-                  <td className="px-6 py-4 text-sm font-medium text-gray-900">{provider.name}</td>
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-2">
-                      <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden max-w-[100px]">
-                        <div
-                          className="h-full bg-green-600"
-                          style={{ width: `${provider.uptime}%` }}
-                        />
-                      </div>
-                      <span className="text-sm text-gray-700">{provider.uptime}%</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-gray-700">{provider.latency}ms</td>
-                  <td className="px-6 py-4 text-sm text-gray-700">{provider.failed}</td>
-                  <td className="px-6 py-4">
-                    <span
-                      className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${
-                        provider.status === "healthy"
-                          ? "bg-green-100 text-green-700"
-                          : "bg-orange-100 text-orange-700"
-                      }`}
-                    >
-                      {provider.status === "healthy" ? (
-                        <FiCheckCircle size={12} />
-                      ) : (
-                        <FiAlertTriangle size={12} />
-                      )}
-                      {provider.status}
-                    </span>
-                  </td>
-                </tr>
-              ))}
+              {isLoading ? (
+                <>
+                    <HealthRowSkeleton/>
+                    <HealthRowSkeleton/>
+                    <HealthRowSkeleton/>
+                </>
+              ) : providerHealth.length > 0 ? (
+                providerHealth.map((provider, idx) => (
+                    <tr key={idx} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 text-sm font-medium text-gray-900">{provider.name}</td>
+                    <td className="px-6 py-4">
+                        <div className="flex items-center gap-2">
+                        <div className="flex-1 h-2 bg-gray-200 rounded-full overflow-hidden max-w-[100px]">
+                            <div
+                            className="h-full bg-green-600"
+                            style={{ width: `${provider.uptime}%` }}
+                            />
+                        </div>
+                        <span className="text-sm text-gray-700">{provider.uptime}%</span>
+                        </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-700">{provider.latency}ms</td>
+                    <td className="px-6 py-4 text-sm text-gray-700">{provider.failed}</td>
+                    <td className="px-6 py-4">
+                        <span
+                        className={`inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-medium ${
+                            provider.status === "healthy"
+                            ? "bg-green-100 text-green-700"
+                            : "bg-orange-100 text-orange-700"
+                        }`}
+                        >
+                        {provider.status === "healthy" ? (
+                            <FiCheckCircle size={12} />
+                        ) : (
+                            <FiAlertTriangle size={12} />
+                        )}
+                        {provider.status}
+                        </span>
+                    </td>
+                    </tr>
+                ))
+              ) : (
+                <tr><td colSpan={5} className="text-center py-10 text-gray-500">No provider health data available.</td></tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -103,40 +134,51 @@ export default function PaymentHealthTab() {
           </div>
         </div>
         <div className="p-6">
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            {bankStatus.map((bank, idx) => (
-              <div
-                key={idx}
-                className={`border-2 rounded-lg p-4 ${
-                  bank.status === "operational"
-                    ? "border-green-200 bg-green-50"
-                    : bank.status === "degraded"
-                    ? "border-orange-200 bg-orange-50"
-                    : "border-red-200 bg-red-50"
-                }`}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <span className="font-medium text-gray-900">{bank.bank}</span>
-                  {bank.status === "operational" ? (
-                    <FiCheckCircle size={16} className="text-green-600" />
-                  ) : bank.status === "degraded" ? (
-                    <FiAlertTriangle size={16} className="text-orange-600" />
-                  ) : (
-                    <FiXCircle size={16} className="text-red-600" />
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-600">UPI:</span>
-                  <span
-                    className={`text-xs font-medium ${
-                      bank.upi ? "text-green-700" : "text-red-700"
-                    }`}
-                  >
-                    {bank.upi ? "Active" : "Down"}
-                  </span>
-                </div>
-              </div>
-            ))}
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+            {isLoading ? (
+                <>
+                    <BankStatusSkeleton/>
+                    <BankStatusSkeleton/>
+                    <BankStatusSkeleton/>
+                    <BankStatusSkeleton/>
+                </>
+            ) : bankStatus.length > 0 ? (
+                bankStatus.map((bank, idx) => (
+                    <div
+                        key={idx}
+                        className={`border-2 rounded-lg p-4 ${
+                        bank.status === "operational"
+                            ? "border-green-200 bg-green-50"
+                            : bank.status === "degraded"
+                            ? "border-orange-200 bg-orange-50"
+                            : "border-red-200 bg-red-50"
+                        }`}
+                    >
+                        <div className="flex items-center justify-between mb-2">
+                        <span className="font-medium text-gray-900">{bank.bank}</span>
+                        {bank.status === "operational" ? (
+                            <FiCheckCircle size={16} className="text-green-600" />
+                        ) : bank.status === "degraded" ? (
+                            <FiAlertTriangle size={16} className="text-orange-600" />
+                        ) : (
+                            <FiXCircle size={16} className="text-red-600" />
+                        )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                        <span className="text-xs text-gray-600">UPI:</span>
+                        <span
+                            className={`text-xs font-medium ${
+                            bank.upi ? "text-green-700" : "text-red-700"
+                            }`}
+                        >
+                            {bank.upi ? "Active" : "Down"}
+                        </span>
+                        </div>
+                    </div>
+                    ))
+                ) : (
+                    <div className="col-span-3 text-center py-10 text-gray-500">No bank status data available.</div>
+                )}
           </div>
         </div>
       </div>

@@ -8,9 +8,10 @@ interface FeedListPanelProps {
   summary: ReconcileSummary;
   onUploadClick: () => void;
   onQueueClick: (queue: string) => void;
+  isLoading: boolean;
 }
 
-export default function FeedListPanel({ summary, onUploadClick, onQueueClick }: FeedListPanelProps) {
+export default function FeedListPanel({ summary, onUploadClick, onQueueClick, isLoading }: FeedListPanelProps) {
   const queues = [
     { id: 'unmatched', label: 'Unmatched', count: summary.unmatched, color: 'text-orange-600' },
     { id: 'suggested', label: 'Suggested', count: summary.suggested, color: 'text-blue-600' },
@@ -25,13 +26,18 @@ export default function FeedListPanel({ summary, onUploadClick, onQueueClick }: 
         <button
           onClick={onUploadClick}
           className="w-full flex items-center gap-2 px-3 py-2 text-sm text-white bg-blue-600 rounded-md hover:bg-blue-700"
+          disabled={isLoading}
         >
           <HiOutlineCloudArrowUp className="h-4 w-4" />
           Upload Feed
         </button>
         <div className="mt-3 text-xs text-gray-500 flex items-center gap-1">
           <HiOutlineClock className="h-3 w-3" />
-          Last sync: {summary.lastSync}
+          {isLoading ? (
+            <span className="h-3 bg-gray-200 rounded w-24 animate-pulse"></span>
+          ) : (
+            `Last sync: ${summary.lastSync}`
+          )}
         </div>
       </div>
 
@@ -43,9 +49,14 @@ export default function FeedListPanel({ summary, onUploadClick, onQueueClick }: 
               key={queue.id}
               onClick={() => onQueueClick(queue.id)}
               className="w-full flex items-center justify-between px-3 py-2 text-sm hover:bg-gray-100 rounded-md"
+              disabled={isLoading}
             >
               <span className="text-gray-700">{queue.label}</span>
-              <span className={`font-medium ${queue.color}`}>{queue.count}</span>
+              {isLoading ? (
+                <span className="h-4 bg-gray-200 rounded w-8 animate-pulse"></span>
+              ) : (
+                <span className={`font-medium ${queue.color}`}>{queue.count}</span>
+              )}
             </button>
           ))}
         </div>
@@ -53,10 +64,17 @@ export default function FeedListPanel({ summary, onUploadClick, onQueueClick }: 
 
       <div className="pt-4 border-t border-gray-200">
         <h3 className="text-sm font-medium text-gray-900 mb-2">Accounts</h3>
-        <div className="space-y-2">
-          <div className="text-xs text-gray-600">Main Account</div>
-          <div className="text-xs text-gray-500">HDFC ***1234</div>
-        </div>
+        {isLoading ? (
+            <div className="space-y-2 animate-pulse">
+                <div className="h-3 bg-gray-200 rounded w-2/3"></div>
+                <div className="h-3 bg-gray-200 rounded w-1/2"></div>
+            </div>
+        ) : (
+            <div className="space-y-2">
+                <div className="text-xs text-gray-600">Main Account</div>
+                <div className="text-xs text-gray-500">HDFC ***1234</div>
+            </div>
+        )}
       </div>
     </div>
   );

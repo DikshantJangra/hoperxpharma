@@ -11,35 +11,35 @@ export function useStoreProfile(storeId: string) {
   useEffect(() => {
     const mockProfile = {
       id: storeId,
-      code: "HOPRX001",
+      code: "-",
       name: "HopeRx Pharmacy",
-      displayName: "HopeRx - Pahalgam",
+      displayName: "-",
       logoUrl: "",
       brandColor: "#0ea5a3",
       primaryContact: {
-        name: "Aman Verma",
-        role: "Owner",
-        phone: "+919812345678",
-        phoneVerified: true,
-        email: "aman@hope.com",
-        emailVerified: true
+        name: "-",
+        role: "-",
+        phone: "-",
+        phoneVerified: false,
+        email: "-",
+        emailVerified: false
       },
       address: {
-        line1: "12 Market Road",
-        line2: "Near Temple",
-        city: "Pahalgam",
-        state: "Jammu & Kashmir",
-        postalCode: "192123",
+        line1: "-",
+        line2: "-",
+        city: "-",
+        state: "-",
+        postalCode: "-",
         country: "IN"
       },
       gst: {
-        gstin: "07ABCDE1234F1Z5",
-        verified: true
+        gstin: "-",
+        verified: false
       },
       bank: {
-        last4: "4321",
-        ifsc: "HDFC0001234",
-        settlement: "T+1"
+        last4: "-",
+        ifsc: "-",
+        settlement: "-"
       },
       businessType: "pharmacy",
       taxMode: "inclusive",
@@ -47,9 +47,9 @@ export function useStoreProfile(storeId: string) {
       locale: "en-IN",
       currency: "INR",
       publicProfile: true,
-      kycStatus: "verified",
+      kycStatus: "pending",
       lastUpdated: new Date().toISOString(),
-      lastUpdatedBy: { id: "u_aman", name: "Aman Verma" }
+      lastUpdatedBy: { id: "-", name: "-" }
     };
 
     setProfile(mockProfile);

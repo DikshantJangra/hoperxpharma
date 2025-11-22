@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FiPlus, FiTrash2, FiSend, FiPackage, FiTruck, FiCheckCircle, FiXCircle } from "react-icons/fi";
 
 type TransferStatus = "pending" | "in-transit" | "received" | "rejected";
@@ -34,50 +34,24 @@ const STORES = [
     { id: "4", name: "HopeRx Pune" }
 ];
 
-const MOCK_TRANSFERS: Transfer[] = [
-    {
-        id: "1",
-        transferNumber: "TRF-2024-001",
-        fromStore: "HopeRx Main Branch",
-        toStore: "HopeRx Andheri",
-        items: [
-            {
-                id: "1",
-                medicineId: "m1",
-                medicineName: "Paracetamol 500mg",
-                batchNumber: "B2024-001",
-                quantity: 100,
-                available: 500,
-                expiryDate: "2025-06"
-            }
-        ],
-        reason: "Stock balancing",
-        status: "in-transit",
-        createdAt: new Date("2024-11-20"),
-        createdBy: "Admin"
-    },
-    {
-        id: "2",
-        transferNumber: "TRF-2024-002",
-        fromStore: "HopeRx Thane",
-        toStore: "HopeRx Main Branch",
-        items: [
-            {
-                id: "2",
-                medicineId: "m2",
-                medicineName: "Amoxicillin 250mg",
-                batchNumber: "B2024-045",
-                quantity: 50,
-                available: 200,
-                expiryDate: "2025-03"
-            }
-        ],
-        reason: "Expiry management",
-        status: "received",
-        createdAt: new Date("2024-11-18"),
-        createdBy: "Manager"
-    }
-];
+const TransferCardSkeleton = () => (
+    <div className="p-4 border-2 border-[#e2e8f0] rounded-lg animate-pulse">
+        <div className="flex items-start justify-between mb-3">
+            <div className="flex-1">
+                <div className="h-5 bg-gray-200 rounded w-32 mb-2"></div>
+                <div className="h-4 bg-gray-100 rounded w-48"></div>
+            </div>
+            <div className="h-6 w-20 bg-gray-200 rounded-full"></div>
+        </div>
+        <div className="space-y-2 mb-3">
+            <div className="h-4 bg-gray-100 rounded w-full"></div>
+        </div>
+        <div className="flex items-center justify-between">
+            <div className="h-3 bg-gray-100 rounded w-24"></div>
+            <div className="h-3 bg-gray-100 rounded w-20"></div>
+        </div>
+    </div>
+);
 
 const STATUS_CONFIG = {
     pending: {
@@ -115,7 +89,17 @@ export default function TransferPage() {
     const [toStore, setToStore] = useState("");
     const [items, setItems] = useState<TransferItem[]>([]);
     const [reason, setReason] = useState("Stock balancing");
-    const [showHistory, setShowHistory] = useState(true);
+    const [transfers, setTransfers] = useState<Transfer[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        setIsLoading(true);
+        const timer = setTimeout(() => {
+            setTransfers([]);
+            setIsLoading(false);
+        }, 1500);
+        return () => clearTimeout(timer);
+    }, []);
 
     const addItem = () => {
         const newItem: TransferItem = {
@@ -296,7 +280,14 @@ export default function TransferPage() {
                             <h2 className="text-xl font-bold text-[#0f172a] mb-6">Recent Transfers</h2>
 
                             <div className="space-y-4">
-                                {MOCK_TRANSFERS.map((transfer) => {
+                                {isLoading ? (
+                                    <>
+                                        <TransferCardSkeleton/>
+                                        <TransferCardSkeleton/>
+                                        <TransferCardSkeleton/>
+                                    </>
+                                ) : transfers.length > 0 ? (
+                                    transfers.map((transfer) => {
                                     const config = STATUS_CONFIG[transfer.status];
                                     const Icon = config.icon;
 
@@ -330,7 +321,10 @@ export default function TransferPage() {
                                             </div>
                                         </div>
                                     );
-                                })}
+                                })
+                                ) : (
+                                    <div className="text-center py-10 text-gray-500">No transfer history found.</div>
+                                )}
                             </div>
                         </div>
                     </div>

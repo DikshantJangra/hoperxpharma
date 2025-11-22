@@ -17,18 +17,38 @@ interface Product {
   batchId?: string;
 }
 
-const MOCK_PRODUCTS: Product[] = [
-  { sku: 'paracetamol_500', name: 'Paracetamol', strength: '500mg', packSize: '10 tabs', hsn: '30049099', mrp: 45, stock: 250, batches: 3, gstRate: 12 },
-  { sku: 'atorva_10', name: 'Atorvastatin', strength: '10mg', packSize: '15 tabs', hsn: '30039011', mrp: 150, stock: 120, batches: 2, gstRate: 12 },
-  { sku: 'amox_500', name: 'Amoxicillin', strength: '500mg', packSize: '10 caps', hsn: '30041099', mrp: 85, stock: 180, batches: 4, gstRate: 12 },
-  { sku: 'cetirizine_10', name: 'Cetirizine', strength: '10mg', packSize: '10 tabs', hsn: '30049099', mrp: 25, stock: 300, batches: 2, gstRate: 12 },
-];
+const ProductSkeleton = () => (
+    <div className="p-3 animate-pulse border-b border-[#f1f5f9] last:border-0">
+        <div className="flex items-center justify-between">
+            <div className='flex-1 space-y-2'>
+                <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                <div className="h-3 bg-gray-100 rounded w-1/2"></div>
+            </div>
+            <div className='text-right ml-4 space-y-2'>
+                <div className="h-4 bg-gray-200 rounded w-12"></div>
+                <div className="h-3 bg-gray-100 rounded w-16"></div>
+            </div>
+            <div className="ml-3 h-9 w-20 bg-gray-200 rounded-lg"></div>
+        </div>
+    </div>
+)
 
 export default function ProductSearch({ onAddProduct, searchFocus, setSearchFocus }: any) {
   const [query, setQuery] = useState('');
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [results, setResults] = useState<Product[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    setIsLoading(true);
+    const timer = setTimeout(() => {
+        setAllProducts([]);
+        setIsLoading(false);
+    }, 1500)
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     if (searchFocus && inputRef.current) {
@@ -38,7 +58,7 @@ export default function ProductSearch({ onAddProduct, searchFocus, setSearchFocu
 
   useEffect(() => {
     if (query.length > 0) {
-      const filtered = MOCK_PRODUCTS.filter(p =>
+      const filtered = allProducts.filter(p =>
         p.name.toLowerCase().includes(query.toLowerCase()) ||
         p.sku.toLowerCase().includes(query.toLowerCase()) ||
         p.hsn.includes(query)
@@ -48,7 +68,7 @@ export default function ProductSearch({ onAddProduct, searchFocus, setSearchFocu
     } else {
       setResults([]);
     }
-  }, [query]);
+  }, [query, allProducts]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'ArrowDown') {
@@ -88,11 +108,18 @@ export default function ProductSearch({ onAddProduct, searchFocus, setSearchFocu
               ? 'border-[#0ea5a3] ring-2 ring-[#0ea5a3]/20'
               : 'border-[#cbd5e1] focus:border-[#0ea5a3]'
           }`}
+          disabled={isLoading}
         />
         <BsUpcScan className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#94a3b8]" />
       </div>
 
-      {results.length > 0 && (
+      {isLoading ? (
+        <div className="mt-2 bg-white border border-[#e2e8f0] rounded-lg shadow-lg max-h-[300px] overflow-y-auto">
+            <ProductSkeleton/>
+            <ProductSkeleton/>
+            <ProductSkeleton/>
+        </div>
+      ) : results.length > 0 && (
         <div className="mt-2 bg-white border border-[#e2e8f0] rounded-lg shadow-lg max-h-[300px] overflow-y-auto">
           {results.map((product, index) => (
             <div
@@ -123,6 +150,7 @@ export default function ProductSearch({ onAddProduct, searchFocus, setSearchFocu
                     handleAddProduct(product);
                   }}
                   className="ml-3 px-3 py-1.5 bg-[#0ea5a3] text-white rounded-lg text-sm font-medium hover:bg-[#0d9391]"
+                  disabled={isLoading}
                 >
                   + Add
                 </button>

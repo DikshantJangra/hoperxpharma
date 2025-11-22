@@ -17,9 +17,7 @@ export default function VerifyPage() {
 
     const allChecked = Object.values(checklist).every(v => v);
 
-    const interactions = [
-        { drug: "Aspirin", severity: "moderate", description: "May increase bleeding risk when combined with Warfarin" }
-    ];
+    const interactions: any[] = [];
 
     return (
         <div className="h-screen flex flex-col bg-[#f8fafc]">
@@ -38,7 +36,7 @@ export default function VerifyPage() {
                                 <FiAlertTriangle className="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" />
                                 <div>
                                     <h3 className="font-semibold text-red-900 mb-1">Patient Allergies</h3>
-                                    <p className="text-red-700">Penicillin</p>
+                                    <p className="text-red-700">None</p>
                                 </div>
                             </div>
                         </div>
@@ -49,18 +47,15 @@ export default function VerifyPage() {
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <div className="text-sm text-[#64748b]">Name</div>
-                                    <div className="font-medium text-[#0f172a]">Rajesh Kumar</div>
+                                    <div className="font-medium text-[#0f172a]">-</div>
                                 </div>
                                 <div>
                                     <div className="text-sm text-[#64748b]">DOB</div>
-                                    <div className="font-medium text-[#0f172a]">June 15, 1985 (39 yrs)</div>
+                                    <div className="font-medium text-[#0f172a]">-</div>
                                 </div>
                                 <div className="col-span-2">
                                     <div className="text-sm text-[#64748b] mb-2">Current Medications</div>
-                                    <div className="space-y-1">
-                                        <div className="text-sm text-[#0f172a]">• Aspirin 81mg daily</div>
-                                        <div className="text-sm text-[#0f172a]">• Lisinopril 10mg daily</div>
-                                    </div>
+                                    <div className="text-sm text-[#64748b]">None</div>
                                 </div>
                             </div>
                         </div>
@@ -69,29 +64,7 @@ export default function VerifyPage() {
                         <div className="bg-white border border-[#e2e8f0] rounded-xl p-6">
                             <h2 className="text-lg font-semibold text-[#0f172a] mb-4">Prescription Details</h2>
                             <div className="p-4 bg-[#f8fafc] rounded-lg">
-                                <div className="font-semibold text-[#0f172a] mb-3">Warfarin 5mg</div>
-                                <div className="grid grid-cols-2 gap-3 text-sm">
-                                    <div>
-                                        <span className="text-[#64748b]">Dosage:</span>
-                                        <span className="ml-2 text-[#0f172a]">5mg</span>
-                                    </div>
-                                    <div>
-                                        <span className="text-[#64748b]">Quantity:</span>
-                                        <span className="ml-2 text-[#0f172a]">30 tablets</span>
-                                    </div>
-                                    <div className="col-span-2">
-                                        <span className="text-[#64748b]">Sig:</span>
-                                        <span className="ml-2 text-[#0f172a]">Take 1 tablet daily at bedtime</span>
-                                    </div>
-                                    <div>
-                                        <span className="text-[#64748b]">Refills:</span>
-                                        <span className="ml-2 text-[#0f172a]">3</span>
-                                    </div>
-                                    <div>
-                                        <span className="text-[#64748b]">Prescriber:</span>
-                                        <span className="ml-2 text-[#0f172a]">Dr. Anjali Patel</span>
-                                    </div>
-                                </div>
+                                <div className="text-center py-4 text-gray-500">No prescription details available</div>
                             </div>
                         </div>
 

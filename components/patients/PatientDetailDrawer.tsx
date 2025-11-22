@@ -15,18 +15,18 @@ export default function PatientDetailDrawer({ patientId, onClose }: PatientDetai
     setTimeout(() => {
       setPatient({
         id: patientId,
-        mrn: "MRN-1001",
-        name: "Riya Sharma",
-        dob: "1988-04-02",
-        age: 37,
-        sex: "F",
-        primaryPhone: "+919812345678",
-        email: "riya@example.com",
-        address: "123 Main St, Pahalgam, J&K 192123",
-        allergies: ["Penicillin", "Sulfa drugs"],
-        activeMeds: ["Metformin 500mg", "Lisinopril 10mg", "Atorvastatin 20mg"],
-        lastVisit: "2025-11-10T14:20:00Z",
-        consent: { signed: true, signedAt: "2025-05-01T10:00:00Z" }
+        mrn: "-",
+        name: "-",
+        dob: "-",
+        age: 0,
+        sex: "-",
+        primaryPhone: "-",
+        email: "-",
+        address: "-",
+        allergies: [],
+        activeMeds: [],
+        lastVisit: "-",
+        consent: { signed: false, signedAt: "-" }
       });
       setLoading(false);
     }, 500);

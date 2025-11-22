@@ -8,12 +8,47 @@ interface MatchDetailPanelProps {
   txn: BankTransaction | null;
   onMatch: (txnId: string, allocations: Allocation[], note: string) => void;
   onCreateAdjustment: (txnId: string) => void;
+  isLoading: boolean;
 }
 
-export default function MatchDetailPanel({ txn, onMatch, onCreateAdjustment }: MatchDetailPanelProps) {
+const MatchDetailPanelSkeleton = () => (
+    <div className="bg-white border-l border-gray-200 p-6 space-y-6 animate-pulse">
+        <div>
+            <div className="h-4 bg-gray-200 rounded w-1/3 mb-3"></div>
+            <div className="space-y-2 text-sm">
+                {[...Array(5)].map((_, i) => (
+                    <div key={i} className="flex justify-between">
+                        <div className="h-4 bg-gray-100 rounded w-1/4"></div>
+                        <div className="h-4 bg-gray-200 rounded w-1/3"></div>
+                    </div>
+                ))}
+                <div className="pt-2 border-t">
+                    <div className="h-4 bg-gray-100 rounded w-1/4"></div>
+                    <div className="h-8 bg-gray-200 rounded w-full mt-1"></div>
+                </div>
+            </div>
+        </div>
+
+        <div>
+            <div className="h-4 bg-gray-200 rounded w-1/3 mb-3"></div>
+            <div className="space-y-2">
+                <div className="h-16 bg-gray-100 rounded-lg"></div>
+                <div className="h-16 bg-gray-100 rounded-lg"></div>
+            </div>
+        </div>
+
+        <div className="h-10 bg-gray-200 rounded-md w-full"></div>
+    </div>
+)
+
+export default function MatchDetailPanel({ txn, onMatch, onCreateAdjustment, isLoading }: MatchDetailPanelProps) {
   const [showMatchModal, setShowMatchModal] = useState(false);
   const [selectedSuggestion, setSelectedSuggestion] = useState<any>(null);
   const [note, setNote] = useState('');
+
+  if (isLoading) {
+    return <MatchDetailPanelSkeleton />;
+  }
 
   if (!txn) {
     return (
@@ -81,6 +116,7 @@ export default function MatchDetailPanel({ txn, onMatch, onCreateAdjustment }: M
                 key={idx}
                 onClick={() => handleSuggestionClick(suggestion)}
                 className="w-full p-3 border border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 text-left"
+                disabled={isLoading}
               >
                 <div className="flex justify-between items-start mb-1">
                   <span className="text-sm font-medium text-gray-900">{suggestion.reference}</span>
@@ -98,6 +134,7 @@ export default function MatchDetailPanel({ txn, onMatch, onCreateAdjustment }: M
         <button
           onClick={() => onCreateAdjustment(txn.txnId)}
           className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+          disabled={isLoading}
         >
           <HiOutlineDocumentPlus className="h-4 w-4" />
           Create Adjustment
@@ -128,17 +165,20 @@ export default function MatchDetailPanel({ txn, onMatch, onCreateAdjustment }: M
               placeholder="Add note (optional)"
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm mb-4"
               rows={2}
+              disabled={isLoading}
             />
             <div className="flex gap-3">
               <button
                 onClick={() => setShowMatchModal(false)}
                 className="flex-1 px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+                disabled={isLoading}
               >
                 Cancel
               </button>
               <button
                 onClick={confirmMatch}
                 className="flex-1 px-4 py-2 text-sm text-white bg-green-600 rounded-md hover:bg-green-700"
+                disabled={isLoading}
               >
                 <HiOutlineCheckCircle className="inline h-4 w-4 mr-1" />
                 Match

@@ -12,10 +12,7 @@ export default function FillPage() {
     const targetQty = 30;
     const isComplete = count === targetQty;
 
-    const batches = [
-        { id: "batch1", ndc: "00093-0058-01", manufacturer: "Teva Pharmaceuticals", lot: "LOT12345", expiry: "2025-12-31", stock: 500 },
-        { id: "batch2", ndc: "00093-0058-01", manufacturer: "Teva Pharmaceuticals", lot: "LOT12346", expiry: "2025-06-30", stock: 200 }
-    ];
+    const batches: any[] = [];
 
     return (
         <div className="h-screen flex flex-col bg-[#f8fafc]">
@@ -33,11 +30,11 @@ export default function FillPage() {
                             <div className="space-y-2 text-sm">
                                 <div>
                                     <span className="text-blue-700">Patient:</span>
-                                    <span className="ml-2 font-medium text-blue-900">Rajesh Kumar</span>
+                                    <span className="ml-2 font-medium text-blue-900">-</span>
                                 </div>
                                 <div>
                                     <span className="text-blue-700">Drug:</span>
-                                    <span className="ml-2 font-medium text-blue-900">Warfarin 5mg</span>
+                                    <span className="ml-2 font-medium text-blue-900">-</span>
                                 </div>
                                 <div>
                                     <span className="text-blue-700">Quantity:</span>
@@ -45,7 +42,7 @@ export default function FillPage() {
                                 </div>
                                 <div>
                                     <span className="text-blue-700">Sig:</span>
-                                    <span className="ml-2 text-blue-900">Take 1 tablet daily at bedtime</span>
+                                    <span className="ml-2 text-blue-900">-</span>
                                 </div>
                             </div>
                         </div>
@@ -55,7 +52,7 @@ export default function FillPage() {
                                 <FiAlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
                                 <div>
                                     <h4 className="font-semibold text-amber-900 mb-1">Special Instructions</h4>
-                                    <p className="text-sm text-amber-700">Monitor INR levels. Counsel on dietary restrictions.</p>
+                                    <p className="text-sm text-amber-700">No special instructions</p>
                                 </div>
                             </div>
                         </div>
@@ -84,7 +81,7 @@ export default function FillPage() {
                         <div className="bg-white border border-[#e2e8f0] rounded-xl p-6">
                             <h2 className="text-lg font-semibold text-[#0f172a] mb-4">Available Batches</h2>
                             <div className="space-y-3">
-                                {batches.map((batch) => (
+                                {batches.length > 0 ? batches.map((batch) => (
                                     <label
                                         key={batch.id}
                                         className={`block p-4 border-2 rounded-lg cursor-pointer transition-all ${selectedBatch === batch.id
@@ -117,7 +114,9 @@ export default function FillPage() {
                                             </div>
                                         </div>
                                     </label>
-                                ))}
+                                ))) : (
+                                    <div className="text-center py-6 text-gray-500">No batches available</div>
+                                )}
                             </div>
                         </div>
                     </div>

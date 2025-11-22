@@ -6,10 +6,23 @@ import StockFilters from '@/components/inventory/StockFilters';
 import StockTable from '@/components/inventory/StockTable';
 import StockDetailPanel from '@/components/inventory/StockDetailPanel';
 
+const StatCard = ({ label, value, loading, colorClass = 'bg-[#f1f5f9]' }: any) => (
+    <div className={`px-3 py-1.5 rounded-lg text-sm ${colorClass}`}>
+        <span className="text-[#64748b]">{label}:</span>{' '}
+        {loading ? (
+            <span className="inline-block h-4 w-12 bg-gray-300 rounded-md animate-pulse"></span>
+        ) : (
+            <span className="font-semibold text-[#0f172a]">{value}</span>
+        )}
+    </div>
+)
+
 export default function StockPage() {
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchFocus, setSearchFocus] = useState(false);
+  const [stats, setStats] = useState<any>(null);
+  const [isStatsLoading, setIsStatsLoading] = useState(true);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -21,6 +34,20 @@ export default function StockPage() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  useEffect(() => {
+    setIsStatsLoading(true);
+    const timer = setTimeout(() => {
+        setStats({
+            totalSKUs: 0,
+            onHand: 0,
+            lowStock: 0,
+            expiring: 0,
+        });
+        setIsStatsLoading(false);
+    }, 1500)
+    return () => clearTimeout(timer)
+  }, [])
 
   return (
     <div className="h-screen flex flex-col bg-[#f8fafc]">
@@ -64,22 +91,10 @@ export default function StockPage() {
 
         {/* Quick Stats */}
         <div className="flex items-center gap-3">
-          <div className="px-3 py-1.5 bg-[#f1f5f9] rounded-lg text-sm">
-            <span className="text-[#64748b]">Total SKUs:</span>{' '}
-            <span className="font-semibold text-[#0f172a]">1,247</span>
-          </div>
-          <div className="px-3 py-1.5 bg-[#f1f5f9] rounded-lg text-sm">
-            <span className="text-[#64748b]">On-hand:</span>{' '}
-            <span className="font-semibold text-[#0f172a]">45,320</span>
-          </div>
-          <div className="px-3 py-1.5 bg-[#fef3c7] rounded-lg text-sm">
-            <span className="text-[#92400e]">Low stock:</span>{' '}
-            <span className="font-semibold text-[#92400e]">23</span>
-          </div>
-          <div className="px-3 py-1.5 bg-[#fee2e2] rounded-lg text-sm">
-            <span className="text-[#991b1b]">Expiring &lt;30d:</span>{' '}
-            <span className="font-semibold text-[#991b1b]">12</span>
-          </div>
+            <StatCard label="Total SKUs" value={stats?.totalSKUs} loading={isStatsLoading}/>
+            <StatCard label="On-hand" value={stats?.onHand} loading={isStatsLoading}/>
+            <StatCard label="Low stock" value={stats?.lowStock} loading={isStatsLoading} colorClass="bg-[#fef3c7]"/>
+            <StatCard label="Expiring <30d" value={stats?.expiring} loading={isStatsLoading} colorClass="bg-[#fee2e2]"/>
         </div>
       </div>
 

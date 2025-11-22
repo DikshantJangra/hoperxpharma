@@ -26,8 +26,8 @@ export default function PINSetupPage() {
             </div>
             <div className="text-right">
               <div className="text-sm text-gray-600 mb-1">Account</div>
-              <div className="font-medium text-gray-900">Aman Verma</div>
-              <div className="text-xs text-gray-500">Pharmacist</div>
+              <div className="font-medium text-gray-900">-</div>
+              <div className="text-xs text-gray-500">-</div>
             </div>
           </div>
 

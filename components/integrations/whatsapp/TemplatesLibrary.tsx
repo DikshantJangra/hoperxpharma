@@ -1,30 +1,49 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FiPlus, FiEdit, FiCopy, FiTrash2, FiCheckCircle, FiClock, FiXCircle, FiSend } from 'react-icons/fi';
 
-const MOCK_TEMPLATES = [
-  { id: '1', name: 'Pickup Ready', category: 'transactional', status: 'approved', body: 'Hi {{name}}, your prescription {{order_no}} is ready for pickup at {{store_name}}. Pickup by {{pickup_by}}. Reply 1 to confirm.', language: 'en', usageCount: 245, lastUsed: '2 hours ago' },
-  { id: '2', name: 'Invoice', category: 'transactional', status: 'approved', body: 'Hi {{name}}, your invoice {{invoice_no}} for ₹{{amount}} is ready. View: {{invoice_url}}. Thank you.', language: 'en', usageCount: 189, lastUsed: '1 hour ago' },
-  { id: '3', name: 'Refill Reminder', category: 'reminder', status: 'approved', body: 'Hi {{name}}, it\'s time to refill {{medicine_name}}. Reply REFILL to place an order or visit {{store_link}}.', language: 'en', usageCount: 67, lastUsed: '3 hours ago' },
-  { id: '4', name: 'Batch Recall', category: 'transactional', status: 'pending', body: 'URGENT: Batch {{batch_no}} of {{medicine_name}} has been recalled. Please return to {{store_name}} for replacement.', language: 'en', usageCount: 0, lastUsed: 'Never' },
-  { id: '5', name: 'Promotional Offer', category: 'marketing', status: 'rejected', body: 'Special offer! Get 20% off on all medicines this weekend.', language: 'en', usageCount: 0, lastUsed: 'Never' },
-];
+const TemplateCardSkeleton = () => (
+    <div className="bg-white rounded-lg border border-[#e2e8f0] p-4 animate-pulse">
+        <div className="flex items-start justify-between mb-3">
+            <div className="flex-1 space-y-2">
+                <div className="h-5 bg-gray-200 rounded w-1/2"></div>
+                <div className="h-4 bg-gray-100 rounded w-3/4"></div>
+            </div>
+            <div className="flex items-center gap-2">
+                <div className="h-8 w-8 bg-gray-200 rounded-lg"></div>
+                <div className="h-8 w-8 bg-gray-200 rounded-lg"></div>
+            </div>
+        </div>
+        <div className="h-3 bg-gray-100 rounded w-1/4"></div>
+    </div>
+)
 
 export default function TemplatesLibrary() {
   const [activeTab, setActiveTab] = useState<'approved' | 'pending' | 'rejected' | 'all'>('approved');
   const [showEditor, setShowEditor] = useState(false);
+  const [templates, setTemplates] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    setIsLoading(true);
+    const timer = setTimeout(() => {
+        setTemplates([]);
+        setIsLoading(false);
+    }, 1500)
+    return () => clearTimeout(timer);
+  }, [activeTab]);
 
   const filteredTemplates = activeTab === 'all' 
-    ? MOCK_TEMPLATES 
-    : MOCK_TEMPLATES.filter(t => t.status === activeTab);
+    ? templates 
+    : templates.filter(t => t.status === activeTab);
 
   return (
     <div className="h-full flex flex-col">
       <div className="bg-white border-b border-[#e2e8f0] px-6 py-4">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold text-[#0f172a]">Templates Library</h2>
-          <button onClick={() => setShowEditor(true)} className="px-4 py-2 bg-[#0ea5a3] text-white rounded-lg hover:bg-[#0d9391] flex items-center gap-2 text-sm font-medium">
+          <button onClick={() => setShowEditor(true)} className="px-4 py-2 bg-[#0ea5a3] text-white rounded-lg hover:bg-[#0d9391] flex items-center gap-2 text-sm font-medium" disabled={isLoading}>
             <FiPlus className="w-4 h-4" />
             Create Template
           </button>
@@ -32,15 +51,15 @@ export default function TemplatesLibrary() {
 
         <div className="flex items-center gap-2">
           {[
-            { id: 'approved', label: 'Approved', count: MOCK_TEMPLATES.filter(t => t.status === 'approved').length },
-            { id: 'pending', label: 'Pending', count: MOCK_TEMPLATES.filter(t => t.status === 'pending').length },
-            { id: 'rejected', label: 'Rejected', count: MOCK_TEMPLATES.filter(t => t.status === 'rejected').length },
-            { id: 'all', label: 'All', count: MOCK_TEMPLATES.length }
+            { id: 'approved', label: 'Approved', count: templates.filter(t => t.status === 'approved').length },
+            { id: 'pending', label: 'Pending', count: templates.filter(t => t.status === 'pending').length },
+            { id: 'rejected', label: 'Rejected', count: templates.filter(t => t.status === 'rejected').length },
+            { id: 'all', label: 'All', count: templates.length }
           ].map(tab => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 activeTab === tab.id ? 'bg-[#0ea5a3] text-white' : 'bg-[#f1f5f9] text-[#64748b] hover:bg-[#e2e8f0]'
-              }`}>
-              {tab.label} ({tab.count})
+              }`} disabled={isLoading}>
+              {tab.label} ({isLoading ? '...' : tab.count})
             </button>
           ))}
         </div>
@@ -48,7 +67,13 @@ export default function TemplatesLibrary() {
 
       <div className="flex-1 overflow-y-auto p-6">
         <div className="space-y-3">
-          {filteredTemplates.map(template => (
+          {isLoading ? (
+            <>
+                <TemplateCardSkeleton/>
+                <TemplateCardSkeleton/>
+                <TemplateCardSkeleton/>
+            </>
+          ) : filteredTemplates.map(template => (
             <div key={template.id} className="bg-white rounded-lg border border-[#e2e8f0] p-4 hover:border-[#0ea5a3] transition-colors">
               <div className="flex items-start justify-between mb-3">
                 <div className="flex-1">

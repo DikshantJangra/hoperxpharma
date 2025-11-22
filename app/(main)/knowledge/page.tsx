@@ -1,22 +1,45 @@
 "use client"
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { FiBookOpen, FiAlertCircle, FiFileText, FiArrowRight, FiTrendingUp, FiClock } from "react-icons/fi";
 import { TbPill } from "react-icons/tb";
 import DrugSearch from "@/components/knowledge/DrugSearch";
 
-export default function KnowledgePage() {
-    const trendingDrugs = [
-        { name: "Azithromycin 500", searches: "2.4k" },
-        { name: "Pantoprazole 40", searches: "1.8k" },
-        { name: "Metformin 500", searches: "1.5k" },
-        { name: "Telmisartan 40", searches: "1.2k" }
-    ];
+const TrendingDrugSkeleton = () => (
+    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg animate-pulse">
+        <div className="flex items-center gap-3">
+            <div className="h-4 bg-gray-200 rounded w-6"></div>
+            <div className="h-4 bg-gray-200 rounded w-32"></div>
+        </div>
+        <div className="h-4 bg-gray-200 rounded w-16"></div>
+    </div>
+)
 
-    const updates = [
-        { title: "New Diabetes Guidelines 2024", desc: "Updated dosage protocols for SGLT2 inhibitors", type: "info", time: "2h ago" },
-        { title: "Recall Alert: Batch #X992", desc: "Cough syrup batch recalled - contamination risk", type: "alert", time: "5h ago" },
-        { title: "Antibiotic Stewardship Update", desc: "New resistance patterns for fluoroquinolones", type: "info", time: "1d ago" }
-    ];
+const UpdateSkeleton = () => (
+    <div className="flex gap-3 p-3 bg-gray-50 rounded-lg animate-pulse">
+        <div className="h-2 w-2 bg-gray-200 rounded-full mt-1.5 shrink-0"></div>
+        <div className="flex-1 min-w-0">
+            <div className="h-4 bg-gray-200 rounded w-3/4 mb-1"></div>
+            <div className="h-3 bg-gray-200 rounded w-full mb-1"></div>
+            <div className="h-3 bg-gray-200 rounded w-1/3"></div>
+        </div>
+    </div>
+)
+
+export default function KnowledgePage() {
+    const [trendingDrugs, setTrendingDrugs] = useState<any[]>([]);
+    const [updates, setUpdates] = useState<any[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        setIsLoading(true);
+        const timer = setTimeout(() => {
+            setTrendingDrugs([]);
+            setUpdates([]);
+            setIsLoading(false);
+        }, 1500);
+        return () => clearTimeout(timer);
+    }, []);
 
     return (
         <div className="min-h-screen bg-[#f7fafc]">
@@ -99,20 +122,30 @@ export default function KnowledgePage() {
                             <span className="text-xs text-gray-500">Last 24h</span>
                         </div>
                         <div className="space-y-2">
-                            {trendingDrugs.map((drug, i) => (
-                                <Link key={i} href={`/knowledge/drug-info/${drug.name.toLowerCase().replace(/\s+/g, '-')}`}>
-                                    <div className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer group">
-                                        <div className="flex items-center gap-3">
-                                            <span className="text-xs font-semibold text-gray-400 w-6">#{i + 1}</span>
-                                            <span className="text-sm font-medium text-gray-700 group-hover:text-blue-600">{drug.name}</span>
+                            {isLoading ? (
+                                <>
+                                    <TrendingDrugSkeleton/>
+                                    <TrendingDrugSkeleton/>
+                                    <TrendingDrugSkeleton/>
+                                </>
+                            ) : trendingDrugs.length > 0 ? (
+                                trendingDrugs.map((drug, i) => (
+                                    <Link key={i} href={`/knowledge/drug-info/${drug.name.toLowerCase().replace(/\s+/g, '-')}`}>
+                                        <div className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer group">
+                                            <div className="flex items-center gap-3">
+                                                <span className="text-xs font-semibold text-gray-400 w-6">#{i + 1}</span>
+                                                <span className="text-sm font-medium text-gray-700 group-hover:text-blue-600">{drug.name}</span>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-xs text-gray-500">{drug.searches}</span>
+                                                <FiArrowRight className="h-4 w-4 text-gray-300 group-hover:text-blue-500" />
+                                            </div>
                                         </div>
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-xs text-gray-500">{drug.searches}</span>
-                                            <FiArrowRight className="h-4 w-4 text-gray-300 group-hover:text-blue-500" />
-                                        </div>
-                                    </div>
-                                </Link>
-                            ))}
+                                    </Link>
+                                ))
+                            ) : (
+                                <div className="text-center py-4 text-gray-500 text-sm">No trending drugs found.</div>
+                            )}
                         </div>
                     </div>
 
@@ -123,18 +156,28 @@ export default function KnowledgePage() {
                             <h3 className="text-base font-semibold text-gray-800">Recent Updates</h3>
                         </div>
                         <div className="space-y-3">
-                            {updates.map((update, i) => (
-                                <div key={i} className="flex gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer">
-                                    <div className={`h-2 w-2 rounded-full mt-1.5 shrink-0 ${
-                                        update.type === 'alert' ? 'bg-red-500' : 'bg-blue-500'
-                                    }`} />
-                                    <div className="flex-1 min-w-0">
-                                        <p className="text-sm font-medium text-gray-800 mb-0.5">{update.title}</p>
-                                        <p className="text-xs text-gray-600 mb-1">{update.desc}</p>
-                                        <span className="text-xs text-gray-400">{update.time}</span>
+                            {isLoading ? (
+                                <>
+                                    <UpdateSkeleton/>
+                                    <UpdateSkeleton/>
+                                    <UpdateSkeleton/>
+                                </>
+                            ) : updates.length > 0 ? (
+                                updates.map((update, i) => (
+                                    <div key={i} className="flex gap-3 p-3 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer">
+                                        <div className={`h-2 w-2 rounded-full mt-1.5 shrink-0 ${
+                                            update.type === 'alert' ? 'bg-red-500' : 'bg-blue-500'
+                                        }`} />
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-medium text-gray-800 mb-0.5">{update.title}</p>
+                                            <p className="text-xs text-gray-600 mb-1">{update.desc}</p>
+                                            <span className="text-xs text-gray-400">{update.time}</span>
+                                        </div>
                                     </div>
-                                </div>
-                            ))}
+                                ))
+                            ) : (
+                                <div className="text-center py-4 text-gray-500 text-sm">No recent updates found.</div>
+                            )}
                         </div>
                     </div>
                 </div>

@@ -1,16 +1,37 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FiDownload, FiCalendar, FiFileText } from "react-icons/fi";
 
 type ExportType = "invoices" | "gstr1" | "gstr3b" | "itc" | "summary";
 type ExportFormat = "csv" | "json" | "pdf" | "excel";
+
+const TableRowSkeleton = () => (
+    <tr className="animate-pulse">
+        <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-24"></div></td>
+        <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-16"></div></td>
+        <td className="px-6 py-4"><div className="h-6 bg-gray-200 rounded-full w-12"></div></td>
+        <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-32"></div></td>
+        <td className="px-6 py-4 text-center"><div className="h-8 bg-gray-200 rounded-md w-24 mx-auto"></div></td>
+    </tr>
+)
 
 export default function AuditExportsPage() {
     const [exportType, setExportType] = useState<ExportType>("invoices");
     const [exportFormat, setExportFormat] = useState<ExportFormat>("csv");
     const [startDate, setStartDate] = useState("2024-01-01");
     const [endDate, setEndDate] = useState("2024-01-31");
+    const [recentExports, setRecentExports] = useState<any[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        setIsLoading(true);
+        const timer = setTimeout(() => {
+            setRecentExports([]);
+            setIsLoading(false);
+        }, 1500)
+        return () => clearTimeout(timer);
+    }, [])
 
     const handleExport = () => {
         alert(`Exporting ${exportType} as ${exportFormat.toUpperCase()} for ${startDate} to ${endDate}`);
@@ -194,32 +215,32 @@ export default function AuditExportsPage() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-200">
-                                <tr className="hover:bg-gray-50">
-                                    <td className="px-6 py-4 font-medium text-gray-900">All Invoices</td>
-                                    <td className="px-6 py-4 text-sm text-gray-600">Jan 2024</td>
-                                    <td className="px-6 py-4">
-                                        <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded uppercase">CSV</span>
-                                    </td>
-                                    <td className="px-6 py-4 text-sm text-gray-600">2024-02-01 10:30 AM</td>
-                                    <td className="px-6 py-4 text-center">
-                                        <button className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-200 transition-colors">
-                                            Download
-                                        </button>
-                                    </td>
-                                </tr>
-                                <tr className="hover:bg-gray-50">
-                                    <td className="px-6 py-4 font-medium text-gray-900">GSTR-1 Data</td>
-                                    <td className="px-6 py-4 text-sm text-gray-600">Jan 2024</td>
-                                    <td className="px-6 py-4">
-                                        <span className="px-2 py-1 bg-purple-100 text-purple-700 text-xs font-semibold rounded uppercase">JSON</span>
-                                    </td>
-                                    <td className="px-6 py-4 text-sm text-gray-600">2024-02-05 02:15 PM</td>
-                                    <td className="px-6 py-4 text-center">
-                                        <button className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-200 transition-colors">
-                                            Download
-                                        </button>
-                                    </td>
-                                </tr>
+                                {isLoading ? (
+                                    <>
+                                        <TableRowSkeleton/>
+                                        <TableRowSkeleton/>
+                                    </>
+                                ) : recentExports.length > 0 ? (
+                                    recentExports.map(exp => (
+                                        <tr key={exp.id} className="hover:bg-gray-50">
+                                            <td className="px-6 py-4 font-medium text-gray-900">{exp.type}</td>
+                                            <td className="px-6 py-4 text-sm text-gray-600">{exp.period}</td>
+                                            <td className="px-6 py-4">
+                                                <span className="px-2 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded uppercase">{exp.format}</span>
+                                            </td>
+                                            <td className="px-6 py-4 text-sm text-gray-600">{exp.generated}</td>
+                                            <td className="px-6 py-4 text-center">
+                                                <button className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg text-sm font-medium hover:bg-blue-200 transition-colors">
+                                                    Download
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    ))
+                                ) : (
+                                    <tr>
+                                        <td colSpan={5} className="text-center py-8 text-gray-500">No recent exports found.</td>
+                                    </tr>
+                                )}
                             </tbody>
                         </table>
                     </div>

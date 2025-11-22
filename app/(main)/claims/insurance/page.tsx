@@ -3,13 +3,7 @@
 import { useState } from "react";
 import { FiSearch, FiCheckCircle, FiXCircle, FiClock, FiDollarSign, FiFileText, FiUpload, FiAlertCircle } from "react-icons/fi";
 
-const mockClaims = [
-    { id: "INS001", patientName: "Rajesh Kumar", policyNumber: "POL-2024-1001", insuranceCompany: "Star Health Insurance", claimDate: "2024-11-18", prescriptionId: "RX-2024-001", claimType: "Reimbursement", totalAmount: 2500, approvedAmount: 2500, rejectedAmount: 0, status: "approved", paymentStatus: "received", daysInAdjudication: 5, priority: "normal" },
-    { id: "INS002", patientName: "Priya Sharma", policyNumber: "POL-2024-1002", insuranceCompany: "HDFC Ergo Health", claimDate: "2024-11-20", prescriptionId: "RX-2024-002", claimType: "Cashless", totalAmount: 3200, approvedAmount: 2800, rejectedAmount: 400, status: "partial", paymentStatus: "pending", daysInAdjudication: 2, priority: "normal" },
-    { id: "INS003", patientName: "Amit Verma", policyNumber: "POL-2024-1003", insuranceCompany: "ICICI Lombard", claimDate: "2024-11-19", prescriptionId: "RX-2024-003", claimType: "Reimbursement", totalAmount: 1800, approvedAmount: 0, rejectedAmount: 1800, status: "rejected", paymentStatus: "n/a", daysInAdjudication: 3, priority: "normal", rejectionReason: "Pre-authorization not obtained" },
-    { id: "INS004", patientName: "Sneha Reddy", policyNumber: "POL-2024-1004", insuranceCompany: "Care Health Insurance", claimDate: "2024-11-21", prescriptionId: "RX-2024-004", claimType: "Reimbursement", totalAmount: 4500, approvedAmount: 0, rejectedAmount: 0, status: "pending", paymentStatus: "pending", daysInAdjudication: 1, priority: "urgent" },
-    { id: "INS005", patientName: "Vikram Singh", policyNumber: "POL-2024-1005", insuranceCompany: "Max Bupa", claimDate: "2024-11-17", prescriptionId: "RX-2024-005", claimType: "Cashless", totalAmount: 2200, approvedAmount: 0, rejectedAmount: 2200, status: "appealed", paymentStatus: "pending", daysInAdjudication: 5, priority: "normal", rejectionReason: "Outside coverage window" }
-];
+const mockClaims: any[] = [];
 
 export default function InsuranceClaimsPage() {
     const [selectedId, setSelectedId] = useState("INS001");

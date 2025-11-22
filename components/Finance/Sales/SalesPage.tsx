@@ -21,91 +21,51 @@ export default function SalesPage({ storeId }: SalesPageProps) {
   });
 
   const [summary, setSummary] = useState<SalesSummary>({
-    revenue: 245600,
-    cash: 85000,
-    card: 95000,
-    upi: 60000,
-    wallet: 5600,
-    outstanding: 12400,
-    refunds: { count: 3, amount: 4200 },
-    reconRate: 87.5
+    revenue: 0,
+    cash: 0,
+    card: 0,
+    upi: 0,
+    wallet: 0,
+    outstanding: 0,
+    refunds: { count: 0, amount: 0 },
+    reconRate: 0
   });
 
-  const [rows, setRows] = useState<LedgerRow[]>([
-    {
-      id: 'ledger_001',
-      type: 'INVOICE',
-      date: '2025-11-13T10:30:00Z',
-      invoiceId: 'INV-2025-001234',
-      storeId: 'store_01',
-      source: 'POS',
-      customer: { id: 'p_123', name: 'Riya Sharma' },
-      gross: 1200,
-      tax: 216,
-      net: 984,
-      paymentMethod: 'UPI',
-      paymentStatus: 'PAID',
-      bankTransactionId: 'bank_tx_988',
-      reconStatus: 'MATCHED',
-      tags: [],
-      auditEventId: 'audit_9001'
-    },
-    {
-      id: 'ledger_002',
-      type: 'INVOICE',
-      date: '2025-11-13T11:15:00Z',
-      invoiceId: 'INV-2025-001235',
-      storeId: 'store_01',
-      source: 'POS',
-      customer: { id: 'p_124', name: 'Amit Kumar' },
-      gross: 850,
-      tax: 153,
-      net: 697,
-      paymentMethod: 'CARD',
-      paymentStatus: 'PAID',
-      reconStatus: 'UNMATCHED',
-      tags: []
-    },
-    {
-      id: 'ledger_003',
-      type: 'INVOICE',
-      date: '2025-11-13T14:20:00Z',
-      invoiceId: 'INV-2025-001236',
-      storeId: 'store_01',
-      source: 'ONLINE',
-      customer: { id: 'p_125', name: 'Priya Singh' },
-      gross: 2400,
-      tax: 432,
-      net: 1968,
-      paymentMethod: 'UPI',
-      paymentStatus: 'PENDING',
-      reconStatus: 'UNMATCHED',
-      tags: []
-    }
-  ]);
+  const [rows, setRows] = useState<LedgerRow[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const [selectedRow, setSelectedRow] = useState<LedgerRow | null>(null);
   const [candidates, setCandidates] = useState<MatchCandidate[]>([]);
 
   useEffect(() => {
+    setIsLoading(true);
+    const timer = setTimeout(() => {
+        setSummary({
+            revenue: 0,
+            cash: 0,
+            card: 0,
+            upi: 0,
+            wallet: 0,
+            outstanding: 0,
+            refunds: { count: 0, amount: 0 },
+            reconRate: 0
+        });
+        setRows([]);
+        setIsLoading(false);
+    }, 1500)
+    return () => clearTimeout(timer);
+  }, [filters]); // Re-fetch when filters change
+
+
+  useEffect(() => {
     if (selectedRow && selectedRow.reconStatus === 'UNMATCHED') {
-      setCandidates([
-        {
-          bankTx: {
-            id: 'bank_tx_100',
-            date: selectedRow.date,
-            amount: selectedRow.net,
-            reference: 'UPI/123456789',
-            description: 'Payment received',
-            matched: false
-          },
-          confidence: 0.92
-        }
-      ]);
+      // Simulate fetching candidates
+      setCandidates([]);
     } else {
       setCandidates([]);
     }
-  }, [selectedRow]);
+  }, [selectedRow, isLoading]); // Also depend on isLoading to reset candidates when main data loads
+
 
   const handleDateChange = (from: string, to: string) => {
     setFilters({ ...filters, from, to });
@@ -128,26 +88,14 @@ export default function SalesPage({ storeId }: SalesPageProps) {
   };
 
   const handleMatch = async (ledgerId: string, bankTxId: string) => {
-    try {
-      const response = await fetch('/api/finance/reconcile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ledgerId, bankTxId, matchedBy: 'user_01' })
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        setRows(rows.map(r => 
-          r.id === ledgerId 
-            ? { ...r, reconStatus: 'MATCHED', bankTransactionId: bankTxId, auditEventId: result.auditEventId }
-            : r
-        ));
-        alert(`Matched • Invoice ${selectedRow?.invoiceId} → Bank ${bankTxId} (Audit ${result.auditEventId})`);
-        setSelectedRow(null);
-      }
-    } catch (error) {
-      alert('Failed to match transaction');
-    }
+    // Simulate API call
+    alert(`Matching ledger ${ledgerId} to bank transaction ${bankTxId}...`);
+    setRows(prevRows => prevRows.map(r => 
+      r.id === ledgerId 
+        ? { ...r, reconStatus: 'MATCHED', bankTransactionId: bankTxId }
+        : r
+    ));
+    setSelectedRow(null);
   };
 
   const handleAdjustment = (ledgerId: string) => {
@@ -161,6 +109,7 @@ export default function SalesPage({ storeId }: SalesPageProps) {
         dateRange={{ from: filters.from, to: filters.to }}
         onDateChange={handleDateChange}
         onKPIClick={handleKPIClick}
+        isLoading={isLoading}
       />
 
       <div className="grid grid-cols-12">
@@ -169,6 +118,7 @@ export default function SalesPage({ storeId }: SalesPageProps) {
             filters={filters}
             onChange={setFilters}
             onSavedViewClick={handleSavedViewClick}
+            isLoading={isLoading}
           />
         </div>
 
@@ -177,6 +127,7 @@ export default function SalesPage({ storeId }: SalesPageProps) {
             rows={rows}
             selectedId={selectedRow?.id}
             onRowClick={setSelectedRow}
+            isLoading={isLoading}
           />
         </div>
 
@@ -186,6 +137,7 @@ export default function SalesPage({ storeId }: SalesPageProps) {
             candidates={candidates}
             onMatch={handleMatch}
             onAdjustment={handleAdjustment}
+            isLoading={isLoading && !selectedRow}
           />
         </div>
       </div>

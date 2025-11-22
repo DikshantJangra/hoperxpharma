@@ -1,21 +1,34 @@
 "use client";
+
+import { useState, useEffect } from "react";
 import { FiFilter, FiStar, FiBell, FiPlus, FiClock } from "react-icons/fi";
 import { MdSecurity, MdInventory, MdReceipt, MdPeople } from "react-icons/md";
 
-export default function SavedFilters() {
-  const savedFilters = [
-    { name: "All Admin Actions", icon: <MdSecurity size={16} />, count: 234, active: false },
-    { name: "Refunds & Adjusts", icon: <MdReceipt size={16} />, count: 45, active: false },
-    { name: "Controlled Substances", icon: <MdInventory size={16} />, count: 12, active: false },
-    { name: "Login Failures", icon: <MdPeople size={16} />, count: 8, active: true },
-    { name: "E-invoice Changes", icon: <MdReceipt size={16} />, count: 23, active: false },
-  ];
+const FilterSkeleton = () => (
+    <div className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-gray-100 animate-pulse">
+        <div className="flex items-center gap-2">
+            <div className="h-4 w-4 bg-gray-300 rounded"></div>
+            <div className="h-4 w-32 bg-gray-200 rounded"></div>
+        </div>
+        <div className="h-4 w-8 bg-gray-200 rounded"></div>
+    </div>
+)
 
-  const watchlists = [
-    { name: "High-value refunds", alert: true, triggered: 2 },
-    { name: "After-hours access", alert: true, triggered: 0 },
-    { name: "Batch adjustments", alert: false, triggered: 5 },
-  ];
+export default function SavedFilters() {
+  const [savedFilters, setSavedFilters] = useState<any[]>([]);
+  const [watchlists, setWatchlists] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [activeView, setActiveView] = useState<string | null>(null);
+
+  useEffect(() => {
+    setIsLoading(true);
+    const timer = setTimeout(() => {
+        setSavedFilters([]);
+        setWatchlists([]);
+        setIsLoading(false);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, []);
 
   return (
     <div className="w-72 bg-gray-50 border-r border-gray-200 flex flex-col">
@@ -31,9 +44,16 @@ export default function SavedFilters() {
         <div>
           <div className="text-xs font-medium text-gray-500 uppercase mb-2">My Filters</div>
           <div className="space-y-1">
-            {savedFilters.map((filter, idx) => (
+            {isLoading ? (
+                <>
+                    <FilterSkeleton/>
+                    <FilterSkeleton/>
+                    <FilterSkeleton/>
+                </>
+            ) : savedFilters.map((filter, idx) => (
               <button
                 key={idx}
+                onClick={() => setActiveView(filter.id)}
                 className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm ${
                   filter.active
                     ? "bg-teal-100 text-teal-700 font-medium"
@@ -57,7 +77,12 @@ export default function SavedFilters() {
             Watchlists
           </div>
           <div className="space-y-1">
-            {watchlists.map((watch, idx) => (
+            {isLoading ? (
+                <>
+                    <FilterSkeleton/>
+                    <FilterSkeleton/>
+                </>
+            ) : watchlists.map((watch, idx) => (
               <div
                 key={idx}
                 className="flex items-center justify-between px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-100"
@@ -80,16 +105,16 @@ export default function SavedFilters() {
         <div>
           <div className="text-xs font-medium text-gray-500 uppercase mb-2">Quick Links</div>
           <div className="space-y-1">
-            <button className="w-full text-left px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-100">
+            <button className="w-full text-left px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-100" disabled={isLoading}>
               Show only high severity
             </button>
-            <button className="w-full text-left px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-100">
+            <button className="w-full text-left px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-100" disabled={isLoading}>
               Show API calls
             </button>
-            <button className="w-full text-left px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-100">
+            <button className="w-full text-left px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-100" disabled={isLoading}>
               Show system changes
             </button>
-            <button className="w-full text-left px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-100">
+            <button className="w-full text-left px-3 py-2 rounded-lg text-sm text-gray-700 hover:bg-gray-100" disabled={isLoading}>
               Prescription edits
             </button>
           </div>
@@ -108,7 +133,7 @@ export default function SavedFilters() {
           </div>
         </div>
 
-        <button className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 text-sm font-medium">
+        <button className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 text-sm font-medium" disabled={isLoading}>
           <FiPlus size={16} />
           Create Saved Query
         </button>

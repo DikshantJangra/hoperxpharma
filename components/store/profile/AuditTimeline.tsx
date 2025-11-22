@@ -8,9 +8,9 @@ interface AuditTimelineProps {
 
 export default function AuditTimeline({ storeId }: AuditTimelineProps) {
   const events = [
-    { id: "EVT-2304", action: "Updated GSTIN", user: "Aman Verma", time: "2 hours ago" },
-    { id: "EVT-2303", action: "Changed logo", user: "Aman Verma", time: "1 day ago" },
-    { id: "EVT-2302", action: "Updated address", user: "Priya Sharma", time: "3 days ago" }
+    { id: "EVT-2304", action: "Updated GSTIN", user: "-", time: "2 hours ago" },
+    { id: "EVT-2303", action: "Changed logo", user: "-", time: "1 day ago" },
+    { id: "EVT-2302", action: "Updated address", user: "-", time: "3 days ago" }
   ];
 
   return (

@@ -30,39 +30,39 @@ export default function LabelPage() {
                             <div className="border-4 border-black p-6 bg-white font-mono text-sm space-y-3">
                                 <div className="border-b-2 border-black pb-3">
                                     <div className="text-xl font-bold">HopeRx Pharma</div>
-                                    <div>123 Main Street, Mumbai, MH 400001</div>
-                                    <div>Phone: +91 22 1234 5678</div>
+                                    <div>-</div>
+                                    <div>Phone: -</div>
                                 </div>
 
                                 <div className="space-y-2">
                                     <div className="grid grid-cols-2 gap-2">
-                                        <div><strong>Rx #:</strong> RX-2024-001</div>
-                                        <div><strong>Date:</strong> Nov 22, 2024</div>
+                                        <div><strong>Rx #:</strong> -</div>
+                                        <div><strong>Date:</strong> -</div>
                                     </div>
-                                    <div><strong>Patient:</strong> RAJESH KUMAR</div>
-                                    <div><strong>Dr.:</strong> Anjali Patel</div>
+                                    <div><strong>Patient:</strong> -</div>
+                                    <div><strong>Dr.:</strong> -</div>
                                 </div>
 
                                 <div className="border-t-2 border-b-2 border-black py-3 my-3">
-                                    <div className="text-lg font-bold mb-2">WARFARIN 5MG TABLETS</div>
-                                    <div><strong>Qty:</strong> 30 tablets</div>
-                                    <div><strong>Refills:</strong> 3</div>
+                                    <div className="text-lg font-bold mb-2">-</div>
+                                    <div><strong>Qty:</strong> -</div>
+                                    <div><strong>Refills:</strong> -</div>
                                 </div>
 
                                 <div className="bg-yellow-100 border-2 border-yellow-400 p-3">
                                     <div className="font-bold mb-1">DIRECTIONS:</div>
-                                    <div>Take 1 tablet daily at bedtime</div>
+                                    <div>-</div>
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-2 text-xs">
-                                    <div><strong>Lot:</strong> LOT12345</div>
-                                    <div><strong>Exp:</strong> 12/31/2025</div>
+                                    <div><strong>Lot:</strong> -</div>
+                                    <div><strong>Exp:</strong> -</div>
                                 </div>
 
                                 <div className="flex justify-center pt-2">
                                     <div className="border border-black px-4 py-1">
                                         <div className="text-xs">||||| ||||| |||||</div>
-                                        <div className="text-center text-xs">00093-0058-01</div>
+                                        <div className="text-center text-xs">-</div>
                                     </div>
                                 </div>
                             </div>

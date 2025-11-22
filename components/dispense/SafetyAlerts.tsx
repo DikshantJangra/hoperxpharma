@@ -26,6 +26,7 @@ interface SafetyAlertsProps {
     alerts: SafetyAlert[];
     onDismiss?: (alertId: string) => void;
     onOverride?: (alertId: string) => void;
+    isLoading: boolean;
 }
 
 const SEVERITY_CONFIG = {
@@ -63,7 +64,39 @@ const TYPE_LABELS = {
     controlled: "Controlled Substance"
 };
 
-export default function SafetyAlerts({ alerts, onDismiss, onOverride }: SafetyAlertsProps) {
+const SafetyAlertSkeleton = () => (
+    <div className="bg-gray-100 border-2 border-gray-200 rounded-xl p-5 animate-pulse">
+        <div className="flex items-start justify-between mb-3">
+            <div className="flex items-start gap-3 flex-1">
+                <div className="h-6 w-6 bg-gray-300 rounded-full mt-0.5 shrink-0"></div>
+                <div className="flex-1">
+                     <div className="h-5 bg-gray-300 rounded-md w-1/2 mb-2"></div>
+                    <div className="h-4 bg-gray-300 rounded-md w-full"></div>
+                </div>
+            </div>
+        </div>
+         <div className="mt-3 p-3 bg-white border border-gray-200 rounded-lg">
+             <div className="h-4 bg-gray-300 rounded-md w-1/4 mb-2"></div>
+             <div className="h-3 bg-gray-300 rounded-md w-3/4"></div>
+        </div>
+    </div>
+)
+
+export default function SafetyAlerts({ alerts, onDismiss, onOverride, isLoading }: SafetyAlertsProps) {
+    if (isLoading) {
+        return (
+            <div className="space-y-3">
+                <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                        <FiAlertTriangle className="h-5 w-5 text-gray-400 animate-pulse" />
+                        <span>Checking for alerts...</span>
+                    </h3>
+                </div>
+                <SafetyAlertSkeleton/>
+            </div>
+        )
+    }
+
     if (alerts.length === 0) {
         return (
             <div className="bg-green-50 border border-green-200 rounded-xl p-6 text-center">

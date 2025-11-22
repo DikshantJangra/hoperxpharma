@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import ReturnForm, { ReturnData } from '@/components/orders/ReturnForm';
 import OrderStatusBadge from '@/components/orders/OrderStatusBadge';
 import { HiOutlineArrowUturnLeft, HiOutlineCheckCircle, HiOutlineCurrencyRupee } from 'react-icons/hi2';
@@ -17,32 +17,43 @@ interface ReturnRequest {
     reason: string;
 }
 
-const mockReturns: ReturnRequest[] = [
-    {
-        id: '1',
-        poNumber: 'PO-2025-000120',
-        supplier: 'ABC Pharma Distributors',
-        date: '2025-11-15',
-        items: 3,
-        amount: 12500,
-        status: 'pending',
-        reason: 'Damaged items'
-    },
-    {
-        id: '2',
-        poNumber: 'PO-2025-000118',
-        supplier: 'MediCore Supplies',
-        date: '2025-11-10',
-        items: 2,
-        amount: 8900,
-        status: 'completed',
-        reason: 'Expired products'
-    }
-];
+const StatCardSkeleton = () => (
+    <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 animate-pulse">
+        <div className="flex items-center gap-3">
+            <div className="p-2 bg-gray-100 rounded-lg h-9 w-9"></div>
+            <div>
+                <div className="text-sm h-4 bg-gray-200 rounded w-24 mb-1"></div>
+                <div className="text-xl h-7 bg-gray-300 rounded w-12"></div>
+            </div>
+        </div>
+    </div>
+)
+
+const ReturnRowSkeleton = () => (
+    <tr className="animate-pulse">
+        <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-24"></div></td>
+        <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-32"></div></td>
+        <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-20"></div></td>
+        <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-12"></div></td>
+        <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-20"></div></td>
+        <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-24"></div></td>
+        <td className="px-6 py-4"><div className="h-6 bg-gray-200 rounded-full w-20"></div></td>
+    </tr>
+)
 
 export default function ReturnsPage() {
     const [showForm, setShowForm] = useState(false);
-    const [returns, setReturns] = useState<ReturnRequest[]>(mockReturns);
+    const [returns, setReturns] = useState<ReturnRequest[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+
+    useEffect(() => {
+        setIsLoading(true);
+        const timer = setTimeout(() => {
+            setReturns([]);
+            setIsLoading(false);
+        }, 1500)
+        return () => clearTimeout(timer);
+    }, [])
 
     const handleSubmitReturn = (returnData: ReturnData) => {
         const newReturn: ReturnRequest = {
@@ -87,6 +98,7 @@ export default function ReturnsPage() {
                 <button
                     onClick={() => setShowForm(true)}
                     className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-lg hover:bg-emerald-700 transition-colors shadow-sm"
+                    disabled={isLoading}
                 >
                     <FiPlus size={18} />
                     New Return Request
@@ -95,43 +107,53 @@ export default function ReturnsPage() {
 
             {/* Quick Stats */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-yellow-100 rounded-lg">
-                            <HiOutlineArrowUturnLeft className="h-5 w-5 text-yellow-600" />
-                        </div>
-                        <div>
-                            <div className="text-sm text-gray-600">Pending Returns</div>
-                            <div className="text-xl font-semibold text-gray-900">{pendingReturns}</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-green-100 rounded-lg">
-                            <HiOutlineCheckCircle className="h-5 w-5 text-green-600" />
-                        </div>
-                        <div>
-                            <div className="text-sm text-gray-600">Completed</div>
-                            <div className="text-xl font-semibold text-gray-900">{completedReturns}</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-                    <div className="flex items-center gap-3">
-                        <div className="p-2 bg-blue-100 rounded-lg">
-                            <HiOutlineCurrencyRupee className="h-5 w-5 text-blue-600" />
-                        </div>
-                        <div>
-                            <div className="text-sm text-gray-600">Total Value</div>
-                            <div className="text-xl font-semibold text-gray-900">
-                                ₹{(totalValue / 1000).toFixed(1)}K
+                {isLoading ? (
+                    <>
+                        <StatCardSkeleton/>
+                        <StatCardSkeleton/>
+                        <StatCardSkeleton/>
+                    </>
+                ) : (
+                    <>
+                        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-yellow-100 rounded-lg">
+                                    <HiOutlineArrowUturnLeft className="h-5 w-5 text-yellow-600" />
+                                </div>
+                                <div>
+                                    <div className="text-sm text-gray-600">Pending Returns</div>
+                                    <div className="text-xl font-semibold text-gray-900">{pendingReturns}</div>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                </div>
+
+                        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-green-100 rounded-lg">
+                                    <HiOutlineCheckCircle className="h-5 w-5 text-green-600" />
+                                </div>
+                                <div>
+                                    <div className="text-sm text-gray-600">Completed</div>
+                                    <div className="text-xl font-semibold text-gray-900">{completedReturns}</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-blue-100 rounded-lg">
+                                    <HiOutlineCurrencyRupee className="h-5 w-5 text-blue-600" />
+                                </div>
+                                <div>
+                                    <div className="text-sm text-gray-600">Total Value</div>
+                                    <div className="text-xl font-semibold text-gray-900">
+                                        ₹{(totalValue / 1000).toFixed(1)}K
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </>
+                )}
             </div>
 
             {/* Returns Table */}
@@ -164,35 +186,47 @@ export default function ReturnsPage() {
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-200">
-                            {returns.map((returnReq) => (
-                                <tr key={returnReq.id} className="hover:bg-gray-50 transition-colors">
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                        {returnReq.poNumber}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                        {returnReq.supplier}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        {new Date(returnReq.date).toLocaleDateString('en-IN', {
-                                            year: 'numeric',
-                                            month: 'short',
-                                            day: 'numeric'
-                                        })}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        {returnReq.items}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                        ₹{returnReq.amount.toLocaleString('en-IN')}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                        {returnReq.reason}
-                                    </td>
-                                    <td className="px-6 py-4 whitespace-nowrap">
-                                        {getStatusBadge(returnReq.status)}
-                                    </td>
+                            {isLoading ? (
+                                <>
+                                    <ReturnRowSkeleton/>
+                                    <ReturnRowSkeleton/>
+                                    <ReturnRowSkeleton/>
+                                </>
+                            ) : returns.length > 0 ? (
+                                returns.map((returnReq) => (
+                                    <tr key={returnReq.id} className="hover:bg-gray-50 transition-colors">
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                            {returnReq.poNumber}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                            {returnReq.supplier}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            {new Date(returnReq.date).toLocaleDateString('en-IN', {
+                                                year: 'numeric',
+                                                month: 'short',
+                                                day: 'numeric'
+                                            })}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            {returnReq.items}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                            ₹{returnReq.amount.toLocaleString('en-IN')}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            {returnReq.reason}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            {getStatusBadge(returnReq.status)}
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan={7} className="text-center py-8 text-gray-500">No return requests found.</td>
                                 </tr>
-                            ))}
+                            )}
                         </tbody>
                     </table>
                 </div>

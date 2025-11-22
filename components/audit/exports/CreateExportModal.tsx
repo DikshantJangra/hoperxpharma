@@ -191,9 +191,9 @@ export default function CreateExportModal({ onClose }: CreateExportModalProps) {
               <div className="text-sm text-blue-800">
                 <div className="font-medium mb-1">Export Preview</div>
                 <div className="text-xs space-y-1">
-                  <div>Estimated rows: ~12,345</div>
-                  <div>Estimated size: ~4.5 MB</div>
-                  <div>Estimated time: 2-3 minutes</div>
+                  <div>Estimated rows: ~0</div>
+                  <div>Estimated size: ~0 MB</div>
+                  <div>Estimated time: -</div>
                   <div>Retention: 7 days (default)</div>
                 </div>
               </div>

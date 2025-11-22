@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { FiUser, FiFileText, FiPackage } from "react-icons/fi";
 import { DispenseStep } from "./QueueTabs";
 import BarcodeScanner from "./BarcodeScanner";
@@ -27,9 +27,50 @@ interface DispenseDetailPanelProps {
     step: DispenseStep;
     prescription: Prescription | null;
     onAction: (action: string, data?: any) => void;
+    isLoading: boolean;
 }
 
-export default function DispenseDetailPanel({ step, prescription, onAction }: DispenseDetailPanelProps) {
+const DetailSkeleton = () => (
+    <div className="h-full bg-white p-6 space-y-6 animate-pulse">
+        {/* Header */}
+        <div className="flex items-start justify-between">
+            <div>
+                <div className="h-8 bg-gray-200 rounded-md w-48 mb-2"></div>
+                <div className="h-4 bg-gray-200 rounded-md w-32"></div>
+            </div>
+            <div className="h-9 bg-gray-200 rounded-lg w-24"></div>
+        </div>
+
+        {/* Patient Info */}
+        <div className="bg-gray-50 border border-gray-200 rounded-xl p-5">
+            <div className="h-6 bg-gray-200 rounded-md w-1/3 mb-4"></div>
+            <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-1"><div className="h-4 bg-gray-200 rounded w-1/2"></div><div className="h-5 bg-gray-200 rounded w-3/4"></div></div>
+                <div className="space-y-1"><div className="h-4 bg-gray-200 rounded w-1/2"></div><div className="h-5 bg-gray-200 rounded w-3/4"></div></div>
+                <div className="space-y-1"><div className="h-4 bg-gray-200 rounded w-1/2"></div><div className="h-5 bg-gray-200 rounded w-3/4"></div></div>
+            </div>
+        </div>
+        
+        {/* Medications */}
+        <div className="bg-white border border-gray-200 rounded-xl p-5">
+             <div className="h-6 bg-gray-200 rounded-md w-1/2 mb-4"></div>
+             <div className="space-y-3">
+                 <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                    <div className="h-5 bg-gray-200 rounded w-3/4 mb-2"></div>
+                    <div className="h-4 bg-gray-200 rounded w-full mb-2"></div>
+                    <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+                 </div>
+             </div>
+        </div>
+    </div>
+)
+
+
+export default function DispenseDetailPanel({ step, prescription, onAction, isLoading }: DispenseDetailPanelProps) {
+    if (isLoading) {
+        return <DetailSkeleton />;
+    }
+    
     if (!prescription) {
         return (
             <div className="h-full flex items-center justify-center bg-gray-50">
@@ -120,6 +161,20 @@ export default function DispenseDetailPanel({ step, prescription, onAction }: Di
 }
 
 function renderStepContent(step: DispenseStep, prescription: Prescription, onAction: (action: string, data?: any) => void) {
+    const [safetyAlerts, setSafetyAlerts] = useState<SafetyAlert[]>([]);
+    const [isAlertsLoading, setIsAlertsLoading] = useState(false);
+
+    useEffect(() => {
+        if (step === 'verify') {
+            setIsAlertsLoading(true);
+            const timer = setTimeout(() => {
+                setSafetyAlerts([]);
+                setIsAlertsLoading(false);
+            }, 1000);
+            return () => clearTimeout(timer);
+        }
+    }, [step, prescription.id]);
+
     switch (step) {
         case "intake":
             return (
@@ -131,18 +186,7 @@ function renderStepContent(step: DispenseStep, prescription: Prescription, onAct
             );
 
         case "verify":
-            const mockAlerts: SafetyAlert[] = [
-                {
-                    id: "alert1",
-                    type: "interaction",
-                    severity: "warning",
-                    title: "Potential Drug Interaction",
-                    message: "Warfarin + Aspirin: Increased risk of bleeding. Monitor INR levels closely.",
-                    recommendation: "Consider alternative antiplatelet therapy or adjust Warfarin dosage.",
-                    canOverride: true
-                }
-            ];
-            return <SafetyAlerts alerts={mockAlerts} />;
+            return <SafetyAlerts alerts={safetyAlerts} isLoading={isAlertsLoading} />;
 
         case "fill":
             return (

@@ -6,14 +6,14 @@ import { FiUser, FiMail, FiPhone, FiMapPin, FiBriefcase, FiCalendar, FiEdit2, Fi
 export default function ProfilePage() {
     const [isEditing, setIsEditing] = useState(false);
     const [profile, setProfile] = useState({
-        name: "Krishan Kumar",
-        email: "krishan@hoperx.com",
-        phone: "+91 98765 43210",
-        role: "Admin Pharmacist",
-        license: "DL-PH-2024-12345",
-        joinDate: "January 2024",
-        address: "123 Medical Street, Mumbai, Maharashtra 400001",
-        bio: "Experienced pharmacist with 10+ years in retail pharmacy management."
+        name: "Loading...",
+        email: "-",
+        phone: "-",
+        role: "-",
+        license: "-",
+        joinDate: "-",
+        address: "-",
+        bio: "-"
     });
 
     const handleSave = () => {
@@ -166,15 +166,15 @@ export default function ProfilePage() {
                 {/* Activity Stats */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div className="p-6 bg-white border border-[#e2e8f0] rounded-xl">
-                        <div className="text-3xl font-bold text-[#0ea5a3] mb-1">1,247</div>
+                        <div className="text-3xl font-bold text-[#0ea5a3] mb-1">0</div>
                         <div className="text-sm text-[#64748b]">Prescriptions Verified</div>
                     </div>
                     <div className="p-6 bg-white border border-[#e2e8f0] rounded-xl">
-                        <div className="text-3xl font-bold text-[#0ea5a3] mb-1">98.5%</div>
+                        <div className="text-3xl font-bold text-[#0ea5a3] mb-1">0%</div>
                         <div className="text-sm text-[#64748b]">Accuracy Rate</div>
                     </div>
                     <div className="p-6 bg-white border border-[#e2e8f0] rounded-xl">
-                        <div className="text-3xl font-bold text-[#0ea5a3] mb-1">245</div>
+                        <div className="text-3xl font-bold text-[#0ea5a3] mb-1">0</div>
                         <div className="text-sm text-[#64748b]">Days Active</div>
                     </div>
                 </div>
