@@ -58,6 +58,8 @@ export const authApi = {
 
         if (response.data?.accessToken) {
             tokenManager.saveTokens(response.data.accessToken);
+            // Set a non-httpOnly cookie to help middleware identify logged-in users
+            document.cookie = "logged_in=true; path=/; max-age=604800; SameSite=Lax";
         }
 
         return response;

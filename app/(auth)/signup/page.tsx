@@ -74,10 +74,18 @@ export default function Signup() {
             });
 
             if (response.success) {
-                // Update auth store
+                // Update auth store with full authentication state
                 const { useAuthStore } = await import('@/lib/store/auth-store');
-                const updateUser = useAuthStore.getState().updateUser;
-                updateUser(response.data.user as any);
+                const user = response.data.user as any;
+                const hasStore = user.storeUsers && user.storeUsers.length > 0;
+                
+                // Set all auth state at once
+                useAuthStore.setState({ 
+                    user,
+                    isAuthenticated: false,
+                    hasStore,
+                    isLoading: false
+                });
 
                 toast.success('Account created successfully!');
                 // Redirect to onboarding (new users won't have a store)
