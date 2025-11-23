@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, Variants } from 'framer-motion';
 import { BiError, BiRefresh, BiSupport, BiEnvelope, BiPhone } from 'react-icons/bi';
 import { RiCustomerService2Line } from 'react-icons/ri';
 import Link from 'next/link';
@@ -18,7 +18,7 @@ export default function Error({
         console.error(error);
     }, [error]);
 
-    const containerVariants = {
+    const containerVariants: Variants = {
         hidden: { opacity: 0 },
         visible: {
             opacity: 1,
@@ -29,7 +29,7 @@ export default function Error({
         },
     };
 
-    const itemVariants = {
+    const itemVariants: Variants = {
         hidden: { y: 20, opacity: 0 },
         visible: {
             y: 0,
