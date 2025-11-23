@@ -92,7 +92,7 @@ export default function ProfilePage() {
                             {/* Contact Information */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div>
-                                    <label className="block text-sm font-semibold text-[#0f172a] mb-2 flex items-center gap-2">
+                                    <label className="text-sm font-semibold text-[#0f172a] mb-2 flex items-center gap-2">
                                         <FiMail className="w-4 h-4" />
                                         Email
                                     </label>
@@ -109,7 +109,7 @@ export default function ProfilePage() {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-semibold text-[#0f172a] mb-2 flex items-center gap-2">
+                                    <label className="text-sm font-semibold text-[#0f172a] mb-2 flex items-center gap-2">
                                         <FiPhone className="w-4 h-4" />
                                         Phone
                                     </label>
@@ -126,7 +126,7 @@ export default function ProfilePage() {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-semibold text-[#0f172a] mb-2 flex items-center gap-2">
+                                    <label className="text-sm font-semibold text-[#0f172a] mb-2 flex items-center gap-2">
                                         <FiBriefcase className="w-4 h-4" />
                                         License Number
                                     </label>
@@ -134,7 +134,7 @@ export default function ProfilePage() {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-semibold text-[#0f172a] mb-2 flex items-center gap-2">
+                                    <label className="text-sm font-semibold text-[#0f172a] mb-2 flex items-center gap-2">
                                         <FiCalendar className="w-4 h-4" />
                                         Joined
                                     </label>
@@ -144,7 +144,7 @@ export default function ProfilePage() {
 
                             {/* Address */}
                             <div>
-                                <label className="block text-sm font-semibold text-[#0f172a] mb-2 flex items-center gap-2">
+                                <label className="text-sm font-semibold text-[#0f172a] mb-2 flex items-center gap-2">
                                     <FiMapPin className="w-4 h-4" />
                                     Address
                                 </label>

@@ -71,8 +71,8 @@ function LeftSection({ onToggleSidebar, showStoreMenu, setShowStoreMenu, sidebar
                 >
                     <MdStore size={18} className="text-emerald-600" />
                     <div className="text-left">
-                        <p className="text-sm font-medium text-gray-800">Main Store</p>
-                        <p className="text-xs text-gray-500">GST: 27AABCU9603R1ZX</p>
+                        <p className="text-sm font-medium text-gray-800">Loading...</p>
+                        <p className="text-xs text-gray-500">-</p>
                     </div>
                     <FiChevronDown size={16} className={`text-gray-400 transition-transform ${showStoreMenu ? 'rotate-180' : ''}`} />
                 </button>
@@ -82,33 +82,8 @@ function LeftSection({ onToggleSidebar, showStoreMenu, setShowStoreMenu, sidebar
                         <div className="px-4 py-2 border-b border-gray-100">
                             <h3 className="text-sm font-semibold text-gray-800">Switch Store</h3>
                         </div>
-                        <StoreMenuItem
-                            name="Main Store"
-                            location="Mumbai, Maharashtra"
-                            gst="27AABCU9603R1ZX"
-                            active
-                            onClick={() => setShowStoreMenu(false)}
-                        />
-                        <StoreMenuItem
-                            name="Andheri Branch"
-                            location="Andheri, Mumbai"
-                            gst="27AABCU9603R1ZY"
-                            onClick={() => setShowStoreMenu(false)}
-                        />
-                        <StoreMenuItem
-                            name="Thane Branch"
-                            location="Thane, Maharashtra"
-                            gst="27AABCU9603R1ZZ"
-                            onClick={() => setShowStoreMenu(false)}
-                        />
-                        <div className="border-t border-gray-100 mt-2 pt-2 px-4">
-                            <Link
-                                href="/multi-store/switch"
-                                className="text-sm text-emerald-600 hover:text-emerald-700 font-medium flex items-center gap-2"
-                                onClick={() => setShowStoreMenu(false)}
-                            >
-                                View all stores →
-                            </Link>
+                        <div className="px-4 py-8 text-center text-sm text-gray-500">
+                            No stores available
                         </div>
                     </div>
                 )}

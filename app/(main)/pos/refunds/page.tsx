@@ -69,10 +69,10 @@ export default function POSRefundsPage() {
     });
 
     const stats = {
-        pending: mockRefunds.filter(r => r.status === "pending").length,
-        approved: mockRefunds.filter(r => r.status === "approved").length,
-        completed: mockRefunds.filter(r => r.status === "completed").length,
-        totalAmount: mockRefunds.reduce((sum, r) => sum + r.refundAmount, 0)
+        pending: refunds.filter(r => r.status === "pending").length,
+        approved: refunds.filter(r => r.status === "approved").length,
+        completed: refunds.filter(r => r.status === "completed").length,
+        totalAmount: refunds.reduce((sum, r) => sum + r.refundAmount, 0)
     };
 
     return (

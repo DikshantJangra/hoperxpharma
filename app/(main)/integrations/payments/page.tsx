@@ -32,17 +32,8 @@ export default function PaymentsPage() {
         {/* Connected Providers Summary */}
         <div className="flex items-center gap-3 mb-4">
           <span className="text-sm font-medium text-gray-700">Connected:</span>
-          <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-medium">
-            Razorpay ✓
-          </span>
-          <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-medium">
-            UPI QR Active
-          </span>
-          <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-medium">
-            POS: HDFC
-          </span>
           <span className="px-2 py-1 bg-gray-100 text-gray-600 rounded text-xs">
-            Paytm (Not connected)
+            No providers connected
           </span>
         </div>
 
@@ -53,7 +44,7 @@ export default function PaymentsPage() {
               <FiDollarSign size={14} />
               Total Received
             </div>
-            <div className="text-2xl font-bold text-blue-900 mt-1">₹45,680</div>
+            <div className="text-2xl font-bold text-blue-900 mt-1">₹0</div>
             <div className="text-xs text-blue-600 mt-1">Today</div>
           </div>
           <div className="bg-green-50 border border-green-100 rounded-lg p-3">
@@ -61,32 +52,32 @@ export default function PaymentsPage() {
               <MdQrCode2 size={14} />
               UPI Collections
             </div>
-            <div className="text-2xl font-bold text-green-900 mt-1">₹32,450</div>
-            <div className="text-xs text-green-600 mt-1">71% of total</div>
+            <div className="text-2xl font-bold text-green-900 mt-1">₹0</div>
+            <div className="text-xs text-green-600 mt-1">-</div>
           </div>
           <div className="bg-purple-50 border border-purple-100 rounded-lg p-3">
             <div className="flex items-center gap-2 text-purple-700 text-xs font-medium">
               <FiCreditCard size={14} />
               Card Payments
             </div>
-            <div className="text-2xl font-bold text-purple-900 mt-1">₹13,230</div>
-            <div className="text-xs text-purple-600 mt-1">29% of total</div>
+            <div className="text-2xl font-bold text-purple-900 mt-1">₹0</div>
+            <div className="text-xs text-purple-600 mt-1">-</div>
           </div>
           <div className="bg-orange-50 border border-orange-100 rounded-lg p-3">
             <div className="flex items-center gap-2 text-orange-700 text-xs font-medium">
               <FiDollarSign size={14} />
               Refunds Issued
             </div>
-            <div className="text-2xl font-bold text-orange-900 mt-1">₹2,340</div>
-            <div className="text-xs text-orange-600 mt-1">3 transactions</div>
+            <div className="text-2xl font-bold text-orange-900 mt-1">₹0</div>
+            <div className="text-xs text-orange-600 mt-1">0 transactions</div>
           </div>
           <div className="bg-teal-50 border border-teal-100 rounded-lg p-3">
             <div className="flex items-center gap-2 text-teal-700 text-xs font-medium">
               <FiCheckCircle size={14} />
               Settlement
             </div>
-            <div className="text-2xl font-bold text-teal-900 mt-1">T+1</div>
-            <div className="text-xs text-teal-600 mt-1">Next: Tomorrow</div>
+            <div className="text-2xl font-bold text-teal-900 mt-1">-</div>
+            <div className="text-xs text-teal-600 mt-1">-</div>
           </div>
         </div>
       </div>

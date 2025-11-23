@@ -221,11 +221,8 @@ export default function OnHoldPrescriptionsPage() {
                                     </div>
                                 </div>
                             );
-                        })}
-                    </div>
-
-                    {/* Empty State */}
-                    {prescriptions.length === 0 && (
+                        })
+                    ) : (
                         <div className="text-center py-16">
                             <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
                                 <FiPauseCircle className="h-8 w-8 text-green-600" />

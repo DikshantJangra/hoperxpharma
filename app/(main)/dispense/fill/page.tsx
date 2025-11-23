@@ -81,40 +81,46 @@ export default function FillPage() {
                         <div className="bg-white border border-[#e2e8f0] rounded-xl p-6">
                             <h2 className="text-lg font-semibold text-[#0f172a] mb-4">Available Batches</h2>
                             <div className="space-y-3">
-                                {batches.length > 0 ? batches.map((batch) => (
-                                    <label
-                                        key={batch.id}
-                                        className={`block p-4 border-2 rounded-lg cursor-pointer transition-all ${selectedBatch === batch.id
-                                                ? "border-[#0ea5a3] bg-emerald-50"
-                                                : "border-[#e2e8f0] hover:border-[#cbd5e1]"
+                                {batches.length > 0 ? (
+                                    batches.map((batch) => (
+                                        <label
+                                            key={batch.id}
+                                            className={`block p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                                                selectedBatch === batch.id
+                                                    ? "border-[#0ea5a3] bg-emerald-50"
+                                                    : "border-[#e2e8f0] hover:border-[#cbd5e1]"
                                             }`}
-                                    >
-                                        <input
-                                            type="radio"
-                                            name="batch"
-                                            value={batch.id}
-                                            checked={selectedBatch === batch.id}
-                                            onChange={(e) => setSelectedBatch(e.target.value)}
-                                            className="sr-only"
-                                        />
-                                        <div className="space-y-2">
-                                            <div className="flex items-center justify-between">
-                                                <span className="font-medium text-[#0f172a]">{batch.manufacturer}</span>
-                                                <span className={`px-2 py-1 rounded text-xs font-medium ${new Date(batch.expiry) < new Date(Date.now() + 90 * 24 * 60 * 60 * 1000)
-                                                        ? "bg-red-100 text-red-700"
-                                                        : "bg-green-100 text-green-700"
-                                                    }`}>
-                                                    Exp: {batch.expiry}
-                                                </span>
+                                        >
+                                            <input
+                                                type="radio"
+                                                name="batch"
+                                                value={batch.id}
+                                                checked={selectedBatch === batch.id}
+                                                onChange={(e) => setSelectedBatch(e.target.value)}
+                                                className="sr-only"
+                                            />
+                                            <div className="space-y-2">
+                                                <div className="flex items-center justify-between">
+                                                    <span className="font-medium text-[#0f172a]">{batch.manufacturer}</span>
+                                                    <span
+                                                        className={`px-2 py-1 rounded text-xs font-medium ${
+                                                            new Date(batch.expiry) < new Date(Date.now() + 90 * 24 * 60 * 60 * 1000)
+                                                                ? "bg-red-100 text-red-700"
+                                                                : "bg-green-100 text-green-700"
+                                                        }`}
+                                                    >
+                                                        Exp: {batch.expiry}
+                                                    </span>
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-2 text-sm text-[#64748b]">
+                                                    <div>NDC: {batch.ndc}</div>
+                                                    <div>Lot: {batch.lot}</div>
+                                                    <div className="col-span-2">Stock: {batch.stock} tablets</div>
+                                                </div>
                                             </div>
-                                            <div className="grid grid-cols-2 gap-2 text-sm text-[#64748b]">
-                                                <div>NDC: {batch.ndc}</div>
-                                                <div>Lot: {batch.lot}</div>
-                                                <div className="col-span-2">Stock: {batch.stock} tablets</div>
-                                            </div>
-                                        </div>
-                                    </label>
-                                ))) : (
+                                        </label>
+                                    ))
+                                ) : (
                                     <div className="text-center py-6 text-gray-500">No batches available</div>
                                 )}
                             </div>
@@ -151,8 +157,9 @@ export default function FillPage() {
 
                             <div className="w-full bg-gray-200 rounded-full h-3 mb-4">
                                 <div
-                                    className={`h-3 rounded-full transition-all ${isComplete ? "bg-green-600" : "bg-[#0ea5a3]"
-                                        }`}
+                                    className={`h-3 rounded-full transition-all ${
+                                        isComplete ? "bg-green-600" : "bg-[#0ea5a3]"
+                                    }`}
                                     style={{ width: `${Math.min((count / targetQty) * 100, 100)}%` }}
                                 ></div>
                             </div>
@@ -166,10 +173,11 @@ export default function FillPage() {
 
                         <button
                             disabled={!isComplete}
-                            className={`w-full px-6 py-3 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 ${isComplete
+                            className={`w-full px-6 py-3 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 ${
+                                isComplete
                                     ? "bg-[#0ea5a3] text-white hover:bg-[#0d9391]"
                                     : "bg-gray-200 text-gray-400 cursor-not-allowed"
-                                }`}
+                            }`}
                         >
                             Complete Fill & Move to Label
                             <FiArrowRight className="w-5 h-5" />

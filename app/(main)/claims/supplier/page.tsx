@@ -3,12 +3,7 @@
 import { useState } from "react";
 import { FiSearch, FiPackage, FiCheckCircle, FiClock, FiDollarSign, FiAlertCircle, FiUpload } from "react-icons/fi";
 
-const mockClaims = [
-    { id: "SUP001", supplierName: "MedSupply Co.", poNumber: "PO-2024-101", claimDate: "2024-11-20", issueType: "Damaged in Transit", productName: "Atorvastatin 10mg", ndc: "00093-0058-01", lotNumber: "LOT12345", expiryDate: "2025-12-31", quantity: 50, unitCost: 10, totalAmount: 500, rmaNumber: "RMA-2024-501", rmaIssueDate: "2024-11-21", creditNoteNumber: null, creditAmount: 0, status: "rma-issued", daysOpen: 2 },
-    { id: "SUP002", supplierName: "PharmaDist Ltd.", poNumber: "PO-2024-102", claimDate: "2024-11-19", issueType: "Expired on Arrival", productName: "Metformin 500mg", ndc: "00093-0059-02", lotNumber: "LOT12346", expiryDate: "2024-11-15", quantity: 100, unitCost: 5, totalAmount: 500, rmaNumber: null, rmaIssueDate: null, creditNoteNumber: null, creditAmount: 0, status: "pending", daysOpen: 3 },
-    { id: "SUP003", supplierName: "HealthCare Supplies", poNumber: "PO-2024-103", claimDate: "2024-11-15", issueType: "Wrong Item Shipped", productName: "Lisinopril 5mg (Received 10mg)", ndc: "00093-0060-03", lotNumber: "LOT12347", expiryDate: "2026-06-30", quantity: 30, unitCost: 15, totalAmount: 450, rmaNumber: "RMA-2024-502", rmaIssueDate: "2024-11-16", creditNoteNumber: "CN-2024-301", creditAmount: 450, status: "credit-received", daysOpen: 7 },
-    { id: "SUP004", supplierName: "MedSupply Co.", poNumber: "PO-2024-104", claimDate: "2024-11-21", issueType: "Short Shipment", productName: "Warfarin 5mg", ndc: "00093-0061-04", lotNumber: "LOT12348", expiryDate: "2025-09-30", quantity: 20, unitCost: 12, totalAmount: 240, rmaNumber: "RMA-2024-503", rmaIssueDate: "2024-11-22", creditNoteNumber: null, creditAmount: 0, status: "returned", daysOpen: 1 }
-];
+const mockClaims: any[] = [];
 
 export default function SupplierClaimsPage() {
     const [selectedId, setSelectedId] = useState("SUP001");
@@ -29,7 +24,7 @@ export default function SupplierClaimsPage() {
         active: mockClaims.filter(c => c.status !== "credit-received").length,
         pendingRMA: mockClaims.filter(c => c.status === "pending").length,
         creditReceived: mockClaims.filter(c => c.status === "credit-received").reduce((sum, c) => sum + c.creditAmount, 0),
-        avgResolution: 8
+        avgResolution: 0
     };
 
     return (
