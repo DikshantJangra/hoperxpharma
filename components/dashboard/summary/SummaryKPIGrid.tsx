@@ -19,38 +19,42 @@ export default function SummaryKPIGrid() {
             try {
                 const { salesApi } = await import('@/lib/api/sales');
                 // Fetch stats for current month
-                const stats = await salesApi.getStats('monthly');
+                const response = await salesApi.getStats('monthly');
+                // Backend returns { success, statusCode, message, data }
+                const stats = response?.data;
 
-                setKpis([
-                    {
-                        ...kpiSkeletons[0],
-                        value: `₹${stats.totalRevenue.toLocaleString('en-IN')}`,
-                        change: `${stats.revenueGrowth > 0 ? '+' : ''}${stats.revenueGrowth}%`,
-                        trend: stats.revenueGrowth >= 0 ? "up" : "down",
-                        subline: "vs. previous month"
-                    },
-                    {
-                        ...kpiSkeletons[1],
-                        value: `₹${stats.netProfit.toLocaleString('en-IN')}`,
-                        change: "+8.2%", // Placeholder until backend provides profit growth
-                        trend: "up",
-                        subline: "Profit margin: 32.2%"
-                    },
-                    {
-                        ...kpiSkeletons[2],
-                        value: stats.totalOrders.toString(),
-                        change: `${stats.ordersGrowth > 0 ? '+' : ''}${stats.ordersGrowth}%`,
-                        trend: stats.ordersGrowth >= 0 ? "up" : "down",
-                        subline: `Avg. order value: ₹${Math.round(stats.averageOrderValue)}`
-                    },
-                    {
-                        ...kpiSkeletons[3],
-                        value: "1,204", // Placeholder - need patient stats API
-                        change: "+50",
-                        trend: "up",
-                        subline: "32 new this month"
-                    },
-                ]);
+                if (stats) {
+                    setKpis([
+                        {
+                            ...kpiSkeletons[0],
+                            value: `₹${stats.totalRevenue.toLocaleString('en-IN')}`,
+                            change: `${stats.revenueGrowth > 0 ? '+' : ''}${stats.revenueGrowth}%`,
+                            trend: stats.revenueGrowth >= 0 ? "up" : "down",
+                            subline: "vs. previous month"
+                        },
+                        {
+                            ...kpiSkeletons[1],
+                            value: `₹${stats.netProfit.toLocaleString('en-IN')}`,
+                            change: "+8.2%", // Placeholder until backend provides profit growth
+                            trend: "up",
+                            subline: "Profit margin: 32.2%"
+                        },
+                        {
+                            ...kpiSkeletons[2],
+                            value: stats.totalOrders.toString(),
+                            change: `${stats.ordersGrowth > 0 ? '+' : ''}${stats.ordersGrowth}%`,
+                            trend: stats.ordersGrowth >= 0 ? "up" : "down",
+                            subline: `Avg. order value: ₹${Math.round(stats.averageOrderValue)}`
+                        },
+                        {
+                            ...kpiSkeletons[3],
+                            value: "1,204", // Placeholder - need patient stats API
+                            change: "+50",
+                            trend: "up",
+                            subline: "32 new this month"
+                        },
+                    ]);
+                }
             } catch (error) {
                 console.error('Failed to fetch sales stats:', error);
                 setKpis([]);

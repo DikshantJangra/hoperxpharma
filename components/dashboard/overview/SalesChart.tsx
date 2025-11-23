@@ -12,9 +12,11 @@ export default function SalesChart() {
             setIsLoading(true);
             try {
                 const { salesApi } = await import('@/lib/api/sales');
-                const data = await salesApi.getStats(period === 'week' ? 'weekly' : 'monthly');
+                const response = await salesApi.getStats(period === 'week' ? 'weekly' : 'monthly');
+                // Backend returns { success, statusCode, message, data }
+                const data = response?.data || null;
                 setStats(data);
-                setHasData(true);
+                setHasData(!!data);
             } catch (error) {
                 console.error('Failed to fetch sales chart data:', error);
                 setHasData(false);

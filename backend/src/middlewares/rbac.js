@@ -38,10 +38,18 @@ const requireStoreAccess = (req, res, next) => {
         return next(ApiError.unauthorized(MESSAGES.AUTH.UNAUTHORIZED));
     }
 
-    const storeId = req.params.storeId || req.body.storeId || req.query.storeId;
+    let storeId = req.params.storeId || req.body.storeId || req.query.storeId;
 
+    // If no storeId is provided, use the user's primary store
     if (!storeId) {
-        return next(ApiError.badRequest('Store ID is required'));
+        // Check if user has stores array
+        if (!req.user.stores || !Array.isArray(req.user.stores) || req.user.stores.length === 0) {
+            return next(ApiError.forbidden('You do not have access to any stores. Please complete onboarding first.'));
+        }
+
+        // Use primary store or first store
+        const primaryStore = req.user.stores.find(s => s.isPrimary) || req.user.stores[0];
+        storeId = primaryStore.id;
     }
 
     // Admin has access to all stores

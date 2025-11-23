@@ -123,6 +123,7 @@ class UserRepository {
                         store: {
                             include: {
                                 licenses: true,
+                                operatingHours: true,
                                 subscription: {
                                     include: {
                                         plan: true,

@@ -6,6 +6,7 @@ const salesRoutes = require('./sales.routes');
 const purchaseOrderRoutes = require('./purchaseOrders.routes');
 const onboardingRoutes = require('./onboarding.routes');
 const storeRoutes = require('./stores.routes');
+const userRoutes = require('./user.routes');
 
 const router = express.Router();
 
@@ -15,6 +16,7 @@ const router = express.Router();
 router.use('/auth', authRoutes);
 router.use('/onboarding', onboardingRoutes);
 router.use('/stores', storeRoutes);
+router.use('/users', userRoutes);
 router.use('/inventory', inventoryRoutes);
 router.use('/patients', patientRoutes);
 router.use('/sales', salesRoutes);

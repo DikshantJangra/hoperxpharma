@@ -1,10 +1,12 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { authApi, UserProfile } from '@/lib/api/auth';
+import { authApi } from '@/lib/api/auth';
+import { userApi, UserProfile, Store, getPrimaryStore } from '@/lib/api/user';
 import { tokenManager } from '@/lib/api/client';
 
 interface AuthState {
     user: UserProfile | null;
+    primaryStore: Store | null;
     isAuthenticated: boolean;
     isLoading: boolean;
     hasStore: boolean;
@@ -12,12 +14,14 @@ interface AuthState {
     logout: () => Promise<void>;
     checkAuth: () => Promise<void>;
     updateUser: (user: UserProfile) => void;
+    refreshUserData: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>()(
     persist(
         (set, get) => ({
             user: null,
+            primaryStore: null,
             isAuthenticated: false,
             isLoading: true,
             hasStore: false,
@@ -27,12 +31,14 @@ export const useAuthStore = create<AuthState>()(
                 try {
                     const response = await authApi.login(data);
                     if (response.success && response.data) {
-                        const user = response.data.user as unknown as UserProfile;
-                        // Check if user has any stores
-                        const hasStore = user.storeUsers && user.storeUsers.length > 0;
+                        // After login, fetch complete user profile
+                        const userProfile = await userApi.getUserProfile();
+                        const primaryStore = getPrimaryStore(userProfile);
+                        const hasStore = !!(userProfile.storeUsers && userProfile.storeUsers.length > 0);
 
                         set({
-                            user,
+                            user: userProfile,
+                            primaryStore,
                             isAuthenticated: true,
                             hasStore
                         });
@@ -52,31 +58,63 @@ export const useAuthStore = create<AuthState>()(
                     console.error('Logout error:', error);
                 } finally {
                     tokenManager.clearTokens();
-                    set({ user: null, isAuthenticated: false, hasStore: false, isLoading: false });
+                    set({
+                        user: null,
+                        primaryStore: null,
+                        isAuthenticated: false,
+                        hasStore: false,
+                        isLoading: false
+                    });
                 }
             },
 
             checkAuth: async () => {
                 const token = tokenManager.getAccessToken();
                 if (!token) {
-                    set({ isAuthenticated: false, user: null, isLoading: false });
+                    set({ isAuthenticated: false, user: null, primaryStore: null, isLoading: false });
                     return;
                 }
 
                 try {
-                    const user = await authApi.getProfile();
-                    const hasStore = user.storeUsers && user.storeUsers.length > 0;
-                    set({ user, isAuthenticated: true, hasStore, isLoading: false });
+                    // Fetch complete user profile with store data
+                    const userProfile = await userApi.getUserProfile();
+                    const primaryStore = getPrimaryStore(userProfile);
+                    const hasStore = !!(userProfile.storeUsers && userProfile.storeUsers.length > 0);
+
+                    set({
+                        user: userProfile,
+                        primaryStore,
+                        isAuthenticated: true,
+                        hasStore,
+                        isLoading: false
+                    });
                 } catch (error) {
                     // If profile fetch fails, token might be invalid
                     tokenManager.clearTokens();
-                    set({ user: null, isAuthenticated: false, isLoading: false });
+                    set({ user: null, primaryStore: null, isAuthenticated: false, isLoading: false });
                 }
             },
 
             updateUser: (user) => {
-                const hasStore = user.storeUsers && user.storeUsers.length > 0;
-                set({ user, hasStore });
+                const primaryStore = getPrimaryStore(user);
+                const hasStore = !!(user.storeUsers && user.storeUsers.length > 0);
+                set({ user, primaryStore, hasStore });
+            },
+
+            refreshUserData: async () => {
+                try {
+                    const userProfile = await userApi.getUserProfile();
+                    const primaryStore = getPrimaryStore(userProfile);
+                    const hasStore = !!(userProfile.storeUsers && userProfile.storeUsers.length > 0);
+
+                    set({
+                        user: userProfile,
+                        primaryStore,
+                        hasStore
+                    });
+                } catch (error) {
+                    console.error('Failed to refresh user data:', error);
+                }
             },
         }),
         {
@@ -84,6 +122,7 @@ export const useAuthStore = create<AuthState>()(
             storage: createJSONStorage(() => localStorage),
             partialize: (state) => ({
                 user: state.user,
+                primaryStore: state.primaryStore,
                 isAuthenticated: state.isAuthenticated,
                 hasStore: state.hasStore
             }),
