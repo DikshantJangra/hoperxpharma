@@ -9,6 +9,7 @@ const requestLogger = require('./middlewares/requestLogger');
 const { generalLimiter } = require('./middlewares/rateLimiter');
 const { errorHandler, notFoundHandler } = require('./middlewares/errorHandler');
 const authRoutes = require('./routes/v1/auth.routes');
+const userRoutes = require('./routes/v1/user.routes');
 const storeRoutes = require('./routes/v1/stores.routes');
 const inventoryRoutes = require('./routes/v1/inventory.routes');
 const patientRoutes = require('./routes/v1/patients.routes');
@@ -62,6 +63,7 @@ app.use('/api', generalLimiter);
 
 // API Routes
 app.use('/api/v1/auth', authRoutes);
+app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/stores', storeRoutes);
 app.use('/api/v1/inventory', inventoryRoutes);
 app.use('/api/v1/patients', patientRoutes);
