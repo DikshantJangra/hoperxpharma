@@ -15,10 +15,8 @@ class OnboardingRepository {
                 users: {
                     some: {
                         userId,
-                        deletedAt: null,
                     },
                 },
-                deletedAt: null,
             },
             include: {
                 licenses: true,

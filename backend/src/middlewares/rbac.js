@@ -1,5 +1,5 @@
 const ApiError = require('../utils/ApiError');
-const { USER_ROLES, MESSAGES } = require('../utils/constants');
+const { USER_ROLES, MESSAGES } = require('../constants');
 
 /**
  * Role-based access control middleware
@@ -51,7 +51,7 @@ const requireStoreAccess = (req, res, next) => {
     }
 
     // Check if user has stores array
-    if (!req.user.stores || !Array.isArray(req.user.stores)) {
+    if (!req.user.stores || !Array.isArray(req.user.stores) || req.user.stores.length === 0) {
         return next(ApiError.forbidden('You do not have access to any stores. Please complete onboarding first.'));
     }
 

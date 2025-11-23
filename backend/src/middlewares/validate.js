@@ -14,15 +14,8 @@ const validate = (schema, source = 'body') => {
             next();
         } catch (error) {
             if (error instanceof z.ZodError) {
-                // Handle both 'errors' and 'issues' properties and ensure it's an array
-                const zodErrors = error.errors || error.issues || [];
-
-                // Ensure zodErrors is an array before mapping
-                if (!Array.isArray(zodErrors)) {
-                    return next(
-                        ApiError.unprocessableEntity('Validation failed', [])
-                    );
-                }
+                // Zod errors are in the 'issues' property
+                const zodErrors = error.issues || [];
 
                 const formattedErrors = zodErrors.map((err) => ({
                     field: err.path ? err.path.join('.') : 'unknown',

@@ -1,5 +1,5 @@
 const rateLimit = require('express-rate-limit');
-const { RATE_LIMIT } = require('../utils/constants');
+const { RATE_LIMIT } = require('../constants');
 const ApiError = require('../utils/ApiError');
 
 /**

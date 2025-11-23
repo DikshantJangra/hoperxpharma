@@ -4,4 +4,5 @@ module.exports = {
     ...require('./pagination.js'),
     ...require('./message.js'),
     ...require('./routes.js'),
+    ...require('./rateLimit.js'),
 };

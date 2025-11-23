@@ -1,7 +1,7 @@
 const authService = require('../../services/auth/authService');
 const asyncHandler = require('../../middlewares/asyncHandler');
 const ApiResponse = require('../../utils/ApiResponse');
-const { MESSAGES } = require('../../utils/constants');
+const { MESSAGES } = require('../../constants');
 
 /**
  * @swagger

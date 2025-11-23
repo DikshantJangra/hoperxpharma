@@ -78,8 +78,8 @@ class SubscriptionRepository {
      */
     async getUsage(storeId) {
         const [patients, prescriptions, storage] = await Promise.all([
-            prisma.patient.count({ where: { storeId, deletedAt: null } }),
-            prisma.prescription.count({ where: { storeId, deletedAt: null } }),
+            prisma.patient.count({ where: { storeId } }),
+            prisma.prescription.count({ where: { storeId } }),
             // Storage calculation would need actual file sizes
             Promise.resolve(0),
         ]);

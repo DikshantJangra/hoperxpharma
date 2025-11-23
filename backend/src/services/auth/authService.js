@@ -2,7 +2,7 @@ const bcrypt = require('bcrypt');
 const userRepository = require('../../repositories/userRepository');
 const { generateTokens, verifyRefreshToken } = require('./tokenService');
 const ApiError = require('../../utils/ApiError');
-const { MESSAGES } = require('../../utils/constants');
+const { MESSAGES } = require('../../constants');
 const logger = require('../../config/logger');
 
 /**

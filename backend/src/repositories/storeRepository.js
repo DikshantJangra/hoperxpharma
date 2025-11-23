@@ -15,10 +15,8 @@ class StoreRepository {
                 users: {
                     some: {
                         userId,
-                        deletedAt: null,
                     },
                 },
-                deletedAt: null,
             },
             include: {
                 licenses: true,
@@ -35,14 +33,13 @@ class StoreRepository {
      */
     async findById(id) {
         return await prisma.store.findUnique({
-            where: { id, deletedAt: null },
+            where: { id },
             include: {
                 licenses: true,
                 operatingHours: true,
                 devices: true,
                 subscription: true,
                 users: {
-                    where: { deletedAt: null },
                     include: {
                         user: {
                             select: {
@@ -160,10 +157,10 @@ class StoreRepository {
      */
     async getStoreStats(storeId) {
         const [patients, sales, inventory, pos] = await Promise.all([
-            prisma.patient.count({ where: { storeId, deletedAt: null } }),
-            prisma.sale.count({ where: { storeId, deletedAt: null } }),
-            prisma.inventoryBatch.count({ where: { storeId, deletedAt: null } }),
-            prisma.purchaseOrder.count({ where: { storeId, deletedAt: null } }),
+            prisma.patient.count({ where: { storeId } }),
+            prisma.sale.count({ where: { storeId } }),
+            prisma.inventoryBatch.count({ where: { storeId } }),
+            prisma.purchaseOrder.count({ where: { storeId } }),
         ]);
 
         return {
@@ -182,7 +179,6 @@ class StoreRepository {
             where: {
                 userId,
                 storeId,
-                deletedAt: null,
             },
         });
 

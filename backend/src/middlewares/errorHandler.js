@@ -1,6 +1,6 @@
 const logger = require('../config/logger');
 const ApiError = require('../utils/ApiError');
-const { HTTP_STATUS } = require('../utils/constants');
+const { HTTP_STATUS } = require('../constants');
 
 /**
  * Global error handling middleware
