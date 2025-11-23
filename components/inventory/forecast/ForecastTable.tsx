@@ -2,7 +2,13 @@
 import { FiTrendingUp, FiAlertCircle, FiCheckCircle, FiEdit2, FiShoppingCart } from 'react-icons/fi';
 import { BsLightningChargeFill } from 'react-icons/bs';
 
-export default function ForecastTable() {
+interface ForecastTableProps {
+  forecastWindow: '7' | '14' | '30' | '60' | '90';
+  onSelectSKU: (sku: any) => void;
+  selectedSKU: any;
+}
+
+export default function ForecastTable({ forecastWindow, onSelectSKU, selectedSKU }: ForecastTableProps) {
   const loading = true; // Default to loading state
 
   return (

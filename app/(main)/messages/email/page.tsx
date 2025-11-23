@@ -74,11 +74,11 @@ export default function EmailPage() {
         <LeftNav activeView={activeView} onViewChange={setActiveView} />
         
         <div className="flex-1 overflow-hidden">
-          {activeView === 'composer' && <Composer />}
-          {activeView === 'templates' && <Templates />}
-          {activeView === 'campaigns' && <Campaigns />}
-          {activeView === 'inbox' && <Inbox />}
-          {activeView === 'logs' && <Logs />}
+          {activeView === 'composer' && <Composer isLoading={isLoading} />}
+          {activeView === 'templates' && <Templates isLoading={isLoading} />}
+          {activeView === 'campaigns' && <Campaigns isLoading={isLoading} />}
+          {activeView === 'inbox' && <Inbox isLoading={isLoading} />}
+          {activeView === 'logs' && <Logs isLoading={isLoading} />}
         </div>
       </div>
     </div>

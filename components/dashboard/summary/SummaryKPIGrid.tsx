@@ -14,20 +14,53 @@ export default function SummaryKPIGrid() {
     const [isLoading, setIsLoading] = useState(true)
 
     useEffect(() => {
-        const timer = setTimeout(() => {
-            // When data is fetched, it would look something like this:
-            // setKpis([
-            //     { ...kpiSkeletons[0], value: "₹1,42,345", change: "+12.5%", trend: "up", subline: "vs. previous 30 days" },
-            //     { ...kpiSkeletons[1], value: "₹45,820", change: "+8.2%", trend: "up", subline: "Profit margin: 32.2%" },
-            //     { ...kpiSkeletons[2], value: "892", change: "-1.4%", trend: "down", subline: "Avg. order value: ₹159.5" },
-            //     { ...kpiSkeletons[3], value: "1,204", change: "+50", trend: "up", subline: "32 new this month" },
-            // ])
-            // For now, we set empty state
-            setKpis([])
-            setIsLoading(false)
-        }, 1500)
-        return () => clearTimeout(timer)
-    }, [])
+        const fetchStats = async () => {
+            setIsLoading(true);
+            try {
+                const { salesApi } = await import('@/lib/api/sales');
+                // Fetch stats for current month
+                const stats = await salesApi.getStats('monthly');
+
+                setKpis([
+                    {
+                        ...kpiSkeletons[0],
+                        value: `₹${stats.totalRevenue.toLocaleString('en-IN')}`,
+                        change: `${stats.revenueGrowth > 0 ? '+' : ''}${stats.revenueGrowth}%`,
+                        trend: stats.revenueGrowth >= 0 ? "up" : "down",
+                        subline: "vs. previous month"
+                    },
+                    {
+                        ...kpiSkeletons[1],
+                        value: `₹${stats.netProfit.toLocaleString('en-IN')}`,
+                        change: "+8.2%", // Placeholder until backend provides profit growth
+                        trend: "up",
+                        subline: "Profit margin: 32.2%"
+                    },
+                    {
+                        ...kpiSkeletons[2],
+                        value: stats.totalOrders.toString(),
+                        change: `${stats.ordersGrowth > 0 ? '+' : ''}${stats.ordersGrowth}%`,
+                        trend: stats.ordersGrowth >= 0 ? "up" : "down",
+                        subline: `Avg. order value: ₹${Math.round(stats.averageOrderValue)}`
+                    },
+                    {
+                        ...kpiSkeletons[3],
+                        value: "1,204", // Placeholder - need patient stats API
+                        change: "+50",
+                        trend: "up",
+                        subline: "32 new this month"
+                    },
+                ]);
+            } catch (error) {
+                console.error('Failed to fetch sales stats:', error);
+                setKpis([]);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchStats();
+    }, []);
 
     if (isLoading) {
         return (
@@ -55,12 +88,12 @@ export default function SummaryKPIGrid() {
         return (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                 {kpiSkeletons.map((kpi, i) => (
-                     <div key={i} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+                    <div key={i} className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
                         <div className="flex items-start justify-between mb-4">
                             <div className={`p-2 rounded-lg bg-${kpi.color}-50 text-${kpi.color}-600`}>
                                 <kpi.icon size={20} />
                             </div>
-                             <span className={`text-xs font-medium px-2 py-1 rounded-full bg-gray-100 text-gray-500`}>
+                            <span className={`text-xs font-medium px-2 py-1 rounded-full bg-gray-100 text-gray-500`}>
                                 --%
                             </span>
                         </div>

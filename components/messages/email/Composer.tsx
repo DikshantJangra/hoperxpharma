@@ -3,7 +3,11 @@
 import { useState } from 'react';
 import { FiSend, FiPaperclip, FiUser, FiCheckCircle, FiAlertTriangle, FiEye } from 'react-icons/fi';
 
-export default function Composer() {
+interface ComposerProps {
+  isLoading: boolean;
+}
+
+export default function Composer({ isLoading }: ComposerProps = { isLoading: false }) {
   const [to, setTo] = useState('');
   const [subject, setSubject] = useState('');
   const [body, setBody] = useState('');

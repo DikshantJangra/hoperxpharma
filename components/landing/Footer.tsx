@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { FaFacebook, FaTwitter, FaLinkedin, FaInstagram } from 'react-icons/fa';
+import Logo from '@/components/ui/Logo';
 
 const Footer = () => {
     return (
@@ -8,8 +9,8 @@ const Footer = () => {
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
                     {/* Brand */}
                     <div className="col-span-1 md:col-span-1">
-                        <Link href="/" className="text-2xl font-bold text-white tracking-tight mb-4 block">
-                            HopeRx Pharma
+                        <Link href="/" className="mb-4 block">
+                            <Logo size="md" textClassName="text-white" />
                         </Link>
                         <p className="text-slate-400 text-sm leading-relaxed mb-6">
                             The AI-powered operating system for modern independent pharmacies. Automate, optimize, and grow.

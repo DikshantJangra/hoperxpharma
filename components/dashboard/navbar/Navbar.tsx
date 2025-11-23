@@ -39,20 +39,40 @@ export default function Navbar({ onToggleSidebar, sidebarOpen }: NavbarProps) {
 }
 
 function LeftSection({ onToggleSidebar, showStoreMenu, setShowStoreMenu, sidebarOpen }: any) {
-    const storeMenuRef = useRef<HTMLDivElement>(null)
+    const storeMenuRef = useRef<HTMLDivElement>(null);
+    const [stores, setStores] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    // Fetch all stores for the user
+    useEffect(() => {
+        const fetchStores = async () => {
+            try {
+                const { storeApi } = await import('@/lib/api/store');
+                const storesData = await storeApi.getMyStores();
+                setStores(storesData);
+            } catch (error) {
+                console.error('Failed to fetch stores:', error);
+            } finally {
+                setLoading(false);
+            }
+        };
+        fetchStores();
+    }, []);
+
+    // Determine primary store (first or isPrimary flag)
+    const primaryStore = stores.find((s) => s.isPrimary) || stores[0] || null;
 
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
             if (storeMenuRef.current && !storeMenuRef.current.contains(event.target as Node)) {
-                setShowStoreMenu(false)
+                setShowStoreMenu(false);
             }
         }
-
         if (showStoreMenu) {
-            document.addEventListener('mousedown', handleClickOutside)
-            return () => document.removeEventListener('mousedown', handleClickOutside)
+            document.addEventListener('mousedown', handleClickOutside);
+            return () => document.removeEventListener('mousedown', handleClickOutside);
         }
-    }, [showStoreMenu, setShowStoreMenu])
+    }, [showStoreMenu, setShowStoreMenu]);
 
     return (
         <div className="flex items-center gap-4">
@@ -71,8 +91,12 @@ function LeftSection({ onToggleSidebar, showStoreMenu, setShowStoreMenu, sidebar
                 >
                     <MdStore size={18} className="text-emerald-600" />
                     <div className="text-left">
-                        <p className="text-sm font-medium text-gray-800">Loading...</p>
-                        <p className="text-xs text-gray-500">-</p>
+                        <p className="text-sm font-medium text-gray-800">
+                            {loading ? 'Loading...' : (primaryStore?.name || primaryStore?.displayName || 'My Store')}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                            {loading ? '-' : (primaryStore?.city ? `${primaryStore.city}, ${primaryStore.state}` : '-')}
+                        </p>
                     </div>
                     <FiChevronDown size={16} className={`text-gray-400 transition-transform ${showStoreMenu ? 'rotate-180' : ''}`} />
                 </button>
@@ -80,16 +104,32 @@ function LeftSection({ onToggleSidebar, showStoreMenu, setShowStoreMenu, sidebar
                 {showStoreMenu && (
                     <div className="absolute left-0 top-14 w-80 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50">
                         <div className="px-4 py-2 border-b border-gray-100">
-                            <h3 className="text-sm font-semibold text-gray-800">Switch Store</h3>
+                            <h3 className="text-sm font-semibold text-gray-800">Your Stores</h3>
                         </div>
-                        <div className="px-4 py-8 text-center text-sm text-gray-500">
-                            No stores available
-                        </div>
+                        {loading ? (
+                            <div className="px-4 py-8 text-center text-sm text-gray-500">Loading stores...</div>
+                        ) : stores.length > 0 ? (
+                            stores.map((s) => (
+                                <StoreMenuItem
+                                    key={s.id}
+                                    name={s.name || s.displayName}
+                                    location={`${s.city || ''}, ${s.state || ''}`}
+                                    gst={s.gstin}
+                                    active={primaryStore && s.id === primaryStore.id}
+                                    onClick={() => {
+                                        // Future: switch store logic could go here
+                                        setShowStoreMenu(false);
+                                    }}
+                                />
+                            ))
+                        ) : (
+                            <div className="px-4 py-8 text-center text-sm text-gray-500">No stores available</div>
+                        )}
                     </div>
                 )}
             </div>
         </div>
-    )
+    );
 }
 
 function StoreMenuItem({ name, location, gst, active, onClick }: any) {
@@ -325,20 +365,59 @@ function NotificationItem({ type, title, desc, time }: any) {
 }
 
 function UserMenu({ show, setShow }: any) {
-    const userMenuRef = useRef<HTMLDivElement>(null)
+    const userMenuRef = useRef<HTMLDivElement>(null);
+    const [user, setUser] = useState<any>(null);
+    const router = useRouter();
 
+    // Fetch user info on mount
+    useEffect(() => {
+        const fetchUser = async () => {
+            try {
+                const { useAuthStore } = await import('@/lib/store/auth-store');
+                const authUser = useAuthStore.getState().user;
+                setUser(authUser);
+            } catch (error) {
+                console.error('Failed to fetch user:', error);
+            }
+        };
+        fetchUser();
+    }, []);
+
+    // Helper to get user initials
+    const getInitials = () => {
+        if (!user?.name) return '?';
+        const parts = user.name.split(' ');
+        if (parts.length >= 2) {
+            return parts[0][0] + parts[1][0];
+        }
+        return parts[0][0];
+    };
+
+    // Logout handler
+    const handleLogout = async () => {
+        setShow(false);
+        try {
+            const { useAuthStore } = await import('@/lib/store/auth-store');
+            const { logout } = useAuthStore.getState();
+            await logout();
+            router.push('/login');
+        } catch (e) {
+            console.error('Logout failed:', e);
+        }
+    };
+
+    // Close menu when clicking outside
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
             if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
-                setShow(false)
+                setShow(false);
             }
         }
-
         if (show) {
-            document.addEventListener('mousedown', handleClickOutside)
-            return () => document.removeEventListener('mousedown', handleClickOutside)
+            document.addEventListener('mousedown', handleClickOutside);
+            return () => document.removeEventListener('mousedown', handleClickOutside);
         }
-    }, [show, setShow])
+    }, [show, setShow]);
 
     return (
         <div className="relative ml-2" ref={userMenuRef}>
@@ -347,26 +426,27 @@ function UserMenu({ show, setShow }: any) {
                 className="flex items-center gap-2 p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
             >
                 <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-semibold text-sm">
-                    -
+                    {user ? getInitials() : '-'}
                 </div>
                 <FiChevronDown size={16} className={`text-gray-400 transition-transform ${show ? 'rotate-180' : ''}`} />
             </button>
             {show && (
                 <div className="absolute right-0 top-12 w-56 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50">
                     <div className="px-4 py-3 border-b border-gray-100">
-                        <p className="text-sm font-semibold text-gray-800">-</p>
-                        <p className="text-xs text-gray-500">-</p>
+                        <p className="text-sm font-semibold text-gray-800">{user?.firstName || 'User'}</p>
+                        <p className="text-xs text-gray-500">{user?.email || '-'}
+                        </p>
                     </div>
                     <UserMenuItem icon={<FiUser size={16} />} label="Profile" href="/profile" onClick={() => setShow(false)} />
                     <UserMenuItem icon={<FiSettings size={16} />} label="Settings" href="/settings" onClick={() => setShow(false)} />
                     <UserMenuItem icon={<FiHelpCircle size={16} />} label="Help & Support" href="/help/chat" onClick={() => setShow(false)} />
                     <div className="border-t border-gray-100 mt-2 pt-2">
-                        <UserMenuItem icon={<FiLogOut size={16} />} label="Logout" danger onClick={() => setShow(false)} />
+                        <UserMenuItem icon={<FiLogOut size={16} />} label="Logout" danger onClick={handleLogout} />
                     </div>
                 </div>
             )}
         </div>
-    )
+    );
 }
 
 function UserMenuItem({ icon, label, danger, href, onClick }: any) {

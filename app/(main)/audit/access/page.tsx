@@ -226,6 +226,7 @@ export default function AccessLogPage() {
           <AccessDetailDrawer
             eventId={selectedEvent}
             onClose={() => setSelectedEvent(null)}
+            isLoading={isLoading}
           />
         )}
       </div>

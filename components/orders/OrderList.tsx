@@ -97,12 +97,7 @@ export default function OrderList({ orders, loading = false, onView, onEdit, sho
                                         <td className="px-6 py-4 text-gray-600">{order.items}</td>
                                         <td className="px-6 py-4 font-medium text-gray-900">{formatCurrency(order.amount)}</td>
                                         <td className="px-6 py-4">
-                                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border ${order.status === 'completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
-                                                order.status === 'processing' ? 'bg-blue-50 text-blue-700 border-blue-100' :
-                                                    'bg-gray-50 text-gray-600 border-gray-100'
-                                                }`}>
-                                                {order.status}
-                                            </span>
+                                            <OrderStatusBadge status={order.status} />
                                         </td>
                                         {showActions && (
                                             <td className="px-6 py-4 text-right">

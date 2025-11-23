@@ -238,7 +238,7 @@ export default function POSRefundsPage() {
                                     Refund Items
                                 </h4>
                                 <div className="space-y-2">
-                                    {refund.items.map((item, idx) => (
+                                    {refund.items.map((item: any, idx: number) => (
                                         <div key={idx} className="flex items-center justify-between p-3 bg-white border border-[#e2e8f0] rounded-lg">
                                             <div className="flex-1">
                                                 <div className="font-medium text-[#0f172a]">{item.name}</div>

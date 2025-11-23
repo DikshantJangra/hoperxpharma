@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
+import { onboardingApi } from "@/lib/api/onboarding";
 
 export interface StoreIdentityData {
     pharmacyName: string;
@@ -125,8 +126,6 @@ interface OnboardingContextType {
 
 const OnboardingContext = createContext<OnboardingContextType | undefined>(undefined);
 
-const STORAGE_KEY = "hoperx_onboarding_state";
-
 const initialState: OnboardingState = {
     currentStep: 1,
     completedSteps: [],
@@ -176,25 +175,48 @@ const initialState: OnboardingState = {
 
 export function OnboardingProvider({ children }: { children: ReactNode }) {
     const [state, setState] = useState<OnboardingState>(initialState);
+    const [isLoading, setIsLoading] = useState(true);
 
-    // Load from localStorage on mount
+    // Load from API on mount
     useEffect(() => {
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) {
+        const loadProgress = async () => {
             try {
-                setState(JSON.parse(saved));
+                const progress = await onboardingApi.getProgress();
+                if (progress && progress.data) {
+                    setState(prev => ({
+                        ...prev,
+                        currentStep: progress.currentStep || 1,
+                        completedSteps: progress.completedSteps || [],
+                        data: { ...prev.data, ...progress.data },
+                        isComplete: progress.isComplete || false
+                    }));
+                }
             } catch (e) {
-                console.error("Failed to parse saved onboarding state", e);
+                console.error("Failed to load onboarding progress", e);
+            } finally {
+                setIsLoading(false);
             }
-        }
+        };
+        loadProgress();
     }, []);
 
-    // Save to localStorage on state change
+    // Save to API on state change (debounced)
     useEffect(() => {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    }, [state]);
+        if (isLoading) return; // Don't save initial empty state or while loading
 
-    const updateStoreIdentity = (data: Partial<StoreIdentityData>) => {
+        const timer = setTimeout(() => {
+            onboardingApi.saveProgress({
+                currentStep: state.currentStep,
+                completedSteps: state.completedSteps,
+                data: state.data,
+                isComplete: state.isComplete
+            }).catch(err => console.error("Failed to save progress", err));
+        }, 1000); // 1 second debounce
+
+        return () => clearTimeout(timer);
+    }, [state, isLoading]);
+
+    const updateStoreIdentity = useCallback((data: Partial<StoreIdentityData>) => {
         setState(prev => ({
             ...prev,
             data: {
@@ -202,9 +224,9 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
                 storeIdentity: { ...prev.data.storeIdentity, ...data }
             }
         }));
-    };
+    }, []);
 
-    const updateLicensing = (data: Partial<LicensingData>) => {
+    const updateLicensing = useCallback((data: Partial<LicensingData>) => {
         setState(prev => ({
             ...prev,
             data: {
@@ -212,9 +234,9 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
                 licensing: { ...prev.data.licensing, ...data }
             }
         }));
-    };
+    }, []);
 
-    const updateTimings = (data: Partial<TimingsData>) => {
+    const updateTimings = useCallback((data: Partial<TimingsData>) => {
         setState(prev => ({
             ...prev,
             data: {
@@ -222,9 +244,9 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
                 timings: { ...prev.data.timings, ...data }
             }
         }));
-    };
+    }, []);
 
-    const updateInventory = (data: Partial<InventoryData>) => {
+    const updateInventory = useCallback((data: Partial<InventoryData>) => {
         setState(prev => ({
             ...prev,
             data: {
@@ -232,9 +254,9 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
                 inventory: { ...prev.data.inventory, ...data }
             }
         }));
-    };
+    }, []);
 
-    const addSupplier = (supplier: SupplierData) => {
+    const addSupplier = useCallback((supplier: SupplierData) => {
         setState(prev => ({
             ...prev,
             data: {
@@ -242,9 +264,9 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
                 suppliers: [...prev.data.suppliers, supplier]
             }
         }));
-    };
+    }, []);
 
-    const updatePOS = (data: Partial<POSData>) => {
+    const updatePOS = useCallback((data: Partial<POSData>) => {
         setState(prev => ({
             ...prev,
             data: {
@@ -252,9 +274,9 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
                 pos: { ...prev.data.pos, ...data }
             }
         }));
-    };
+    }, []);
 
-    const addUser = (user: UserData) => {
+    const addUser = useCallback((user: UserData) => {
         setState(prev => ({
             ...prev,
             data: {
@@ -262,9 +284,9 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
                 users: [...prev.data.users, user]
             }
         }));
-    };
+    }, []);
 
-    const updateIntegrations = (data: Partial<IntegrationData>) => {
+    const updateIntegrations = useCallback((data: Partial<IntegrationData>) => {
         setState(prev => ({
             ...prev,
             data: {
@@ -272,9 +294,9 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
                 integrations: { ...prev.data.integrations, ...data }
             }
         }));
-    };
+    }, []);
 
-    const updateImports = (data: Partial<ImportData>) => {
+    const updateImports = useCallback((data: Partial<ImportData>) => {
         setState(prev => ({
             ...prev,
             data: {
@@ -282,30 +304,38 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
                 imports: { ...prev.data.imports, ...data }
             }
         }));
-    };
+    }, []);
 
-    const setCurrentStep = (step: number) => {
+    const setCurrentStep = useCallback((step: number) => {
         setState(prev => ({ ...prev, currentStep: step }));
-    };
+    }, []);
 
-    const markStepComplete = (step: number) => {
+    const markStepComplete = useCallback((step: number) => {
         setState(prev => ({
             ...prev,
             completedSteps: prev.completedSteps.includes(step)
                 ? prev.completedSteps
                 : [...prev.completedSteps, step]
         }));
-    };
+    }, []);
 
-    const completeOnboarding = () => {
+    const completeOnboarding = useCallback(() => {
         setState(prev => ({ ...prev, isComplete: true }));
-        localStorage.removeItem(STORAGE_KEY);
-    };
+        // Progress is automatically saved to API via useEffect
+    }, []);
 
-    const resetOnboarding = () => {
+    const resetOnboarding = useCallback(() => {
         setState(initialState);
-        localStorage.removeItem(STORAGE_KEY);
-    };
+        // Progress is automatically saved to API via useEffect
+    }, []);
+
+    if (isLoading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-emerald-500"></div>
+            </div>
+        );
+    }
 
     return (
         <OnboardingContext.Provider

@@ -14,7 +14,7 @@ const ThreadSkeleton = () => (
     </div>
 )
 
-export default function Inbox() {
+export default function Inbox({ isLoading: parentLoading }: { isLoading: boolean } = { isLoading: false }) {
   const [threads, setThreads] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedThread, setSelectedThread] = useState<any>(null);

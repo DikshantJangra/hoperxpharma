@@ -113,6 +113,7 @@ model User {
   storeUsers    StoreUser[]
   auditLogs     AuditLog[]
   accessLogs    AccessLog[]
+  onboarding    OnboardingProgress?
   
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -121,6 +122,20 @@ model User {
   @@index([email])
   @@index([phoneNumber])
   @@index([deletedAt])
+}
+
+model OnboardingProgress {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  currentStep   Int      @default(1)
+  completedSteps Int[]
+  data          Json     // Store the partial form data here
+  isComplete    Boolean  @default(false)
+  
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
 model Role {

@@ -1,9 +1,30 @@
 "use client"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 
 export default function SalesChart() {
     const [period, setPeriod] = useState('week')
     const [hasData, setHasData] = useState(false)
+    const [stats, setStats] = useState<any>(null)
+    const [isLoading, setIsLoading] = useState(true)
+
+    useEffect(() => {
+        const fetchStats = async () => {
+            setIsLoading(true);
+            try {
+                const { salesApi } = await import('@/lib/api/sales');
+                const data = await salesApi.getStats(period === 'week' ? 'weekly' : 'monthly');
+                setStats(data);
+                setHasData(true);
+            } catch (error) {
+                console.error('Failed to fetch sales chart data:', error);
+                setHasData(false);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+
+        fetchStats();
+    }, [period]);
 
     return (
         <div className="bg-white rounded-xl border border-[#e6eef2] p-6 h-full flex flex-col" style={{ boxShadow: '0 6px 18px rgba(3,15,31,0.06)' }}>
@@ -11,13 +32,13 @@ export default function SalesChart() {
                 <div>
                     <h3 className="text-[13px] font-semibold text-[#0f172a]">Sales Analytics</h3>
                     <div className="flex items-center gap-4 mt-2 text-xs">
-                        {hasData ? (
+                        {hasData && stats ? (
                             <>
-                                <span className="text-[#6b7280]">Total sales: <span className="font-bold text-[#0f172a]">₹{/* dynamic */}</span></span>
+                                <span className="text-[#6b7280]">Total sales: <span className="font-bold text-[#0f172a]">₹{stats.totalRevenue.toLocaleString('en-IN')}</span></span>
                                 <span className="text-[#6b7280]/40">•</span>
-                                <span className="text-[#6b7280]">RX filled: <span className="font-bold text-[#0f172a]">{/* dynamic */}</span></span>
+                                <span className="text-[#6b7280]">RX filled: <span className="font-bold text-[#0f172a]">{stats.totalOrders}</span></span>
                                 <span className="text-[#6b7280]/40">•</span>
-                                <span className="text-[#6b7280]">Avg order: <span className="font-bold text-[#0f172a]">₹{/* dynamic */}</span></span>
+                                <span className="text-[#6b7280]">Avg order: <span className="font-bold text-[#0f172a]">₹{Math.round(stats.averageOrderValue)}</span></span>
                             </>
                         ) : (
                             <>
@@ -47,8 +68,11 @@ export default function SalesChart() {
             </div>
 
             {hasData ? (
-                <div className="w-full flex items-end justify-between gap-2 flex-1">
-                    {/* Chart rendering logic would go here when data exists */}
+                <div className="w-full flex items-end justify-between gap-2 flex-1 relative min-h-[200px]">
+                    {/* Placeholder for chart visualization - would use Recharts or similar here */}
+                    <div className="absolute inset-0 flex items-center justify-center text-gray-400 text-sm">
+                        Chart visualization coming soon
+                    </div>
                 </div>
             ) : (
                 <div className="flex-1 flex flex-col items-center justify-center">

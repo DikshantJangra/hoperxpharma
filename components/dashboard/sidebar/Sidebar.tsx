@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation"
 import Link from "next/link"
 import { FiChevronRight } from "react-icons/fi"
 import { sidebarConfig } from "./sidebarConfig"
+import Logo from "@/components/ui/Logo"
 
 interface SidebarProps {
     isOpen: boolean
@@ -34,15 +35,7 @@ function SidebarHeader({ isOpen }: { isOpen: boolean }) {
     return (
         <div className="h-16 flex items-center justify-center border-b border-gray-100 px-4">
             <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center shrink-0">
-                    <span className="text-white font-bold text-lg">Rx</span>
-                </div>
-                {isOpen && (
-                    <div className="flex flex-col">
-                        <span className="text-sm font-bold text-gray-700">Hope<span className="text-emerald-500">Rx</span>Pharma</span>
-                        <span className="text-xs text-gray-500">Dashboard</span>
-                    </div>
-                )}
+                <Logo size="md" showText={isOpen} subtitle={isOpen ? "Dashboard" : undefined} />
             </div>
         </div>
     )

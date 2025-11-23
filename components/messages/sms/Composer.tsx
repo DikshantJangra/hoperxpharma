@@ -3,7 +3,11 @@
 import { useState } from 'react';
 import { FiSearch, FiSend, FiClock } from 'react-icons/fi';
 
-export default function Composer() {
+interface ComposerProps {
+  isLoading: boolean;
+}
+
+export default function Composer({ isLoading }: ComposerProps = { isLoading: false }) {
   const [recipient, setRecipient] = useState('');
   const [message, setMessage] = useState('');
   const [template, setTemplate] = useState('');

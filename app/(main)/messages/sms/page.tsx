@@ -84,11 +84,11 @@ export default function SMSPage() {
         <SMSNav activeTab={activeTab} onTabChange={setActiveTab} />
         
         <div className="flex-1 overflow-hidden">
-          {activeTab === 'composer' && <Composer />}
-          {activeTab === 'templates' && <Templates />}
-          {activeTab === 'campaigns' && <Campaigns />}
-          {activeTab === 'inbox' && <Inbox />}
-          {activeTab === 'logs' && <Logs />}
+          {activeTab === 'composer' && <Composer isLoading={isLoading} />}
+          {activeTab === 'templates' && <Templates isLoading={isLoading} />}
+          {activeTab === 'campaigns' && <Campaigns isLoading={isLoading} />}
+          {activeTab === 'inbox' && <Inbox isLoading={isLoading} />}
+          {activeTab === 'logs' && <Logs isLoading={isLoading} />}
         </div>
       </div>
     </div>

@@ -1,21 +1,71 @@
 "use client";
 
-import { useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useOnboarding } from "@/contexts/OnboardingContext";
 import { useRouter } from "next/navigation";
 import { FiArrowLeft, FiCheck, FiEdit } from "react-icons/fi";
+import { onboardingApi } from "@/lib/api/onboarding";
+import { toast } from "react-hot-toast";
 
 export default function Step10Page() {
     const { state, setCurrentStep, completeOnboarding } = useOnboarding();
     const router = useRouter();
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
         setCurrentStep(10);
     }, [setCurrentStep]);
 
-    const handleFinish = () => {
-        completeOnboarding();
-        router.push("/dashboard");
+    const handleFinish = async () => {
+        setIsSubmitting(true);
+        try {
+            // Call the backend to create the store with all collected data
+            await onboardingApi.completeOnboarding({
+                store: {
+                    name: state.data.storeIdentity.pharmacyName || "My Pharmacy",
+                    gstin: state.data.licensing.gstin,
+                    dlNumber: state.data.licensing.dlNumber,
+                    addressLine1: state.data.storeIdentity.address || "",
+                    city: state.data.storeIdentity.city || "",
+                    state: state.data.storeIdentity.state || "",
+                    pinCode: state.data.storeIdentity.pinCode || "",
+                    phoneNumber: "", // Add if you have it in storeIdentity
+                },
+                licenses: state.data.licensing.dlNumber ? [{
+                    type: 'Drug License' as const,
+                    licenseNumber: state.data.licensing.dlNumber,
+                    issuedBy: "State Authority",
+                    issuedDate: state.data.licensing.dlValidityStart || new Date().toISOString().split('T')[0],
+                    expiryDate: state.data.licensing.dlValidityEnd || new Date().toISOString().split('T')[0],
+                }] : [],
+                operatingHours: state.data.timings?.operatingDays?.map(day => ({
+                    dayOfWeek: day as any,
+                    openTime: state.data.timings?.openTime || "09:00",
+                    closeTime: state.data.timings?.closeTime || "21:00",
+                    isClosed: false,
+                })) || [],
+            });
+
+            // Mark onboarding as complete in the database
+            await onboardingApi.saveProgress({
+                currentStep: 10,
+                completedSteps: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
+                data: state.data,
+                isComplete: true,
+            });
+
+            // Mark onboarding as complete in the context
+            completeOnboarding();
+
+            toast.success("🎉 Store created successfully!");
+
+            // Redirect to dashboard
+            router.push("/dashboard");
+        } catch (error: any) {
+            console.error("Failed to complete onboarding:", error);
+            toast.error(error?.message || "Failed to create store. Please try again.");
+            setIsSubmitting(false);
+        }
     };
 
     return (
@@ -142,10 +192,20 @@ export default function Step10Page() {
                 </button>
                 <button
                     onClick={handleFinish}
-                    className="px-12 py-4 bg-gradient-to-r from-[#0ea5a3] to-[#0d9391] text-white rounded-lg font-bold text-lg hover:shadow-lg transition-all flex items-center gap-3"
+                    disabled={isSubmitting}
+                    className="px-12 py-4 bg-gradient-to-r from-[#0ea5a3] to-[#0d9391] text-white rounded-lg font-bold text-lg hover:shadow-lg transition-all flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                    <FiCheck className="w-6 h-6" />
-                    Finish Setup & Enter Dashboard
+                    {isSubmitting ? (
+                        <>
+                            <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-white"></div>
+                            Creating your store...
+                        </>
+                    ) : (
+                        <>
+                            <FiCheck className="w-6 h-6" />
+                            Finish Setup & Enter Dashboard
+                        </>
+                    )}
                 </button>
             </div>
         </div>

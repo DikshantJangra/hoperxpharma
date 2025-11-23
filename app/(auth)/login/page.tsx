@@ -37,25 +37,31 @@ export default function Login() {
         }
 
         try {
-            const response = await fetch("https://hoperxpharma.onrender.com/api/auth/login", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                credentials: "include",
-                body: JSON.stringify({ email, password }),
-            });
+            const toast = (await import('react-hot-toast')).default;
+            const { useAuthStore } = await import('@/lib/store/auth-store');
+            const login = useAuthStore.getState().login;
 
-            const data = await response.json();
+            await login({ email, password });
 
-            if (response.ok) {
-                localStorage.setItem("token", data.token);
-                router.push("/dashboard");
+            toast.success('Login successful!');
+
+            // AuthProvider will handle redirection automatically based on state change
+            // But we also push to dashboard to trigger the flow
+            router.push("/dashboard");
+        } catch (error: any) {
+            const toast = (await import('react-hot-toast')).default;
+
+            if (error.statusCode === 401) {
+                setErr("Invalid email or password");
+                toast.error("Invalid email or password");
+            } else if (error.statusCode === 429) {
+                setErr("Too many login attempts. Please try again later.");
+                toast.error("Too many attempts. Please wait.");
             } else {
-                setErr(data.message || "Login failed!");
+                setErr(error.message || "Login failed! Please try again.");
+                toast.error(error.message || "Login failed!");
             }
-        } catch (error) {
-            setErr("Login failed!");
+            console.error('Login error:', error);
         } finally {
             setLoading(false);
         }
@@ -78,20 +84,20 @@ export default function Login() {
                             <span className="absolute" style={{ transform: 'translate(6.5px, 1px)' }}>X</span>
                         </div>
                     </div>
-                    
+
                     <h1 className="text-[32px] font-bold tracking-tighter mb-3">
                         <span className="text-[#A0A0A0]">Hope</span><span className="text-[#12B981] relative">Rx<span className="absolute -bottom-1.5 left-0 right-0 h-[3px] bg-[#12B981] rounded-full"></span><span className="absolute -bottom-3 left-0 right-0 h-[3px] bg-[#12B981] rounded-full"></span></span><span className="text-[#A0A0A0]">Pharma</span>
                     </h1>
-                    
+
                     <h2 className="text-[26px] font-black text-black/70 leading-tight mt-4 mb-2">
-                        Get back in control with<br/>Secure Access!
+                        Get back in control with<br />Secure Access!
                     </h2>
-                    
+
                     <p className="text-black/50 text-sm leading-tight">
-                        Manage your pharmacy operations safely<br/>and efficiently.
+                        Manage your pharmacy operations safely<br />and efficiently.
                     </p>
                 </div>
-                
+
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div>
                         <label className="block text-black/70 text-sm font-medium mb-1.5 text-left">
@@ -100,8 +106,8 @@ export default function Login() {
                         <div className="relative">
                             <MdOutlineMailLock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={17} />
                             <span className="absolute left-10 top-1/2 -translate-y-1/2 h-5 w-px bg-gray-300"></span>
-                            <input 
-                                type="email" 
+                            <input
+                                type="email"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 className="w-full pl-12 pr-4 py-2.5 border-transparent rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-black/5 text-gray-700 placeholder:text-gray-400 text-[15px]"
@@ -118,7 +124,7 @@ export default function Login() {
                         <div className="relative">
                             <PiPassword className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={17} />
                             <span className="absolute left-10 top-1/2 -translate-y-1/2 h-5 w-px bg-gray-300"></span>
-                            <input 
+                            <input
                                 type={showPass ? "text" : "password"}
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
@@ -146,8 +152,8 @@ export default function Login() {
                     </div>
 
                     <div className="pt-2">
-                        <button 
-                            type="submit" 
+                        <button
+                            type="submit"
                             disabled={loading}
                             className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-semibold text-sm py-3 rounded-lg transition-colors disabled:opacity-50 shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2 cursor-pointer"
                         >

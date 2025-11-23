@@ -73,9 +73,10 @@ export default function Step2Page() {
             newErrors.pan = "Please enter a valid PAN (e.g., ABCDE1234F)";
         }
 
-        if (!formData.dlDocument) {
-            newErrors.dlDocument = "Drug License document is required";
-        }
+        // Document upload is optional
+        // if (!formData.dlDocument) {
+        //     newErrors.dlDocument = "Drug License document is required";
+        // }
 
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
@@ -187,7 +188,7 @@ export default function Step2Page() {
 
                 <div>
                     <label className="block text-sm font-semibold text-[#0f172a] mb-2">
-                        Upload Drug License Document <span className="text-red-500">*</span>
+                        Upload Drug License Document <span className="text-[#64748b] text-xs font-normal">(Optional)</span>
                     </label>
                     <div className={`border-2 border-dashed rounded-lg p-8 text-center hover:border-[#0ea5a3] transition-colors cursor-pointer ${errors.dlDocument ? "border-red-500" : "border-[#cbd5e1]"
                         }`}>

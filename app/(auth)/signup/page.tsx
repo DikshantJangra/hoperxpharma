@@ -10,7 +10,7 @@ import { RiSecurePaymentFill } from "react-icons/ri";
 import { HiEye, HiEyeOff } from "react-icons/hi";
 import Link from "next/link"
 
-export default function Signup(){
+export default function Signup() {
     const [name, setName] = useState("");
     const [number, setNumber] = useState("");
     const [email, setEmail] = useState("")
@@ -57,28 +57,58 @@ export default function Signup(){
         }
 
         setLoading(true);
-        try{
-            const fullNumber = "+91" + number;
-            const res = await fetch("https://hoperxpharma.onrender.com/api/auth/signup", {
-                method: "POST",
-                headers: {"Content-Type": "application/json"},
-                credentials: "include",
-                body: JSON.stringify({ name, email, password, confirmPassword, phoneNumber: fullNumber })
-            })
-            const message = await res.json()
-            if (!res.ok) {
-                setErr(message.message || `Server error: ${res.status}`)
-                return
+        try {
+            const toast = (await import('react-hot-toast')).default;
+            const { authApi } = await import('@/lib/api/auth');
+            const fullNumber = number.startsWith('+91') ? number : `+91${number}`;
+            const [firstName, ...lastNameParts] = name.trim().split(' ');
+            const lastName = lastNameParts.join(' ') || firstName;
+
+            const response = await authApi.signup({
+                email,
+                phoneNumber: fullNumber,
+                password,
+                confirmPassword,
+                firstName,
+                lastName,
+            });
+
+            if (response.success) {
+                // Update auth store
+                const { useAuthStore } = await import('@/lib/store/auth-store');
+                const updateUser = useAuthStore.getState().updateUser;
+                updateUser(response.data.user as any);
+
+                toast.success('Account created successfully!');
+                // Redirect to onboarding (new users won't have a store)
+                router.push("/onboarding");
+            } else {
+                setErr(response.message || "Signup failed!");
+                toast.error(response.message || "Signup failed!");
             }
-            router.push("/login");
-        }catch(err){
-            setErr("Network error. Please try again.")
+        } catch (error: any) {
+            const toast = (await import('react-hot-toast')).default;
+
+            if (error.statusCode === 400) {
+                setErr(error.message || "Invalid input. Please check your details.");
+                toast.error("Invalid input. Please check your details.");
+            } else if (error.statusCode === 409) {
+                setErr("Email or phone number already registered.");
+                toast.error("Email or phone already registered.");
+            } else if (error.statusCode === 429) {
+                setErr("Too many signup attempts. Please try again later.");
+                toast.error("Too many attempts. Please wait.");
+            } else {
+                setErr(error.message || "Network error. Please try again.");
+                toast.error(error.message || "Signup failed!");
+            }
+            console.error('Signup error:', error);
         } finally {
             setLoading(false);
         }
     }
 
-    return(
+    return (
         <div className="h-screen w-screen bg-white flex items-center justify-center overflow-hidden">
             <div className="w-full max-w-md bg-white rounded-3xl border border-gray-100 shadow-lg px-9 py-5">
                 <div className="flex flex-col items-center text-center mb-6">
@@ -95,20 +125,20 @@ export default function Signup(){
                             <span className="absolute" style={{ transform: 'translate(6.5px, 1px)' }}>X</span>
                         </div>
                     </div>
-                    
+
                     <h1 className="text-[32px] font-bold tracking-tighter mb-3">
                         <span className="text-[#A0A0A0]">Hope</span><span className="text-[#12B981] relative">Rx<span className="absolute -bottom-1.5 left-0 right-0 h-[3px] bg-[#12B981] rounded-full"></span><span className="absolute -bottom-3 left-0 right-0 h-[3px] bg-[#12B981] rounded-full"></span></span><span className="text-[#A0A0A0]">Pharma</span>
                     </h1>
-                    
+
                     <h2 className="text-[26px] font-black text-black/70 leading-tight mt-4 mb-2">
-                        Start Optimizing Your<br/>Pharmacy's Profit
+                        Start Optimizing Your<br />Pharmacy's Profit
                     </h2>
-                    
+
                     <p className="text-black/50 text-sm leading-tight">
-                        Secure & Simple! Automate, compliance<br/>& Save on Inventory
+                        Secure & Simple! Automate, compliance<br />& Save on Inventory
                     </p>
                 </div>
-                
+
                 <form onSubmit={signupuser} className="space-y-3.5">
                     <div>
                         <label className="block text-black/70 text-sm font-medium mb-1.5 text-left">
@@ -117,8 +147,8 @@ export default function Signup(){
                         <div className="relative">
                             <BsTelephone className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={17} />
                             <span className="absolute left-10 top-1/2 -translate-y-1/2 h-5 w-px bg-gray-300"></span>
-                            <input 
-                                type="tel" 
+                            <input
+                                type="tel"
                                 value={number}
                                 onChange={(e) => setNumber(e.target.value.replace(/\D/g, ''))}
                                 className="w-full pl-12 pr-4 py-2.5 border-transparent rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-black/5 text-gray-700 placeholder:text-gray-400 text-[15px]"
@@ -135,8 +165,8 @@ export default function Signup(){
                         <div className="relative">
                             <BiUser className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={17} />
                             <span className="absolute left-10 top-1/2 -translate-y-1/2 h-5 w-px bg-gray-300"></span>
-                            <input 
-                                type="text" 
+                            <input
+                                type="text"
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
                                 className="w-full pl-12 pr-4 py-2.5 border-transparent rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-black/5 text-gray-700 placeholder:text-gray-400 text-[15px]"
@@ -152,8 +182,8 @@ export default function Signup(){
                         <div className="relative">
                             <MdOutlineMailLock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={17} />
                             <span className="absolute left-10 top-1/2 -translate-y-1/2 h-5 w-px bg-gray-300"></span>
-                            <input 
-                                type="email" 
+                            <input
+                                type="email"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
                                 className="w-full pl-12 pr-4 py-2.5 border-transparent rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-black/5 text-gray-700 placeholder:text-gray-400 text-[15px]"
@@ -169,7 +199,7 @@ export default function Signup(){
                         <div className="relative">
                             <PiPassword className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={17} />
                             <span className="absolute left-10 top-1/2 -translate-y-1/2 h-5 w-px bg-gray-300"></span>
-                            <input 
+                            <input
                                 type={showPass ? "text" : "password"}
                                 value={password}
                                 onChange={(e) => setPassword(e.target.value)}
@@ -189,7 +219,7 @@ export default function Signup(){
                         <div className="relative">
                             <PiPassword className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={17} />
                             <span className="absolute left-10 top-1/2 -translate-y-1/2 h-5 w-px bg-gray-300"></span>
-                            <input 
+                            <input
                                 type={showConfirmPass ? "text" : "password"}
                                 value={confirmPassword}
                                 onChange={(e) => setConfirmPassword(e.target.value)}
@@ -209,8 +239,8 @@ export default function Signup(){
                     </div>
 
                     <div className="pt-1">
-                        <button 
-                            type="submit" 
+                        <button
+                            type="submit"
                             disabled={loading}
                             className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-semibold text-sm py-2.5 rounded-lg transition-colors disabled:opacity-50 shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2 cursor-pointer"
                         >

@@ -157,7 +157,7 @@ export default function POSDraftsPage() {
                                 <div className="border-t border-[#e2e8f0] pt-4">
                                     <h4 className="font-medium text-[#0f172a] mb-3 text-sm">Items ({draft.items.length})</h4>
                                     <div className="space-y-2">
-                                        {draft.items.map((item, idx) => (
+                                        {draft.items.map((item: any, idx: number) => (
                                             <div key={idx} className="flex items-center justify-between p-3 bg-[#f8fafc] rounded-lg">
                                                 <div className="flex-1">
                                                     <div className="font-medium text-[#0f172a]">{item.name}</div>
