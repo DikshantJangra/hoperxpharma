@@ -1,6 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
-const ApiError = require('../../utils/ApiError');
-const ApiResponse = require('../../utils/ApiResponse');
+const ApiError = require('../../Utils/ApiError');
+const ApiResponse = require('../../Utils/ApiResponse');
 const asyncHandler = require('../../middlewares/asyncHandler');
 
 const prisma = new PrismaClient();

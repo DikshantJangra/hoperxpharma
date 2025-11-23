@@ -1,6 +1,6 @@
 const patientService = require('../../services/patients/patientService');
 const asyncHandler = require('../../middlewares/asyncHandler');
-const ApiResponse = require('../../utils/ApiResponse');
+const ApiResponse = require('../../Utils/ApiResponse');
 
 /**
  * Get all patients

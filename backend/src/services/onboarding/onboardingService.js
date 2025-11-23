@@ -1,7 +1,7 @@
 const onboardingRepository = require('../../repositories/onboardingRepository');
 const storeService = require('../stores/storeService');
 const subscriptionService = require('../subscriptions/subscriptionService');
-const ApiError = require('../../utils/ApiError');
+const ApiError = require('../../Utils/ApiError');
 const logger = require('../../config/logger');
 
 /**

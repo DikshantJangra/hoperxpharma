@@ -1,6 +1,6 @@
 const storeRepository = require('../../repositories/storeRepository');
 const subscriptionRepository = require('../../repositories/subscriptionRepository');
-const ApiError = require('../../utils/ApiError');
+const ApiError = require('../../Utils/ApiError');
 const logger = require('../../config/logger');
 
 /**

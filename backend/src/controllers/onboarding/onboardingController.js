@@ -1,6 +1,6 @@
 const onboardingService = require('../../services/onboarding/onboardingService');
 const asyncHandler = require('../../middlewares/asyncHandler');
-const ApiResponse = require('../../utils/ApiResponse');
+const ApiResponse = require('../../Utils/ApiResponse');
 
 /**
  * Get onboarding progress
