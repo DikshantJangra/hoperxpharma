@@ -69,6 +69,16 @@ app.use('/api/v1/sales', salesRoutes);
 app.use('/api/v1/purchase-orders', purchaseOrderRoutes);
 app.use('/api/v1/onboarding', onboardingRoutes);
 
+// Health check route
+app.get('/api/v1/health', (req, res) => {
+  res.json({
+    success: true,
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+  });
+});
+
 // Root route
 app.get('/', (req, res) => {
   res.json({

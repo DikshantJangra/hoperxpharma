@@ -1,21 +1,27 @@
 const dotenv = require('dotenv');
+
+// Load environment variables FIRST
+dotenv.config();
+
 const app = require('./app');
 const database = require('./config/database');
 const logger = require('./config/logger');
 
-// Load environment variables
-dotenv.config();
-
 const PORT = process.env.PORT || 8000;
+
+// Log startup info
+logger.info('Starting HopeRxPharma Backend...');
+logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
+logger.info(`Port: ${PORT}`);
+logger.info(`Database URL configured: ${process.env.DATABASE_URL ? 'Yes' : 'No'}`);
 
 // Connect to database
 database.connect().then(() => {
     // Start server
-    const server = app.listen(PORT, () => {
-        logger.info(`🚀 Server is running on http://localhost:${PORT}`);
-        logger.info(`📚 API Documentation: http://localhost:${PORT}/api-docs`);
-        logger.info(`🏥 Health Check: http://localhost:${PORT}/api/v1/health`);
-        logger.info(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
+    const server = app.listen(PORT, '0.0.0.0', () => {
+        logger.info(`Server is running on port ${PORT}`);
+        logger.info(`API Documentation: /api-docs`);
+        logger.info(`Health Check: /api/v1/health`);
     });
 
     // Graceful shutdown
