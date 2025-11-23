@@ -39,8 +39,9 @@ class AuthService {
 
         logger.info(`New user registered: ${user.email}`);
 
+        // Return clean user object
         return {
-            user,
+            user: JSON.parse(JSON.stringify(user)),
             ...tokens,
         };
     }
