@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import { useOnboarding } from "@/contexts/OnboardingContext";
 import { useRouter } from "next/navigation";
-import { FiUpload, FiInfo, FiArrowRight, FiArrowLeft, FiShield } from "react-icons/fi";
+import { FiUpload, FiInfo, FiArrowRight, FiArrowLeft, FiShield, FiCalendar, FiFileText } from "react-icons/fi";
+import OnboardingCard from "@/components/onboarding/OnboardingCard";
 
 export default function Step2Page() {
     const { state, updateLicensing, setCurrentStep, markStepComplete } = useOnboarding();
@@ -73,11 +74,6 @@ export default function Step2Page() {
             newErrors.pan = "Please enter a valid PAN (e.g., ABCDE1234F)";
         }
 
-        // Document upload is optional
-        // if (!formData.dlDocument) {
-        //     newErrors.dlDocument = "Drug License document is required";
-        // }
-
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
@@ -96,144 +92,171 @@ export default function Step2Page() {
     };
 
     return (
-        <div className="bg-white rounded-2xl shadow-lg border border-[#e2e8f0] p-8 mb-20">
-            <div className="flex items-start gap-4 mb-8">
-                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-[#0ea5a3] to-[#0d9391] flex items-center justify-center flex-shrink-0">
-                    <FiShield className="w-7 h-7 text-white" />
-                </div>
-                <div className="flex-1">
-                    <h1 className="text-2xl font-bold text-[#0f172a] mb-2">Licensing & Compliance</h1>
-                    <p className="text-[#64748b]">Ensure legal compliance with regulatory requirements</p>
-                </div>
-            </div>
-
+        <OnboardingCard
+            title="Licensing & Compliance"
+            description="Ensure legal compliance with regulatory requirements"
+            icon={<FiShield size={28} />}
+        >
             <div className="space-y-6">
-                <div>
-                    <label className="block text-sm font-semibold text-[#0f172a] mb-2">
+                {/* Drug License Number */}
+                <div className="group">
+                    <label className="block text-gray-700 text-xs font-semibold mb-1.5 ml-1">
                         Drug License Number <span className="text-red-500">*</span>
                     </label>
-                    <input
-                        type="text"
-                        value={formData.dlNumber}
-                        onChange={(e) => setFormData({ ...formData, dlNumber: e.target.value.toUpperCase() })}
-                        placeholder="DL-MH-12345"
-                        className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0ea5a3] ${errors.dlNumber ? "border-red-500" : "border-[#cbd5e1]"
-                            }`}
-                    />
-                    {errors.dlNumber && <p className="mt-2 text-sm text-red-600">{errors.dlNumber}</p>}
+                    <div className="relative transition-all duration-200 focus-within:ring-2 focus-within:ring-emerald-500/20 rounded-xl">
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-500 transition-colors">
+                            <FiShield size={18} />
+                        </div>
+                        <input
+                            type="text"
+                            value={formData.dlNumber}
+                            onChange={(e) => setFormData({ ...formData, dlNumber: e.target.value.toUpperCase() })}
+                            placeholder="DL-MH-12345"
+                            className={`w-full pl-11 pr-4 py-3 bg-gray-50 border rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-all text-sm text-gray-900 placeholder:text-gray-400 ${errors.dlNumber ? "border-red-500" : "border-gray-200"}`}
+                        />
+                    </div>
+                    {errors.dlNumber && <p className="mt-1 ml-1 text-xs text-red-500">{errors.dlNumber}</p>}
                 </div>
 
+                {/* DL Validity Dates */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-sm font-semibold text-[#0f172a] mb-2">
+                    <div className="group">
+                        <label className="block text-gray-700 text-xs font-semibold mb-1.5 ml-1">
                             DL Validity Start Date <span className="text-red-500">*</span>
                         </label>
-                        <input
-                            type="date"
-                            value={formData.dlValidityStart}
-                            onChange={(e) => setFormData({ ...formData, dlValidityStart: e.target.value })}
-                            className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0ea5a3] ${errors.dlValidityStart ? "border-red-500" : "border-[#cbd5e1]"
-                                }`}
-                        />
-                        {errors.dlValidityStart && <p className="mt-2 text-sm text-red-600">{errors.dlValidityStart}</p>}
+                        <div className="relative transition-all duration-200 focus-within:ring-2 focus-within:ring-emerald-500/20 rounded-xl">
+                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-500 transition-colors">
+                                <FiCalendar size={18} />
+                            </div>
+                            <input
+                                type="date"
+                                value={formData.dlValidityStart}
+                                onChange={(e) => setFormData({ ...formData, dlValidityStart: e.target.value })}
+                                className={`w-full pl-11 pr-4 py-3 bg-gray-50 border rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-all text-sm text-gray-900 placeholder:text-gray-400 ${errors.dlValidityStart ? "border-red-500" : "border-gray-200"}`}
+                            />
+                        </div>
+                        {errors.dlValidityStart && <p className="mt-1 ml-1 text-xs text-red-500">{errors.dlValidityStart}</p>}
                     </div>
 
-                    <div>
-                        <label className="block text-sm font-semibold text-[#0f172a] mb-2">
+                    <div className="group">
+                        <label className="block text-gray-700 text-xs font-semibold mb-1.5 ml-1">
                             DL Validity End Date <span className="text-red-500">*</span>
                         </label>
-                        <input
-                            type="date"
-                            value={formData.dlValidityEnd}
-                            onChange={(e) => setFormData({ ...formData, dlValidityEnd: e.target.value })}
-                            className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0ea5a3] ${errors.dlValidityEnd ? "border-red-500" : "border-[#cbd5e1]"
-                                }`}
-                        />
-                        {errors.dlValidityEnd && <p className="mt-2 text-sm text-red-600">{errors.dlValidityEnd}</p>}
+                        <div className="relative transition-all duration-200 focus-within:ring-2 focus-within:ring-emerald-500/20 rounded-xl">
+                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-500 transition-colors">
+                                <FiCalendar size={18} />
+                            </div>
+                            <input
+                                type="date"
+                                value={formData.dlValidityEnd}
+                                onChange={(e) => setFormData({ ...formData, dlValidityEnd: e.target.value })}
+                                className={`w-full pl-11 pr-4 py-3 bg-gray-50 border rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-all text-sm text-gray-900 placeholder:text-gray-400 ${errors.dlValidityEnd ? "border-red-500" : "border-gray-200"}`}
+                            />
+                        </div>
+                        {errors.dlValidityEnd && <p className="mt-1 ml-1 text-xs text-red-500">{errors.dlValidityEnd}</p>}
                     </div>
                 </div>
 
-                <div>
-                    <label className="block text-sm font-semibold text-[#0f172a] mb-2">
+                {/* GSTIN */}
+                <div className="group">
+                    <label className="block text-gray-700 text-xs font-semibold mb-1.5 ml-1">
                         GSTIN <span className="text-red-500">*</span>
                     </label>
-                    <input
-                        type="text"
-                        value={formData.gstin}
-                        onChange={(e) => setFormData({ ...formData, gstin: e.target.value.toUpperCase().slice(0, 15) })}
-                        placeholder="27AABCU9603R1ZM"
-                        maxLength={15}
-                        className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0ea5a3] ${errors.gstin ? "border-red-500" : "border-[#cbd5e1]"
-                            }`}
-                    />
-                    {errors.gstin && <p className="mt-2 text-sm text-red-600">{errors.gstin}</p>}
-                    <p className="mt-2 text-xs text-[#64748b]">15-character GST Identification Number</p>
-                </div>
-
-                <div>
-                    <label className="block text-sm font-semibold text-[#0f172a] mb-2">
-                        PAN <span className="text-[#64748b] text-xs font-normal">(Optional)</span>
-                    </label>
-                    <input
-                        type="text"
-                        value={formData.pan}
-                        onChange={(e) => setFormData({ ...formData, pan: e.target.value.toUpperCase().slice(0, 10) })}
-                        placeholder="ABCDE1234F"
-                        maxLength={10}
-                        className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0ea5a3] ${errors.pan ? "border-red-500" : "border-[#cbd5e1]"
-                            }`}
-                    />
-                    {errors.pan && <p className="mt-2 text-sm text-red-600">{errors.pan}</p>}
-                </div>
-
-                <div>
-                    <label className="block text-sm font-semibold text-[#0f172a] mb-2">
-                        Upload Drug License Document <span className="text-[#64748b] text-xs font-normal">(Optional)</span>
-                    </label>
-                    <div className={`border-2 border-dashed rounded-lg p-8 text-center hover:border-[#0ea5a3] transition-colors cursor-pointer ${errors.dlDocument ? "border-red-500" : "border-[#cbd5e1]"
-                        }`}>
-                        <FiUpload className="w-8 h-8 text-[#64748b] mx-auto mb-3" />
-                        <p className="text-sm text-[#64748b] mb-1">Click to upload DL document</p>
-                        <p className="text-xs text-[#94a3b8]">PDF or JPG (max. 5MB)</p>
+                    <div className="relative transition-all duration-200 focus-within:ring-2 focus-within:ring-emerald-500/20 rounded-xl">
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-500 transition-colors">
+                            <FiFileText size={18} />
+                        </div>
+                        <input
+                            type="text"
+                            value={formData.gstin}
+                            onChange={(e) => setFormData({ ...formData, gstin: e.target.value.toUpperCase().slice(0, 15) })}
+                            placeholder="27AABCU9603R1ZM"
+                            maxLength={15}
+                            className={`w-full pl-11 pr-4 py-3 bg-gray-50 border rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-all text-sm text-gray-900 placeholder:text-gray-400 ${errors.gstin ? "border-red-500" : "border-gray-200"}`}
+                        />
                     </div>
-                    {errors.dlDocument && <p className="mt-2 text-sm text-red-600">{errors.dlDocument}</p>}
+                    {errors.gstin && <p className="mt-1 ml-1 text-xs text-red-500">{errors.gstin}</p>}
+                    <p className="mt-1.5 ml-1 text-xs text-gray-400">15-character GST Identification Number</p>
                 </div>
 
-                <div>
-                    <label className="block text-sm font-semibold text-[#0f172a] mb-2">
-                        Upload GST Certificate <span className="text-[#64748b] text-xs font-normal">(Optional)</span>
+                {/* PAN */}
+                <div className="group">
+                    <label className="block text-gray-700 text-xs font-semibold mb-1.5 ml-1">
+                        PAN <span className="text-gray-400 font-normal">(Optional)</span>
                     </label>
-                    <div className="border-2 border-dashed border-[#cbd5e1] rounded-lg p-8 text-center hover:border-[#0ea5a3] transition-colors cursor-pointer">
-                        <FiUpload className="w-8 h-8 text-[#64748b] mx-auto mb-3" />
-                        <p className="text-sm text-[#64748b] mb-1">Click to upload GST certificate</p>
-                        <p className="text-xs text-[#94a3b8]">PDF or JPG (max. 5MB)</p>
+                    <div className="relative transition-all duration-200 focus-within:ring-2 focus-within:ring-emerald-500/20 rounded-xl">
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-500 transition-colors">
+                            <FiFileText size={18} />
+                        </div>
+                        <input
+                            type="text"
+                            value={formData.pan}
+                            onChange={(e) => setFormData({ ...formData, pan: e.target.value.toUpperCase().slice(0, 10) })}
+                            placeholder="ABCDE1234F"
+                            maxLength={10}
+                            className={`w-full pl-11 pr-4 py-3 bg-gray-50 border rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-all text-sm text-gray-900 placeholder:text-gray-400 ${errors.pan ? "border-red-500" : "border-gray-200"}`}
+                        />
+                    </div>
+                    {errors.pan && <p className="mt-1 ml-1 text-xs text-red-500">{errors.pan}</p>}
+                </div>
+
+                {/* Document Uploads */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="group">
+                        <label className="block text-gray-700 text-xs font-semibold mb-1.5 ml-1">
+                            Upload Drug License <span className="text-gray-400 font-normal">(Optional)</span>
+                        </label>
+                        <div className={`border-2 border-dashed rounded-xl p-6 text-center hover:border-emerald-500 hover:bg-emerald-50/30 transition-all cursor-pointer group-hover:border-emerald-400 ${errors.dlDocument ? "border-red-500" : "border-gray-200"}`}>
+                            <div className="w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3 text-gray-400 group-hover:text-emerald-500 transition-colors">
+                                <FiUpload size={20} />
+                            </div>
+                            <p className="text-xs text-gray-600 font-medium mb-1">Upload DL Document</p>
+                            <p className="text-[10px] text-gray-400">PDF or JPG (max. 5MB)</p>
+                        </div>
+                        {errors.dlDocument && <p className="mt-1 ml-1 text-xs text-red-500">{errors.dlDocument}</p>}
+                    </div>
+
+                    <div className="group">
+                        <label className="block text-gray-700 text-xs font-semibold mb-1.5 ml-1">
+                            Upload GST Certificate <span className="text-gray-400 font-normal">(Optional)</span>
+                        </label>
+                        <div className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center hover:border-emerald-500 hover:bg-emerald-50/30 transition-all cursor-pointer group-hover:border-emerald-400">
+                            <div className="w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3 text-gray-400 group-hover:text-emerald-500 transition-colors">
+                                <FiUpload size={20} />
+                            </div>
+                            <p className="text-xs text-gray-600 font-medium mb-1">Upload GST Certificate</p>
+                            <p className="text-[10px] text-gray-400">PDF or JPG (max. 5MB)</p>
+                        </div>
                     </div>
                 </div>
 
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex gap-3">
-                    <FiInfo className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                {/* Info Box */}
+                <div className="bg-amber-50/50 border border-amber-100 rounded-xl p-4 flex gap-3">
+                    <FiInfo className="w-5 h-5 text-amber-500 flex-shrink-0 mt-0.5" />
                     <div className="text-sm text-amber-700">
-                        <strong>Important:</strong> We'll set up automatic expiry reminders 30 days before your Drug License expires. All documents are encrypted and stored securely.
+                        <strong className="font-semibold">Important:</strong>
+                        <p className="mt-1 text-amber-600/80 leading-relaxed">We'll set up automatic expiry reminders 30 days before your Drug License expires. All documents are encrypted and stored securely.</p>
                     </div>
                 </div>
-            </div>
 
-            <div className="mt-8 flex justify-between">
-                <button
-                    onClick={handleBack}
-                    className="px-8 py-3 border border-[#cbd5e1] text-[#475569] rounded-lg font-semibold hover:bg-[#f8fafc] transition-colors flex items-center gap-2"
-                >
-                    <FiArrowLeft className="w-5 h-5" />
-                    Back
-                </button>
-                <button
-                    onClick={handleNext}
-                    className="px-8 py-3 bg-[#0ea5a3] text-white rounded-lg font-semibold hover:bg-[#0d9391] transition-colors flex items-center gap-2"
-                >
-                    Continue to Timings
-                    <FiArrowRight className="w-5 h-5" />
-                </button>
+                {/* Navigation */}
+                <div className="pt-4 flex justify-between items-center">
+                    <button
+                        onClick={handleBack}
+                        className="px-6 py-2.5 text-gray-500 font-medium hover:text-gray-700 hover:bg-gray-50 rounded-lg transition-colors flex items-center gap-2"
+                    >
+                        <FiArrowLeft className="w-4 h-4" />
+                        Back
+                    </button>
+                    <button
+                        onClick={handleNext}
+                        className="px-8 py-3.5 bg-emerald-500 text-white rounded-xl font-semibold hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/40 transform hover:-translate-y-0.5 active:translate-y-0 flex items-center gap-2"
+                    >
+                        Continue to Timings
+                        <FiArrowRight className="w-5 h-5" />
+                    </button>
+                </div>
             </div>
-        </div>
+        </OnboardingCard>
     );
 }

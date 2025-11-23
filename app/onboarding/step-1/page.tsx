@@ -3,8 +3,8 @@
 import { useState, useEffect } from "react";
 import { useOnboarding } from "@/contexts/OnboardingContext";
 import { useRouter } from "next/navigation";
-import { FiUpload, FiInfo, FiArrowRight } from "react-icons/fi";
-import { MdStore } from "react-icons/md";
+import { FiUpload, FiInfo, FiArrowRight, FiHome, FiMapPin, FiType, FiImage } from "react-icons/fi";
+import OnboardingCard from "@/components/onboarding/OnboardingCard";
 
 const INDIAN_STATES = [
     "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
@@ -59,78 +59,20 @@ export default function Step1Page() {
             // Simple PIN to state mapping (first 2 digits)
             const pinPrefix = formData.pinCode.substring(0, 2);
             const stateMap: Record<string, string> = {
-                "11": "Delhi",
-                "12": "Haryana",
-                "13": "Punjab",
-                "14": "Himachal Pradesh",
-                "15": "Jammu and Kashmir",
-                "16": "Chandigarh",
-                "17": "Punjab",
-                "18": "Haryana",
-                "19": "Uttar Pradesh",
-                "20": "Uttar Pradesh",
-                "21": "Uttar Pradesh",
-                "22": "Uttar Pradesh",
-                "23": "Uttar Pradesh",
-                "24": "Uttar Pradesh",
-                "25": "Uttar Pradesh",
-                "26": "Uttarakhand",
-                "27": "Uttar Pradesh",
-                "28": "Uttar Pradesh",
-                "30": "Rajasthan",
-                "31": "Rajasthan",
-                "32": "Rajasthan",
-                "33": "Rajasthan",
-                "34": "Rajasthan",
-                "35": "Gujarat",
-                "36": "Gujarat",
-                "37": "Gujarat",
-                "38": "Gujarat",
-                "39": "Gujarat",
-                "40": "Maharashtra",
-                "41": "Maharashtra",
-                "42": "Maharashtra",
-                "43": "Maharashtra",
-                "44": "Maharashtra",
-                "45": "Karnataka",
-                "46": "Karnataka",
-                "47": "Karnataka",
-                "48": "Karnataka",
-                "49": "Karnataka",
-                "50": "Telangana",
-                "51": "Andhra Pradesh",
-                "52": "Andhra Pradesh",
-                "53": "Andhra Pradesh",
-                "56": "Karnataka",
-                "57": "Karnataka",
-                "58": "Karnataka",
-                "59": "Karnataka",
-                "60": "Tamil Nadu",
-                "61": "Tamil Nadu",
-                "62": "Tamil Nadu",
-                "63": "Tamil Nadu",
-                "64": "Tamil Nadu",
-                "67": "Kerala",
-                "68": "Kerala",
-                "69": "Kerala",
-                "70": "West Bengal",
-                "71": "West Bengal",
-                "72": "West Bengal",
-                "73": "West Bengal",
-                "74": "West Bengal",
-                "75": "West Bengal",
-                "76": "Odisha",
-                "77": "Odisha",
-                "78": "Assam",
-                "79": "Assam",
-                "80": "Bihar",
-                "81": "Bihar",
-                "82": "Bihar",
-                "83": "Bihar",
-                "84": "Bihar",
-                "85": "Jharkhand",
-                "86": "Jharkhand",
-                "87": "Madhya Pradesh",
+                "11": "Delhi", "12": "Haryana", "13": "Punjab", "14": "Himachal Pradesh", "15": "Jammu and Kashmir",
+                "16": "Chandigarh", "17": "Punjab", "18": "Haryana", "19": "Uttar Pradesh", "20": "Uttar Pradesh",
+                "21": "Uttar Pradesh", "22": "Uttar Pradesh", "23": "Uttar Pradesh", "24": "Uttar Pradesh", "25": "Uttar Pradesh",
+                "26": "Uttarakhand", "27": "Uttar Pradesh", "28": "Uttar Pradesh", "30": "Rajasthan", "31": "Rajasthan",
+                "32": "Rajasthan", "33": "Rajasthan", "34": "Rajasthan", "35": "Gujarat", "36": "Gujarat",
+                "37": "Gujarat", "38": "Gujarat", "39": "Gujarat", "40": "Maharashtra", "41": "Maharashtra",
+                "42": "Maharashtra", "43": "Maharashtra", "44": "Maharashtra", "45": "Karnataka", "46": "Karnataka",
+                "47": "Karnataka", "48": "Karnataka", "49": "Karnataka", "50": "Telangana", "51": "Andhra Pradesh",
+                "52": "Andhra Pradesh", "53": "Andhra Pradesh", "56": "Karnataka", "57": "Karnataka", "58": "Karnataka",
+                "59": "Karnataka", "60": "Tamil Nadu", "61": "Tamil Nadu", "62": "Tamil Nadu", "63": "Tamil Nadu",
+                "64": "Tamil Nadu", "67": "Kerala", "68": "Kerala", "69": "Kerala", "70": "West Bengal",
+                "71": "West Bengal", "72": "West Bengal", "73": "West Bengal", "74": "West Bengal", "75": "West Bengal",
+                "76": "Odisha", "77": "Odisha", "78": "Assam", "79": "Assam", "80": "Bihar", "81": "Bihar",
+                "82": "Bihar", "83": "Bihar", "84": "Bihar", "85": "Jharkhand", "86": "Jharkhand", "87": "Madhya Pradesh",
                 "88": "Chhattisgarh"
             };
 
@@ -185,81 +127,82 @@ export default function Step1Page() {
     };
 
     return (
-        <div className="bg-white rounded-2xl shadow-lg border border-[#e2e8f0] p-8 mb-20">
-            {/* Header */}
-            <div className="flex items-start gap-4 mb-8">
-                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-[#0ea5a3] to-[#0d9391] flex items-center justify-center flex-shrink-0">
-                    <MdStore className="w-7 h-7 text-white" />
-                </div>
-                <div className="flex-1">
-                    <h1 className="text-2xl font-bold text-[#0f172a] mb-2">Store Identity Setup</h1>
-                    <p className="text-[#64748b]">Let's start by setting up your pharmacy's basic information</p>
-                </div>
-            </div>
-
-            {/* Form */}
+        <OnboardingCard
+            title="Store Identity Setup"
+            description="Let's start by setting up your pharmacy's basic information"
+            icon={<FiHome size={28} />}
+        >
             <div className="space-y-6">
                 {/* Pharmacy Name */}
-                <div>
-                    <label className="block text-sm font-semibold text-[#0f172a] mb-2">
+                <div className="group">
+                    <label className="block text-gray-700 text-xs font-semibold mb-1.5 ml-1">
                         Pharmacy Name <span className="text-red-500">*</span>
                     </label>
-                    <input
-                        type="text"
-                        value={formData.pharmacyName}
-                        onChange={(e) => setFormData({ ...formData, pharmacyName: e.target.value })}
-                        placeholder="e.g., Hope Medical Store"
-                        className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0ea5a3] ${errors.pharmacyName ? "border-red-500" : "border-[#cbd5e1]"
-                            }`}
-                    />
-                    {errors.pharmacyName && (
-                        <p className="mt-2 text-sm text-red-600">{errors.pharmacyName}</p>
-                    )}
+                    <div className="relative transition-all duration-200 focus-within:ring-2 focus-within:ring-emerald-500/20 rounded-xl">
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-500 transition-colors">
+                            <FiHome size={18} />
+                        </div>
+                        <input
+                            type="text"
+                            value={formData.pharmacyName}
+                            onChange={(e) => setFormData({ ...formData, pharmacyName: e.target.value })}
+                            className={`w-full pl-11 pr-4 py-3 bg-gray-50 border rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-all text-sm text-gray-900 placeholder:text-gray-400 ${errors.pharmacyName ? "border-red-500" : "border-gray-200"}`}
+                            placeholder="e.g., Hope Medical Store"
+                        />
+                    </div>
+                    {errors.pharmacyName && <p className="mt-1 ml-1 text-xs text-red-500">{errors.pharmacyName}</p>}
                 </div>
 
                 {/* Business Type */}
-                <div>
-                    <label className="block text-sm font-semibold text-[#0f172a] mb-2">
+                <div className="group">
+                    <label className="block text-gray-700 text-xs font-semibold mb-1.5 ml-1">
                         Business Type <span className="text-red-500">*</span>
                     </label>
-                    <select
-                        value={formData.businessType}
-                        onChange={(e) => setFormData({ ...formData, businessType: e.target.value })}
-                        className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0ea5a3] ${errors.businessType ? "border-red-500" : "border-[#cbd5e1]"
-                            }`}
-                    >
-                        <option value="">Select business type</option>
-                        {BUSINESS_TYPES.map((type) => (
-                            <option key={type} value={type}>{type}</option>
-                        ))}
-                    </select>
-                    {errors.businessType && (
-                        <p className="mt-2 text-sm text-red-600">{errors.businessType}</p>
-                    )}
+                    <div className="relative transition-all duration-200 focus-within:ring-2 focus-within:ring-emerald-500/20 rounded-xl">
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-500 transition-colors">
+                            <FiType size={18} />
+                        </div>
+                        <select
+                            value={formData.businessType}
+                            onChange={(e) => setFormData({ ...formData, businessType: e.target.value })}
+                            className={`w-full pl-11 pr-4 py-3 bg-gray-50 border rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-all text-sm text-gray-900 appearance-none ${errors.businessType ? "border-red-500" : "border-gray-200"}`}
+                        >
+                            <option value="">Select business type</option>
+                            {BUSINESS_TYPES.map((type) => (
+                                <option key={type} value={type}>{type}</option>
+                            ))}
+                        </select>
+                        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                        </div>
+                    </div>
+                    {errors.businessType && <p className="mt-1 ml-1 text-xs text-red-500">{errors.businessType}</p>}
                 </div>
 
                 {/* Address */}
-                <div>
-                    <label className="block text-sm font-semibold text-[#0f172a] mb-2">
+                <div className="group">
+                    <label className="block text-gray-700 text-xs font-semibold mb-1.5 ml-1">
                         Complete Address <span className="text-red-500">*</span>
                     </label>
-                    <textarea
-                        value={formData.address}
-                        onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                        placeholder="Building number, street name, area..."
-                        rows={3}
-                        className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0ea5a3] ${errors.address ? "border-red-500" : "border-[#cbd5e1]"
-                            }`}
-                    />
-                    {errors.address && (
-                        <p className="mt-2 text-sm text-red-600">{errors.address}</p>
-                    )}
+                    <div className="relative transition-all duration-200 focus-within:ring-2 focus-within:ring-emerald-500/20 rounded-xl">
+                        <div className="absolute left-4 top-4 text-gray-400 group-focus-within:text-emerald-500 transition-colors">
+                            <FiMapPin size={18} />
+                        </div>
+                        <textarea
+                            value={formData.address}
+                            onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                            placeholder="Building number, street name, area..."
+                            rows={3}
+                            className={`w-full pl-11 pr-4 py-3 bg-gray-50 border rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-all text-sm text-gray-900 placeholder:text-gray-400 ${errors.address ? "border-red-500" : "border-gray-200"}`}
+                        />
+                    </div>
+                    {errors.address && <p className="mt-1 ml-1 text-xs text-red-500">{errors.address}</p>}
                 </div>
 
                 {/* City, PIN, State */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div>
-                        <label className="block text-sm font-semibold text-[#0f172a] mb-2">
+                    <div className="group">
+                        <label className="block text-gray-700 text-xs font-semibold mb-1.5 ml-1">
                             City <span className="text-red-500">*</span>
                         </label>
                         <input
@@ -267,16 +210,13 @@ export default function Step1Page() {
                             value={formData.city}
                             onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                             placeholder="Mumbai"
-                            className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0ea5a3] ${errors.city ? "border-red-500" : "border-[#cbd5e1]"
-                                }`}
+                            className={`w-full px-4 py-3 bg-gray-50 border rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-all text-sm text-gray-900 placeholder:text-gray-400 ${errors.city ? "border-red-500" : "border-gray-200"}`}
                         />
-                        {errors.city && (
-                            <p className="mt-2 text-sm text-red-600">{errors.city}</p>
-                        )}
+                        {errors.city && <p className="mt-1 ml-1 text-xs text-red-500">{errors.city}</p>}
                     </div>
 
-                    <div>
-                        <label className="block text-sm font-semibold text-[#0f172a] mb-2">
+                    <div className="group">
+                        <label className="block text-gray-700 text-xs font-semibold mb-1.5 ml-1">
                             PIN Code <span className="text-red-500">*</span>
                         </label>
                         <input
@@ -285,102 +225,105 @@ export default function Step1Page() {
                             onChange={(e) => setFormData({ ...formData, pinCode: e.target.value.replace(/\D/g, "").slice(0, 6) })}
                             placeholder="400001"
                             maxLength={6}
-                            className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0ea5a3] ${errors.pinCode ? "border-red-500" : "border-[#cbd5e1]"
-                                }`}
+                            className={`w-full px-4 py-3 bg-gray-50 border rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-all text-sm text-gray-900 placeholder:text-gray-400 ${errors.pinCode ? "border-red-500" : "border-gray-200"}`}
                         />
-                        {errors.pinCode && (
-                            <p className="mt-2 text-sm text-red-600">{errors.pinCode}</p>
-                        )}
+                        {errors.pinCode && <p className="mt-1 ml-1 text-xs text-red-500">{errors.pinCode}</p>}
                     </div>
 
-                    <div>
-                        <label className="block text-sm font-semibold text-[#0f172a] mb-2">
+                    <div className="group">
+                        <label className="block text-gray-700 text-xs font-semibold mb-1.5 ml-1">
                             State <span className="text-red-500">*</span>
                         </label>
-                        <select
-                            value={formData.state}
-                            onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-                            className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0ea5a3] ${errors.state ? "border-red-500" : "border-[#cbd5e1]"
-                                }`}
-                        >
-                            <option value="">Select state</option>
-                            {INDIAN_STATES.map((state) => (
-                                <option key={state} value={state}>{state}</option>
-                            ))}
-                        </select>
-                        {errors.state && (
-                            <p className="mt-2 text-sm text-red-600">{errors.state}</p>
-                        )}
+                        <div className="relative">
+                            <select
+                                value={formData.state}
+                                onChange={(e) => setFormData({ ...formData, state: e.target.value })}
+                                className={`w-full px-4 py-3 bg-gray-50 border rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-all text-sm text-gray-900 appearance-none ${errors.state ? "border-red-500" : "border-gray-200"}`}
+                            >
+                                <option value="">Select state</option>
+                                {INDIAN_STATES.map((state) => (
+                                    <option key={state} value={state}>{state}</option>
+                                ))}
+                            </select>
+                            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </div>
+                        </div>
+                        {errors.state && <p className="mt-1 ml-1 text-xs text-red-500">{errors.state}</p>}
                     </div>
                 </div>
 
                 {/* Landmark */}
-                <div>
-                    <label className="block text-sm font-semibold text-[#0f172a] mb-2">
-                        Landmark <span className="text-[#64748b] text-xs font-normal">(Optional)</span>
+                <div className="group">
+                    <label className="block text-gray-700 text-xs font-semibold mb-1.5 ml-1">
+                        Landmark <span className="text-gray-400 font-normal">(Optional)</span>
                     </label>
                     <input
                         type="text"
                         value={formData.landmark}
                         onChange={(e) => setFormData({ ...formData, landmark: e.target.value })}
                         placeholder="Near City Hospital"
-                        className="w-full px-4 py-3 border border-[#cbd5e1] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0ea5a3]"
+                        className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-all text-sm text-gray-900 placeholder:text-gray-400"
                     />
                 </div>
 
                 {/* Display Name */}
-                <div>
-                    <label className="block text-sm font-semibold text-[#0f172a] mb-2">
+                <div className="group">
+                    <label className="block text-gray-700 text-xs font-semibold mb-1.5 ml-1">
                         Store Display Name <span className="text-red-500">*</span>
-                        <span className="ml-2 text-xs font-normal text-[#64748b]">
+                        <span className="ml-2 text-xs font-normal text-gray-400">
                             (This will appear on invoices and receipts)
                         </span>
                     </label>
-                    <input
-                        type="text"
-                        value={formData.displayName}
-                        onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
-                        placeholder="Hope Medical Store"
-                        className={`w-full px-4 py-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0ea5a3] ${errors.displayName ? "border-red-500" : "border-[#cbd5e1]"
-                            }`}
-                    />
-                    {errors.displayName && (
-                        <p className="mt-2 text-sm text-red-600">{errors.displayName}</p>
-                    )}
+                    <div className="relative transition-all duration-200 focus-within:ring-2 focus-within:ring-emerald-500/20 rounded-xl">
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-500 transition-colors">
+                            <FiType size={18} />
+                        </div>
+                        <input
+                            type="text"
+                            value={formData.displayName}
+                            onChange={(e) => setFormData({ ...formData, displayName: e.target.value })}
+                            placeholder="Hope Medical Store"
+                            className={`w-full pl-11 pr-4 py-3 bg-gray-50 border rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-all text-sm text-gray-900 placeholder:text-gray-400 ${errors.displayName ? "border-red-500" : "border-gray-200"}`}
+                        />
+                    </div>
+                    {errors.displayName && <p className="mt-1 ml-1 text-xs text-red-500">{errors.displayName}</p>}
                 </div>
 
                 {/* Store Logo */}
-                <div>
-                    <label className="block text-sm font-semibold text-[#0f172a] mb-2">
-                        Store Logo <span className="text-[#64748b] text-xs font-normal">(Optional)</span>
+                <div className="group">
+                    <label className="block text-gray-700 text-xs font-semibold mb-1.5 ml-1">
+                        Store Logo <span className="text-gray-400 font-normal">(Optional)</span>
                     </label>
-                    <div className="border-2 border-dashed border-[#cbd5e1] rounded-lg p-8 text-center hover:border-[#0ea5a3] transition-colors cursor-pointer">
-                        <FiUpload className="w-8 h-8 text-[#64748b] mx-auto mb-3" />
-                        <p className="text-sm text-[#64748b] mb-1">Click to upload or drag and drop</p>
-                        <p className="text-xs text-[#94a3b8]">PNG or JPG (max. 2MB)</p>
+                    <div className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center hover:border-emerald-500 hover:bg-emerald-50/30 transition-all cursor-pointer group-hover:border-emerald-400">
+                        <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3 text-gray-400 group-hover:text-emerald-500 transition-colors">
+                            <FiImage size={24} />
+                        </div>
+                        <p className="text-sm text-gray-600 font-medium mb-1">Click to upload or drag and drop</p>
+                        <p className="text-xs text-gray-400">PNG or JPG (max. 2MB)</p>
                     </div>
                 </div>
 
                 {/* Info Box */}
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex gap-3">
-                    <FiInfo className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
+                <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-4 flex gap-3">
+                    <FiInfo className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
                     <div className="text-sm text-blue-700">
-                        <strong>Why do we need this?</strong>
-                        <p className="mt-1">This information will be used on invoices, labels, receipts, and for compliance purposes. Your state will be auto-detected from the PIN code.</p>
+                        <strong className="font-semibold">Why do we need this?</strong>
+                        <p className="mt-1 text-blue-600/80 leading-relaxed">This information will be used on invoices, labels, receipts, and for compliance purposes. Your state will be auto-detected from the PIN code.</p>
                     </div>
                 </div>
-            </div>
 
-            {/* Navigation */}
-            <div className="mt-8 flex justify-end">
-                <button
-                    onClick={handleNext}
-                    className="px-8 py-3 bg-[#0ea5a3] text-white rounded-lg font-semibold hover:bg-[#0d9391] transition-colors flex items-center gap-2"
-                >
-                    Continue to Licensing
-                    <FiArrowRight className="w-5 h-5" />
-                </button>
+                {/* Navigation */}
+                <div className="pt-4 flex justify-end">
+                    <button
+                        onClick={handleNext}
+                        className="px-8 py-3.5 bg-emerald-500 text-white rounded-xl font-semibold hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/40 transform hover:-translate-y-0.5 active:translate-y-0 flex items-center gap-2"
+                    >
+                        Continue to Licensing
+                        <FiArrowRight className="w-5 h-5" />
+                    </button>
+                </div>
             </div>
-        </div>
+        </OnboardingCard>
     );
 }

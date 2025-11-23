@@ -2,6 +2,17 @@ const database = require('../config/database');
 
 const prisma = database.getClient();
 
+// Map day names to numbers (0 = Sunday, 6 = Saturday)
+const DAY_MAP = {
+    'Sunday': 0,
+    'Monday': 1,
+    'Tuesday': 2,
+    'Wednesday': 3,
+    'Thursday': 4,
+    'Friday': 5,
+    'Saturday': 6
+};
+
 /**
  * Onboarding Repository - Data access layer for onboarding operations
  */
@@ -112,14 +123,20 @@ class OnboardingRepository {
             // Add operating hours if provided
             if (hours && hours.length > 0) {
                 await Promise.all(
-                    hours.map((hour) =>
-                        tx.storeOperatingHours.create({
+                    hours.map((hour) => {
+                        // Convert day name to number if it's a string
+                        const dayOfWeek = typeof hour.dayOfWeek === 'string' 
+                            ? DAY_MAP[hour.dayOfWeek] 
+                            : hour.dayOfWeek;
+                        
+                        return tx.storeOperatingHours.create({
                             data: {
                                 ...hour,
+                                dayOfWeek,
                                 storeId: store.id,
                             },
-                        })
-                    )
+                        });
+                    })
                 );
             }
 

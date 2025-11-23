@@ -3,9 +3,10 @@
 import { useState, useEffect } from "react";
 import { useOnboarding } from "@/contexts/OnboardingContext";
 import { useRouter } from "next/navigation";
-import { FiArrowLeft, FiCheck, FiEdit } from "react-icons/fi";
+import { FiArrowLeft, FiCheck, FiEdit, FiMapPin, FiShield, FiClock, FiUsers, FiPackage, FiTruck, FiDatabase, FiArrowRight, FiAward } from "react-icons/fi";
 import { onboardingApi } from "@/lib/api/onboarding";
 import { toast } from "react-hot-toast";
+import OnboardingCard from "@/components/onboarding/OnboardingCard";
 
 export default function Step10Page() {
     const { state, setCurrentStep, completeOnboarding } = useOnboarding();
@@ -57,7 +58,7 @@ export default function Step10Page() {
             // Mark onboarding as complete in the context
             completeOnboarding();
 
-            toast.success("🎉 Store created successfully!");
+            toast.success("Store created successfully!");
 
             // Redirect to dashboard
             router.push("/dashboard");
@@ -68,146 +69,159 @@ export default function Step10Page() {
         }
     };
 
-    return (
-        <div className="bg-white rounded-2xl shadow-lg border border-[#e2e8f0] p-8 mb-20">
-            <div className="text-center mb-8">
-                <div className="w-20 h-20 rounded-full bg-gradient-to-br from-[#0ea5a3] to-[#0d9391] flex items-center justify-center mx-auto mb-4">
-                    <FiCheck className="w-10 h-10 text-white" />
+    const ReviewSection = ({ title, icon, onEdit, children }: { title: string, icon: React.ReactNode, onEdit: () => void, children: React.ReactNode }) => (
+        <div className="p-5 border border-gray-100 rounded-xl bg-gray-50/50 hover:bg-white hover:shadow-md hover:shadow-emerald-500/5 hover:border-emerald-100 transition-all duration-300 group">
+            <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2.5">
+                    <div className="text-emerald-500 bg-emerald-50 p-1.5 rounded-lg">
+                        {icon}
+                    </div>
+                    <h3 className="font-semibold text-gray-900">{title}</h3>
                 </div>
-                <h1 className="text-3xl font-bold text-[#0f172a] mb-2">Review & Finalize</h1>
-                <p className="text-[#64748b]">Review your setup before entering the dashboard</p>
+                <button
+                    onClick={onEdit}
+                    className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 px-2.5 py-1 rounded-lg transition-colors flex items-center gap-1.5 text-xs font-medium opacity-0 group-hover:opacity-100"
+                >
+                    <FiEdit size={12} />
+                    Edit
+                </button>
             </div>
+            {children}
+        </div>
+    );
 
-            <div className="space-y-4">
-                {/* Store Identity */}
-                <div className="p-6 border border-[#e2e8f0] rounded-xl">
-                    <div className="flex items-center justify-between mb-4">
-                        <h3 className="font-semibold text-[#0f172a]">Store Identity</h3>
-                        <button
-                            onClick={() => router.push("/onboarding/step-1")}
-                            className="text-[#0ea5a3] hover:text-[#0d9391] flex items-center gap-2 text-sm font-medium"
-                        >
-                            <FiEdit className="w-4 h-4" />
-                            Edit
-                        </button>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                            <div className="text-[#64748b]">Pharmacy Name</div>
-                            <div className="font-medium text-[#0f172a]">{state.data.storeIdentity.pharmacyName || "Not set"}</div>
+    return (
+        <OnboardingCard
+            title="Review & Finalize"
+            description="Review your setup before entering the dashboard"
+            icon={<FiCheck size={28} />}
+        >
+            <div className="space-y-6">
+                <div className="grid grid-cols-1 gap-4">
+                    {/* Store Identity */}
+                    <ReviewSection
+                        title="Store Identity"
+                        icon={<FiMapPin size={18} />}
+                        onEdit={() => router.push("/onboarding/step-1")}
+                    >
+                        <div className="grid grid-cols-2 gap-y-3 gap-x-4 text-sm">
+                            <div>
+                                <div className="text-xs text-gray-500 mb-0.5">Pharmacy Name</div>
+                                <div className="font-medium text-gray-900">{state.data.storeIdentity.pharmacyName || "Not set"}</div>
+                            </div>
+                            <div>
+                                <div className="text-xs text-gray-500 mb-0.5">Business Type</div>
+                                <div className="font-medium text-gray-900">{state.data.storeIdentity.businessType || "Not set"}</div>
+                            </div>
+                            <div className="col-span-2">
+                                <div className="text-xs text-gray-500 mb-0.5">Location</div>
+                                <div className="font-medium text-gray-900">
+                                    {[state.data.storeIdentity.city, state.data.storeIdentity.state].filter(Boolean).join(", ") || "Not set"}
+                                </div>
+                            </div>
                         </div>
-                        <div>
-                            <div className="text-[#64748b]">Business Type</div>
-                            <div className="font-medium text-[#0f172a]">{state.data.storeIdentity.businessType || "Not set"}</div>
-                        </div>
-                        <div>
-                            <div className="text-[#64748b]">City</div>
-                            <div className="font-medium text-[#0f172a]">{state.data.storeIdentity.city || "Not set"}</div>
-                        </div>
-                        <div>
-                            <div className="text-[#64748b]">State</div>
-                            <div className="font-medium text-[#0f172a]">{state.data.storeIdentity.state || "Not set"}</div>
-                        </div>
-                    </div>
-                </div>
+                    </ReviewSection>
 
-                {/* Licensing */}
-                <div className="p-6 border border-[#e2e8f0] rounded-xl">
-                    <div className="flex items-center justify-between mb-4">
-                        <h3 className="font-semibold text-[#0f172a]">Licensing & Compliance</h3>
-                        <button
-                            onClick={() => router.push("/onboarding/step-2")}
-                            className="text-[#0ea5a3] hover:text-[#0d9391] flex items-center gap-2 text-sm font-medium"
-                        >
-                            <FiEdit className="w-4 h-4" />
-                            Edit
-                        </button>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                        <div>
-                            <div className="text-[#64748b]">Drug License</div>
-                            <div className="font-medium text-[#0f172a]">{state.data.licensing.dlNumber || "Not set"}</div>
+                    {/* Licensing */}
+                    <ReviewSection
+                        title="Licensing"
+                        icon={<FiShield size={18} />}
+                        onEdit={() => router.push("/onboarding/step-2")}
+                    >
+                        <div className="grid grid-cols-2 gap-y-3 gap-x-4 text-sm">
+                            <div>
+                                <div className="text-xs text-gray-500 mb-0.5">Drug License</div>
+                                <div className="font-medium text-gray-900">{state.data.licensing.dlNumber || "Not set"}</div>
+                            </div>
+                            <div>
+                                <div className="text-xs text-gray-500 mb-0.5">GSTIN</div>
+                                <div className="font-medium text-gray-900">{state.data.licensing.gstin || "Not set"}</div>
+                            </div>
                         </div>
-                        <div>
-                            <div className="text-[#64748b]">GSTIN</div>
-                            <div className="font-medium text-[#0f172a]">{state.data.licensing.gstin || "Not set"}</div>
-                        </div>
-                    </div>
-                </div>
+                    </ReviewSection>
 
-                {/* Timings */}
-                <div className="p-6 border border-[#e2e8f0] rounded-xl">
-                    <div className="flex items-center justify-between mb-4">
-                        <h3 className="font-semibold text-[#0f172a]">Store Timings</h3>
-                        <button
-                            onClick={() => router.push("/onboarding/step-3")}
-                            className="text-[#0ea5a3] hover:text-[#0d9391] flex items-center gap-2 text-sm font-medium"
-                        >
-                            <FiEdit className="w-4 h-4" />
-                            Edit
-                        </button>
-                    </div>
-                    <div className="text-sm">
-                        <div className="text-[#64748b]">Operating Hours</div>
-                        <div className="font-medium text-[#0f172a]">
-                            {state.data.timings?.is24x7
-                                ? "24x7 Operation"
-                                : `${state.data.timings?.openTime || "09:00"} - ${state.data.timings?.closeTime || "21:00"}`}
+                    {/* Timings */}
+                    <ReviewSection
+                        title="Timings"
+                        icon={<FiClock size={18} />}
+                        onEdit={() => router.push("/onboarding/step-3")}
+                    >
+                        <div className="text-sm">
+                            <div className="text-xs text-gray-500 mb-0.5">Operating Hours</div>
+                            <div className="font-medium text-gray-900">
+                                {state.data.timings?.is24x7
+                                    ? "24x7 Operation"
+                                    : `${state.data.timings?.openTime || "09:00"} - ${state.data.timings?.closeTime || "21:00"}`}
+                            </div>
                         </div>
-                    </div>
+                    </ReviewSection>
                 </div>
 
                 {/* Summary Stats */}
                 <div className="grid grid-cols-3 gap-4">
-                    <div className="p-4 bg-[#f8fafc] rounded-lg text-center">
-                        <div className="text-2xl font-bold text-[#0ea5a3]">{state.data.suppliers.length}</div>
-                        <div className="text-sm text-[#64748b]">Suppliers</div>
+                    <div className="p-4 bg-emerald-50/50 border border-emerald-100 rounded-xl text-center">
+                        <div className="text-2xl font-bold text-emerald-600">{state.data.suppliers.length}</div>
+                        <div className="text-xs font-medium text-emerald-800 mt-1 flex items-center justify-center gap-1">
+                            <FiTruck size={12} /> Suppliers
+                        </div>
                     </div>
-                    <div className="p-4 bg-[#f8fafc] rounded-lg text-center">
-                        <div className="text-2xl font-bold text-[#0ea5a3]">{state.data.users.length + 1}</div>
-                        <div className="text-sm text-[#64748b]">Team Members</div>
+                    <div className="p-4 bg-blue-50/50 border border-blue-100 rounded-xl text-center">
+                        <div className="text-2xl font-bold text-blue-600">{state.data.users.length + 1}</div>
+                        <div className="text-xs font-medium text-blue-800 mt-1 flex items-center justify-center gap-1">
+                            <FiUsers size={12} /> Team
+                        </div>
                     </div>
-                    <div className="p-4 bg-[#f8fafc] rounded-lg text-center">
-                        <div className="text-2xl font-bold text-[#0ea5a3]">{state.completedSteps.length}/10</div>
-                        <div className="text-sm text-[#64748b]">Steps Complete</div>
+                    <div className="p-4 bg-purple-50/50 border border-purple-100 rounded-xl text-center">
+                        <div className="text-2xl font-bold text-purple-600">{state.completedSteps.length}/10</div>
+                        <div className="text-xs font-medium text-purple-800 mt-1 flex items-center justify-center gap-1">
+                            <FiCheck size={12} /> Steps
+                        </div>
                     </div>
                 </div>
 
                 {/* Success Message */}
-                <div className="bg-green-50 border border-green-200 rounded-lg p-6 text-center">
-                    <div className="text-green-900 font-semibold mb-2">🎉 Setup Complete!</div>
-                    <p className="text-sm text-green-700">
+                <div className="bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl p-6 text-center text-white shadow-lg shadow-emerald-500/20 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-white/10 rounded-full blur-2xl"></div>
+
+                    <div className="flex justify-center mb-3">
+                        <div className="p-3 bg-white/20 rounded-full backdrop-blur-sm">
+                            <FiAward size={32} className="text-white" />
+                        </div>
+                    </div>
+                    <div className="font-bold text-lg mb-2">Setup Complete!</div>
+                    <p className="text-emerald-50 text-sm mb-6 max-w-sm mx-auto">
                         Your pharmacy is ready to go. Click below to enter your dashboard and start managing your store.
                     </p>
+                    <button
+                        onClick={handleFinish}
+                        disabled={isSubmitting}
+                        className="w-full py-3.5 bg-white text-emerald-600 rounded-xl font-bold text-sm hover:bg-emerald-50 transition-all shadow-lg transform hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-80 disabled:cursor-not-allowed disabled:transform-none flex items-center justify-center gap-2"
+                    >
+                        {isSubmitting ? (
+                            <>
+                                <div className="animate-spin rounded-full h-4 w-4 border-2 border-emerald-600 border-t-transparent"></div>
+                                Creating your store...
+                            </>
+                        ) : (
+                            <>
+                                Enter Dashboard
+                                <FiArrowRight className="w-4 h-4" />
+                            </>
+                        )}
+                    </button>
+                </div>
+
+                {/* Back Button */}
+                <div className="text-center">
+                    <button
+                        onClick={() => router.push("/onboarding/step-9")}
+                        className="text-gray-400 hover:text-gray-600 text-sm font-medium transition-colors flex items-center justify-center gap-2 mx-auto"
+                    >
+                        <FiArrowLeft className="w-4 h-4" />
+                        Back to Data Import
+                    </button>
                 </div>
             </div>
-
-            <div className="mt-8 flex justify-between">
-                <button
-                    onClick={() => router.push("/onboarding/step-9")}
-                    className="px-8 py-3 border border-[#cbd5e1] text-[#475569] rounded-lg font-semibold hover:bg-[#f8fafc] transition-colors flex items-center gap-2"
-                >
-                    <FiArrowLeft className="w-5 h-5" />
-                    Back
-                </button>
-                <button
-                    onClick={handleFinish}
-                    disabled={isSubmitting}
-                    className="px-12 py-4 bg-gradient-to-r from-[#0ea5a3] to-[#0d9391] text-white rounded-lg font-bold text-lg hover:shadow-lg transition-all flex items-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                    {isSubmitting ? (
-                        <>
-                            <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-white"></div>
-                            Creating your store...
-                        </>
-                    ) : (
-                        <>
-                            <FiCheck className="w-6 h-6" />
-                            Finish Setup & Enter Dashboard
-                        </>
-                    )}
-                </button>
-            </div>
-        </div>
+        </OnboardingCard>
     );
 }

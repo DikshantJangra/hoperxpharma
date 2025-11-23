@@ -28,6 +28,17 @@ const config: Config = {
             },
         },
     },
-    plugins: [],
+    plugins: [
+        function ({ addUtilities }: { addUtilities: any }) {
+            addUtilities({
+                '.animation-delay-200': {
+                    'animation-delay': '0.2s',
+                },
+                '.animation-delay-400': {
+                    'animation-delay': '0.4s',
+                },
+            })
+        },
+    ],
 };
 export default config;

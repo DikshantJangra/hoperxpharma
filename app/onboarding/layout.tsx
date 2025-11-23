@@ -3,115 +3,141 @@
 import { OnboardingProvider, useOnboarding } from "@/contexts/OnboardingContext";
 import { useRouter } from "next/navigation";
 import { FiCheck } from "react-icons/fi";
+import Logo from "@/components/ui/Logo";
 
 function OnboardingLayoutContent({ children }: { children: React.ReactNode }) {
     const { state } = useOnboarding();
     const router = useRouter();
 
     const steps = [
-        { number: 1, title: "Store Identity", path: "/onboarding/step-1" },
+        { number: 1, title: "Identity", path: "/onboarding/step-1" },
         { number: 2, title: "Licensing", path: "/onboarding/step-2" },
         { number: 3, title: "Timings", path: "/onboarding/step-3" },
         { number: 4, title: "Inventory", path: "/onboarding/step-4" },
         { number: 5, title: "Suppliers", path: "/onboarding/step-5" },
-        { number: 6, title: "POS & Billing", path: "/onboarding/step-6" },
-        { number: 7, title: "Users & Roles", path: "/onboarding/step-7" },
+        { number: 6, title: "Billing", path: "/onboarding/step-6" },
+        { number: 7, title: "Users", path: "/onboarding/step-7" },
         { number: 8, title: "Integrations", path: "/onboarding/step-8" },
-        { number: 9, title: "Data Import", path: "/onboarding/step-9" },
+        { number: 9, title: "Import", path: "/onboarding/step-9" },
         { number: 10, title: "Review", path: "/onboarding/step-10" }
     ];
 
     const progress = (state.currentStep / 10) * 100;
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-[#f0fdfa] to-[#f8fafc]">
+        <div className="min-h-screen bg-gray-50 relative overflow-x-hidden font-sans">
+            {/* Premium Mesh Background */}
+            <div className="fixed inset-0 w-full h-full overflow-hidden pointer-events-none z-0">
+                <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] rounded-full bg-emerald-500/5 blur-3xl"></div>
+                <div className="absolute top-[20%] -right-[10%] w-[40%] h-[40%] rounded-full bg-emerald-500/5 blur-3xl"></div>
+                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[60%] h-[30%] rounded-full bg-emerald-500/3 blur-3xl"></div>
+            </div>
+
             {/* Header */}
-            <div className="bg-white border-b border-[#e2e8f0] sticky top-0 z-50">
-                <div className="max-w-7xl mx-auto px-6 py-4">
-                    <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                            <div className="text-2xl font-bold text-[#0ea5a3]">HopeRx</div>
-                            <div className="h-8 w-px bg-[#e2e8f0]"></div>
-                            <div className="text-sm text-[#64748b]">Setup Wizard</div>
+            <div className="fixed top-0 left-0 right-0 bg-white/80 backdrop-blur-md border-b border-gray-100 z-50">
+                <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+                    <div className="flex items-center gap-6">
+                        <Logo size="lg" showText={true} />
+                        <div className="hidden md:block h-6 w-px bg-gray-200"></div>
+                        <span className="hidden md:block text-sm font-medium text-gray-500 tracking-wide uppercase">Setup Wizard</span>
+                    </div>
+
+                    <div className="flex items-center gap-4">
+                        <div className="text-right hidden sm:block">
+                            <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-0.5">Step {state.currentStep} of 10</p>
+                            <p className="text-xs text-gray-400 font-medium">
+                                {steps.find(s => s.number === state.currentStep)?.title || "Onboarding"}
+                            </p>
                         </div>
-                        <div className="flex items-center gap-4">
-                            <span className="text-sm font-medium text-[#64748b]">
-                                Step {state.currentStep} of 10
-                            </span>
-                            <div className="w-32 h-2 bg-[#e2e8f0] rounded-full overflow-hidden">
-                                <div
-                                    className="h-full bg-gradient-to-r from-[#0ea5a3] to-[#0d9391] transition-all duration-500"
-                                    style={{ width: `${progress}%` }}
-                                ></div>
-                            </div>
+                        <div className="w-32 md:w-48 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                            <div
+                                className="h-full bg-emerald-500 rounded-full transition-all duration-700 ease-out shadow-[0_0_10px_rgba(16,185,129,0.4)]"
+                                style={{ width: `${progress}%` }}
+                            ></div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* Progress Steps */}
-            <div className="bg-white border-b border-[#e2e8f0]">
-                <div className="max-w-7xl mx-auto px-6 py-6">
-                    <div className="flex items-center justify-between">
-                        {steps.map((step, idx) => (
-                            <div key={step.number} className="flex items-center">
-                                <div className="flex flex-col items-center">
+            {/* Main Content Wrapper */}
+            <div className="relative z-10 pt-24 pb-24 px-4 sm:px-6">
+                <div className="max-w-4xl mx-auto">
+                    {/* Desktop Stepper */}
+                    <div className="hidden lg:flex items-center justify-between mb-12 px-4">
+                        {steps.map((step, idx) => {
+                            const isCompleted = state.completedSteps.includes(step.number);
+                            const isCurrent = step.number === state.currentStep;
+                            const isUpcoming = !isCompleted && !isCurrent;
+
+                            return (
+                                <div key={step.number} className="flex flex-col items-center relative group">
                                     <button
                                         onClick={() => {
-                                            if (state.completedSteps.includes(step.number) || step.number <= state.currentStep) {
+                                            if (isCompleted || step.number <= state.currentStep) {
                                                 router.push(step.path);
                                             }
                                         }}
-                                        disabled={step.number > state.currentStep && !state.completedSteps.includes(step.number)}
-                                        className={`w-10 h-10 rounded-full flex items-center justify-center font-semibold text-sm transition-all ${state.completedSteps.includes(step.number)
-                                            ? "bg-[#0ea5a3] text-white"
-                                            : step.number === state.currentStep
-                                                ? "bg-[#0ea5a3] text-white ring-4 ring-[#0ea5a3] ring-opacity-20"
-                                                : step.number < state.currentStep
-                                                    ? "bg-[#e2e8f0] text-[#64748b]"
-                                                    : "bg-white border-2 border-[#e2e8f0] text-[#cbd5e1]"
-                                            }`}
+                                        disabled={isUpcoming}
+                                        className={`
+                                            w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 relative z-10
+                                            ${isCompleted
+                                                ? "bg-emerald-500 text-white shadow-lg shadow-emerald-500/30 scale-100"
+                                                : isCurrent
+                                                    ? "bg-white text-emerald-600 border-2 border-emerald-500 shadow-md scale-110"
+                                                    : "bg-white text-gray-300 border-2 border-gray-100"
+                                            }
+                                        `}
                                     >
-                                        {state.completedSteps.includes(step.number) ? (
-                                            <FiCheck className="w-5 h-5" />
-                                        ) : (
-                                            step.number
-                                        )}
+                                        {isCompleted ? <FiCheck size={14} /> : step.number}
                                     </button>
-                                    <span className={`mt-2 text-xs font-medium ${step.number === state.currentStep
-                                        ? "text-[#0ea5a3]"
-                                        : state.completedSteps.includes(step.number)
-                                            ? "text-[#0f172a]"
-                                            : "text-[#cbd5e1]"
-                                        }`}>
+
+                                    <span className={`
+                                        absolute -bottom-6 text-[10px] font-semibold tracking-wide whitespace-nowrap transition-colors duration-300
+                                        ${isCurrent ? "text-emerald-600" : isCompleted ? "text-gray-600" : "text-gray-300"}
+                                    `}>
                                         {step.title}
                                     </span>
+
+                                    {/* Connector Line */}
+                                    {idx < steps.length - 1 && (
+                                        <div className="absolute top-4 left-1/2 w-[calc(100%_-_2rem)] h-[2px] -translate-y-1/2 pointer-events-none" style={{ left: '50%', width: 'calc(100% * 3)' }}>
+                                            {/* Note: The width calculation here is tricky in flex-between. 
+                                                Ideally, we'd use a grid or absolute positioning for perfect lines. 
+                                                For now, relying on flex gap visual. 
+                                                Actually, let's simplify: just show dots for cleanliness or use a different layout.
+                                                Let's keep it simple and clean without lines for now to avoid layout breakage, 
+                                                or just use a simple background line behind everything.
+                                            */}
+                                        </div>
+                                    )}
                                 </div>
-                                {idx < steps.length - 1 && (
-                                    <div className={`w-12 h-0.5 mx-2 ${state.completedSteps.includes(step.number) ? "bg-[#0ea5a3]" : "bg-[#e2e8f0]"
-                                        }`}></div>
-                                )}
-                            </div>
-                        ))}
+                            );
+                        })}
+
+                        {/* Background Line for Stepper */}
+                        <div className="absolute top-4 left-0 w-full h-[2px] bg-gray-100 -z-0 hidden"></div>
+                    </div>
+
+                    {/* Content */}
+                    <div className="transition-all duration-500 ease-in-out">
+                        {children}
                     </div>
                 </div>
             </div>
 
-            {/* Main Content */}
-            <div className="max-w-4xl mx-auto px-6 py-12">
-                {children}
-            </div>
-
             {/* Footer */}
-            <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-[#e2e8f0] py-4">
-                <div className="max-w-4xl mx-auto px-6">
-                    <div className="flex items-center justify-between text-sm text-[#64748b]">
-                        <div>
-                            Need help? <a href="/help/chat" className="text-[#0ea5a3] hover:underline">Contact Support</a>
-                        </div>
-                        <div>
-                            Auto-saving your progress...
-                        </div>
+            <div className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-md border-t border-gray-100 py-4 z-40">
+                <div className="max-w-7xl mx-auto px-6 flex items-center justify-between text-xs text-gray-400">
+                    <div className="flex items-center gap-4">
+                        <span>© 2024 HopeRxPharma</span>
+                        <span className="hidden sm:inline">•</span>
+                        <a href="#" className="hidden sm:inline hover:text-emerald-500 transition-colors">Privacy Policy</a>
+                        <span className="hidden sm:inline">•</span>
+                        <a href="#" className="hidden sm:inline hover:text-emerald-500 transition-colors">Terms of Service</a>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                        <span className="text-emerald-600 font-medium">Auto-saving enabled</span>
                     </div>
                 </div>
             </div>

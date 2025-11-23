@@ -3,7 +3,8 @@
 import { useEffect } from "react";
 import { useOnboarding } from "@/contexts/OnboardingContext";
 import { useRouter } from "next/navigation";
-import { FiArrowRight, FiArrowLeft, FiUpload, FiDownload } from "react-icons/fi";
+import { FiArrowRight, FiArrowLeft, FiUpload, FiDownload, FiDatabase, FiFileText } from "react-icons/fi";
+import OnboardingCard from "@/components/onboarding/OnboardingCard";
 
 export default function Step9Page() {
     const { state, setCurrentStep, markStepComplete } = useOnboarding();
@@ -18,66 +19,73 @@ export default function Step9Page() {
         router.push("/onboarding/step-10");
     };
 
-    return (
-        <div className="bg-white rounded-2xl shadow-lg border border-[#e2e8f0] p-8 mb-20">
-            <div className="flex items-start gap-4 mb-8">
-                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-[#0ea5a3] to-[#0d9391] flex items-center justify-center">
-                    <FiUpload className="w-7 h-7 text-white" />
-                </div>
-                <div>
-                    <h1 className="text-2xl font-bold text-[#0f172a] mb-2">Data Import</h1>
-                    <p className="text-[#64748b]">Import your existing data (optional - you can do this later)</p>
-                </div>
-            </div>
+    const handleBack = () => {
+        router.push("/onboarding/step-8");
+    };
 
+    return (
+        <OnboardingCard
+            title="Data Import"
+            description="Import your existing data (optional - you can do this later)"
+            icon={<FiDatabase size={28} />}
+        >
             <div className="space-y-4">
                 {[
-                    { title: "Inventory", description: "Import your product catalog" },
-                    { title: "Patients", description: "Import patient records" },
-                    { title: "Suppliers", description: "Import supplier information" },
-                    { title: "Sales History", description: "Import past transactions" }
+                    { title: "Inventory", description: "Import your product catalog", icon: <FiFileText size={20} /> },
+                    { title: "Patients", description: "Import patient records", icon: <FiFileText size={20} /> },
+                    { title: "Suppliers", description: "Import supplier information", icon: <FiFileText size={20} /> },
+                    { title: "Sales History", description: "Import past transactions", icon: <FiFileText size={20} /> }
                 ].map((item) => (
-                    <div key={item.title} className="p-6 border border-[#e2e8f0] rounded-xl">
+                    <div key={item.title} className="p-5 border border-gray-200 rounded-xl hover:border-emerald-200 hover:shadow-lg hover:shadow-emerald-500/5 transition-all duration-300 group bg-white">
                         <div className="flex items-start justify-between mb-4">
-                            <div>
-                                <h3 className="font-semibold text-[#0f172a] mb-1">{item.title}</h3>
-                                <p className="text-sm text-[#64748b]">{item.description}</p>
+                            <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                                    {item.icon}
+                                </div>
+                                <div>
+                                    <h3 className="font-semibold text-gray-900">{item.title}</h3>
+                                    <p className="text-sm text-gray-500 mt-0.5">{item.description}</p>
+                                </div>
                             </div>
-                            <button className="px-4 py-2 border border-[#cbd5e1] text-[#64748b] rounded-lg font-medium hover:bg-[#f8fafc] transition-colors flex items-center gap-2">
-                                <FiDownload className="w-4 h-4" />
+                            <button className="px-3 py-1.5 border border-gray-200 text-gray-600 rounded-lg font-medium text-xs hover:bg-gray-50 hover:text-gray-900 transition-colors flex items-center gap-1.5">
+                                <FiDownload className="w-3.5 h-3.5" />
                                 Template
                             </button>
                         </div>
-                        <div className="border-2 border-dashed border-[#cbd5e1] rounded-lg p-6 text-center hover:border-[#0ea5a3] transition-colors cursor-pointer">
-                            <FiUpload className="w-6 h-6 text-[#64748b] mx-auto mb-2" />
-                            <p className="text-sm text-[#64748b]">Click to upload CSV or Excel file</p>
+                        <div className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center hover:border-emerald-400 hover:bg-emerald-50/10 transition-all cursor-pointer group/upload">
+                            <div className="w-10 h-10 rounded-full bg-gray-50 text-gray-400 mx-auto mb-2 flex items-center justify-center group-hover/upload:bg-emerald-100 group-hover/upload:text-emerald-500 transition-colors">
+                                <FiUpload className="w-5 h-5" />
+                            </div>
+                            <p className="text-sm font-medium text-gray-600 group-hover/upload:text-emerald-600 transition-colors">Click to upload CSV or Excel file</p>
+                            <p className="text-xs text-gray-400 mt-1">Max file size: 10MB</p>
                         </div>
                     </div>
                 ))}
 
-                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                    <p className="text-sm text-amber-700">
-                        <strong>Tip:</strong> Download the templates first to see the required format. You can import data anytime from the Settings menu.
+                <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 mt-4">
+                    <p className="text-sm text-amber-700 leading-relaxed">
+                        <span className="font-semibold">Tip:</span> Download the templates first to see the required format. You can import data anytime from the Settings menu.
                     </p>
                 </div>
-            </div>
 
-            <div className="mt-8 flex justify-between">
-                <button
-                    onClick={() => router.push("/onboarding/step-8")}
-                    className="px-8 py-3 border border-[#cbd5e1] text-[#475569] rounded-lg font-semibold hover:bg-[#f8fafc] transition-colors flex items-center gap-2"
-                >
-                    <FiArrowLeft className="w-5 h-5" />
-                    Back
-                </button>
-                <button
-                    onClick={handleNext}
-                    className="px-8 py-3 bg-[#0ea5a3] text-white rounded-lg font-semibold hover:bg-[#0d9391] transition-colors flex items-center gap-2"
-                >
-                    Continue to Review
-                    <FiArrowRight className="w-5 h-5" />
-                </button>
+                {/* Navigation */}
+                <div className="pt-4 flex justify-between items-center">
+                    <button
+                        onClick={handleBack}
+                        className="px-6 py-2.5 text-gray-500 font-medium hover:text-gray-700 hover:bg-gray-50 rounded-lg transition-colors flex items-center gap-2"
+                    >
+                        <FiArrowLeft className="w-4 h-4" />
+                        Back
+                    </button>
+                    <button
+                        onClick={handleNext}
+                        className="px-8 py-3.5 bg-emerald-500 text-white rounded-xl font-semibold hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/40 transform hover:-translate-y-0.5 active:translate-y-0 flex items-center gap-2"
+                    >
+                        Continue to Review
+                        <FiArrowRight className="w-5 h-5" />
+                    </button>
+                </div>
             </div>
-        </div>
+        </OnboardingCard>
     );
 }

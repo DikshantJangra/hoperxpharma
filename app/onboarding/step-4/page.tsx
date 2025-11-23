@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import { useOnboarding } from "@/contexts/OnboardingContext";
 import { useRouter } from "next/navigation";
-import { FiArrowRight, FiArrowLeft, FiPackage } from "react-icons/fi";
+import { FiArrowRight, FiArrowLeft, FiPackage, FiAlertCircle, FiSettings, FiCheck } from "react-icons/fi";
+import OnboardingCard from "@/components/onboarding/OnboardingCard";
 
 export default function Step4Page() {
     const { state, updateInventory, setCurrentStep, markStepComplete } = useOnboarding();
@@ -37,72 +38,104 @@ export default function Step4Page() {
         router.push("/onboarding/step-5");
     };
 
+    const handleBack = () => {
+        updateInventory(formData);
+        router.push("/onboarding/step-3");
+    };
+
     return (
-        <div className="bg-white rounded-2xl shadow-lg border border-[#e2e8f0] p-8 mb-20">
-            <div className="flex items-start gap-4 mb-8">
-                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-[#0ea5a3] to-[#0d9391] flex items-center justify-center">
-                    <FiPackage className="w-7 h-7 text-white" />
-                </div>
-                <div>
-                    <h1 className="text-2xl font-bold text-[#0f172a] mb-2">Inventory Defaults</h1>
-                    <p className="text-[#64748b]">Configure default settings for inventory management</p>
-                </div>
-            </div>
-
-            <div className="space-y-6">
-                <div className="grid grid-cols-2 gap-6">
-                    <div>
-                        <label className="block text-sm font-semibold text-[#0f172a] mb-2">Low Stock Threshold</label>
-                        <input
-                            type="number"
-                            value={formData.lowStockThreshold}
-                            onChange={(e) => setFormData({ ...formData, lowStockThreshold: parseInt(e.target.value) || 0 })}
-                            className="w-full px-4 py-3 border border-[#cbd5e1] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0ea5a3]"
-                        />
-                        <p className="mt-1 text-xs text-[#64748b]">Alert when stock falls below this number</p>
+        <OnboardingCard
+            title="Inventory Defaults"
+            description="Configure default settings for inventory management"
+            icon={<FiPackage size={28} />}
+        >
+            <div className="space-y-8">
+                {/* Thresholds */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="group">
+                        <label className="block text-gray-700 text-xs font-semibold mb-1.5 ml-1">
+                            Low Stock Threshold
+                        </label>
+                        <div className="relative transition-all duration-200 focus-within:ring-2 focus-within:ring-emerald-500/20 rounded-xl">
+                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-500 transition-colors">
+                                <FiAlertCircle size={18} />
+                            </div>
+                            <input
+                                type="number"
+                                value={formData.lowStockThreshold}
+                                onChange={(e) => setFormData({ ...formData, lowStockThreshold: parseInt(e.target.value) || 0 })}
+                                className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-all text-sm text-gray-900"
+                            />
+                        </div>
+                        <p className="mt-1.5 ml-1 text-xs text-gray-400">Alert when stock falls below this number</p>
                     </div>
 
-                    <div>
-                        <label className="block text-sm font-semibold text-[#0f172a] mb-2">Near Expiry Threshold (days)</label>
-                        <input
-                            type="number"
-                            value={formData.nearExpiryThreshold}
-                            onChange={(e) => setFormData({ ...formData, nearExpiryThreshold: parseInt(e.target.value) || 0 })}
-                            className="w-full px-4 py-3 border border-[#cbd5e1] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0ea5a3]"
-                        />
-                        <p className="mt-1 text-xs text-[#64748b]">Alert when expiry is within this many days</p>
+                    <div className="group">
+                        <label className="block text-gray-700 text-xs font-semibold mb-1.5 ml-1">
+                            Near Expiry Threshold (days)
+                        </label>
+                        <div className="relative transition-all duration-200 focus-within:ring-2 focus-within:ring-emerald-500/20 rounded-xl">
+                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-500 transition-colors">
+                                <FiAlertCircle size={18} />
+                            </div>
+                            <input
+                                type="number"
+                                value={formData.nearExpiryThreshold}
+                                onChange={(e) => setFormData({ ...formData, nearExpiryThreshold: parseInt(e.target.value) || 0 })}
+                                className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-all text-sm text-gray-900"
+                            />
+                        </div>
+                        <p className="mt-1.5 ml-1 text-xs text-gray-400">Alert when expiry is within this many days</p>
                     </div>
                 </div>
 
-                <div>
-                    <label className="block text-sm font-semibold text-[#0f172a] mb-2">Default Unit of Measure</label>
-                    <select
-                        value={formData.defaultUoM}
-                        onChange={(e) => setFormData({ ...formData, defaultUoM: e.target.value })}
-                        className="w-full px-4 py-3 border border-[#cbd5e1] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0ea5a3]"
-                    >
-                        <option value="Units">Units</option>
-                        <option value="Strips">Strips</option>
-                        <option value="Boxes">Boxes</option>
-                        <option value="Bottles">Bottles</option>
-                        <option value="Vials">Vials</option>
-                    </select>
+                {/* Defaults */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="group">
+                        <label className="block text-gray-700 text-xs font-semibold mb-1.5 ml-1">
+                            Default Unit of Measure
+                        </label>
+                        <div className="relative">
+                            <select
+                                value={formData.defaultUoM}
+                                onChange={(e) => setFormData({ ...formData, defaultUoM: e.target.value })}
+                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-all text-sm text-gray-900 appearance-none"
+                            >
+                                <option value="Units">Units</option>
+                                <option value="Strips">Strips</option>
+                                <option value="Boxes">Boxes</option>
+                                <option value="Bottles">Bottles</option>
+                                <option value="Vials">Vials</option>
+                            </select>
+                            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="group">
+                        <label className="block text-gray-700 text-xs font-semibold mb-1.5 ml-1">
+                            Default GST Slab
+                        </label>
+                        <div className="relative">
+                            <select
+                                value={formData.defaultGSTSlab}
+                                onChange={(e) => setFormData({ ...formData, defaultGSTSlab: e.target.value })}
+                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-all text-sm text-gray-900 appearance-none"
+                            >
+                                <option value="0">0% (Exempt)</option>
+                                <option value="5">5%</option>
+                                <option value="12">12%</option>
+                                <option value="18">18%</option>
+                            </select>
+                            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
-                <div>
-                    <label className="block text-sm font-semibold text-[#0f172a] mb-2">Default GST Slab</label>
-                    <select
-                        value={formData.defaultGSTSlab}
-                        onChange={(e) => setFormData({ ...formData, defaultGSTSlab: e.target.value })}
-                        className="w-full px-4 py-3 border border-[#cbd5e1] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0ea5a3]"
-                    >
-                        <option value="0">0% (Exempt)</option>
-                        <option value="5">5%</option>
-                        <option value="12">12%</option>
-                        <option value="18">18%</option>
-                    </select>
-                </div>
-
+                {/* Toggles */}
                 <div className="space-y-4">
                     {[
                         { key: "batchTracking", label: "Enable Batch-level Tracking", description: "Track inventory by batch numbers and expiry dates" },
@@ -110,40 +143,39 @@ export default function Step4Page() {
                         { key: "purchaseRounding", label: "Purchase Rounding", description: "Round purchase quantities to nearest whole number" },
                         { key: "allowNegativeStock", label: "Allow Negative Stock", description: "Permit sales even when stock is zero" }
                     ].map(({ key, label, description }) => (
-                        <div key={key} className="flex items-center justify-between p-4 bg-[#f8fafc] rounded-lg">
+                        <div key={key} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100 hover:border-emerald-100 transition-colors">
                             <div>
-                                <div className="font-medium text-[#0f172a]">{label}</div>
-                                <div className="text-sm text-[#64748b]">{description}</div>
+                                <div className="text-sm font-semibold text-gray-900">{label}</div>
+                                <div className="text-xs text-gray-500 mt-0.5">{description}</div>
                             </div>
                             <button
                                 onClick={() => setFormData({ ...formData, [key]: !formData[key as keyof typeof formData] })}
-                                className={`relative w-14 h-7 rounded-full transition-colors ${formData[key as keyof typeof formData] ? "bg-[#0ea5a3]" : "bg-[#cbd5e1]"
-                                    }`}
+                                className={`relative w-12 h-6 rounded-full transition-colors duration-300 focus:outline-none ${formData[key as keyof typeof formData] ? "bg-emerald-500" : "bg-gray-300"}`}
                             >
-                                <div className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full transition-transform ${formData[key as keyof typeof formData] ? "translate-x-7" : ""
-                                    }`}></div>
+                                <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-300 shadow-sm ${formData[key as keyof typeof formData] ? "translate-x-6" : ""}`}></div>
                             </button>
                         </div>
                     ))}
                 </div>
-            </div>
 
-            <div className="mt-8 flex justify-between">
-                <button
-                    onClick={() => router.push("/onboarding/step-3")}
-                    className="px-8 py-3 border border-[#cbd5e1] text-[#475569] rounded-lg font-semibold hover:bg-[#f8fafc] transition-colors flex items-center gap-2"
-                >
-                    <FiArrowLeft className="w-5 h-5" />
-                    Back
-                </button>
-                <button
-                    onClick={handleNext}
-                    className="px-8 py-3 bg-[#0ea5a3] text-white rounded-lg font-semibold hover:bg-[#0d9391] transition-colors flex items-center gap-2"
-                >
-                    Continue to Suppliers
-                    <FiArrowRight className="w-5 h-5" />
-                </button>
+                {/* Navigation */}
+                <div className="pt-4 flex justify-between items-center">
+                    <button
+                        onClick={handleBack}
+                        className="px-6 py-2.5 text-gray-500 font-medium hover:text-gray-700 hover:bg-gray-50 rounded-lg transition-colors flex items-center gap-2"
+                    >
+                        <FiArrowLeft className="w-4 h-4" />
+                        Back
+                    </button>
+                    <button
+                        onClick={handleNext}
+                        className="px-8 py-3.5 bg-emerald-500 text-white rounded-xl font-semibold hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/40 transform hover:-translate-y-0.5 active:translate-y-0 flex items-center gap-2"
+                    >
+                        Continue to Suppliers
+                        <FiArrowRight className="w-5 h-5" />
+                    </button>
+                </div>
             </div>
-        </div>
+        </OnboardingCard>
     );
 }

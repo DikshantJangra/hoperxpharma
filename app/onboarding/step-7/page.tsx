@@ -3,7 +3,8 @@
 import { useState, useEffect } from "react";
 import { useOnboarding } from "@/contexts/OnboardingContext";
 import { useRouter } from "next/navigation";
-import { FiArrowRight, FiArrowLeft, FiUsers, FiPlus } from "react-icons/fi";
+import { FiArrowRight, FiArrowLeft, FiUsers, FiPlus, FiUser, FiPhone, FiShield, FiLock, FiRefreshCw } from "react-icons/fi";
+import OnboardingCard from "@/components/onboarding/OnboardingCard";
 
 const ROLES = ["Pharmacist", "Manager", "Cashier", "Assistant"];
 
@@ -46,139 +47,192 @@ export default function Step7Page() {
         router.push("/onboarding/step-8");
     };
 
+    const handleBack = () => {
+        router.push("/onboarding/step-6");
+    };
+
     return (
-        <div className="bg-white rounded-2xl shadow-lg border border-[#e2e8f0] p-8 mb-20">
-            <div className="flex items-start gap-4 mb-8">
-                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-[#0ea5a3] to-[#0d9391] flex items-center justify-center">
-                    <FiUsers className="w-7 h-7 text-white" />
-                </div>
-                <div>
-                    <h1 className="text-2xl font-bold text-[#0f172a] mb-2">Users & Roles</h1>
-                    <p className="text-[#64748b]">Add team members (optional - you can add more later)</p>
-                </div>
-            </div>
-
-            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <div className="font-medium text-blue-900 mb-1">You are automatically added as Admin</div>
-                <div className="text-sm text-blue-700">Full access to all features and settings</div>
-            </div>
-
-            {state.data.users.length > 0 && (
-                <div className="mb-6 space-y-3">
-                    {state.data.users.map((user, idx) => (
-                        <div key={idx} className="p-4 bg-[#f8fafc] rounded-lg border border-[#e2e8f0]">
-                            <div className="flex items-center justify-between">
-                                <div>
-                                    <div className="font-medium text-[#0f172a]">{user.name}</div>
-                                    <div className="text-sm text-[#64748b]">{user.role} • {user.phone}</div>
-                                </div>
-                                <div className="text-sm font-mono text-[#0ea5a3]">PIN: {user.pin}</div>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            )}
-
-            {showForm ? (
-                <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-semibold text-[#0f172a] mb-2">Name *</label>
-                            <input
-                                type="text"
-                                value={formData.name}
-                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                className="w-full px-4 py-3 border border-[#cbd5e1] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0ea5a3]"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-semibold text-[#0f172a] mb-2">Phone *</label>
-                            <input
-                                type="tel"
-                                value={formData.phone}
-                                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                                className="w-full px-4 py-3 border border-[#cbd5e1] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0ea5a3]"
-                            />
-                        </div>
+        <OnboardingCard
+            title="Users & Roles"
+            description="Add team members (optional - you can add more later)"
+            icon={<FiUsers size={28} />}
+        >
+            <div className="space-y-6">
+                {/* Admin Info */}
+                <div className="p-4 bg-blue-50/50 border border-blue-100 rounded-xl flex items-start gap-3">
+                    <div className="mt-0.5 text-blue-500">
+                        <FiShield size={18} />
                     </div>
+                    <div>
+                        <div className="text-sm font-semibold text-blue-900">You are automatically added as Admin</div>
+                        <div className="text-xs text-blue-700 mt-0.5">Full access to all features and settings</div>
+                    </div>
+                </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-semibold text-[#0f172a] mb-2">Role *</label>
-                            <select
-                                value={formData.role}
-                                onChange={(e) => setFormData({ ...formData, role: e.target.value })}
-                                className="w-full px-4 py-3 border border-[#cbd5e1] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0ea5a3]"
-                            >
-                                {ROLES.map(role => (
-                                    <option key={role} value={role}>{role}</option>
-                                ))}
-                            </select>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-semibold text-[#0f172a] mb-2">PIN *</label>
-                            <div className="flex gap-2">
-                                <input
-                                    type="text"
-                                    value={formData.pin}
-                                    onChange={(e) => setFormData({ ...formData, pin: e.target.value.slice(0, 4) })}
-                                    placeholder="4-digit PIN"
-                                    maxLength={4}
-                                    className="flex-1 px-4 py-3 border border-[#cbd5e1] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0ea5a3]"
-                                />
+                {/* User List */}
+                {state.data.users.length > 0 && (
+                    <div className="space-y-3 animate-fade-in-up">
+                        {state.data.users.map((user, idx) => (
+                            <div key={idx} className="p-4 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-between group hover:border-emerald-200 transition-colors">
+                                <div>
+                                    <div className="font-semibold text-gray-900 flex items-center gap-2">
+                                        <FiUser className="text-emerald-500" size={16} />
+                                        {user.name}
+                                    </div>
+                                    <div className="text-sm text-gray-500 mt-1 flex items-center gap-3">
+                                        <span className="flex items-center gap-1"><FiShield size={12} /> {user.role}</span>
+                                        <span className="w-1 h-1 bg-gray-300 rounded-full"></span>
+                                        <span className="flex items-center gap-1"><FiPhone size={12} /> {user.phone}</span>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-lg border border-gray-200 shadow-sm">
+                                    <FiLock size={12} className="text-gray-400" />
+                                    <span className="text-sm font-mono font-medium text-gray-700">{user.pin}</span>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+
+                {/* Add User Form */}
+                {showForm ? (
+                    <div className="bg-gray-50 rounded-xl p-5 border border-gray-100 animate-fade-in-up">
+                        <div className="space-y-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="group">
+                                    <label className="block text-gray-700 text-xs font-semibold mb-1.5 ml-1">Name <span className="text-red-500">*</span></label>
+                                    <div className="relative transition-all duration-200 focus-within:ring-2 focus-within:ring-emerald-500/20 rounded-xl">
+                                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-500 transition-colors">
+                                            <FiUser size={18} />
+                                        </div>
+                                        <input
+                                            type="text"
+                                            value={formData.name}
+                                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                                            className="w-full pl-11 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 transition-all text-sm text-gray-900"
+                                            placeholder="Enter full name"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="group">
+                                    <label className="block text-gray-700 text-xs font-semibold mb-1.5 ml-1">Phone <span className="text-red-500">*</span></label>
+                                    <div className="relative transition-all duration-200 focus-within:ring-2 focus-within:ring-emerald-500/20 rounded-xl">
+                                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-500 transition-colors">
+                                            <FiPhone size={18} />
+                                        </div>
+                                        <input
+                                            type="tel"
+                                            value={formData.phone}
+                                            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                                            className="w-full pl-11 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 transition-all text-sm text-gray-900"
+                                            placeholder="Enter phone number"
+                                        />
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="group">
+                                    <label className="block text-gray-700 text-xs font-semibold mb-1.5 ml-1">Role <span className="text-red-500">*</span></label>
+                                    <div className="relative">
+                                        <select
+                                            value={formData.role}
+                                            onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                                            className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 transition-all text-sm text-gray-900 appearance-none"
+                                        >
+                                            {ROLES.map(role => (
+                                                <option key={role} value={role}>{role}</option>
+                                            ))}
+                                        </select>
+                                        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="group">
+                                    <label className="block text-gray-700 text-xs font-semibold mb-1.5 ml-1">PIN <span className="text-red-500">*</span></label>
+                                    <div className="flex gap-2">
+                                        <div className="relative flex-1 transition-all duration-200 focus-within:ring-2 focus-within:ring-emerald-500/20 rounded-xl">
+                                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-500 transition-colors">
+                                                <FiLock size={18} />
+                                            </div>
+                                            <input
+                                                type="text"
+                                                value={formData.pin}
+                                                onChange={(e) => setFormData({ ...formData, pin: e.target.value.slice(0, 4) })}
+                                                placeholder="4-digit PIN"
+                                                maxLength={4}
+                                                className="w-full pl-11 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 transition-all text-sm text-gray-900 font-mono"
+                                            />
+                                        </div>
+                                        <button
+                                            onClick={generatePIN}
+                                            className="px-4 py-3 bg-white border border-gray-200 text-gray-600 rounded-xl font-medium hover:bg-gray-50 hover:border-gray-300 transition-colors flex items-center gap-2"
+                                            title="Generate Random PIN"
+                                        >
+                                            <FiRefreshCw size={18} />
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex gap-3 pt-2">
                                 <button
-                                    onClick={generatePIN}
-                                    className="px-4 py-3 bg-[#f1f5f9] text-[#64748b] rounded-lg font-medium hover:bg-[#e2e8f0] transition-colors"
+                                    onClick={() => setShowForm(false)}
+                                    className="flex-1 px-4 py-3 border border-gray-200 text-gray-600 rounded-xl font-medium hover:bg-gray-100 transition-colors"
                                 >
-                                    Generate
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleAdd}
+                                    disabled={!formData.name || !formData.phone || !formData.pin}
+                                    className="flex-1 px-4 py-3 bg-emerald-500 text-white rounded-xl font-medium hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-emerald-500/20"
+                                >
+                                    Add User
                                 </button>
                             </div>
                         </div>
                     </div>
-
+                ) : (
                     <button
-                        onClick={handleAdd}
-                        className="w-full px-4 py-3 bg-[#0ea5a3] text-white rounded-lg font-medium hover:bg-[#0d9391] transition-colors"
+                        onClick={() => setShowForm(true)}
+                        className="w-full px-4 py-4 border-2 border-dashed border-gray-200 text-gray-500 rounded-xl font-medium hover:border-emerald-500 hover:text-emerald-500 hover:bg-emerald-50/10 transition-all flex items-center justify-center gap-2 group"
                     >
-                        Add User
+                        <div className="w-8 h-8 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center group-hover:bg-emerald-100 group-hover:text-emerald-500 transition-colors">
+                            <FiPlus size={18} />
+                        </div>
+                        Add Team Member
                     </button>
-                </div>
-            ) : (
-                <button
-                    onClick={() => setShowForm(true)}
-                    className="w-full px-4 py-3 border-2 border-dashed border-[#cbd5e1] text-[#64748b] rounded-lg font-medium hover:border-[#0ea5a3] hover:text-[#0ea5a3] transition-colors flex items-center justify-center gap-2"
-                >
-                    <FiPlus className="w-5 h-5" />
-                    Add Team Member
-                </button>
-            )}
+                )}
 
-            <div className="mt-8 flex justify-between">
-                <button
-                    onClick={() => router.push("/onboarding/step-6")}
-                    className="px-8 py-3 border border-[#cbd5e1] text-[#475569] rounded-lg font-semibold hover:bg-[#f8fafc] transition-colors flex items-center gap-2"
-                >
-                    <FiArrowLeft className="w-5 h-5" />
-                    Back
-                </button>
-                <div className="flex gap-3">
-                    {state.data.users.length === 0 && (
+                {/* Navigation */}
+                <div className="pt-4 flex justify-between items-center">
+                    <button
+                        onClick={handleBack}
+                        className="px-6 py-2.5 text-gray-500 font-medium hover:text-gray-700 hover:bg-gray-50 rounded-lg transition-colors flex items-center gap-2"
+                    >
+                        <FiArrowLeft className="w-4 h-4" />
+                        Back
+                    </button>
+                    <div className="flex gap-3">
+                        {state.data.users.length === 0 && !showForm && (
+                            <button
+                                onClick={handleSkip}
+                                className="px-6 py-3 text-gray-500 font-medium hover:text-gray-700 hover:bg-gray-50 rounded-xl transition-colors"
+                            >
+                                Skip for Now
+                            </button>
+                        )}
                         <button
-                            onClick={handleSkip}
-                            className="px-8 py-3 border border-[#cbd5e1] text-[#475569] rounded-lg font-semibold hover:bg-[#f8fafc] transition-colors"
+                            onClick={handleNext}
+                            className="px-8 py-3.5 bg-emerald-500 text-white rounded-xl font-semibold hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/40 transform hover:-translate-y-0.5 active:translate-y-0 flex items-center gap-2"
                         >
-                            Skip for Now
+                            Continue to Integrations
+                            <FiArrowRight className="w-5 h-5" />
                         </button>
-                    )}
-                    <button
-                        onClick={handleNext}
-                        className="px-8 py-3 bg-[#0ea5a3] text-white rounded-lg font-semibold hover:bg-[#0d9391] transition-colors flex items-center gap-2"
-                    >
-                        Continue to Integrations
-                        <FiArrowRight className="w-5 h-5" />
-                    </button>
+                    </div>
                 </div>
             </div>
-        </div>
+        </OnboardingCard>
     );
 }

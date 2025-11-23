@@ -3,8 +3,9 @@
 import { useState, useEffect } from "react";
 import { useOnboarding } from "@/contexts/OnboardingContext";
 import { useRouter } from "next/navigation";
-import { FiArrowRight, FiArrowLeft } from "react-icons/fi";
+import { FiArrowRight, FiArrowLeft, FiPrinter, FiCreditCard, FiSettings, FiFileText, FiCheck } from "react-icons/fi";
 import { MdReceipt } from "react-icons/md";
+import OnboardingCard from "@/components/onboarding/OnboardingCard";
 
 export default function Step6Page() {
     const { state, updatePOS, setCurrentStep, markStepComplete } = useOnboarding();
@@ -47,124 +48,170 @@ export default function Step6Page() {
         router.push("/onboarding/step-7");
     };
 
+    const handleBack = () => {
+        updatePOS(formData);
+        router.push("/onboarding/step-5");
+    };
+
     return (
-        <div className="bg-white rounded-2xl shadow-lg border border-[#e2e8f0] p-8 mb-20">
-            <div className="flex items-start gap-4 mb-8">
-                <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-[#0ea5a3] to-[#0d9391] flex items-center justify-center">
-                    <MdReceipt className="w-7 h-7 text-white" />
-                </div>
-                <div>
-                    <h1 className="text-2xl font-bold text-[#0f172a] mb-2">POS & Billing Configuration</h1>
-                    <p className="text-[#64748b]">Set up your point-of-sale and billing preferences</p>
-                </div>
-            </div>
+        <OnboardingCard
+            title="POS & Billing Configuration"
+            description="Set up your point-of-sale and billing preferences"
+            icon={<MdReceipt size={28} />}
+        >
+            <div className="space-y-8">
+                {/* Invoice Settings */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="group">
+                        <label className="block text-gray-700 text-xs font-semibold mb-1.5 ml-1">
+                            Invoice Number Format
+                        </label>
+                        <div className="relative transition-all duration-200 focus-within:ring-2 focus-within:ring-emerald-500/20 rounded-xl">
+                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-500 transition-colors">
+                                <FiFileText size={18} />
+                            </div>
+                            <input
+                                type="text"
+                                value={formData.invoiceFormat}
+                                onChange={(e) => setFormData({ ...formData, invoiceFormat: e.target.value })}
+                                placeholder="INV/0001"
+                                className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-all text-sm text-gray-900"
+                            />
+                        </div>
+                    </div>
 
-            <div className="space-y-6">
-                <div>
-                    <label className="block text-sm font-semibold text-[#0f172a] mb-2">Invoice Number Format</label>
-                    <input
-                        type="text"
-                        value={formData.invoiceFormat}
-                        onChange={(e) => setFormData({ ...formData, invoiceFormat: e.target.value })}
-                        placeholder="INV/0001"
-                        className="w-full px-4 py-3 border border-[#cbd5e1] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0ea5a3]"
-                    />
-                </div>
-
-                <div>
-                    <label className="block text-sm font-semibold text-[#0f172a] mb-3">Payment Methods</label>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                        {["Cash", "UPI", "Card", "Wallet"].map(method => (
-                            <button
-                                key={method}
-                                onClick={() => togglePaymentMethod(method)}
-                                className={`px-4 py-3 rounded-lg font-medium transition-colors ${formData.paymentMethods.includes(method)
-                                        ? "bg-[#0ea5a3] text-white"
-                                        : "bg-[#f1f5f9] text-[#64748b] hover:bg-[#e2e8f0]"
-                                    }`}
+                    <div className="group">
+                        <label className="block text-gray-700 text-xs font-semibold mb-1.5 ml-1">
+                            Billing Type
+                        </label>
+                        <div className="relative">
+                            <select
+                                value={formData.billingType}
+                                onChange={(e) => setFormData({ ...formData, billingType: e.target.value })}
+                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-all text-sm text-gray-900 appearance-none"
                             >
-                                {method}
-                            </button>
-                        ))}
+                                <option value="MRP-based">MRP-based</option>
+                                <option value="Discount-based">Discount-based</option>
+                                <option value="Manual">Manual Rate</option>
+                            </select>
+                            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-sm font-semibold text-[#0f172a] mb-2">Billing Type</label>
-                        <select
-                            value={formData.billingType}
-                            onChange={(e) => setFormData({ ...formData, billingType: e.target.value })}
-                            className="w-full px-4 py-3 border border-[#cbd5e1] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0ea5a3]"
-                        >
-                            <option value="MRP-based">MRP-based</option>
-                            <option value="Discount-based">Discount-based</option>
-                            <option value="Manual">Manual Rate</option>
-                        </select>
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-semibold text-[#0f172a] mb-2">Print Format</label>
-                        <select
-                            value={formData.printFormat}
-                            onChange={(e) => setFormData({ ...formData, printFormat: e.target.value })}
-                            className="w-full px-4 py-3 border border-[#cbd5e1] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0ea5a3]"
-                        >
-                            <option value="Thermal">Thermal (80mm)</option>
-                            <option value="A4">A4</option>
-                        </select>
-                    </div>
-                </div>
-
+                {/* Payment Methods */}
                 <div>
-                    <label className="block text-sm font-semibold text-[#0f172a] mb-2">Invoice Footer Text</label>
-                    <textarea
-                        value={formData.footerText}
-                        onChange={(e) => setFormData({ ...formData, footerText: e.target.value })}
-                        rows={2}
-                        className="w-full px-4 py-3 border border-[#cbd5e1] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0ea5a3]"
-                    />
+                    <label className="block text-gray-700 text-xs font-semibold mb-3 ml-1">
+                        Payment Methods
+                    </label>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        {["Cash", "UPI", "Card", "Wallet"].map(method => {
+                            const isSelected = formData.paymentMethods.includes(method);
+                            return (
+                                <button
+                                    key={method}
+                                    onClick={() => togglePaymentMethod(method)}
+                                    className={`relative px-4 py-3 rounded-xl font-medium text-sm transition-all duration-200 border ${isSelected
+                                        ? "bg-emerald-500 text-white border-emerald-500 shadow-lg shadow-emerald-500/20 transform -translate-y-0.5"
+                                        : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100 hover:border-gray-300"
+                                        }`}
+                                >
+                                    {isSelected && (
+                                        <div className="absolute top-2 right-2">
+                                            <FiCheck size={12} />
+                                        </div>
+                                    )}
+                                    <div className="flex flex-col items-center gap-2">
+                                        {method === "Cash" && <span className="text-lg">💵</span>}
+                                        {method === "UPI" && <span className="text-lg">📱</span>}
+                                        {method === "Card" && <span className="text-lg">💳</span>}
+                                        {method === "Wallet" && <span className="text-lg">👛</span>}
+                                        {method}
+                                    </div>
+                                </button>
+                            );
+                        })}
+                    </div>
                 </div>
 
+                {/* Print & Footer */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="group">
+                        <label className="block text-gray-700 text-xs font-semibold mb-1.5 ml-1">
+                            Print Format
+                        </label>
+                        <div className="relative">
+                            <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
+                                <FiPrinter size={18} />
+                            </div>
+                            <select
+                                value={formData.printFormat}
+                                onChange={(e) => setFormData({ ...formData, printFormat: e.target.value })}
+                                className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-all text-sm text-gray-900 appearance-none"
+                            >
+                                <option value="Thermal">Thermal (80mm)</option>
+                                <option value="A4">A4</option>
+                            </select>
+                            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="group">
+                        <label className="block text-gray-700 text-xs font-semibold mb-1.5 ml-1">
+                            Invoice Footer Text
+                        </label>
+                        <textarea
+                            value={formData.footerText}
+                            onChange={(e) => setFormData({ ...formData, footerText: e.target.value })}
+                            rows={1}
+                            className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-all text-sm text-gray-900 resize-none"
+                        />
+                    </div>
+                </div>
+
+                {/* Toggles */}
                 <div className="space-y-4">
                     {[
                         { key: "autoRounding", label: "Auto-rounding", description: "Automatically round invoice totals" },
                         { key: "enableGSTBilling", label: "Enable GST Billing", description: "Include GST details on invoices" }
                     ].map(({ key, label, description }) => (
-                        <div key={key} className="flex items-center justify-between p-4 bg-[#f8fafc] rounded-lg">
+                        <div key={key} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-100 hover:border-emerald-100 transition-colors">
                             <div>
-                                <div className="font-medium text-[#0f172a]">{label}</div>
-                                <div className="text-sm text-[#64748b]">{description}</div>
+                                <div className="text-sm font-semibold text-gray-900">{label}</div>
+                                <div className="text-xs text-gray-500 mt-0.5">{description}</div>
                             </div>
                             <button
                                 onClick={() => setFormData({ ...formData, [key]: !formData[key as keyof typeof formData] })}
-                                className={`relative w-14 h-7 rounded-full transition-colors ${formData[key as keyof typeof formData] ? "bg-[#0ea5a3]" : "bg-[#cbd5e1]"
-                                    }`}
+                                className={`relative w-12 h-6 rounded-full transition-colors duration-300 focus:outline-none ${formData[key as keyof typeof formData] ? "bg-emerald-500" : "bg-gray-300"}`}
                             >
-                                <div className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full transition-transform ${formData[key as keyof typeof formData] ? "translate-x-7" : ""
-                                    }`}></div>
+                                <div className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform duration-300 shadow-sm ${formData[key as keyof typeof formData] ? "translate-x-6" : ""}`}></div>
                             </button>
                         </div>
                     ))}
                 </div>
-            </div>
 
-            <div className="mt-8 flex justify-between">
-                <button
-                    onClick={() => router.push("/onboarding/step-5")}
-                    className="px-8 py-3 border border-[#cbd5e1] text-[#475569] rounded-lg font-semibold hover:bg-[#f8fafc] transition-colors flex items-center gap-2"
-                >
-                    <FiArrowLeft className="w-5 h-5" />
-                    Back
-                </button>
-                <button
-                    onClick={handleNext}
-                    className="px-8 py-3 bg-[#0ea5a3] text-white rounded-lg font-semibold hover:bg-[#0d9391] transition-colors flex items-center gap-2"
-                >
-                    Continue to Users
-                    <FiArrowRight className="w-5 h-5" />
-                </button>
+                {/* Navigation */}
+                <div className="pt-4 flex justify-between items-center">
+                    <button
+                        onClick={handleBack}
+                        className="px-6 py-2.5 text-gray-500 font-medium hover:text-gray-700 hover:bg-gray-50 rounded-lg transition-colors flex items-center gap-2"
+                    >
+                        <FiArrowLeft className="w-4 h-4" />
+                        Back
+                    </button>
+                    <button
+                        onClick={handleNext}
+                        className="px-8 py-3.5 bg-emerald-500 text-white rounded-xl font-semibold hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/40 transform hover:-translate-y-0.5 active:translate-y-0 flex items-center gap-2"
+                    >
+                        Continue to Users
+                        <FiArrowRight className="w-5 h-5" />
+                    </button>
+                </div>
             </div>
-        </div>
+        </OnboardingCard>
     );
 }
