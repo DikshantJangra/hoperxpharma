@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useOnboarding } from "@/contexts/OnboardingContext";
 import { useRouter } from "next/navigation";
-import { FiUpload, FiInfo, FiArrowRight, FiHome, FiMapPin, FiType, FiImage } from "react-icons/fi";
+import { FiUpload, FiInfo, FiArrowRight, FiHome, FiMapPin, FiType, FiImage, FiPhone } from "react-icons/fi";
 import OnboardingCard from "@/components/onboarding/OnboardingCard";
 
 const INDIAN_STATES = [
@@ -36,7 +36,8 @@ export default function Step1Page() {
         state: state.data.storeIdentity.state || "",
         landmark: state.data.storeIdentity.landmark || "",
         storeLogo: state.data.storeIdentity.storeLogo || "",
-        displayName: state.data.storeIdentity.displayName || ""
+        displayName: state.data.storeIdentity.displayName || "",
+        phoneNumber: state.data.storeIdentity.phoneNumber || ""
     });
 
     const [errors, setErrors] = useState<Record<string, string>>({});
@@ -114,6 +115,10 @@ export default function Step1Page() {
             newErrors.displayName = "Display name must be at least 3 characters";
         }
 
+        if (!formData.phoneNumber || !/^[6-9]\d{9}$/.test(formData.phoneNumber)) {
+            newErrors.phoneNumber = "Please enter a valid 10-digit Indian mobile number";
+        }
+
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
@@ -177,6 +182,33 @@ export default function Step1Page() {
                         </div>
                     </div>
                     {errors.businessType && <p className="mt-1 ml-1 text-xs text-red-500">{errors.businessType}</p>}
+                </div>
+
+                {/* Address */}
+                <div className="group">
+                    <label className="block text-gray-700 text-xs font-semibold mb-1.5 ml-1">
+                        Phone Number <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative transition-all duration-200 focus-within:ring-2 focus-within:ring-emerald-500/20 rounded-xl">
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-500 transition-colors">
+                            <FiPhone size={18} />
+                        </div>
+                        <div className="absolute left-11 top-1/2 -translate-y-1/2 text-gray-500 font-medium text-sm border-r border-gray-200 pr-2">
+                            +91
+                        </div>
+                        <input
+                            type="tel"
+                            value={formData.phoneNumber}
+                            onChange={(e) => {
+                                const val = e.target.value.replace(/\D/g, "").slice(0, 10);
+                                setFormData({ ...formData, phoneNumber: val });
+                            }}
+                            placeholder="9876543210"
+                            maxLength={10}
+                            className={`w-full pl-24 pr-4 py-3 bg-gray-50 border rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-all text-sm text-gray-900 placeholder:text-gray-400 ${errors.phoneNumber ? "border-red-500" : "border-gray-200"}`}
+                        />
+                    </div>
+                    {errors.phoneNumber && <p className="mt-1 ml-1 text-xs text-red-500">{errors.phoneNumber}</p>}
                 </div>
 
                 {/* Address */}

@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useOnboarding } from "@/contexts/OnboardingContext";
 import { useRouter } from "next/navigation";
-import { FiArrowLeft, FiCheck, FiEdit, FiMapPin, FiShield, FiClock, FiUsers, FiPackage, FiTruck, FiDatabase, FiArrowRight, FiAward } from "react-icons/fi";
+import { FiArrowLeft, FiCheck, FiEdit, FiMapPin, FiShield, FiClock, FiUsers, FiTruck, FiArrowRight, FiAward } from "react-icons/fi";
 import { onboardingApi } from "@/lib/api/onboarding";
 import { toast } from "react-hot-toast";
 import OnboardingCard from "@/components/onboarding/OnboardingCard";
@@ -58,7 +58,7 @@ export default function Step10Page() {
             // Mark onboarding as complete in the context
             completeOnboarding();
 
-            toast.success("Store created successfully!");
+            toast.success("Store setup complete successfully!");
 
             // Redirect to dashboard
             router.push("/dashboard");
@@ -188,7 +188,7 @@ export default function Step10Page() {
                             <FiAward size={32} className="text-white" />
                         </div>
                     </div>
-                    <div className="font-bold text-lg mb-2">Setup Complete!</div>
+                    <div className="font-bold text-lg mb-2">Setup Finalized!</div>
                     <p className="text-emerald-50 text-sm mb-6 max-w-sm mx-auto">
                         Your pharmacy is ready to go. Click below to enter your dashboard and start managing your store.
                     </p>

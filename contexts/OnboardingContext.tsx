@@ -13,6 +13,7 @@ export interface StoreIdentityData {
     landmark: string;
     storeLogo: string;
     displayName: string;
+    phoneNumber: string;
 }
 
 export interface LicensingData {

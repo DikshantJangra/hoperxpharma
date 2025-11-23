@@ -9,6 +9,18 @@ const prisma = new PrismaClient();
  * Get onboarding progress for the current user
  */
 const getProgress = asyncHandler(async (req, res) => {
+    // If no user is authenticated, return default progress
+    if (!req.user) {
+        return res.status(200).json(
+            new ApiResponse(200, {
+                currentStep: 1,
+                completedSteps: [],
+                data: {},
+                isComplete: false,
+            }, 'Onboarding progress retrieved')
+        );
+    }
+
     const userId = req.user.id;
 
     const progress = await prisma.onboardingProgress.findUnique({
@@ -35,6 +47,18 @@ const getProgress = asyncHandler(async (req, res) => {
  * Save onboarding progress
  */
 const saveProgress = asyncHandler(async (req, res) => {
+    // If no user is authenticated, return success without saving
+    if (!req.user) {
+        return res.status(200).json(
+            new ApiResponse(200, {
+                currentStep: req.body.currentStep || 1,
+                completedSteps: req.body.completedSteps || [],
+                data: req.body.data || {},
+                isComplete: req.body.isComplete || false,
+            }, 'Onboarding progress saved (local only)')
+        );
+    }
+
     const userId = req.user.id;
     const { currentStep, completedSteps, data, isComplete } = req.body;
 
