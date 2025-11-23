@@ -43,25 +43,30 @@ const { MESSAGES } = require('../../constants');
  *         description: User registered successfully
  */
 const signup = asyncHandler(async (req, res) => {
-    const result = await authService.signup(req.body);
+    try {
+        const result = await authService.signup(req.body);
 
-    // Set refresh token in httpOnly cookie
-    res.cookie('refreshToken', result.refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    });
+        // Set refresh token in httpOnly cookie
+        res.cookie('refreshToken', result.refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        });
 
-    const response = ApiResponse.created(
-        {
-            user: result.user,
-            accessToken: result.accessToken,
-        },
-        MESSAGES.AUTH.SIGNUP_SUCCESS
-    );
+        const response = ApiResponse.created(
+            {
+                user: result.user,
+                accessToken: result.accessToken,
+            },
+            MESSAGES.AUTH.SIGNUP_SUCCESS
+        );
 
-    res.status(response.statusCode).json(response);
+        res.status(response.statusCode).json(response);
+    } catch (error) {
+        console.error('Signup error:', error);
+        throw error;
+    }
 });
 
 /**

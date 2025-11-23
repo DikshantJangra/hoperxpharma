@@ -61,7 +61,6 @@ class UserRepository {
                 lastName: true,
                 role: true,
                 isActive: true,
-                createdAt: true,
             },
         });
     }
