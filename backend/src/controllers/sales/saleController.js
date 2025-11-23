@@ -1,6 +1,6 @@
 const saleService = require('../../services/sales/saleService');
 const asyncHandler = require('../../middlewares/asyncHandler');
-const ApiResponse = require('../../Utils/ApiResponse');
+const ApiResponse = require('../../utils/ApiResponse');
 
 /**
  * Get all sales

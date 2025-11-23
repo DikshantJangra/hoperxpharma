@@ -1,6 +1,6 @@
 const rateLimit = require('express-rate-limit');
-const { RATE_LIMIT } = require('../Utils/constants');
-const ApiError = require('../Utils/ApiError');
+const { RATE_LIMIT } = require('../utils/constants');
+const ApiError = require('../utils/ApiError');
 
 /**
  * General rate limiter for all API routes

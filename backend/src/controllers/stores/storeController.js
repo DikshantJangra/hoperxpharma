@@ -1,7 +1,7 @@
 const storeService = require('../../services/stores/storeService');
 const subscriptionService = require('../../services/subscriptions/subscriptionService');
 const asyncHandler = require('../../middlewares/asyncHandler');
-const ApiResponse = require('../../Utils/ApiResponse');
+const ApiResponse = require('../../utils/ApiResponse');
 
 /**
  * Get current user's primary store

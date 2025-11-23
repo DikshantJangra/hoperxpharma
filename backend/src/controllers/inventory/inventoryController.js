@@ -1,6 +1,6 @@
 const inventoryService = require('../../services/inventory/inventoryService');
 const asyncHandler = require('../../middlewares/asyncHandler');
-const ApiResponse = require('../../Utils/ApiResponse');
+const ApiResponse = require('../../utils/ApiResponse');
 
 /**
  * @swagger

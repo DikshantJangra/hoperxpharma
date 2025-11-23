@@ -1,5 +1,5 @@
 const purchaseOrderRepository = require('../../repositories/purchaseOrderRepository');
-const ApiError = require('../../Utils/ApiError');
+const ApiError = require('../../utils/ApiError');
 const logger = require('../../config/logger');
 
 /**

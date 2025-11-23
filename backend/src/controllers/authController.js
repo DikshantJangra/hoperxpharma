@@ -1,7 +1,7 @@
 const { configDotenv } = require("dotenv");
 const prisma = require("../db/prisma.js");
-const { hashPassword, verifyPassword } = require("../Utils/bcryptPassword.js");
-const { generateToken } = require("../Utils/token.js");
+const { hashPassword, verifyPassword } = require("../utils/bcryptPassword.js");
+const { generateToken } = require("../utils/token.js");
 configDotenv();
 const signupUser = async (req, res) => {
   const { name, email, phoneNumber, password, confirmPassword } = req.body;

@@ -1,6 +1,6 @@
 const saleRepository = require('../../repositories/saleRepository');
 const inventoryService = require('../inventory/inventoryService');
-const ApiError = require('../../Utils/ApiError');
+const ApiError = require('../../utils/ApiError');
 const logger = require('../../config/logger');
 
 /**

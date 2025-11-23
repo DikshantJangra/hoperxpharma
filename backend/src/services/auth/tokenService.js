@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { TOKEN_TYPES, TOKEN_EXPIRY } = require('../../Utils/constants');
+const { TOKEN_TYPES, TOKEN_EXPIRY } = require('../../utils/constants');
 
 /**
  * Generate JWT access token

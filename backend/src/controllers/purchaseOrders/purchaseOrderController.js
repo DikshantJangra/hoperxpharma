@@ -1,6 +1,6 @@
 const purchaseOrderService = require('../../services/purchaseOrders/purchaseOrderService');
 const asyncHandler = require('../../middlewares/asyncHandler');
-const ApiResponse = require('../../Utils/ApiResponse');
+const ApiResponse = require('../../utils/ApiResponse');
 
 /**
  * Supplier Controllers
