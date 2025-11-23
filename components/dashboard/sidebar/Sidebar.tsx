@@ -13,6 +13,8 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ isOpen, expandedItems, onToggleItem }: SidebarProps) {
+    if (!Array.isArray(sidebarConfig)) return null;
+    
     return (
         <aside className={`${isOpen ? 'w-64' : 'w-20'} bg-white border-r border-gray-100 transition-all duration-300 flex flex-col`}>
             <SidebarHeader isOpen={isOpen} />
@@ -22,7 +24,7 @@ export default function Sidebar({ isOpen, expandedItems, onToggleItem }: Sidebar
                         key={idx}
                         section={section}
                         isOpen={isOpen}
-                        expandedItems={expandedItems}
+                        expandedItems={expandedItems || []}
                         onToggleItem={onToggleItem}
                     />
                 ))}
@@ -42,6 +44,8 @@ function SidebarHeader({ isOpen }: { isOpen: boolean }) {
 }
 
 function SidebarSection({ section, isOpen, expandedItems, onToggleItem }: any) {
+    if (!section || !Array.isArray(section.items)) return null;
+    
     return (
         <div className="mb-3">
             {isOpen && <SectionLabel>{section.title}</SectionLabel>}
@@ -50,7 +54,7 @@ function SidebarSection({ section, isOpen, expandedItems, onToggleItem }: any) {
                     key={idx}
                     item={item}
                     isOpen={isOpen}
-                    expanded={expandedItems.includes(item.label.toLowerCase())}
+                    expanded={Array.isArray(expandedItems) && expandedItems.includes(item.label.toLowerCase())}
                     onToggle={() => onToggleItem(item.label.toLowerCase())}
                 />
             ))}
@@ -64,7 +68,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 function NavItem({ item, isOpen, expanded, onToggle }: any) {
     const pathname = usePathname()
-    const hasSubItems = item.subItems && item.subItems.length > 0
+    const hasSubItems = item.subItems && Array.isArray(item.subItems) && item.subItems.length > 0
     const isActive = item.path ? pathname === item.path : (hasSubItems && item.subItems.some((sub: any) => pathname === sub.path))
 
     // If item has a direct path (no subitems), render as Link
