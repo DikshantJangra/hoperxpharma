@@ -1,5 +1,5 @@
 const { z } = require('zod');
-const ApiError = require('../utils/ApiError');
+const ApiError = require('../Utils/ApiError');
 
 /**
  * Validation middleware factory

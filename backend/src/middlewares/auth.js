@@ -1,7 +1,7 @@
 const { verifyAccessToken } = require('../services/auth/tokenService');
 const userRepository = require('../repositories/userRepository');
-const ApiError = require('../utils/ApiError');
-const { MESSAGES } = require('../utils/constants');
+const ApiError = require('../Utils/ApiError');
+const { MESSAGES } = require('../Utils/constants');
 
 /**
  * Authentication middleware

@@ -1,5 +1,5 @@
-const ApiError = require('../utils/ApiError');
-const { USER_ROLES, MESSAGES } = require('../utils/constants');
+const ApiError = require('../Utils/ApiError');
+const { USER_ROLES, MESSAGES } = require('../Utils/constants');
 
 /**
  * Role-based access control middleware
