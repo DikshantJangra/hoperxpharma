@@ -12,7 +12,7 @@ const storeCreateSchema = z.object({
     city: z.string().min(1, 'City is required'),
     state: z.string().min(1, 'State is required'),
     pinCode: z.string().regex(/^\d{6}$/, 'Invalid PIN code'),
-    phoneNumber: z.string().regex(/^[6-9]\d{9}$/, 'Invalid Indian phone number'),
+    phoneNumber: z.string().regex(/^\+91[6-9]\d{9}$/, 'Invalid Indian phone number'),
     email: z.string().email().optional(),
     whatsapp: z.string().optional(),
 });
@@ -29,8 +29,8 @@ const licenseSchema = z.object({
     type: z.enum(['Drug License', 'FSSAI', 'GST', 'Other']),
     licenseNumber: z.string().min(1, 'License number is required'),
     issuedBy: z.string().min(1, 'Issuing authority is required'),
-    issuedDate: z.string().datetime(),
-    expiryDate: z.string().datetime(),
+    issuedDate: z.string().datetime('Invalid ISO datetime format'),
+    expiryDate: z.string().datetime('Invalid ISO datetime format'),
     documentUrl: z.string().url().optional(),
 });
 

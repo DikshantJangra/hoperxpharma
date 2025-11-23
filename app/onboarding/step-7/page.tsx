@@ -3,16 +3,17 @@
 import { useState, useEffect } from "react";
 import { useOnboarding } from "@/contexts/OnboardingContext";
 import { useRouter } from "next/navigation";
-import { FiArrowRight, FiArrowLeft, FiUsers, FiPlus, FiUser, FiPhone, FiShield, FiLock, FiRefreshCw } from "react-icons/fi";
+import { FiArrowRight, FiArrowLeft, FiUsers, FiPlus, FiUser, FiPhone, FiShield, FiLock, FiRefreshCw, FiEdit2, FiTrash2 } from "react-icons/fi";
 import OnboardingCard from "@/components/onboarding/OnboardingCard";
 
 const ROLES = ["Pharmacist", "Manager", "Cashier", "Assistant"];
 
 export default function Step7Page() {
-    const { state, addUser, setCurrentStep, markStepComplete } = useOnboarding();
+    const { state, addUser, removeUser, setCurrentStep, markStepComplete } = useOnboarding();
     const router = useRouter();
 
     const [showForm, setShowForm] = useState(false);
+    const [editIndex, setEditIndex] = useState<number | null>(null);
     const [formData, setFormData] = useState({
         name: "",
         phone: "",
@@ -31,9 +32,35 @@ export default function Step7Page() {
 
     const handleAdd = () => {
         if (formData.name && formData.phone && formData.pin) {
-            addUser(formData);
+            if (editIndex !== null) {
+                // Update existing user
+                const updatedUsers = [...state.data.users];
+                updatedUsers[editIndex] = formData;
+                state.data.users = updatedUsers;
+                setEditIndex(null);
+            } else {
+                addUser(formData);
+            }
             setFormData({ name: "", phone: "", role: "Pharmacist", pin: "" });
             setShowForm(false);
+        }
+    };
+
+    const handleEdit = (index: number) => {
+        const user = state.data.users[index];
+        setFormData({
+            name: user.name,
+            phone: user.phone,
+            role: user.role,
+            pin: user.pin
+        });
+        setEditIndex(index);
+        setShowForm(true);
+    };
+
+    const handleDelete = (index: number) => {
+        if (confirm('Are you sure you want to remove this user?')) {
+            removeUser(index);
         }
     };
 
@@ -74,7 +101,7 @@ export default function Step7Page() {
                     <div className="space-y-3 animate-fade-in-up">
                         {state.data.users.map((user, idx) => (
                             <div key={idx} className="p-4 bg-gray-50 rounded-xl border border-gray-100 flex items-center justify-between group hover:border-emerald-200 transition-colors">
-                                <div>
+                                <div className="flex-1">
                                     <div className="font-semibold text-gray-900 flex items-center gap-2">
                                         <FiUser className="text-emerald-500" size={16} />
                                         {user.name}
@@ -85,9 +112,25 @@ export default function Step7Page() {
                                         <span className="flex items-center gap-1"><FiPhone size={12} /> {user.phone}</span>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-lg border border-gray-200 shadow-sm">
-                                    <FiLock size={12} className="text-gray-400" />
-                                    <span className="text-sm font-mono font-medium text-gray-700">{user.pin}</span>
+                                <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2 px-3 py-1.5 bg-white rounded-lg border border-gray-200 shadow-sm">
+                                        <FiLock size={12} className="text-gray-400" />
+                                        <span className="text-sm font-mono font-medium text-gray-700">{user.pin}</span>
+                                    </div>
+                                    <button
+                                        onClick={() => handleEdit(idx)}
+                                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                        title="Edit"
+                                    >
+                                        <FiEdit2 size={16} />
+                                    </button>
+                                    <button
+                                        onClick={() => handleDelete(idx)}
+                                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                        title="Delete"
+                                    >
+                                        <FiTrash2 size={16} />
+                                    </button>
                                 </div>
                             </div>
                         ))}
@@ -188,7 +231,7 @@ export default function Step7Page() {
                                     disabled={!formData.name || !formData.phone || !formData.pin}
                                     className="flex-1 px-4 py-3 bg-emerald-500 text-white rounded-xl font-medium hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-emerald-500/20"
                                 >
-                                    Add User
+                                    {editIndex !== null ? 'Update User' : 'Add User'}
                                 </button>
                             </div>
                         </div>

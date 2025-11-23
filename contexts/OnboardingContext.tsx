@@ -115,8 +115,10 @@ interface OnboardingContextType {
     updateTimings: (data: Partial<TimingsData>) => void;
     updateInventory: (data: Partial<InventoryData>) => void;
     addSupplier: (supplier: SupplierData) => void;
+    removeSupplier: (index: number) => void;
     updatePOS: (data: Partial<POSData>) => void;
     addUser: (user: UserData) => void;
+    removeUser: (index: number) => void;
     updateIntegrations: (data: Partial<IntegrationData>) => void;
     updateImports: (data: Partial<ImportData>) => void;
     setCurrentStep: (step: number) => void;
@@ -267,6 +269,16 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         }));
     }, []);
 
+    const removeSupplier = useCallback((index: number) => {
+        setState(prev => ({
+            ...prev,
+            data: {
+                ...prev.data,
+                suppliers: prev.data.suppliers.filter((_, i) => i !== index)
+            }
+        }));
+    }, []);
+
     const updatePOS = useCallback((data: Partial<POSData>) => {
         setState(prev => ({
             ...prev,
@@ -283,6 +295,16 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
             data: {
                 ...prev.data,
                 users: [...prev.data.users, user]
+            }
+        }));
+    }, []);
+
+    const removeUser = useCallback((index: number) => {
+        setState(prev => ({
+            ...prev,
+            data: {
+                ...prev.data,
+                users: prev.data.users.filter((_, i) => i !== index)
             }
         }));
     }, []);
@@ -347,8 +369,10 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
                 updateTimings,
                 updateInventory,
                 addSupplier,
+                removeSupplier,
                 updatePOS,
                 addUser,
+                removeUser,
                 updateIntegrations,
                 updateImports,
                 setCurrentStep,

@@ -30,14 +30,14 @@ export default function Step10Page() {
                     city: state.data.storeIdentity.city || "",
                     state: state.data.storeIdentity.state || "",
                     pinCode: state.data.storeIdentity.pinCode || "",
-                    phoneNumber: "", // Add if you have it in storeIdentity
+                    phoneNumber: state.data.storeIdentity.phoneNumber ? `+91${state.data.storeIdentity.phoneNumber}` : "+919999999999",
                 },
                 licenses: state.data.licensing.dlNumber ? [{
                     type: 'Drug License' as const,
                     licenseNumber: state.data.licensing.dlNumber,
                     issuedBy: "State Authority",
-                    issuedDate: state.data.licensing.dlValidityStart || new Date().toISOString().split('T')[0],
-                    expiryDate: state.data.licensing.dlValidityEnd || new Date().toISOString().split('T')[0],
+                    issuedDate: state.data.licensing.dlValidityStart ? new Date(state.data.licensing.dlValidityStart).toISOString() : new Date().toISOString(),
+                    expiryDate: state.data.licensing.dlValidityEnd ? new Date(state.data.licensing.dlValidityEnd).toISOString() : new Date().toISOString(),
                 }] : [],
                 operatingHours: state.data.timings?.operatingDays?.map(day => ({
                     dayOfWeek: day as any,

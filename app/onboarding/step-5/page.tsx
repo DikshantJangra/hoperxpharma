@@ -3,14 +3,15 @@
 import { useState, useEffect } from "react";
 import { useOnboarding } from "@/contexts/OnboardingContext";
 import { useRouter } from "next/navigation";
-import { FiArrowRight, FiArrowLeft, FiTruck, FiPlus, FiUser, FiPhone, FiTag, FiFileText } from "react-icons/fi";
+import { FiArrowRight, FiArrowLeft, FiTruck, FiPlus, FiUser, FiPhone, FiTag, FiFileText, FiEdit2, FiTrash2 } from "react-icons/fi";
 import OnboardingCard from "@/components/onboarding/OnboardingCard";
 
 export default function Step5Page() {
-    const { state, addSupplier, setCurrentStep, markStepComplete } = useOnboarding();
+    const { state, addSupplier, removeSupplier, setCurrentStep, markStepComplete } = useOnboarding();
     const router = useRouter();
 
     const [showForm, setShowForm] = useState(state.data.suppliers.length === 0);
+    const [editIndex, setEditIndex] = useState<number | null>(null);
     const [formData, setFormData] = useState({
         name: "",
         phone: "",
@@ -26,9 +27,37 @@ export default function Step5Page() {
 
     const handleAdd = () => {
         if (formData.name && formData.phone) {
-            addSupplier({ ...formData, dlDocument: "" });
+            if (editIndex !== null) {
+                // Update existing supplier
+                const updatedSuppliers = [...state.data.suppliers];
+                updatedSuppliers[editIndex] = { ...formData, dlDocument: "" };
+                state.data.suppliers = updatedSuppliers;
+                setEditIndex(null);
+            } else {
+                addSupplier({ ...formData, dlDocument: "" });
+            }
             setFormData({ name: "", phone: "", category: "", gstin: "", deliveryArea: "", creditTerms: "COD" });
             setShowForm(false);
+        }
+    };
+
+    const handleEdit = (index: number) => {
+        const supplier = state.data.suppliers[index];
+        setFormData({
+            name: supplier.name,
+            phone: supplier.phone,
+            category: supplier.category || "",
+            gstin: supplier.gstin || "",
+            deliveryArea: supplier.deliveryArea || "",
+            creditTerms: supplier.creditTerms || "COD"
+        });
+        setEditIndex(index);
+        setShowForm(true);
+    };
+
+    const handleDelete = (index: number) => {
+        if (confirm('Are you sure you want to remove this supplier?')) {
+            removeSupplier(index);
         }
     };
 
@@ -69,8 +98,21 @@ export default function Step5Page() {
                                         <span className="flex items-center gap-1"><FiFileText size={12} /> {supplier.creditTerms}</span>
                                     </div>
                                 </div>
-                                <div className="text-xs font-medium px-2.5 py-1 bg-emerald-50 text-emerald-600 rounded-lg border border-emerald-100">
-                                    Added
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={() => handleEdit(idx)}
+                                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                        title="Edit"
+                                    >
+                                        <FiEdit2 size={16} />
+                                    </button>
+                                    <button
+                                        onClick={() => handleDelete(idx)}
+                                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                        title="Delete"
+                                    >
+                                        <FiTrash2 size={16} />
+                                    </button>
                                 </div>
                             </div>
                         ))}
@@ -162,7 +204,7 @@ export default function Step5Page() {
                                     disabled={!formData.name || !formData.phone}
                                     className="flex-1 px-4 py-3 bg-emerald-500 text-white rounded-xl font-medium hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-emerald-500/20"
                                 >
-                                    Add Supplier
+                                    {editIndex !== null ? 'Update Supplier' : 'Add Supplier'}
                                 </button>
                             </div>
                         </div>
