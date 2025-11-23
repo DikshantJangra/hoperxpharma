@@ -33,10 +33,8 @@ export default function Step7Page() {
     const handleAdd = () => {
         if (formData.name && formData.phone && formData.pin) {
             if (editIndex !== null) {
-                // Update existing user
-                const updatedUsers = [...state.data.users];
-                updatedUsers[editIndex] = formData;
-                state.data.users = updatedUsers;
+                removeUser(editIndex);
+                addUser(formData);
                 setEditIndex(null);
             } else {
                 addUser(formData);

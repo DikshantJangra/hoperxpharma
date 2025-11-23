@@ -28,10 +28,8 @@ export default function Step5Page() {
     const handleAdd = () => {
         if (formData.name && formData.phone) {
             if (editIndex !== null) {
-                // Update existing supplier
-                const updatedSuppliers = [...state.data.suppliers];
-                updatedSuppliers[editIndex] = { ...formData, dlDocument: "" };
-                state.data.suppliers = updatedSuppliers;
+                removeSupplier(editIndex);
+                addSupplier({ ...formData, dlDocument: "" });
                 setEditIndex(null);
             } else {
                 addSupplier({ ...formData, dlDocument: "" });
