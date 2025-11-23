@@ -1,8 +1,6 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// HopeRxPharma - Complete Database Schema
+// 68 Tables - Optimized with API-First Approach
+// Generated: 2025-11-23
 
 generator client {
   provider = "prisma-client-js"
@@ -13,12 +11,1596 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Users {
-  id          Int      @id @default(autoincrement())
-  name        String
-  email       String   @unique
-  phoneNumber String   @unique
-  password    String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+enum UserRole {
+  ADMIN
+  PHARMACIST
+  TECHNICIAN
+  CASHIER
 }
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  EXPIRED
+  CANCELLED
+  SUSPENDED
+}
+
+enum PrescriptionStatus {
+  DRAFT
+  IN_PROGRESS
+  ON_HOLD
+  AWAITING_AUTH
+  PARTIAL_FILLED
+  COMPLETED
+  CANCELLED
+}
+
+enum DispenseWorkflowStatus {
+  INTAKE
+  VERIFY
+  FILL
+  CHECK
+  RELEASE
+  COMPLETED
+}
+
+enum POStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  SENT
+  PARTIALLY_RECEIVED
+  RECEIVED
+  CLOSED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  UPI
+  WALLET
+}
+
+enum InvoiceType {
+  RECEIPT
+  GST_INVOICE
+  CREDIT_NOTE
+}
+
+enum ExpenseStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  PAID
+  PARTIAL
+  DISPUTED
+  CANCELLED
+}
+
+enum AlertSeverity {
+  CRITICAL
+  WARNING
+  INFO
+}
+
+enum AlertStatus {
+  NEW
+  SNOOZED
+  RESOLVED
+}
+
+// ============================================================================
+// CATEGORY 1: CORE INFRASTRUCTURE (12 tables)
+// ============================================================================
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  phoneNumber   String   @unique
+  passwordHash  String
+  firstName     String
+  lastName      String
+  role          UserRole @default(PHARMACIST)
+  approvalPin   String?
+  isActive      Boolean  @default(true)
+  
+  storeUsers    StoreUser[]
+  auditLogs     AuditLog[]
+  accessLogs    AccessLog[]
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+  
+  @@index([email])
+  @@index([phoneNumber])
+  @@index([deletedAt])
+}
+
+model Role {
+  id            String   @id @default(cuid())
+  name          String   @unique
+  description   String?
+  
+  permissions   RolePermission[]
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Permission {
+  id            String   @id @default(cuid())
+  name          String   @unique // e.g., "prescription:create"
+  description   String?
+  
+  roles         RolePermission[]
+  
+  createdAt     DateTime @default(now())
+}
+
+model RolePermission {
+  roleId        String
+  permissionId  String
+  
+  role          Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission    Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  
+  @@id([roleId, permissionId])
+}
+
+model StoreUser {
+  userId        String
+  storeId       String
+  isPrimary     Boolean  @default(false)
+  
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  store         Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  
+  assignedAt    DateTime @default(now())
+  
+  @@id([userId, storeId])
+  @@index([storeId])
+}
+
+model Store {
+  id            String   @id @default(cuid())
+  name          String
+  displayName   String
+  email         String   @unique
+  phoneNumber   String
+  businessType  String?
+  logoUrl       String?
+  
+  // Address
+  addressLine1  String
+  addressLine2  String?
+  city          String
+  state         String
+  pinCode       String
+  landmark      String?
+  
+  // Operations
+  is24x7        Boolean  @default(false)
+  homeDelivery  Boolean  @default(false)
+  
+  users         StoreUser[]
+  licenses      StoreLicense[]
+  operatingHours StoreOperatingHours[]
+  devices       HardwareDevice[]
+  subscription  Subscription?
+  
+  // Relations to other tables
+  patients      Patient[]
+  prescriptions Prescription[]
+  inventory     InventoryBatch[]
+  sales         Sale[]
+  purchaseOrders PurchaseOrder[]
+  expenses      Expense[]
+  campaigns     Campaign[]
+  auditLogs     AuditLog[]
+  alerts        Alert[]
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+  
+  @@index([email])
+  @@index([deletedAt])
+}
+
+model StoreLicense {
+  id            String   @id @default(cuid())
+  storeId       String
+  type          String   // Drug License, GSTIN, PAN, FSSAI
+  number        String
+  validFrom     DateTime
+  validTo       DateTime
+  documentUrl   String?
+  status        String   // Active, Expired, Expiring Soon
+  
+  store         Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([storeId, type])
+  @@index([validTo])
+}
+
+model StoreOperatingHours {
+  id            String   @id @default(cuid())
+  storeId       String
+  dayOfWeek     Int      // 0 = Sunday, 6 = Saturday
+  openTime      String   // HH:MM format
+  closeTime     String
+  isClosed      Boolean  @default(false)
+  lunchStart    String?
+  lunchEnd      String?
+  
+  store         Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  
+  @@unique([storeId, dayOfWeek])
+}
+
+model HardwareDevice {
+  id            String   @id @default(cuid())
+  storeId       String
+  name          String
+  type          String   // Printer, Barcode Scanner, Card Reader
+  serialNumber  String?
+  ipAddress     String?
+  macAddress    String?
+  status        String   // Online, Offline, Error
+  lastPingAt    DateTime?
+  firmwareVersion String?
+  
+  store         Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([storeId, status])
+}
+
+model SubscriptionPlan {
+  id            String   @id @default(cuid())
+  name          String   @unique
+  displayName   String
+  description   String?
+  price         Decimal  @db.Decimal(10, 2)
+  currency      String   @default("INR")
+  billingCycle  String   // monthly, yearly
+  
+  // Limits
+  patientLimit  Int?     // null = unlimited
+  prescriptionLimit Int?
+  storageLimit  Int?     // MB
+  multiStore    Boolean  @default(false)
+  
+  subscriptions Subscription[]
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Subscription {
+  id            String   @id @default(cuid())
+  storeId       String   @unique
+  planId        String
+  status        SubscriptionStatus @default(TRIAL)
+  
+  trialEndsAt   DateTime?
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  autoRenew     Boolean  @default(true)
+  
+  store         Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  plan          SubscriptionPlan @relation(fields: [planId], references: [id])
+  usageQuota    UsageQuota?
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([status])
+  @@index([currentPeriodEnd])
+}
+
+model UsageQuota {
+  id            String   @id @default(cuid())
+  subscriptionId String  @unique
+  
+  patientCountUsed      Int @default(0)
+  prescriptionCountUsed Int @default(0)
+  storageMbUsed         Int @default(0)
+  
+  resetsAt      DateTime
+  
+  subscription  Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  
+  updatedAt     DateTime @updatedAt
+}
+
+// ============================================================================
+// CATEGORY 2: PATIENT & CLINICAL (5 tables)
+// ============================================================================
+
+model Patient {
+  id            String   @id @default(cuid())
+  storeId       String
+  
+  firstName     String
+  middleName    String?
+  lastName      String
+  dateOfBirth   DateTime?
+  gender        String?
+  photoUrl      String?
+  
+  phoneNumber   String
+  email         String?
+  
+  // Address
+  addressLine1  String?
+  addressLine2  String?
+  city          String?
+  state         String?
+  pinCode       String?
+  
+  // Medical
+  bloodGroup    String?
+  allergies     String[] // Array of allergy strings
+  chronicConditions String[]
+  
+  // Emergency contact
+  emergencyContactName  String?
+  emergencyContactPhone String?
+  
+  store         Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  prescriptions Prescription[]
+  sales         Sale[]
+  consents      PatientConsent[]
+  insurance     PatientInsurance[]
+  adherence     PatientAdherence[]
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+  deletedBy     String?
+  
+  @@index([storeId, phoneNumber])
+  @@index([storeId, email])
+  @@index([storeId, lastName, firstName])
+  @@index([storeId, deletedAt])
+}
+
+model PatientConsent {
+  id            String   @id @default(cuid())
+  patientId     String
+  type          String   // Data Processing, Marketing, WhatsApp
+  status        String   // Active, Withdrawn
+  grantedDate   DateTime @default(now())
+  expiryDate    DateTime?
+  digitalSignatureUrl String?
+  
+  patient       Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  
+  @@index([patientId, type])
+}
+
+model PatientInsurance {
+  id            String   @id @default(cuid())
+  patientId     String
+  provider      String
+  policyNumber  String
+  groupNumber   String?
+  validUntil    DateTime
+  status        String   // active, inactive
+  
+  patient       Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([patientId])
+}
+
+model PatientAdherence {
+  id            String   @id @default(cuid())
+  patientId     String
+  prescriptionId String
+  expectedRefillDate DateTime
+  actualRefillDate   DateTime?
+  adherenceRate Float    // 0.0 to 1.0
+  
+  patient       Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  
+  createdAt     DateTime @default(now())
+  
+  @@index([patientId])
+  @@index([expectedRefillDate])
+}
+
+model InteractionCheckLog {
+  id            String   @id @default(cuid())
+  storeId       String
+  prescriptionId String?
+  checkedBy     String
+  drugIds       String[] // Array of drug IDs checked
+  hasInteractions Boolean
+  severity      String?  // critical, major, moderate
+  apiResponse   Json?    // Cached API response
+  
+  createdAt     DateTime @default(now())
+  
+  @@index([storeId, prescriptionId])
+}
+
+// ============================================================================
+// CATEGORY 3: DRUG CATALOG (2 tables)
+// ============================================================================
+
+model Drug {
+  id            String   @id @default(cuid())
+  rxcui         String?  @unique // RxNorm ID
+  name          String
+  strength      String?
+  form          String?  // Tablet, Capsule, Syrup
+  manufacturer  String?
+  hsnCode       String?
+  gstRate       Decimal  @db.Decimal(5, 2)
+  requiresPrescription Boolean @default(false)
+  defaultUnit   String?  // Strips, Units
+  lowStockThreshold Int?
+  
+  // Cached from API
+  description   String?  @db.Text
+  lastSyncedAt  DateTime?
+  
+  inventory     InventoryBatch[]
+  prescriptionItems PrescriptionItem[]
+  poItems       PurchaseOrderItem[]
+  saleItems     SaleItem[]
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([name])
+  @@index([hsnCode])
+}
+
+model TaxRate {
+  id            String   @id @default(cuid())
+  hsnCode       String   @unique
+  gstRate       Decimal  @db.Decimal(5, 2)
+  description   String?
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// ============================================================================
+// CATEGORY 4: INVENTORY (6 tables)
+// ============================================================================
+
+model InventoryBatch {
+  id            String   @id @default(cuid())
+  storeId       String
+  drugId        String
+  batchNumber   String
+  expiryDate    DateTime
+  quantityInStock Int
+  mrp           Decimal  @db.Decimal(10, 2)
+  purchasePrice Decimal  @db.Decimal(10, 2)
+  supplierId    String?
+  location      String?  // Shelf location
+  
+  store         Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  drug          Drug     @relation(fields: [drugId], references: [id])
+  movements     StockMovement[]
+  dispenseItems DispenseItem[]
+  saleItems     SaleItem[]
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+  
+  @@unique([storeId, batchNumber, drugId])
+  @@index([storeId, drugId])
+  @@index([storeId, expiryDate])
+  @@index([batchNumber])
+  @@index([storeId, deletedAt])
+}
+
+model StockMovement {
+  id            String   @id @default(cuid())
+  batchId       String
+  movementType  String   // IN, OUT, ADJUSTMENT, RETURN
+  quantity      Int
+  reason        String?
+  referenceType String?  // sale, purchase, adjustment
+  referenceId   String?
+  userId        String?
+  
+  batch         InventoryBatch @relation(fields: [batchId], references: [id])
+  
+  createdAt     DateTime @default(now())
+  
+  @@index([batchId, createdAt])
+  @@index([referenceType, referenceId])
+}
+
+model StockAdjustment {
+  id            String   @id @default(cuid())
+  storeId       String
+  batchId       String
+  quantityAdjusted Int   // Can be negative
+  reason        String
+  userId        String
+  
+  createdAt     DateTime @default(now())
+  
+  @@index([storeId, createdAt])
+}
+
+model StockAlert {
+  id            String   @id @default(cuid())
+  storeId       String
+  drugId        String
+  alertType     String   // LOW_STOCK, EXPIRY_SOON, EXPIRED
+  threshold     Int?
+  currentValue  Int?
+  status        String   // active, resolved
+  
+  createdAt     DateTime @default(now())
+  resolvedAt    DateTime?
+  
+  @@index([storeId, status])
+}
+
+model InventoryCount {
+  id            String   @id @default(cuid())
+  storeId       String
+  countDate     DateTime
+  countedBy     String
+  status        String   // in_progress, completed
+  notes         String?
+  discrepancies Json?    // { drugId: { expected, actual, diff } }
+  
+  completedAt   DateTime?
+  createdAt     DateTime @default(now())
+  
+  @@index([storeId, countDate])
+}
+
+model InventoryForecast {
+  id            String   @id @default(cuid())
+  storeId       String
+  drugId        String
+  forecastDate  DateTime
+  predictedDemand Int
+  confidence    Float
+  algorithm     String   // moving_average, ml
+  
+  createdAt     DateTime @default(now())
+  
+  @@unique([storeId, drugId, forecastDate])
+  @@index([storeId, forecastDate])
+}
+
+// ============================================================================
+// CATEGORY 5: PRESCRIPTION & DISPENSING (7 tables)
+// ============================================================================
+
+model Prescription {
+  id            String   @id @default(cuid())
+  storeId       String
+  patientId     String
+  prescriberId  String
+  source        String   // ocr, e-rx, manual
+  status        PrescriptionStatus @default(DRAFT)
+  priority      String   @default("Normal") // Normal, Urgent
+  refillNumber  Int      @default(0)
+  totalRefills  Int      @default(0)
+  
+  store         Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  patient       Patient  @relation(fields: [patientId], references: [id])
+  prescriber    Prescriber @relation(fields: [prescriberId], references: [id])
+  items         PrescriptionItem[]
+  dispenseEvents DispenseEvent[]
+  refills       RefillHistory[]
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+  
+  @@index([storeId, patientId])
+  @@index([storeId, status, createdAt])
+  @@index([storeId, deletedAt])
+}
+
+model PrescriptionItem {
+  id            String   @id @default(cuid())
+  prescriptionId String
+  drugId        String
+  quantityPrescribed Int
+  sig           String?  // Dosage instructions
+  daysSupply    Int?
+  isControlled  Boolean  @default(false)
+  
+  prescription  Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  drug          Drug     @relation(fields: [drugId], references: [id])
+  
+  @@index([prescriptionId])
+}
+
+model Prescriber {
+  id            String   @id @default(cuid())
+  name          String
+  licenseNumber String   @unique
+  clinic        String?
+  phoneNumber   String?
+  email         String?
+  specialty     String?
+  
+  prescriptions Prescription[]
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([licenseNumber])
+}
+
+model DispenseEvent {
+  id            String   @id @default(cuid())
+  prescriptionId String
+  workflowStatus DispenseWorkflowStatus @default(INTAKE)
+  
+  intakeBy      String?
+  intakeAt      DateTime?
+  verifyBy      String?
+  verifyAt      DateTime?
+  fillBy        String?
+  fillAt        DateTime?
+  checkBy       String?
+  checkAt       DateTime?
+  releaseBy     String?
+  releaseAt     DateTime?
+  
+  prescription  Prescription @relation(fields: [prescriptionId], references: [id])
+  items         DispenseItem[]
+  
+  createdAt     DateTime @default(now())
+  completedAt   DateTime?
+  
+  @@index([prescriptionId])
+}
+
+model DispenseItem {
+  id            String   @id @default(cuid())
+  dispenseEventId String
+  batchId       String
+  quantityDispensed Int
+  
+  dispenseEvent DispenseEvent @relation(fields: [dispenseEventId], references: [id], onDelete: Cascade)
+  batch         InventoryBatch @relation(fields: [batchId], references: [id])
+  
+  @@index([dispenseEventId])
+}
+
+model RefillHistory {
+  id            String   @id @default(cuid())
+  prescriptionId String
+  refillNumber  Int
+  refillDate    DateTime
+  dispensedBy   String
+  
+  prescription  Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  
+  @@index([prescriptionId])
+}
+
+model DispenseWorkflowStep {
+  id            String   @id @default(cuid())
+  storeId       String
+  stepName      String   // INTAKE, VERIFY, FILL, CHECK, RELEASE
+  isRequired    Boolean  @default(true)
+  order         Int
+  
+  createdAt     DateTime @default(now())
+  
+  @@unique([storeId, stepName])
+}
+
+// ============================================================================
+// CATEGORY 6: PURCHASE ORDERS (5 tables)
+// ============================================================================
+
+model Supplier {
+  id            String   @id @default(cuid())
+  name          String
+  category      String   // Distributor, Manufacturer, Wholesaler
+  status        String   // Active, Inactive
+  gstin         String?
+  dlNumber      String?
+  pan           String?
+  
+  // Contact
+  contactName   String
+  phoneNumber   String
+  email         String?
+  whatsapp      String?
+  
+  // Address
+  addressLine1  String
+  addressLine2  String?
+  city          String
+  state         String
+  pinCode       String
+  
+  // Payment
+  paymentTerms  String?  // Net 30, Net 60
+  creditLimit   Decimal? @db.Decimal(12, 2)
+  
+  licenses      SupplierLicense[]
+  purchaseOrders PurchaseOrder[]
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+  
+  @@index([gstin])
+  @@index([deletedAt])
+}
+
+model SupplierLicense {
+  id            String   @id @default(cuid())
+  supplierId    String
+  type          String
+  number        String
+  validFrom     DateTime
+  validTo       DateTime
+  documentUrl   String?
+  
+  supplier      Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  
+  @@index([supplierId])
+}
+
+model PurchaseOrder {
+  id            String   @id @default(cuid())
+  storeId       String
+  supplierId    String
+  poNumber      String   @unique
+  status        POStatus @default(DRAFT)
+  
+  orderDate     DateTime @default(now())
+  expectedDeliveryDate DateTime?
+  
+  subtotal      Decimal  @db.Decimal(12, 2)
+  taxAmount     Decimal  @db.Decimal(12, 2)
+  total         Decimal  @db.Decimal(12, 2)
+  
+  currency      String   @default("INR")
+  paymentTerms  String?
+  
+  createdBy     String
+  approvedBy    String?
+  approvedAt    DateTime?
+  
+  store         Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  supplier      Supplier @relation(fields: [supplierId], references: [id])
+  items         PurchaseOrderItem[]
+  receipts      POReceipt[]
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+  
+  @@index([storeId, status])
+  @@index([supplierId])
+  @@index([storeId, deletedAt])
+}
+
+model PurchaseOrderItem {
+  id            String   @id @default(cuid())
+  poId          String
+  drugId        String
+  quantity      Int
+  unitPrice     Decimal  @db.Decimal(10, 2)
+  discountPercent Decimal @db.Decimal(5, 2) @default(0)
+  gstPercent    Decimal  @db.Decimal(5, 2)
+  lineTotal     Decimal  @db.Decimal(12, 2)
+  
+  po            PurchaseOrder @relation(fields: [poId], references: [id], onDelete: Cascade)
+  drug          Drug     @relation(fields: [drugId], references: [id])
+  
+  @@index([poId])
+}
+
+model POReceipt {
+  id            String   @id @default(cuid())
+  poId          String
+  receiptDate   DateTime @default(now())
+  receivedBy    String
+  notes         String?
+  itemsReceived Json     // { drugId, quantityReceived, batchNumber }
+  
+  po            PurchaseOrder @relation(fields: [poId], references: [id], onDelete: Cascade)
+  
+  createdAt     DateTime @default(now())
+  
+  @@index([poId])
+}
+
+// ============================================================================
+// CATEGORY 7: SALES & PAYMENTS (9 tables)
+// ============================================================================
+
+model Sale {
+  id            String   @id @default(cuid())
+  storeId       String
+  invoiceNumber String   @unique
+  invoiceType   InvoiceType @default(RECEIPT)
+  patientId     String?
+  
+  subtotal      Decimal  @db.Decimal(10, 2)
+  discountAmount Decimal @db.Decimal(10, 2) @default(0)
+  taxAmount     Decimal  @db.Decimal(10, 2)
+  roundOff      Decimal  @db.Decimal(5, 2) @default(0)
+  total         Decimal  @db.Decimal(10, 2)
+  
+  // For credit notes
+  originalSaleId String?
+  creditReason  String?
+  
+  soldBy        String
+  
+  store         Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  patient       Patient? @relation(fields: [patientId], references: [id])
+  originalSale  Sale?    @relation("CreditNotes", fields: [originalSaleId], references: [id])
+  creditNotes   Sale[]   @relation("CreditNotes")
+  items         SaleItem[]
+  paymentSplits PaymentSplit[]
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+  
+  @@index([storeId, createdAt])
+  @@index([storeId, patientId])
+  @@index([invoiceNumber])
+  @@index([storeId, deletedAt])
+}
+
+model SaleItem {
+  id            String   @id @default(cuid())
+  saleId        String
+  drugId        String
+  batchId       String
+  quantity      Int
+  mrp           Decimal  @db.Decimal(10, 2)
+  discount      Decimal  @db.Decimal(10, 2) @default(0)
+  gstRate       Decimal  @db.Decimal(5, 2)
+  lineTotal     Decimal  @db.Decimal(10, 2)
+  
+  sale          Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  drug          Drug     @relation(fields: [drugId], references: [id])
+  batch         InventoryBatch @relation(fields: [batchId], references: [id])
+  
+  @@index([saleId])
+}
+
+model PaymentSplit {
+  id            String   @id @default(cuid())
+  saleId        String
+  paymentMethod PaymentMethod
+  amount        Decimal  @db.Decimal(10, 2)
+  
+  // Card-specific
+  cardLast4     String?
+  cardBrand     String?
+  cardAuthCode  String?
+  
+  // UPI-specific
+  upiTransactionId String?
+  upiVpa        String?
+  
+  // Wallet-specific
+  walletProvider String?
+  walletTxnId   String?
+  
+  sale          Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  
+  createdAt     DateTime @default(now())
+  
+  @@index([saleId])
+}
+
+model Expense {
+  id            String   @id @default(cuid())
+  storeId       String
+  vendorId      String?
+  vendorName    String
+  invoiceNumber String
+  invoiceDate   DateTime
+  dueDate       DateTime?
+  
+  grossAmount   Decimal  @db.Decimal(12, 2)
+  gstAmount     Decimal  @db.Decimal(12, 2)
+  tdsAmount     Decimal  @db.Decimal(12, 2) @default(0)
+  netAmount     Decimal  @db.Decimal(12, 2)
+  
+  categoryId    String
+  status        ExpenseStatus @default(DRAFT)
+  
+  attachments   Json?    // [{ id, name, url }]
+  
+  createdBy     String
+  approvedBy    String?
+  approvedAt    DateTime?
+  
+  store         Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  category      ExpenseCategory @relation(fields: [categoryId], references: [id])
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+  
+  @@index([storeId, status])
+  @@index([storeId, deletedAt])
+}
+
+model ExpenseCategory {
+  id            String   @id @default(cuid())
+  name          String   @unique
+  description   String?
+  glAccount     String?
+  
+  expenses      Expense[]
+  
+  createdAt     DateTime @default(now())
+}
+
+model Claim {
+  id            String   @id @default(cuid())
+  storeId       String
+  type          String   // Customer, Supplier, Insurance
+  relatedSaleId String?
+  relatedPOId   String?
+  reason        String
+  amount        Decimal  @db.Decimal(10, 2)
+  status        String   // Pending, Approved, Rejected
+  
+  createdBy     String
+  resolvedBy    String?
+  resolvedAt    DateTime?
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([storeId, status])
+}
+
+model Reconciliation {
+  id            String   @id @default(cuid())
+  storeId       String
+  reconcileDate DateTime
+  
+  expectedCash  Decimal  @db.Decimal(10, 2)
+  actualCash    Decimal  @db.Decimal(10, 2)
+  difference    Decimal  @db.Decimal(10, 2)
+  
+  cardAmount    Decimal  @db.Decimal(10, 2)
+  upiAmount     Decimal  @db.Decimal(10, 2)
+  walletAmount  Decimal  @db.Decimal(10, 2)
+  
+  notes         String?
+  reconciledBy  String
+  
+  createdAt     DateTime @default(now())
+  
+  @@index([storeId, reconcileDate])
+}
+
+model OCRJob {
+  id            String   @id @default(cuid())
+  storeId       String
+  documentUrl   String
+  documentType  String   // expense_invoice, prescription, license
+  status        String   // queued, processing, completed, failed
+  
+  extractedData Json?
+  confidence    Float?
+  vendorCandidates Json?
+  
+  processedAt   DateTime?
+  createdAt     DateTime @default(now())
+  
+  @@index([storeId, status])
+}
+
+model PerformanceMetric {
+  id            String   @id @default(cuid())
+  storeId       String
+  metricType    String   // sales_per_hour, avg_dispense_time
+  value         Float
+  date          DateTime
+  
+  createdAt     DateTime @default(now())
+  
+  @@unique([storeId, metricType, date])
+  @@index([storeId, date])
+}
+
+// ============================================================================
+// CATEGORY 8: BANK RECONCILIATION (3 tables)
+// ============================================================================
+
+model BankAccount {
+  id            String   @id @default(cuid())
+  storeId       String
+  accountNumber String
+  bankName      String
+  ifscCode      String
+  accountType   String   // Current, Savings
+  balance       Decimal  @db.Decimal(12, 2)
+  lastSyncedAt  DateTime?
+  
+  transactions  BankTransaction[]
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([storeId])
+}
+
+model BankTransaction {
+  id            String   @id @default(cuid())
+  accountId     String
+  txnDate       DateTime
+  amount        Decimal  @db.Decimal(10, 2)
+  direction     String   // CR, DR
+  description   String
+  bankReference String
+  
+  // Extracted data
+  extractedInvoiceIds String[]
+  extractedUpiId      String?
+  
+  // Matching
+  status        String   // UNMATCHED, SUGGESTED, MATCHED, SUSPICIOUS
+  matchedSaleId String?
+  matchedExpenseId String?
+  matchConfidence Float?
+  
+  account       BankAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  suggestions   MatchSuggestion[]
+  
+  createdAt     DateTime @default(now())
+  
+  @@index([accountId, txnDate])
+  @@index([status])
+}
+
+model MatchSuggestion {
+  id            String   @id @default(cuid())
+  bankTxnId     String
+  candidateType String   // INVOICE, EXPENSE, ADJUSTMENT
+  candidateId   String
+  score         Float
+  reason        String
+  
+  bankTransaction BankTransaction @relation(fields: [bankTxnId], references: [id], onDelete: Cascade)
+  
+  @@index([bankTxnId])
+}
+
+// ============================================================================
+// CATEGORY 9: PAYMENT GATEWAY (4 tables)
+// ============================================================================
+
+model PaymentGateway {
+  id            String   @id @default(cuid())
+  storeId       String
+  provider      String   // Razorpay, Paytm, PhonePe
+  status        String   // active, inactive
+  
+  merchantId    String?
+  apiKey        String?  @db.Text
+  apiSecret     String?  @db.Text
+  webhookSecret String?
+  
+  qrCodeUrl     String?
+  upiVpa        String?
+  
+  transactions  GatewayTransaction[]
+  settlements   Settlement[]
+  webhooks      WebhookLog[]
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([storeId, status])
+}
+
+model GatewayTransaction {
+  id            String   @id @default(cuid())
+  gatewayId     String
+  saleId        String?
+  
+  providerTxnId String   @unique
+  amount        Decimal  @db.Decimal(10, 2)
+  currency      String   @default("INR")
+  status        String   // success, pending, failed, refunded
+  paymentMethod String
+  
+  upiVpa        String?
+  upiTxnId      String?
+  cardLast4     String?
+  cardNetwork   String?
+  
+  gateway       PaymentGateway @relation(fields: [gatewayId], references: [id])
+  
+  createdAt     DateTime @default(now())
+  
+  @@index([gatewayId, status])
+  @@index([saleId])
+}
+
+model Settlement {
+  id            String   @id @default(cuid())
+  gatewayId     String
+  settlementId  String   @unique
+  amount        Decimal  @db.Decimal(10, 2)
+  fee           Decimal  @db.Decimal(10, 2)
+  tax           Decimal  @db.Decimal(10, 2)
+  netAmount     Decimal  @db.Decimal(10, 2)
+  status        String   // pending, settled, failed
+  utr           String?
+  
+  gateway       PaymentGateway @relation(fields: [gatewayId], references: [id])
+  
+  settledAt     DateTime?
+  createdAt     DateTime @default(now())
+  
+  @@index([gatewayId, status])
+}
+
+model WebhookLog {
+  id            String   @id @default(cuid())
+  gatewayId     String
+  event         String
+  payload       Json
+  status        String   // received, processed, failed
+  retryCount    Int      @default(0)
+  
+  gateway       PaymentGateway @relation(fields: [gatewayId], references: [id])
+  
+  processedAt   DateTime?
+  createdAt     DateTime @default(now())
+  
+  @@index([gatewayId, createdAt])
+}
+
+// ============================================================================
+// CATEGORY 10: GST & COMPLIANCE (4 tables)
+// ============================================================================
+
+model GSTReturn {
+  id            String   @id @default(cuid())
+  storeId       String
+  returnType    String   // GSTR1, GSTR3B
+  period        String   // MMYYYY
+  status        String   // draft, filed, accepted
+  filedAt       DateTime?
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([storeId, period])
+}
+
+model GSTTransaction {
+  id            String   @id @default(cuid())
+  storeId       String
+  transactionType String // sale, purchase
+  referenceId   String
+  gstin         String?
+  taxableValue  Decimal  @db.Decimal(12, 2)
+  cgst          Decimal  @db.Decimal(10, 2)
+  sgst          Decimal  @db.Decimal(10, 2)
+  igst          Decimal  @db.Decimal(10, 2)
+  
+  createdAt     DateTime @default(now())
+  
+  @@index([storeId, transactionType])
+}
+
+model IRN {
+  id            String   @id @default(cuid())
+  saleId        String   @unique
+  irn           String   @unique
+  ackNo         String
+  ackDate       DateTime
+  qrCode        String?  @db.Text
+  
+  createdAt     DateTime @default(now())
+  
+  @@index([irn])
+}
+
+model ComplianceCheck {
+  id            String   @id @default(cuid())
+  storeId       String
+  checkType     String   // dpdpa, erx, hipaa
+  status        String   // compliant, non_compliant, warning
+  findings      Json
+  
+  checkedAt     DateTime @default(now())
+  
+  @@index([storeId, checkType])
+}
+
+// ============================================================================
+// CATEGORY 11: WHATSAPP (4 tables)
+// ============================================================================
+
+model WhatsAppTemplate {
+  id            String   @id @default(cuid())
+  storeId       String
+  name          String
+  category      String   // transactional, reminder, marketing
+  status        String   // approved, pending, rejected
+  body          String   @db.Text
+  language      String   @default("en")
+  variables     String[]
+  usageCount    Int      @default(0)
+  lastUsedAt    DateTime?
+  
+  messages      WhatsAppMessageLog[]
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([storeId, status])
+}
+
+model WhatsAppFlow {
+  id            String   @id @default(cuid())
+  storeId       String
+  name          String
+  trigger       String   // prescription_ready, expiry_alert
+  nodes         Json     // Flow definition
+  active        Boolean  @default(false)
+  lastRunAt     DateTime?
+  successRate   Float?
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([storeId, active])
+}
+
+model WhatsAppMessageLog {
+  id            String   @id @default(cuid())
+  storeId       String
+  patientId     String?
+  templateId    String?
+  providerMsgId String   // WhatsApp's message ID
+  direction     String   // sent, received
+  cost          Decimal? @db.Decimal(6, 4)
+  
+  template      WhatsAppTemplate? @relation(fields: [templateId], references: [id])
+  
+  sentAt        DateTime @default(now())
+  
+  @@index([storeId, sentAt])
+  @@index([providerMsgId])
+}
+
+model WhatsAppConsent {
+  id            String   @id @default(cuid())
+  patientId     String
+  method        String   // webform, phone, in-person
+  source        String
+  scope         String   // transactional, marketing, both
+  ipAddress     String?
+  expiresAt     DateTime?
+  revokedAt     DateTime?
+  
+  grantedAt     DateTime @default(now())
+  
+  @@index([patientId, revokedAt])
+}
+
+// ============================================================================
+// CATEGORY 12: MULTI-CHANNEL MESSAGING (2 tables)
+// ============================================================================
+
+model EmailMessageLog {
+  id            String   @id @default(cuid())
+  storeId       String
+  to            String
+  templateId    String?
+  providerMsgId String
+  
+  sentAt        DateTime @default(now())
+  
+  @@index([storeId, sentAt])
+}
+
+model SMSMessageLog {
+  id            String   @id @default(cuid())
+  storeId       String
+  to            String
+  providerMsgId String
+  cost          Decimal? @db.Decimal(6, 4)
+  
+  sentAt        DateTime @default(now())
+  
+  @@index([storeId, sentAt])
+}
+
+// ============================================================================
+// CATEGORY 13: ENGAGEMENT (5 tables)
+// ============================================================================
+
+model Campaign {
+  id            String   @id @default(cuid())
+  storeId       String
+  name          String
+  channel       String   // whatsapp, sms, email
+  status        String   // scheduled, running, completed
+  targetAudience Json
+  messageContent String  @db.Text
+  
+  scheduledAt   DateTime?
+  completedAt   DateTime?
+  
+  store         Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  targets       CampaignTarget[]
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([storeId, status])
+}
+
+model CampaignTarget {
+  id            String   @id @default(cuid())
+  campaignId    String
+  patientId     String
+  status        String   // pending, sent, delivered, failed
+  
+  campaign      Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  
+  sentAt        DateTime?
+  
+  @@index([campaignId, status])
+}
+
+model Coupon {
+  id            String   @id @default(cuid())
+  storeId       String
+  code          String   @unique
+  type          String   // percentage, fixed_amount
+  value         Decimal  @db.Decimal(10, 2)
+  usageLimit    Int?
+  validFrom     DateTime
+  validTo       DateTime
+  
+  usages        CouponUsage[]
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([code])
+  @@index([validFrom, validTo])
+}
+
+model CouponUsage {
+  id            String   @id @default(cuid())
+  couponId      String
+  saleId        String
+  discountAmount Decimal @db.Decimal(10, 2)
+  
+  coupon        Coupon   @relation(fields: [couponId], references: [id])
+  
+  usedAt        DateTime @default(now())
+  
+  @@index([couponId])
+}
+
+model LoyaltyProgram {
+  id            String   @id @default(cuid())
+  storeId       String
+  tierName      String
+  pointsRequired Int
+  benefits      String   @db.Text
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([storeId])
+}
+
+// ============================================================================
+// CATEGORY 14: AUDIT & COMPLIANCE (3 tables)
+// ============================================================================
+
+model AuditLog {
+  id            String   @id @default(cuid())
+  storeId       String
+  userId        String
+  action        String   // PATIENT_CREATED, PRESCRIPTION_DELETED
+  entityType    String   // patient, prescription, sale
+  entityId      String
+  changes       Json?    // { before, after }
+  ipAddress     String?
+  
+  store         Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  user          User     @relation(fields: [userId], references: [id])
+  
+  createdAt     DateTime @default(now())
+  
+  @@index([storeId, userId, createdAt])
+  @@index([storeId, entityType, entityId])
+  @@index([createdAt])
+}
+
+model AccessLog {
+  id            String   @id @default(cuid())
+  userId        String
+  eventType     String   // login_success, login_failure, logout
+  ipAddress     String
+  userAgent     String?
+  deviceInfo    String?
+  
+  user          User     @relation(fields: [userId], references: [id])
+  
+  createdAt     DateTime @default(now())
+  
+  @@index([userId, createdAt])
+  @@index([eventType, createdAt])
+}
+
+model Alert {
+  id            String   @id @default(cuid())
+  storeId       String
+  type          String   // inventory, compliance, workflow, system
+  severity      AlertSeverity
+  title         String
+  description   String   @db.Text
+  source        String
+  priority      String   // High, Medium, Low
+  status        AlertStatus @default(NEW)
+  
+  relatedType   String?
+  relatedId     String?
+  
+  resolvedBy    String?
+  resolvedAt    DateTime?
+  snoozeUntil   DateTime?
+  
+  store         Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  
+  createdAt     DateTime @default(now())
+  
+  @@index([storeId, status, severity])
+  @@index([snoozeUntil])
+}
+
+// ============================================================================
+// CATEGORY 15: API INTEGRATION (3 tables)
+// ============================================================================
+
+model APIKey {
+  id            String   @id @default(cuid())
+  storeId       String
+  name          String
+  keyPrefix     String   // First 8 chars
+  keyHash       String   // Hashed full key
+  permissions   String[]
+  expiresAt     DateTime?
+  lastUsedAt    DateTime?
+  
+  requests      APIRequest[]
+  
+  createdAt     DateTime @default(now())
+  revokedAt     DateTime?
+  
+  @@index([storeId, revokedAt])
+}
+
+model APIRequest {
+  id            String   @id @default(cuid())
+  apiKeyId      String
+  endpoint      String
+  method        String
+  statusCode    Int
+  responseTime  Int      // milliseconds
+  ipAddress     String
+  userAgent     String?
+  
+  apiKey        APIKey   @relation(fields: [apiKeyId], references: [id])
+  
+  createdAt     DateTime @default(now())
+  
+  @@index([apiKeyId, createdAt])
+  @@index([createdAt])
+}
+
+model WebhookEndpoint {
+  id            String   @id @default(cuid())
+  storeId       String
+  url           String
+  events        String[] // sale.created, prescription.dispensed
+  secret        String
+  active        Boolean  @default(true)
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([storeId, active])
+}
+
+// ============================================================================
+// CATEGORY 16: BACKUP & DOCUMENTS (3 tables)
+// ============================================================================
+
+model BackupPlan {
+  id            String   @id @default(cuid())
+  storeId       String
+  name          String
+  frequency     String   // daily, weekly, monthly
+  retentionDays Int
+  includeDocuments Boolean @default(true)
+  active        Boolean  @default(true)
+  nextRunAt     DateTime
+  
+  snapshots     BackupSnapshot[]
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([storeId, active])
+}
+
+model BackupSnapshot {
+  id            String   @id @default(cuid())
+  planId        String
+  storeId       String
+  size          BigInt   // bytes
+  status        String   // in_progress, completed, failed
+  storageLocation String
+  checksum      String?
+  recordCounts  Json?
+  
+  plan          BackupPlan @relation(fields: [planId], references: [id])
+  
+  createdAt     DateTime @default(now())
+  completedAt   DateTime?
+  
+  @@index([storeId, createdAt])
+}
+
+model Document {
+  id            String   @id @default(cuid())
+  storeId       String
+  entityType    String   // patient, prescription, license, expense
+  entityId      String
+  fileType      String   // pdf, jpg, png
+  filePath      String
+  fileSize      Int
+  uploadedBy    String
+  
+  createdAt     DateTime @default(now())
+  
+  @@index([storeId, entityType, entityId])
+}
+
