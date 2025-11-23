@@ -45,11 +45,15 @@ export default function Login() {
 
             toast.success('Login successful!');
 
+            // Wait a bit for state to update
+            await new Promise(resolve => setTimeout(resolve, 200));
+
             // AuthProvider will handle redirection automatically based on state change
-            // But we also push to dashboard to trigger the flow
             router.push("/dashboard");
         } catch (error: any) {
             const toast = (await import('react-hot-toast')).default;
+
+            console.error('Login error:', error);
 
             if (error.statusCode === 401) {
                 setErr("Invalid email or password");
@@ -57,11 +61,13 @@ export default function Login() {
             } else if (error.statusCode === 429) {
                 setErr("Too many login attempts. Please try again later.");
                 toast.error("Too many attempts. Please wait.");
+            } else if (error.statusCode === 404) {
+                setErr("User profile not found. Please contact support.");
+                toast.error("Profile not found. Contact support.");
             } else {
                 setErr(error.message || "Login failed! Please try again.");
                 toast.error(error.message || "Login failed!");
             }
-            console.error('Login error:', error);
         } finally {
             setLoading(false);
         }

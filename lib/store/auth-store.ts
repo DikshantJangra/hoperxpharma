@@ -32,21 +32,36 @@ export const useAuthStore = create<AuthState>()(
                     const response = await authApi.login(data);
                     if (response.success && response.data) {
                         // After login, fetch complete user profile
-                        const userProfile = await userApi.getUserProfile();
-                        const primaryStore = getPrimaryStore(userProfile);
-                        const hasStore = !!(userProfile.storeUsers && userProfile.storeUsers.length > 0);
+                        try {
+                            const userProfile = await userApi.getUserProfile();
+                            const primaryStore = getPrimaryStore(userProfile);
+                            const hasStore = !!(userProfile.storeUsers && userProfile.storeUsers.length > 0);
 
-                        set({
-                            user: userProfile,
-                            primaryStore,
-                            isAuthenticated: true,
-                            hasStore
-                        });
+                            // Only set cookie AFTER successful profile fetch
+                            authApi.setLoggedInCookie();
+
+                            set({
+                                user: userProfile,
+                                primaryStore,
+                                isAuthenticated: true,
+                                hasStore,
+                                isLoading: false
+                            });
+                        } catch (profileError) {
+                            // If profile fetch fails, clear everything including cookie
+                            console.error('Failed to fetch user profile:', profileError);
+                            tokenManager.clearTokens();
+                            authApi.clearLoggedInCookie();
+                            set({ isLoading: false });
+                            throw new Error('Failed to load user profile. Please try again.');
+                        }
                     } else {
+                        set({ isLoading: false });
                         throw new Error(response.message || 'Login failed');
                     }
-                } finally {
+                } catch (error) {
                     set({ isLoading: false });
+                    throw error;
                 }
             },
 
@@ -71,7 +86,7 @@ export const useAuthStore = create<AuthState>()(
             checkAuth: async () => {
                 const token = tokenManager.getAccessToken();
                 if (!token) {
-                    set({ isAuthenticated: false, user: null, primaryStore: null, isLoading: false });
+                    set({ isAuthenticated: false, user: null, primaryStore: null, hasStore: false, isLoading: false });
                     return;
                 }
 
@@ -90,8 +105,9 @@ export const useAuthStore = create<AuthState>()(
                     });
                 } catch (error) {
                     // If profile fetch fails, token might be invalid
+                    console.error('Auth check failed:', error);
                     tokenManager.clearTokens();
-                    set({ user: null, primaryStore: null, isAuthenticated: false, isLoading: false });
+                    set({ user: null, primaryStore: null, isAuthenticated: false, hasStore: false, isLoading: false });
                 }
             },
 

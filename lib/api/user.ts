@@ -119,7 +119,8 @@ export const userApi = {
      */
     async getUserProfile(): Promise<UserProfile> {
         const response = await apiClient.get('/users/me');
-        return response.data;
+        // Handle both response.data and direct response
+        return response.data || response;
     },
 
     /**

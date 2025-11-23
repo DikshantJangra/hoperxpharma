@@ -58,8 +58,7 @@ export const authApi = {
 
         if (response.data?.accessToken) {
             tokenManager.saveTokens(response.data.accessToken);
-            // Set a non-httpOnly cookie to help middleware identify logged-in users
-            document.cookie = "logged_in=true; path=/; max-age=604800; SameSite=Lax";
+            // Note: Cookie will be set by auth-store AFTER successful profile fetch
         }
 
         return response;
@@ -73,11 +72,28 @@ export const authApi = {
 
         if (response.data?.accessToken) {
             tokenManager.saveTokens(response.data.accessToken);
-            // Set a non-httpOnly cookie to help middleware identify logged-in users
-            document.cookie = "logged_in=true; path=/; max-age=604800; SameSite=Lax";
+            // Note: Cookie will be set by auth-store AFTER successful profile fetch
         }
 
         return response;
+    },
+
+    /**
+     * Set logged in cookie (called after successful profile fetch)
+     */
+    setLoggedInCookie(): void {
+        if (typeof document !== 'undefined') {
+            document.cookie = "logged_in=true; path=/; max-age=604800; SameSite=Lax";
+        }
+    },
+
+    /**
+     * Clear logged in cookie
+     */
+    clearLoggedInCookie(): void {
+        if (typeof document !== 'undefined') {
+            document.cookie = "logged_in=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT";
+        }
     },
 
     /**
@@ -101,7 +117,7 @@ export const authApi = {
             await apiClient.post('/auth/logout');
         } finally {
             tokenManager.clearTokens();
-            document.cookie = "logged_in=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT";
+            this.clearLoggedInCookie();
         }
     },
 
