@@ -3,20 +3,29 @@ const dotenv = require('dotenv');
 // Load environment variables FIRST
 dotenv.config();
 
-const app = require('./app');
-const database = require('./config/database');
-const logger = require('./config/logger');
+console.log('Starting HopeRxPharma Backend...');
+console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+console.log(`Port: ${process.env.PORT || 8000}`);
+console.log(`Database URL configured: ${process.env.DATABASE_URL ? 'Yes' : 'No'}`);
+
+try {
+    var app = require('./app');
+    console.log('App loaded');
+    var database = require('./config/database');
+    console.log('Database module loaded');
+    var logger = require('./config/logger');
+    console.log('Logger loaded');
+} catch (error) {
+    console.error('Failed to load modules:', error.message);
+    console.error(error.stack);
+    process.exit(1);
+}
 
 const PORT = process.env.PORT || 8000;
 
-// Log startup info
-logger.info('Starting HopeRxPharma Backend...');
-logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
-logger.info(`Port: ${PORT}`);
-logger.info(`Database URL configured: ${process.env.DATABASE_URL ? 'Yes' : 'No'}`);
-
 // Connect to database
 database.connect().then(() => {
+    console.log('✅ Database connected');
     // Start server
     const server = app.listen(PORT, '0.0.0.0', () => {
         logger.info(`Server is running on port ${PORT}`);
@@ -60,6 +69,8 @@ database.connect().then(() => {
         gracefulShutdown('unhandledRejection');
     });
 }).catch((error) => {
-    logger.error('Failed to start server:', error);
+    console.error('Failed to start server:', error.message);
+    console.error(error.stack);
+    if (logger) logger.error('Failed to start server:', error);
     process.exit(1);
 });

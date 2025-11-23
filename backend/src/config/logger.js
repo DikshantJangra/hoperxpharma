@@ -29,37 +29,46 @@ const consoleFormat = winston.format.combine(
 /**
  * Create logger instance
  */
-const logger = winston.createLogger({
-    level: process.env.LOG_LEVEL || 'info',
-    format: logFormat,
-    transports: [
-        // Write all logs to console
-        new winston.transports.Console({
-            format: consoleFormat,
-        }),
-        // Write all logs with level 'error' and below to error.log
+const transports = [
+    new winston.transports.Console({
+        format: consoleFormat,
+    }),
+];
+
+// Only add file transports in development
+if (process.env.NODE_ENV !== 'production') {
+    transports.push(
         new winston.transports.File({
             filename: path.join(__dirname, '../../logs/error.log'),
             level: 'error',
-            maxsize: 5242880, // 5MB
+            maxsize: 5242880,
             maxFiles: 5,
         }),
-        // Write all logs to combined.log
         new winston.transports.File({
             filename: path.join(__dirname, '../../logs/combined.log'),
-            maxsize: 5242880, // 5MB
+            maxsize: 5242880,
             maxFiles: 5,
-        }),
-    ],
-    exceptionHandlers: [
+        })
+    );
+}
+
+const logger = winston.createLogger({
+    level: process.env.LOG_LEVEL || 'info',
+    format: logFormat,
+    transports,
+    exceptionHandlers: process.env.NODE_ENV !== 'production' ? [
         new winston.transports.File({
             filename: path.join(__dirname, '../../logs/exceptions.log'),
         }),
+    ] : [
+        new winston.transports.Console({ format: consoleFormat }),
     ],
-    rejectionHandlers: [
+    rejectionHandlers: process.env.NODE_ENV !== 'production' ? [
         new winston.transports.File({
             filename: path.join(__dirname, '../../logs/rejections.log'),
         }),
+    ] : [
+        new winston.transports.Console({ format: consoleFormat }),
     ],
 });
 
