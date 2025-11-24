@@ -1,53 +1,47 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Supplier, SupplierCategory, PaymentTerm } from '@/types/supplier';
 import { FiSave, FiX, FiUploadCloud } from 'react-icons/fi';
 
 interface SupplierFormProps {
-    initialData?: Partial<Supplier>;
-    onSave: (data: Partial<Supplier>) => void;
+    initialData?: any;
+    onSave: (data: any) => void;
     onCancel: () => void;
 }
 
 export default function SupplierForm({ initialData, onSave, onCancel }: SupplierFormProps) {
-    const [formData, setFormData] = useState<Partial<Supplier>>(initialData || {
+    const [formData, setFormData] = useState(initialData || {
+        name: '',
         category: 'Distributor',
         status: 'Active',
+        gstin: '',
+        dlNumber: '',
+        pan: '',
+        contactName: '',
+        phoneNumber: '',
+        email: '',
+        whatsapp: '',
+        addressLine1: '',
+        addressLine2: '',
+        city: '',
+        state: '',
+        pinCode: '',
         paymentTerms: 'Net 30',
-        contact: {
-            primaryName: '',
-            phone: '',
-            email: '',
-            address: {
-                line1: '',
-                city: '',
-                state: '',
-                pincode: '',
-                country: 'India'
-            }
-        }
+        creditLimit: 0,
     });
 
     const handleChange = (field: string, value: any) => {
-        setFormData(prev => ({ ...prev, [field]: value }));
+        setFormData((prev: any) => ({ ...prev, [field]: value }));
     };
 
-    const handleContactChange = (field: string, value: any) => {
-        setFormData(prev => ({
-            ...prev,
-            contact: { ...prev.contact!, [field]: value }
-        }));
-    };
+    const handleSubmit = () => {
+        // Basic validation
+        if (!formData.name || !formData.contactName || !formData.phoneNumber) {
+            alert('Please fill in all required fields (Name, Contact Person, Phone)');
+            return;
+        }
 
-    const handleAddressChange = (field: string, value: any) => {
-        setFormData(prev => ({
-            ...prev,
-            contact: {
-                ...prev.contact!,
-                address: { ...prev.contact!.address, [field]: value }
-            }
-        }));
+        onSave(formData);
     };
 
     return (
@@ -73,7 +67,7 @@ export default function SupplierForm({ initialData, onSave, onCancel }: Supplier
                             <input
                                 type="text"
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500"
-                                value={formData.name || ''}
+                                value={formData.name}
                                 onChange={e => handleChange('name', e.target.value)}
                                 placeholder="e.g. MediCore Distributors"
                             />
@@ -95,9 +89,10 @@ export default function SupplierForm({ initialData, onSave, onCancel }: Supplier
                             <input
                                 type="text"
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500"
-                                value={formData.gstin || ''}
+                                value={formData.gstin}
                                 onChange={e => handleChange('gstin', e.target.value)}
                                 placeholder="27AAAAA0000A1Z5"
+                                maxLength={15}
                             />
                         </div>
                         <div>
@@ -105,8 +100,19 @@ export default function SupplierForm({ initialData, onSave, onCancel }: Supplier
                             <input
                                 type="text"
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500"
-                                value={formData.dlNumber || ''}
+                                value={formData.dlNumber}
                                 onChange={e => handleChange('dlNumber', e.target.value)}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">PAN</label>
+                            <input
+                                type="text"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500"
+                                value={formData.pan}
+                                onChange={e => handleChange('pan', e.target.value)}
+                                placeholder="AAAAA0000A"
+                                maxLength={10}
                             />
                         </div>
                     </div>
@@ -114,23 +120,27 @@ export default function SupplierForm({ initialData, onSave, onCancel }: Supplier
 
                 {/* Section 2: Contact Person */}
                 <section>
+                    <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-4 pb-2 border-b border-gray-100">
+                        Contact Information
+                    </h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Contact Person</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Contact Person *</label>
                             <input
                                 type="text"
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500"
-                                value={formData.contact?.primaryName || ''}
-                                onChange={e => handleContactChange('primaryName', e.target.value)}
+                                value={formData.contactName}
+                                onChange={e => handleChange('contactName', e.target.value)}
                             />
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Phone *</label>
                             <input
                                 type="text"
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500"
-                                value={formData.contact?.phone || ''}
-                                onChange={e => handleContactChange('phone', e.target.value)}
+                                value={formData.phoneNumber}
+                                onChange={e => handleChange('phoneNumber', e.target.value)}
+                                placeholder="9876543210"
                             />
                         </div>
                         <div>
@@ -138,13 +148,79 @@ export default function SupplierForm({ initialData, onSave, onCancel }: Supplier
                             <input
                                 type="email"
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500"
-                                onChange={e => handleContactChange('email', e.target.value)}
+                                value={formData.email}
+                                onChange={e => handleChange('email', e.target.value)}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">WhatsApp</label>
+                            <input
+                                type="text"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500"
+                                value={formData.whatsapp}
+                                onChange={e => handleChange('whatsapp', e.target.value)}
+                                placeholder="9876543210"
                             />
                         </div>
                     </div>
                 </section>
 
-                {/* Section 3: Business Details */}
+                {/* Section 3: Address */}
+                <section>
+                    <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-4 pb-2 border-b border-gray-100">
+                        Address
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="md:col-span-2">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Address Line 1</label>
+                            <input
+                                type="text"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500"
+                                value={formData.addressLine1}
+                                onChange={e => handleChange('addressLine1', e.target.value)}
+                            />
+                        </div>
+                        <div className="md:col-span-2">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Address Line 2</label>
+                            <input
+                                type="text"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500"
+                                value={formData.addressLine2}
+                                onChange={e => handleChange('addressLine2', e.target.value)}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+                            <input
+                                type="text"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500"
+                                value={formData.city}
+                                onChange={e => handleChange('city', e.target.value)}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">State</label>
+                            <input
+                                type="text"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500"
+                                value={formData.state}
+                                onChange={e => handleChange('state', e.target.value)}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">PIN Code</label>
+                            <input
+                                type="text"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500"
+                                value={formData.pinCode}
+                                onChange={e => handleChange('pinCode', e.target.value)}
+                                maxLength={6}
+                            />
+                        </div>
+                    </div>
+                </section>
+
+                {/* Section 4: Business Details */}
                 <section>
                     <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-4 pb-2 border-b border-gray-100">
                         Business Terms
@@ -170,22 +246,10 @@ export default function SupplierForm({ initialData, onSave, onCancel }: Supplier
                             <input
                                 type="number"
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500"
-                                value={formData.creditLimit || ''}
-                                onChange={e => handleChange('creditLimit', parseFloat(e.target.value))}
+                                value={formData.creditLimit}
+                                onChange={e => handleChange('creditLimit', parseFloat(e.target.value) || 0)}
                             />
                         </div>
-                    </div>
-                </section>
-
-                {/* Section 4: Documents */}
-                <section>
-                    <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-4 pb-2 border-b border-gray-100">
-                        Documents
-                    </h3>
-                    <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 flex flex-col items-center justify-center text-center hover:bg-gray-50 transition-colors cursor-pointer">
-                        <FiUploadCloud size={32} className="text-gray-400 mb-2" />
-                        <span className="text-sm font-medium text-gray-700">Click to upload licenses or agreements</span>
-                        <span className="text-xs text-gray-500 mt-1">PDF, JPG, PNG up to 10MB</span>
                     </div>
                 </section>
 
@@ -198,7 +262,7 @@ export default function SupplierForm({ initialData, onSave, onCancel }: Supplier
                         Cancel
                     </button>
                     <button
-                        onClick={() => onSave(formData)}
+                        onClick={handleSubmit}
                         className="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center gap-2"
                     >
                         <FiSave />

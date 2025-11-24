@@ -4,6 +4,7 @@ const inventoryRoutes = require('./inventory.routes');
 const patientRoutes = require('./patients.routes');
 const salesRoutes = require('./sales.routes');
 const purchaseOrderRoutes = require('./purchaseOrders.routes');
+const supplierRoutes = require('./suppliers.routes');
 const onboardingRoutes = require('./onboarding.routes');
 const storeRoutes = require('./stores.routes');
 const userRoutes = require('./user.routes');
@@ -21,6 +22,8 @@ router.use('/inventory', inventoryRoutes);
 router.use('/patients', patientRoutes);
 router.use('/sales', salesRoutes);
 router.use('/purchase-orders', purchaseOrderRoutes);
+router.use('/suppliers', supplierRoutes);
+
 
 // Health check route
 router.get('/health', (req, res) => {

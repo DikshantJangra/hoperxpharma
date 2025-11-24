@@ -1,8 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Supplier, SupplierFilter } from '@/types/supplier';
-import { FiSearch, FiFilter, FiPlus, FiMoreVertical, FiPhone, FiMail, FiEdit2, FiTrash2, FiEye } from 'react-icons/fi';
+import { FiSearch, FiPlus, FiPhone, FiTrash2, FiEye, FiAlertCircle } from 'react-icons/fi';
 import Link from 'next/link';
 
 const SupplierRowSkeleton = () => (
@@ -10,8 +9,6 @@ const SupplierRowSkeleton = () => (
         <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-32"></div><div className="h-3 bg-gray-100 rounded w-24 mt-1"></div></td>
         <td className="px-6 py-4"><div className="h-6 bg-gray-200 rounded-full w-24"></div></td>
         <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-24"></div></td>
-        <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-16"></div></td>
-        <td className="px-6 py-4"><div className="h-6 bg-gray-200 rounded-full w-12 mx-auto"></div></td>
         <td className="px-6 py-4"><div className="h-6 bg-gray-200 rounded-full w-20 mx-auto"></div></td>
         <td className="px-6 py-4"><div className="h-8 bg-gray-200 rounded-md w-24 ml-auto"></div></td>
     </tr>
@@ -19,26 +16,70 @@ const SupplierRowSkeleton = () => (
 
 interface SupplierListProps {
     onAddClick?: () => void;
-    isLoading: boolean;
+    onRefresh?: number;
 }
 
-export default function SupplierList({ onAddClick, isLoading }: SupplierListProps) {
+export default function SupplierList({ onAddClick, onRefresh }: SupplierListProps) {
     const [searchTerm, setSearchTerm] = useState('');
-    const [filter, setFilter] = useState<SupplierFilter>({});
-    const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+    const [suppliers, setSuppliers] = useState<any[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    const [page, setPage] = useState(1);
+    const [total, setTotal] = useState(0);
+    const limit = 20;
+
+    const fetchSuppliers = async () => {
+        setIsLoading(true);
+        setError(null);
+        try {
+            const { supplierApi } = await import('@/lib/api/supplier');
+            const response = await supplierApi.getSuppliers({
+                page,
+                limit,
+                search: searchTerm || undefined,
+            });
+
+            if (response.success) {
+                setSuppliers(response.data || []);
+                setTotal(response.pagination?.total || 0);
+            }
+        } catch (err: any) {
+            console.error('Failed to fetch suppliers:', err);
+            setError(err.message || 'Failed to load suppliers');
+            setSuppliers([]);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     useEffect(() => {
-        if (!isLoading) {
-            setSuppliers([]);
+        fetchSuppliers();
+    }, [page, onRefresh]);
+
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (page === 1) {
+                fetchSuppliers();
+            } else {
+                setPage(1);
+            }
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [searchTerm]);
+
+    const handleDelete = async (id: string, name: string) => {
+        if (!confirm(`Are you sure you want to delete supplier "${name}"?`)) return;
+
+        try {
+            const { supplierApi } = await import('@/lib/api/supplier');
+            await supplierApi.deleteSupplier(id);
+            fetchSuppliers();
+        } catch (err: any) {
+            alert(err.message || 'Failed to delete supplier');
         }
-    }, [isLoading])
+    };
 
-
-    // Filter logic would go here
-    const filteredSuppliers = suppliers.filter(s =>
-        s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        s.contact.primaryName.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    const totalPages = Math.ceil(total / limit);
 
     return (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
@@ -56,10 +97,6 @@ export default function SupplierList({ onAddClick, isLoading }: SupplierListProp
                     />
                 </div>
                 <div className="flex items-center gap-2">
-                    <button className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-lg text-gray-600 hover:bg-gray-50" disabled={isLoading}>
-                        <FiFilter />
-                        <span>Filters</span>
-                    </button>
                     <button
                         onClick={onAddClick}
                         className="flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 shadow-sm"
@@ -71,6 +108,15 @@ export default function SupplierList({ onAddClick, isLoading }: SupplierListProp
                 </div>
             </div>
 
+            {/* Error Message */}
+            {error && (
+                <div className="p-4 bg-red-50 border-b border-red-100 flex items-center gap-2 text-red-700">
+                    <FiAlertCircle />
+                    <span>{error}</span>
+                    <button onClick={fetchSuppliers} className="ml-auto text-sm underline">Retry</button>
+                </div>
+            )}
+
             {/* Table */}
             <div className="overflow-x-auto">
                 <table className="w-full text-left text-sm">
@@ -79,8 +125,6 @@ export default function SupplierList({ onAddClick, isLoading }: SupplierListProp
                             <th className="px-6 py-3">Supplier Name</th>
                             <th className="px-6 py-3">Category</th>
                             <th className="px-6 py-3">Contact</th>
-                            <th className="px-6 py-3 text-right">Outstanding</th>
-                            <th className="px-6 py-3 text-center">Rating</th>
                             <th className="px-6 py-3 text-center">Status</th>
                             <th className="px-6 py-3 text-right">Actions</th>
                         </tr>
@@ -88,16 +132,16 @@ export default function SupplierList({ onAddClick, isLoading }: SupplierListProp
                     <tbody className="divide-y divide-gray-100">
                         {isLoading ? (
                             <>
-                               <SupplierRowSkeleton/>
-                               <SupplierRowSkeleton/>
-                               <SupplierRowSkeleton/>
+                                <SupplierRowSkeleton />
+                                <SupplierRowSkeleton />
+                                <SupplierRowSkeleton />
                             </>
-                        ) : filteredSuppliers.length > 0 ? (
-                            filteredSuppliers.map((supplier) => (
+                        ) : suppliers.length > 0 ? (
+                            suppliers.map((supplier) => (
                                 <tr key={supplier.id} className="hover:bg-gray-50 group">
                                     <td className="px-6 py-4">
                                         <div className="font-medium text-gray-900">{supplier.name}</div>
-                                        <div className="text-xs text-gray-500">GST: {supplier.gstin}</div>
+                                        {supplier.gstin && <div className="text-xs text-gray-500">GST: {supplier.gstin}</div>}
                                     </td>
                                     <td className="px-6 py-4">
                                         <span className="px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100">
@@ -106,20 +150,10 @@ export default function SupplierList({ onAddClick, isLoading }: SupplierListProp
                                     </td>
                                     <td className="px-6 py-4">
                                         <div className="flex flex-col gap-1">
-                                            <div className="text-gray-900">{supplier.contact.primaryName}</div>
+                                            <div className="text-gray-900">{supplier.contactName}</div>
                                             <div className="flex items-center gap-2 text-gray-500 text-xs">
-                                                <span>{supplier.contact.phone}</span>
+                                                <span>{supplier.phoneNumber}</span>
                                             </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4 text-right">
-                                        <div className="text-xs text-gray-500 mb-1">Outstanding</div>
-                                        <div className="font-semibold text-gray-900">₹{supplier.performance.outstandingBalance.toLocaleString('en-IN')}</div>
-                                    </td>
-                                    <td className="px-6 py-4 text-center">
-                                        <div className="inline-flex items-center gap-1 px-2 py-1 rounded bg-yellow-50 text-yellow-700 border border-yellow-100">
-                                            <span className="font-bold">{supplier.performance.rating}</span>
-                                            <span className="text-xs">★</span>
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 text-center">
@@ -132,13 +166,16 @@ export default function SupplierList({ onAddClick, isLoading }: SupplierListProp
                                     </td>
                                     <td className="px-6 py-4 text-right">
                                         <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            <button className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded">
+                                            <a href={`tel:${supplier.phoneNumber}`} className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded">
                                                 <FiPhone size={16} />
-                                            </button>
+                                            </a>
                                             <Link href={`/inventory/suppliers/${supplier.id}`} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded">
                                                 <FiEye size={16} />
                                             </Link>
-                                            <button className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded">
+                                            <button
+                                                onClick={() => handleDelete(supplier.id, supplier.name)}
+                                                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+                                            >
                                                 <FiTrash2 size={16} />
                                             </button>
                                         </div>
@@ -147,19 +184,38 @@ export default function SupplierList({ onAddClick, isLoading }: SupplierListProp
                             ))
                         ) : (
                             <tr>
-                                <td colSpan={7} className="text-center py-8 text-gray-500">No suppliers found.</td>
+                                <td colSpan={5} className="text-center py-8 text-gray-500">
+                                    {searchTerm ? 'No suppliers found matching your search.' : 'No suppliers yet. Click "Add Supplier" to get started.'}
+                                </td>
                             </tr>
                         )}
                     </tbody>
                 </table>
             </div>
 
-            {/* Pagination (Simple) */}
+            {/* Pagination */}
             <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between text-sm text-gray-500">
-                {isLoading ? <div className="h-4 bg-gray-200 rounded w-24"></div> : <span>Showing {filteredSuppliers.length} suppliers</span>}
+                {isLoading ? (
+                    <div className="h-4 bg-gray-200 rounded w-24 animate-pulse"></div>
+                ) : (
+                    <span>Showing {suppliers.length} of {total} suppliers</span>
+                )}
                 <div className="flex gap-2">
-                    <button className="px-3 py-1 border border-gray-200 rounded hover:bg-gray-50 disabled:opacity-50" disabled>Previous</button>
-                    <button className="px-3 py-1 border border-gray-200 rounded hover:bg-gray-50 disabled:opacity-50" disabled>Next</button>
+                    <button
+                        className="px-3 py-1 border border-gray-200 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={page === 1 || isLoading}
+                        onClick={() => setPage(p => p - 1)}
+                    >
+                        Previous
+                    </button>
+                    <span className="px-3 py-1">Page {page} of {totalPages || 1}</span>
+                    <button
+                        className="px-3 py-1 border border-gray-200 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled={page >= totalPages || isLoading}
+                        onClick={() => setPage(p => p + 1)}
+                    >
+                        Next
+                    </button>
                 </div>
             </div>
         </div>

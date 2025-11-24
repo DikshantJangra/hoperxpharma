@@ -19,25 +19,64 @@ export default function SuppliersDashboardPage() {
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [stats, setStats] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [refreshKey, setRefreshKey] = useState(0);
 
     useEffect(() => {
+        fetchStats();
+    }, [refreshKey]);
+
+    const fetchStats = async () => {
         setIsLoading(true);
-        const timer = setTimeout(() => {
+        try {
+            const { supplierApi } = await import('@/lib/api/supplier');
+            const response = await supplierApi.getStats();
+            if (response.success) {
+                setStats(response.data);
+            }
+        } catch (error) {
+            console.error('Failed to fetch supplier stats:', error);
             setStats({
                 total: 0,
-                outstanding: '₹0',
+                active: 0,
+                outstanding: 0,
                 expiringLicenses: 0,
-                activeOrders: 0,
             });
+        } finally {
             setIsLoading(false);
-        }, 1500)
-        return () => clearTimeout(timer);
-    }, []);
+        }
+    };
 
-    const handleSaveSupplier = (data: any) => {
-        console.log('Saving supplier:', data);
-        setIsAddModalOpen(false);
-        // Refresh list logic would go here
+    const handleSaveSupplier = async (data: any) => {
+        try {
+            const { supplierApi } = await import('@/lib/api/supplier');
+
+            // Transform form data to match backend schema
+            const supplierData = {
+                name: data.name,
+                category: data.category,
+                status: 'Active',
+                gstin: data.gstin,
+                dlNumber: data.dlNumber,
+                pan: data.pan,
+                contactName: data.contactName,
+                phoneNumber: data.phoneNumber,
+                email: data.email,
+                whatsapp: data.whatsapp,
+                addressLine1: data.addressLine1,
+                addressLine2: data.addressLine2,
+                city: data.city,
+                state: data.state,
+                pinCode: data.pinCode,
+                paymentTerms: data.paymentTerms,
+                creditLimit: data.creditLimit,
+            };
+
+            await supplierApi.createSupplier(supplierData);
+            setIsAddModalOpen(false);
+            setRefreshKey(prev => prev + 1); // Trigger refresh
+        } catch (error: any) {
+            alert(error.message || 'Failed to create supplier');
+        }
     };
 
     return (
@@ -48,19 +87,16 @@ export default function SuppliersDashboardPage() {
                     <h1 className="text-2xl font-bold text-gray-900">Supplier Overview</h1>
                     <p className="text-gray-500">Manage relationships, performance, and compliance.</p>
                 </div>
-                <div className="flex gap-4">
-                    {/* Stats could go here or be their own section */}
-                </div>
             </div>
 
             {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 {isLoading ? (
                     <>
-                        <StatCardSkeleton/>
-                        <StatCardSkeleton/>
-                        <StatCardSkeleton/>
-                        <StatCardSkeleton/>
+                        <StatCardSkeleton />
+                        <StatCardSkeleton />
+                        <StatCardSkeleton />
+                        <StatCardSkeleton />
                     </>
                 ) : (
                     <>
@@ -70,7 +106,7 @@ export default function SuppliersDashboardPage() {
                             </div>
                             <div>
                                 <div className="text-sm text-gray-500">Total Suppliers</div>
-                                <div className="text-2xl font-bold text-gray-900">{stats?.total}</div>
+                                <div className="text-2xl font-bold text-gray-900">{stats?.total || 0}</div>
                             </div>
                         </div>
                         <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm flex items-center gap-4">
@@ -79,7 +115,7 @@ export default function SuppliersDashboardPage() {
                             </div>
                             <div>
                                 <div className="text-sm text-gray-500">Outstanding</div>
-                                <div className="text-2xl font-bold text-gray-900">{stats?.outstanding}</div>
+                                <div className="text-2xl font-bold text-gray-900">₹{(stats?.outstanding || 0).toLocaleString('en-IN')}</div>
                             </div>
                         </div>
                         <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm flex items-center gap-4">
@@ -88,7 +124,7 @@ export default function SuppliersDashboardPage() {
                             </div>
                             <div>
                                 <div className="text-sm text-gray-500">Expiring Licenses</div>
-                                <div className="text-2xl font-bold text-gray-900">{stats?.expiringLicenses}</div>
+                                <div className="text-2xl font-bold text-gray-900">{stats?.expiringLicenses || 0}</div>
                             </div>
                         </div>
                         <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm flex items-center gap-4">
@@ -96,8 +132,8 @@ export default function SuppliersDashboardPage() {
                                 <FiCheckCircle size={24} />
                             </div>
                             <div>
-                                <div className="text-sm text-gray-500">Active Orders</div>
-                                <div className="text-2xl font-bold text-gray-900">{stats?.activeOrders}</div>
+                                <div className="text-sm text-gray-500">Active Suppliers</div>
+                                <div className="text-2xl font-bold text-gray-900">{stats?.active || 0}</div>
                             </div>
                         </div>
                     </>
@@ -105,7 +141,7 @@ export default function SuppliersDashboardPage() {
             </div>
 
             {/* Main List */}
-            <SupplierList onAddClick={() => setIsAddModalOpen(true)} isLoading={isLoading} />
+            <SupplierList onAddClick={() => setIsAddModalOpen(true)} onRefresh={refreshKey} />
 
             {/* Add Modal */}
             {isAddModalOpen && (
