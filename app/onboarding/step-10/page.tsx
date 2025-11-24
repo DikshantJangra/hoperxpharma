@@ -46,10 +46,10 @@ export default function Step10Page() {
             }
 
             // Prepare licenses array
-            const licenses = [];
+            const licenses: any[] = [];
             if (state.data.licensing.dlNumber) {
                 licenses.push({
-                    type: 'Drug License',
+                    type: 'Drug License' as const,
                     licenseNumber: state.data.licensing.dlNumber,
                     issuedBy: "State Authority",
                     issuedDate: state.data.licensing.dlValidityStart || new Date().toISOString(),
@@ -58,7 +58,7 @@ export default function Step10Page() {
             }
             if (state.data.licensing.gstin) {
                 licenses.push({
-                    type: 'GST',
+                    type: 'GST' as const,
                     licenseNumber: state.data.licensing.gstin,
                     issuedBy: "GST Department",
                     issuedDate: new Date().toISOString(),
@@ -67,9 +67,9 @@ export default function Step10Page() {
             }
 
             // Prepare operating hours
-            const operatingHours = state.data.timings?.is24x7 ? [] : 
+            const operatingHours: any[] = state.data.timings?.is24x7 ? [] : 
                 (state.data.timings?.operatingDays || []).map(day => ({
-                    dayOfWeek: day,
+                    dayOfWeek: day as any,
                     openTime: state.data.timings?.openTime || "09:00",
                     closeTime: state.data.timings?.closeTime || "21:00",
                     isClosed: false,

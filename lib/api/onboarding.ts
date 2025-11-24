@@ -14,6 +14,8 @@ export interface OnboardingProgress {
 
 export interface StoreData {
     name: string;
+    displayName?: string;
+    businessType?: string;
     gstin?: string;
     dlNumber?: string;
     addressLine1: string;
@@ -24,6 +26,8 @@ export interface StoreData {
     phoneNumber: string;
     email?: string;
     whatsapp?: string;
+    is24x7?: boolean;
+    homeDelivery?: boolean;
 }
 
 export interface LicenseData {
