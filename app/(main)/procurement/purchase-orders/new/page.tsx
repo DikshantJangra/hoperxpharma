@@ -25,13 +25,13 @@ export default function NewPurchaseOrderPage() {
         const fetchData = async () => {
             setIsLoadingSuppliers(true);
             try {
-                const [{ suppliersApi }, { inventoryApi }] = await Promise.all([
+                const [{ supplierApi }, { inventoryApi }] = await Promise.all([
                     import('@/lib/api/supplier'),
                     import('@/lib/api/inventory'),
                 ]);
 
                 const [suppliersResponse, drugsResponse] = await Promise.all([
-                    suppliersApi.getSuppliers({ limit: 100 }),
+                    supplierApi.getSuppliers({ limit: 100 }),
                     inventoryApi.getDrugs({ limit: 500 }),
                 ]);
 

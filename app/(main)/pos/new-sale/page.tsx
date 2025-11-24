@@ -136,15 +136,28 @@ export default function NewSalePage() {
       const { salesApi } = await import('@/lib/api/sales');
 
       // Prepare sale items
-      const items = basketItems.map((item: any) => ({
-        drugId: item.id,
-        batchId: item.batchId,
-        quantity: item.qty,
-        mrp: Number(item.mrp),
-        discount: Number(item.discount || 0),
-        gstRate: Number(item.gstRate || 0),
-        lineTotal: Number((item.qty * item.mrp) - (item.discount || 0)),
-      }));
+      // Prepare sale items
+      const items = basketItems.map((item: any) => {
+        const itemTotal = item.qty * item.mrp;
+        const itemDiscount = item.discount || 0;
+        const netAmount = itemTotal - itemDiscount;
+        const gstRate = item.gstRate || 0;
+        const taxableAmount = netAmount / (1 + gstRate / 100);
+        const itemTax = netAmount - taxableAmount;
+
+        return {
+          drugId: item.id,
+          batchId: item.batchId,
+          quantity: item.qty,
+          mrp: Number(item.mrp),
+          unitPrice: Number(item.mrp),
+          discount: Number(itemDiscount),
+          gstRate: Number(gstRate),
+          taxAmount: Number(itemTax),
+          lineTotal: Number(netAmount),
+          totalAmount: Number(netAmount),
+        };
+      });
 
       // Prepare payment splits
       const paymentSplits = [{
@@ -185,23 +198,11 @@ export default function NewSalePage() {
     clearBasket();
   };
 
-  const updateBasketItem = (index: number, updates: any) => {
-    setBasketItems(prev => prev.map((item, i) => i === index ? { ...item, ...updates } : item));
+  const handleSplitPaymentConfirm = (splits: any) => {
+    console.log('Split payment confirmed:', splits);
+    setShowSplitPayment(false);
+    handleFinalize('SPLIT');
   };
-
-  const removeBasketItem = (index: number) => {
-    setBasketItems(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const clearBasket = () => {
-    setBasketItems([]);
-    setCustomer(null);
-  };
-
-  const subtotal = basketItems.reduce((sum: number, item: any) =>
-    sum + (item.qty * item.mrp - (item.discount || 0)), 0
-  );
-  const total = Math.round(subtotal);
 
   return (
     <div className="h-screen flex flex-col bg-[#f8fafc]">
@@ -257,14 +258,14 @@ export default function NewSalePage() {
       )}
       {showSplitPayment && (
         <SplitPaymentModal
-          total={total}
+          total={totals.total}
           onConfirm={handleSplitPaymentConfirm}
           onClose={() => setShowSplitPayment(false)}
         />
       )}
       {showSuccess && (
         <SuccessScreen
-          saleData={{ invoiceNo: saleId, total, method: 'cash' }}
+          saleData={{ invoiceNo: saleId, total: totals.total, method: 'cash' }}
           onNewSale={handleNewSale}
           onClose={handleNewSale}
         />
