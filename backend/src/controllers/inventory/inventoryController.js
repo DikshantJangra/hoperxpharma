@@ -149,6 +149,21 @@ const getInventorySummary = asyncHandler(async (req, res) => {
     res.status(response.statusCode).json(response);
 });
 
+/**
+ * Search drugs for POS with stock availability
+ */
+const searchDrugsForPOS = asyncHandler(async (req, res) => {
+    const { search } = req.query;
+
+    if (!search || search.length < 2) {
+        return res.status(200).json(ApiResponse.success([]));
+    }
+
+    const drugs = await inventoryService.searchDrugsForPOS(req.storeId, search);
+    const response = ApiResponse.success(drugs);
+    res.status(response.statusCode).json(response);
+});
+
 module.exports = {
     getDrugs,
     getDrugById,
@@ -162,4 +177,5 @@ module.exports = {
     getLowStockAlerts,
     getExpiringItems,
     getInventorySummary,
+    searchDrugsForPOS,
 };

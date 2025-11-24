@@ -128,5 +128,16 @@ export const inventoryApi = {
     async getSummary() {
         const response = await apiClient.get('/inventory/summary');
         return response.data;
+    },
+
+    /**
+     * Search drugs for POS with stock availability
+     */
+    async searchForPOS(searchTerm: string) {
+        if (!searchTerm || searchTerm.length < 2) {
+            return { success: true, data: [] };
+        }
+        const response = await apiClient.get(`/inventory/pos/search?search=${encodeURIComponent(searchTerm)}`);
+        return response.data;
     }
 };

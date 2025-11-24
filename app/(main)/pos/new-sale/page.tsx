@@ -80,14 +80,105 @@ export default function NewSalePage() {
     setShowCustomerModal(false);
   };
 
-  const handleSplitPaymentConfirm = (payments: any) => {
-    setShowSplitPayment(false);
-    setShowSuccess(true);
+
+  const updateBasketItem = (index: number, updates: any) => {
+    setBasketItems(prev => prev.map((item, i) => i === index ? { ...item, ...updates } : item));
   };
 
-  const handleFinalize = () => {
-    setShowSuccess(true);
+  const removeBasketItem = (index: number) => {
+    setBasketItems(prev => prev.filter((_, i) => i !== index));
   };
+
+  const clearBasket = () => {
+    setBasketItems([]);
+    setCustomer(null);
+  };
+
+  const subtotal = basketItems.reduce((sum: number, item: any) =>
+    sum + (item.qty * item.mrp - (item.discount || 0)), 0
+  );
+
+  // Calculate GST
+  const calculateTotals = () => {
+    let subtotal = 0;
+    let taxAmount = 0;
+
+    basketItems.forEach((item: any) => {
+      const itemTotal = item.qty * item.mrp;
+      const itemDiscount = item.discount || 0;
+      const netAmount = itemTotal - itemDiscount;
+
+      // Calculate GST (assuming GST is included in MRP)
+      const gstRate = item.gstRate || 0;
+      const taxableAmount = netAmount / (1 + gstRate / 100);
+      const itemTax = netAmount - taxableAmount;
+
+      subtotal += netAmount;
+      taxAmount += itemTax;
+    });
+
+    return {
+      subtotal: subtotal - taxAmount,
+      taxAmount,
+      total: Math.round(subtotal),
+    };
+  };
+
+  const totals = calculateTotals();
+
+  const handleFinalize = async (paymentMethod: string = 'CASH') => {
+    if (basketItems.length === 0) {
+      alert('Please add items to the basket');
+      return;
+    }
+
+    try {
+      const { salesApi } = await import('@/lib/api/sales');
+
+      // Prepare sale items
+      const items = basketItems.map((item: any) => ({
+        drugId: item.id,
+        batchId: item.batchId,
+        quantity: item.qty,
+        mrp: Number(item.mrp),
+        discount: Number(item.discount || 0),
+        gstRate: Number(item.gstRate || 0),
+        lineTotal: Number((item.qty * item.mrp) - (item.discount || 0)),
+      }));
+
+      // Prepare payment splits
+      const paymentSplits = [{
+        paymentMethod,
+        amount: Number(totals.total),
+      }];
+
+      // Create sale
+      const saleData = {
+        patientId: customer?.id || null,
+        subtotal: Number(totals.subtotal),
+        discountAmount: 0,
+        taxAmount: Number(totals.taxAmount),
+        roundOff: 0,
+        total: Number(totals.total),
+        items,
+        paymentSplits,
+      };
+
+      const response = await salesApi.createSale(saleData);
+
+      if (response.success) {
+        setShowSuccess(true);
+        // Store the sale data for the success screen
+        (window as any).lastSale = response.data;
+      } else {
+        alert('Failed to create sale: ' + (response.message || 'Unknown error'));
+      }
+    } catch (error: any) {
+      console.error('Sale creation failed:', error);
+      alert('Failed to create sale: ' + (error.message || 'Please try again'));
+    }
+  };
+
 
   const handleNewSale = () => {
     setShowSuccess(false);
@@ -107,7 +198,7 @@ export default function NewSalePage() {
     setCustomer(null);
   };
 
-  const subtotal = basketItems.reduce((sum: number, item: any) => 
+  const subtotal = basketItems.reduce((sum: number, item: any) =>
     sum + (item.qty * item.mrp - (item.discount || 0)), 0
   );
   const total = Math.round(subtotal);
@@ -115,17 +206,17 @@ export default function NewSalePage() {
   return (
     <div className="h-screen flex flex-col bg-[#f8fafc]">
       <POSHeader saleId={saleId} onOpenCustomer={() => setShowCustomerModal(true)} />
-      
+
       <div className="flex-1 flex overflow-hidden">
         {/* Left Panel - 65% */}
         <div className="w-[65%] flex flex-col border-r border-[#e2e8f0]">
-          <ProductSearch 
+          <ProductSearch
             onAddProduct={addToBasket}
             searchFocus={searchFocus}
             setSearchFocus={setSearchFocus}
           />
           <QuickAddGrid onAddProduct={addToBasket} />
-          
+
           <Basket
             items={basketItems}
             onUpdateItem={updateBasketItem}

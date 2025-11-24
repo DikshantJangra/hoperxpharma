@@ -221,6 +221,44 @@ class InventoryService {
 
         return allocations;
     }
+
+    /**
+     * Search drugs for POS with stock availability
+     */
+    async searchDrugsForPOS(storeId, searchTerm) {
+        const drugs = await inventoryRepository.searchDrugsWithStock(storeId, searchTerm);
+
+        // Enhance with batch information
+        const drugsWithBatches = await Promise.all(
+            drugs.map(async (drug) => {
+                const batches = await inventoryRepository.findBatchesForDispense(storeId, drug.id, 1000);
+
+                const totalStock = batches.reduce((sum, b) => sum + b.quantityInStock, 0);
+                const batchCount = batches.length;
+
+                // Get the batch with nearest expiry (FEFO)
+                const primaryBatch = batches[0];
+
+                return {
+                    id: drug.id,
+                    name: drug.name,
+                    strength: drug.strength,
+                    form: drug.form,
+                    manufacturer: drug.manufacturer,
+                    totalStock,
+                    batchCount,
+                    mrp: primaryBatch?.mrp || 0,
+                    batchId: primaryBatch?.id,
+                    batchNumber: primaryBatch?.batchNumber,
+                    expiryDate: primaryBatch?.expiryDate,
+                    gstRate: drug.gstRate,
+                };
+            })
+        );
+
+        // Filter out drugs with no stock
+        return drugsWithBatches.filter(d => d.totalStock > 0);
+    }
 }
 
 module.exports = new InventoryService();

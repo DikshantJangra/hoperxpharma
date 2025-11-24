@@ -7,14 +7,14 @@ import StockTable from '@/components/inventory/StockTable';
 import StockDetailPanel from '@/components/inventory/StockDetailPanel';
 
 const StatCard = ({ label, value, loading, colorClass = 'bg-[#f1f5f9]' }: any) => (
-    <div className={`px-3 py-1.5 rounded-lg text-sm ${colorClass}`}>
-        <span className="text-[#64748b]">{label}:</span>{' '}
-        {loading ? (
-            <span className="inline-block h-4 w-12 bg-gray-300 rounded-md animate-pulse"></span>
-        ) : (
-            <span className="font-semibold text-[#0f172a]">{value}</span>
-        )}
-    </div>
+  <div className={`px-3 py-1.5 rounded-lg text-sm ${colorClass}`}>
+    <span className="text-[#64748b]">{label}:</span>{' '}
+    {loading ? (
+      <span className="inline-block h-4 w-12 bg-gray-300 rounded-md animate-pulse"></span>
+    ) : (
+      <span className="font-semibold text-[#0f172a]">{value}</span>
+    )}
+  </div>
 )
 
 export default function StockPage() {
@@ -23,6 +23,7 @@ export default function StockPage() {
   const [searchFocus, setSearchFocus] = useState(false);
   const [stats, setStats] = useState<any>(null);
   const [isStatsLoading, setIsStatsLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -36,18 +37,44 @@ export default function StockPage() {
   }, []);
 
   useEffect(() => {
-    setIsStatsLoading(true);
-    const timer = setTimeout(() => {
+    const fetchStats = async () => {
+      setIsStatsLoading(true);
+      try {
+        const { inventoryApi } = await import('@/lib/api/inventory');
+        const [summaryResponse, lowStockResponse, expiringResponse] = await Promise.all([
+          inventoryApi.getSummary(),
+          inventoryApi.getLowStockAlerts(),
+          inventoryApi.getExpiringItems(),
+        ]);
+
+        if (summaryResponse.success) {
+          const summary = summaryResponse.data;
+          setStats({
+            totalSKUs: summary.uniqueDrugs || 0,
+            onHand: summary.totalUnits || 0,
+            lowStock: lowStockResponse.success ? lowStockResponse.data.length : 0,
+            expiring: expiringResponse.success ? expiringResponse.data.length : 0,
+          });
+        }
+      } catch (error) {
+        console.error('Failed to fetch inventory stats:', error);
         setStats({
-            totalSKUs: 0,
-            onHand: 0,
-            lowStock: 0,
-            expiring: 0,
+          totalSKUs: 0,
+          onHand: 0,
+          lowStock: 0,
+          expiring: 0,
         });
+      } finally {
         setIsStatsLoading(false);
-    }, 1500)
-    return () => clearTimeout(timer)
-  }, [])
+      }
+    };
+
+    fetchStats();
+  }, [refreshKey]);
+
+  const handleRefresh = () => {
+    setRefreshKey(prev => prev + 1);
+  };
 
   return (
     <div className="h-screen flex flex-col bg-[#f8fafc]">
@@ -59,7 +86,10 @@ export default function StockPage() {
             <p className="text-sm text-[#64748b]">Inventory › Stock</p>
           </div>
           <div className="flex items-center gap-2">
-            <button className="px-3 py-2 border border-[#cbd5e1] rounded-lg hover:bg-[#f8fafc] flex items-center gap-2 text-sm">
+            <button
+              onClick={handleRefresh}
+              className="px-3 py-2 border border-[#cbd5e1] rounded-lg hover:bg-[#f8fafc] flex items-center gap-2 text-sm"
+            >
               <FiRefreshCw className="w-4 h-4" />
               Sync
             </button>
@@ -91,22 +121,23 @@ export default function StockPage() {
 
         {/* Quick Stats */}
         <div className="flex items-center gap-3">
-            <StatCard label="Total SKUs" value={stats?.totalSKUs} loading={isStatsLoading}/>
-            <StatCard label="On-hand" value={stats?.onHand} loading={isStatsLoading}/>
-            <StatCard label="Low stock" value={stats?.lowStock} loading={isStatsLoading} colorClass="bg-[#fef3c7]"/>
-            <StatCard label="Expiring <30d" value={stats?.expiring} loading={isStatsLoading} colorClass="bg-[#fee2e2]"/>
+          <StatCard label="Total SKUs" value={stats?.totalSKUs} loading={isStatsLoading} />
+          <StatCard label="On-hand" value={stats?.onHand} loading={isStatsLoading} />
+          <StatCard label="Low stock" value={stats?.lowStock} loading={isStatsLoading} colorClass="bg-[#fef3c7]" />
+          <StatCard label="Expiring <30d" value={stats?.expiring} loading={isStatsLoading} colorClass="bg-[#fee2e2]" />
         </div>
       </div>
 
       {/* Content */}
       <div className="flex-1 flex overflow-hidden">
         <StockFilters />
-        
+
         <div className={`${selectedItem ? 'w-[45%]' : 'flex-1'} transition-all`}>
           <StockTable
             searchQuery={searchQuery}
             onSelectItem={setSelectedItem}
             selectedItem={selectedItem}
+            refreshKey={refreshKey}
           />
         </div>
 

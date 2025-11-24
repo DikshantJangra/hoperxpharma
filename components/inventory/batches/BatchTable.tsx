@@ -25,13 +25,8 @@ const BatchRowSkeleton = () => (
 )
 
 export default function BatchTable({ batches, isLoading, searchQuery, onSelectBatch, selectedBatch }: any) {
-  const filtered = batches.filter((batch: any) =>
-    batch.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    batch.itemName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    batch.sku.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
   const getExpiryColor = (days: number) => {
+    if (days < 0) return 'bg-[#991b1b] text-white';
     if (days < 7) return 'bg-[#fee2e2] text-[#991b1b]';
     if (days < 30) return 'bg-[#fed7aa] text-[#9a3412]';
     if (days < 90) return 'bg-[#fef3c7] text-[#92400e]';
@@ -53,11 +48,11 @@ export default function BatchTable({ batches, isLoading, searchQuery, onSelectBa
             <th className="text-left px-4 py-3 text-xs font-semibold text-[#64748b] uppercase w-8">
               <input type="checkbox" className="w-4 h-4 rounded" />
             </th>
-            <th className="text-left px-4 py-3 text-xs font-semibold text-[#64748b] uppercase">Batch ID</th>
-            <th className="text-left px-4 py-3 text-xs font-semibold text-[#64748b] uppercase">SKU / Item</th>
+            <th className="text-left px-4 py-3 text-xs font-semibold text-[#64748b] uppercase">Batch #</th>
+            <th className="text-left px-4 py-3 text-xs font-semibold text-[#64748b] uppercase">Drug / Item</th>
             <th className="text-left px-4 py-3 text-xs font-semibold text-[#64748b] uppercase">Expiry</th>
-            <th className="text-right px-4 py-3 text-xs font-semibold text-[#64748b] uppercase">On-hand</th>
-            <th className="text-right px-4 py-3 text-xs font-semibold text-[#64748b] uppercase">Available</th>
+            <th className="text-right px-4 py-3 text-xs font-semibold text-[#64748b] uppercase">Stock</th>
+            <th className="text-right px-4 py-3 text-xs font-semibold text-[#64748b] uppercase">MRP</th>
             <th className="text-left px-4 py-3 text-xs font-semibold text-[#64748b] uppercase">Location</th>
             <th className="text-left px-4 py-3 text-xs font-semibold text-[#64748b] uppercase">Status</th>
             <th className="text-left px-4 py-3 text-xs font-semibold text-[#64748b] uppercase">Supplier</th>
@@ -66,68 +61,78 @@ export default function BatchTable({ batches, isLoading, searchQuery, onSelectBa
         <tbody>
           {isLoading ? (
             <>
-              <BatchRowSkeleton/>
-              <BatchRowSkeleton/>
-              <BatchRowSkeleton/>
+              <BatchRowSkeleton />
+              <BatchRowSkeleton />
+              <BatchRowSkeleton />
             </>
-          ) : filtered.map((batch: any) => (
-            <tr
-              key={batch.id}
-              onClick={() => onSelectBatch(batch)}
-              className={`border-b border-[#f1f5f9] hover:bg-[#f8fafc] cursor-pointer group ${
-                selectedBatch?.id === batch.id ? 'bg-[#f0fdfa]' : ''
-              } ${batch.daysToExpiry < 7 ? 'border-l-4 border-l-[#ef4444]' : ''}`}
-            >
-              <td className="px-4 py-3">
-                <input
-                  type="checkbox"
-                  onClick={(e) => e.stopPropagation()}
-                  className="w-4 h-4 rounded"
-                />
-              </td>
-              <td className="px-4 py-3">
-                <span className="font-semibold text-[#0f172a]">{batch.id}</span>
-              </td>
-              <td className="px-4 py-3">
-                <div className="flex items-center gap-2">
-                  <div>
-                    <div className="font-medium text-[#0f172a] flex items-center gap-2">
-                      {batch.itemName}
-                      {batch.coldChain && <BsSnow className="w-3 h-3 text-[#3b82f6]" title="Cold chain" />}
-                      {batch.tempBreach && <FiThermometer className="w-3 h-3 text-[#ef4444]" title="Temp breach" />}
+          ) : batches.length > 0 ? (
+            batches.map((batch: any) => {
+              const daysToExpiry = Math.floor((new Date(batch.expiryDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+              const status = daysToExpiry < 0 ? 'Expired' : 'Active';
+
+              return (
+                <tr
+                  key={batch.id}
+                  onClick={() => onSelectBatch(batch)}
+                  className={`border-b border-[#f1f5f9] hover:bg-[#f8fafc] cursor-pointer group ${selectedBatch?.id === batch.id ? 'bg-[#f0fdfa]' : ''
+                    } ${daysToExpiry < 7 && daysToExpiry >= 0 ? 'border-l-4 border-l-[#ef4444]' : ''} ${daysToExpiry < 0 ? 'border-l-4 border-l-[#991b1b]' : ''}`}
+                >
+                  <td className="px-4 py-3">
+                    <input
+                      type="checkbox"
+                      onClick={(e) => e.stopPropagation()}
+                      className="w-4 h-4 rounded"
+                    />
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="font-semibold text-[#0f172a]">{batch.batchNumber}</span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <div>
+                        <div className="font-medium text-[#0f172a] flex items-center gap-2">
+                          {batch.drug?.name || 'Unknown Drug'}
+                          {batch.drug?.requiresColdStorage && <BsSnow className="w-3 h-3 text-[#3b82f6]" title="Cold chain" />}
+                        </div>
+                        <div className="text-xs text-[#64748b]">{batch.drug?.strength} • {batch.drug?.form}</div>
+                      </div>
                     </div>
-                    <div className="text-xs text-[#64748b]">{batch.generic} • {batch.sku}</div>
-                  </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div>
+                      <div className="text-sm text-[#0f172a]">{new Date(batch.expiryDate).toLocaleDateString()}</div>
+                      <span className={`inline-block px-2 py-0.5 text-xs rounded mt-1 ${getExpiryColor(daysToExpiry)}`}>
+                        {daysToExpiry < 0 ? 'Expired' : `${daysToExpiry}d`}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-right font-semibold text-[#0f172a]">{batch.quantityInStock}</td>
+                  <td className="px-4 py-3 text-right font-semibold text-[#0ea5a3]">₹{Number(batch.mrp).toFixed(2)}</td>
+                  <td className="px-4 py-3 text-sm text-[#64748b]">{batch.rackLocation || 'N/A'}</td>
+                  <td className="px-4 py-3">
+                    <span className={`inline-block px-2 py-1 text-xs font-medium rounded border ${getStatusColor(status)}`}>
+                      {status}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-sm text-[#64748b]">-</td>
+                </tr>
+              );
+            })
+          ) : (
+            <tr>
+              <td colSpan={9}>
+                <div className="flex flex-col items-center justify-center h-64">
+                  <FiAlertCircle className="w-12 h-12 text-[#cbd5e1] mb-3" />
+                  <p className="text-[#64748b]">No batches found</p>
+                  <p className="text-sm text-gray-400 mt-1">
+                    {searchQuery ? "Try adjusting your search." : "Batches will appear here once added."}
+                  </p>
                 </div>
               </td>
-              <td className="px-4 py-3">
-                <div>
-                  <div className="text-sm text-[#0f172a]">{batch.expiry}</div>
-                  <span className={`inline-block px-2 py-0.5 text-xs rounded mt-1 ${getExpiryColor(batch.daysToExpiry)}`}>
-                    {batch.daysToExpiry}d
-                  </span>
-                </div>
-              </td>
-              <td className="px-4 py-3 text-right font-semibold text-[#0f172a]">{batch.qtyOnHand}</td>
-              <td className="px-4 py-3 text-right font-semibold text-[#0ea5a3]">{batch.qtyAvailable}</td>
-              <td className="px-4 py-3 text-sm text-[#64748b]">{batch.location}</td>
-              <td className="px-4 py-3">
-                <span className={`inline-block px-2 py-1 text-xs font-medium rounded border ${getStatusColor(batch.status)}`}>
-                  {batch.status}
-                </span>
-              </td>
-              <td className="px-4 py-3 text-sm text-[#64748b]">{batch.supplier}</td>
             </tr>
-          ))}
+          )}
         </tbody>
       </table>
-
-      {!isLoading && filtered.length === 0 && (
-        <div className="flex flex-col items-center justify-center h-64">
-          <FiAlertCircle className="w-12 h-12 text-[#cbd5e1] mb-3" />
-          <p className="text-[#64748b]">No batches found</p>
-        </div>
-      )}
     </div>
   );
 }

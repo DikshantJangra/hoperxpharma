@@ -15,6 +15,7 @@ const inventoryRoutes = require('./routes/v1/inventory.routes');
 const patientRoutes = require('./routes/v1/patients.routes');
 const salesRoutes = require('./routes/v1/sales.routes');
 const purchaseOrderRoutes = require('./routes/v1/purchaseOrders.routes');
+const supplierRoutes = require('./routes/v1/suppliers.routes');
 const onboardingRoutes = require('./routes/v1/onboarding.routes');
 const logger = require('./config/logger');
 
@@ -87,6 +88,7 @@ app.use('/api/v1/inventory', inventoryRoutes);
 app.use('/api/v1/patients', patientRoutes);
 app.use('/api/v1/sales', salesRoutes);
 app.use('/api/v1/purchase-orders', purchaseOrderRoutes);
+app.use('/api/v1/suppliers', supplierRoutes);
 app.use('/api/v1/onboarding', onboardingRoutes);
 
 // Health check route

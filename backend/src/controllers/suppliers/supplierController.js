@@ -6,11 +6,18 @@ const ApiResponse = require('../../utils/ApiResponse');
  * Get all suppliers
  */
 const getSuppliers = asyncHandler(async (req, res) => {
-    const { suppliers, total } = await supplierService.getSuppliers(req.query);
-
-    const response = ApiResponse.paginated(suppliers, {
+    // Parse query parameters
+    const filters = {
+        ...req.query,
         page: parseInt(req.query.page) || 1,
         limit: parseInt(req.query.limit) || 20,
+    };
+
+    const { suppliers, total } = await supplierService.getSuppliers(filters);
+
+    const response = ApiResponse.paginated(suppliers, {
+        page: filters.page,
+        limit: filters.limit,
         total,
     });
 

@@ -223,6 +223,36 @@ class InventoryRepository {
             ],
         });
     }
+
+    /**
+     * Search drugs with stock availability for POS
+     */
+    async searchDrugsWithStock(storeId, searchTerm) {
+        // Search drugs that have inventory in this store
+        return await prisma.drug.findMany({
+            where: {
+                AND: [
+                    {
+                        OR: [
+                            { name: { contains: searchTerm, mode: 'insensitive' } },
+                            { manufacturer: { contains: searchTerm, mode: 'insensitive' } },
+                        ],
+                    },
+                    {
+                        inventory: {
+                            some: {
+                                storeId,
+                                deletedAt: null,
+                                quantityInStock: { gt: 0 },
+                            },
+                        },
+                    },
+                ],
+            },
+            take: 20, // Limit results for performance
+            orderBy: { name: 'asc' },
+        });
+    }
 }
 
 module.exports = new InventoryRepository();

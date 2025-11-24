@@ -84,7 +84,22 @@ export const useAuthStore = create<AuthState>()(
             },
 
             checkAuth: async () => {
-                const token = tokenManager.getAccessToken();
+                let token = tokenManager.getAccessToken();
+
+                // If no access token, try to refresh
+                if (!token) {
+                    try {
+                        const refreshResponse = await authApi.refreshToken();
+                        if (refreshResponse?.accessToken) {
+                            token = refreshResponse.accessToken;
+                        }
+                    } catch (refreshError) {
+                        // Refresh failed, user is truly unauthenticated
+                        set({ isAuthenticated: false, user: null, primaryStore: null, hasStore: false, isLoading: false });
+                        return;
+                    }
+                }
+
                 if (!token) {
                     set({ isAuthenticated: false, user: null, primaryStore: null, hasStore: false, isLoading: false });
                     return;
@@ -95,6 +110,9 @@ export const useAuthStore = create<AuthState>()(
                     const userProfile = await userApi.getUserProfile();
                     const primaryStore = getPrimaryStore(userProfile);
                     const hasStore = !!(userProfile.storeUsers && userProfile.storeUsers.length > 0);
+
+                    // Ensure cookie is set
+                    authApi.setLoggedInCookie();
 
                     set({
                         user: userProfile,
@@ -107,6 +125,7 @@ export const useAuthStore = create<AuthState>()(
                     // If profile fetch fails, token might be invalid
                     console.error('Auth check failed:', error);
                     tokenManager.clearTokens();
+                    authApi.clearLoggedInCookie();
                     set({ user: null, primaryStore: null, isAuthenticated: false, hasStore: false, isLoading: false });
                 }
             },

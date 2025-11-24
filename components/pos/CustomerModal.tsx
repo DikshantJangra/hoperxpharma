@@ -1,45 +1,74 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FiX, FiSearch, FiUser, FiPhone, FiMapPin } from 'react-icons/fi';
+import { FiX, FiSearch, FiUser, FiPhone } from 'react-icons/fi';
 
 const CustomerCardSkeleton = () => (
-    <div className="p-3 border border-[#e2e8f0] rounded-lg animate-pulse">
-        <div className="flex items-start justify-between">
-            <div className="flex-1 space-y-2">
-                <div className="h-5 bg-gray-200 rounded w-1/2"></div>
-                <div className="h-4 bg-gray-100 rounded w-3/4"></div>
-            </div>
-        </div>
+  <div className="p-3 border border-[#e2e8f0] rounded-lg animate-pulse">
+    <div className="flex items-start justify-between">
+      <div className="flex-1 space-y-2">
+        <div className="h-5 bg-gray-200 rounded w-1/2"></div>
+        <div className="h-4 bg-gray-100 rounded w-3/4"></div>
+      </div>
     </div>
+  </div>
 )
 
 export default function CustomerModal({ onSelect, onClose }: any) {
   const [search, setSearch] = useState('');
-  const [showAddNew, setShowAddNew] = useState(false);
   const [customers, setCustomers] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
 
+  // Search patients from API with debounce
   useEffect(() => {
-    setIsLoading(true);
-    const timer = setTimeout(() => {
+    const searchPatients = async () => {
+      if (search.length < 2) {
         setCustomers([]);
-        setIsLoading(false);
-    }, 1500)
-    return () => clearTimeout(timer);
-  }, []);
+        return;
+      }
 
-  const filtered = customers.filter(c =>
-    c.name.toLowerCase().includes(search.toLowerCase()) ||
-    c.phone.includes(search)
-  );
+      setIsLoading(true);
+      try {
+        const { patientsApi } = await import('@/lib/api/patients');
+        const response = await patientsApi.getPatients({
+          search,
+          limit: 10,
+        });
+
+        if (response.success) {
+          setCustomers(response.data || []);
+        }
+      } catch (error) {
+        console.error('Failed to search patients:', error);
+        setCustomers([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    const timer = setTimeout(searchPatients, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const handleSelect = (customer: any) => {
+    onSelect({
+      id: customer.id,
+      name: `${customer.firstName} ${customer.lastName}`,
+      phone: customer.phoneNumber,
+      email: customer.email,
+    });
+  };
+
+  const handleSkip = () => {
+    onSelect(null); // Proceed without customer
+  };
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
       <div className="bg-white rounded-lg w-full max-w-2xl mx-4" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between p-4 border-b border-[#e2e8f0]">
           <h3 className="text-lg font-bold text-[#0f172a]">Select Customer</h3>
-          <button onClick={onClose} className="text-[#64748b] hover:text-[#0f172a] p-1 rounded hover:bg-[#f8fafc]" disabled={isLoading}>
+          <button onClick={onClose} className="text-[#64748b] hover:text-[#0f172a] p-1 rounded hover:bg-[#f8fafc]">
             <FiX className="w-5 h-5" />
           </button>
         </div>
@@ -51,55 +80,68 @@ export default function CustomerModal({ onSelect, onClose }: any) {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by name or phone..."
+              placeholder="Search by name or phone (min 2 characters)..."
               className="w-full pl-10 pr-4 py-2 border border-[#cbd5e1] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0ea5a3]"
-              disabled={isLoading}
+              autoFocus
             />
           </div>
 
           <div className="max-h-[300px] overflow-y-auto space-y-2">
             {isLoading ? (
-                <>
-                    <CustomerCardSkeleton/>
-                    <CustomerCardSkeleton/>
-                    <CustomerCardSkeleton/>
-                </>
-            ) : filtered.length > 0 ? (
-                filtered.map((customer) => (
-                    <div
-                        key={customer.id}
-                        onClick={() => onSelect(customer)}
-                        className="p-3 border border-[#e2e8f0] rounded-lg hover:border-[#0ea5a3] hover:bg-[#f0fdfa] cursor-pointer"
-                    >
-                        <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                            <div className="font-medium text-[#0f172a] flex items-center gap-2">
-                            <FiUser className="w-4 h-4" />
-                            {customer.name}
-                            </div>
-                            <div className="text-sm text-[#64748b] mt-1 flex items-center gap-2">
-                            <FiPhone className="w-3 h-3" />
-                            {customer.phone}
-                            </div>
-                            {customer.gstin && (
-                            <div className="text-xs text-[#64748b] mt-1">GSTIN: {customer.gstin}</div>
-                            )}
-                        </div>
-                        </div>
+              <>
+                <CustomerCardSkeleton />
+                <CustomerCardSkeleton />
+                <CustomerCardSkeleton />
+              </>
+            ) : customers.length > 0 ? (
+              customers.map((customer) => (
+                <div
+                  key={customer.id}
+                  onClick={() => handleSelect(customer)}
+                  className="p-3 border border-[#e2e8f0] rounded-lg hover:border-[#0ea5a3] hover:bg-[#f0fdfa] cursor-pointer"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex-1">
+                      <div className="font-medium text-[#0f172a] flex items-center gap-2">
+                        <FiUser className="w-4 h-4" />
+                        {customer.firstName} {customer.lastName}
+                      </div>
+                      <div className="text-sm text-[#64748b] mt-1 flex items-center gap-2">
+                        <FiPhone className="w-3 h-3" />
+                        {customer.phoneNumber}
+                      </div>
+                      {customer.email && (
+                        <div className="text-xs text-[#64748b] mt-1">{customer.email}</div>
+                      )}
                     </div>
-                ))
+                  </div>
+                </div>
+              ))
+            ) : search.length >= 2 ? (
+              <div className="text-center py-10 text-gray-500 text-sm">
+                No customers found. Try a different search or add new customer.
+              </div>
             ) : (
-                <div className="text-center py-10 text-gray-500 text-sm">No customers found.</div>
+              <div className="text-center py-10 text-gray-500 text-sm">
+                Type at least 2 characters to search for customers
+              </div>
             )}
           </div>
 
-          <button
-            onClick={() => setShowAddNew(true)}
-            className="w-full mt-4 py-2 border-2 border-dashed border-[#cbd5e1] rounded-lg text-sm text-[#0ea5a3] hover:border-[#0ea5a3] hover:bg-[#f0fdfa]"
-            disabled={isLoading}
-          >
-            + Add New Customer
-          </button>
+          <div className="mt-4 flex gap-2">
+            <button
+              onClick={handleSkip}
+              className="flex-1 py-2 border border-[#cbd5e1] rounded-lg text-sm text-[#64748b] hover:border-[#0ea5a3] hover:text-[#0ea5a3]"
+            >
+              Skip (No Customer)
+            </button>
+            <button
+              onClick={() => {/* TODO: Open add customer form */ }}
+              className="flex-1 py-2 bg-[#0ea5a3] text-white rounded-lg text-sm hover:bg-[#0d9391]"
+            >
+              + Add New Customer
+            </button>
+          </div>
         </div>
       </div>
     </div>

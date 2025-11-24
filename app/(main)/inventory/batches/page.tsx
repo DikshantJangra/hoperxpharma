@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FiSearch, FiUpload, FiDownload, FiCamera } from 'react-icons/fi';
+import { FiSearch, FiUpload, FiDownload } from 'react-icons/fi';
 import { BsQrCodeScan } from 'react-icons/bs';
 import BatchFilters from '@/components/inventory/batches/BatchFilters';
 import BatchTable from '@/components/inventory/batches/BatchTable';
@@ -12,15 +12,50 @@ export default function BatchesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [batches, setBatches] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [stats, setStats] = useState<any>(null);
 
   useEffect(() => {
-    setIsLoading(true);
-    const timer = setTimeout(() => {
-      setBatches([]);
-      setIsLoading(false);
-    }, 1500);
+    const fetchBatches = async () => {
+      setIsLoading(true);
+      try {
+        const { inventoryApi } = await import('@/lib/api/inventory');
+        const response = await inventoryApi.getBatches({
+          page: 1,
+          limit: 100,
+          search: searchQuery,
+        });
+
+        if (response.success) {
+          setBatches(response.data || []);
+
+          // Calculate stats
+          const total = response.data?.length || 0;
+          const onHand = response.data?.reduce((sum: number, b: any) => sum + b.quantityInStock, 0) || 0;
+          const expiringSoon = response.data?.filter((b: any) => {
+            const daysToExpiry = Math.floor((new Date(b.expiryDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+            return daysToExpiry < 7 && daysToExpiry > 0;
+          }).length || 0;
+
+          setStats({
+            total,
+            onHand,
+            expiringSoon,
+            quarantined: 0,
+            recalled: 0,
+          });
+        }
+      } catch (error) {
+        console.error('Failed to fetch batches:', error);
+        setBatches([]);
+        setStats({ total: 0, onHand: 0, expiringSoon: 0, quarantined: 0, recalled: 0 });
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    const timer = setTimeout(fetchBatches, searchQuery ? 300 : 0);
     return () => clearTimeout(timer);
-  }, []);
+  }, [searchQuery]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -66,7 +101,7 @@ export default function BatchesPage() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search batch# / SKU / barcode / supplier — press /"
+              placeholder="Search batch# / drug name / barcode — press /"
               className="w-full pl-10 pr-4 py-2.5 border border-[#cbd5e1] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0ea5a3]"
               disabled={isLoading}
             />
@@ -77,23 +112,23 @@ export default function BatchesPage() {
         <div className="flex items-center gap-3">
           <div className="px-3 py-1.5 bg-[#f1f5f9] rounded-lg text-sm">
             <span className="text-[#64748b]">Total batches:</span>{' '}
-            <span className="font-semibold text-[#0f172a]">{isLoading ? '...' : batches.length}</span>
+            <span className="font-semibold text-[#0f172a]">{isLoading ? '...' : stats?.total || 0}</span>
           </div>
           <div className="px-3 py-1.5 bg-[#f1f5f9] rounded-lg text-sm">
             <span className="text-[#64748b]">On-hand:</span>{' '}
-            <span className="font-semibold text-[#0f172a]">{isLoading ? '...' : batches.reduce((sum, b) => sum + (b.qtyOnHand || 0), 0)}</span>
+            <span className="font-semibold text-[#0f172a]">{isLoading ? '...' : stats?.onHand || 0}</span>
           </div>
           <div className="px-3 py-1.5 bg-[#fee2e2] rounded-lg text-sm">
             <span className="text-[#991b1b]">Expiring &lt;7d:</span>{' '}
-            <span className="font-semibold text-[#991b1b]">{isLoading ? '...' : batches.filter(b => b.daysToExpiry < 7).length}</span>
+            <span className="font-semibold text-[#991b1b]">{isLoading ? '...' : stats?.expiringSoon || 0}</span>
           </div>
           <div className="px-3 py-1.5 bg-[#fef3c7] rounded-lg text-sm">
             <span className="text-[#92400e]">Quarantined:</span>{' '}
-            <span className="font-semibold text-[#92400e]">{isLoading ? '...' : batches.filter(b => b.status === 'Quarantine').length}</span>
+            <span className="font-semibold text-[#92400e]">{isLoading ? '...' : stats?.quarantined || 0}</span>
           </div>
           <div className="px-3 py-1.5 bg-[#fee2e2] rounded-lg text-sm">
             <span className="text-[#991b1b]">Recalled:</span>{' '}
-            <span className="font-semibold text-[#991b1b]">{isLoading ? '...' : batches.filter(b => b.status === 'Recalled').length}</span>
+            <span className="font-semibold text-[#991b1b]">{isLoading ? '...' : stats?.recalled || 0}</span>
           </div>
         </div>
       </div>
@@ -101,7 +136,7 @@ export default function BatchesPage() {
       {/* Content */}
       <div className="flex-1 flex overflow-hidden">
         <BatchFilters />
-        
+
         <div className={`${selectedBatch ? 'w-[50%]' : 'flex-1'} transition-all`}>
           <BatchTable
             batches={batches}

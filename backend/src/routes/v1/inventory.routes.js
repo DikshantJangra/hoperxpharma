@@ -44,4 +44,10 @@ router.get('/alerts/low-stock', requireStoreAccess, inventoryController.getLowSt
 router.get('/alerts/expiring', requireStoreAccess, inventoryController.getExpiringItems);
 router.get('/summary', requireStoreAccess, inventoryController.getInventorySummary);
 
+/**
+ * POS specific routes
+ */
+router.get('/pos/search', requireStoreAccess, inventoryController.searchDrugsForPOS);
+
 module.exports = router;
+

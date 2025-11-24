@@ -9,7 +9,7 @@ export default function PaymentPanel({ basketItems, customer, onCustomerChange, 
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'upi' | 'wallet'>('cash');
   const [showFinalizeModal, setShowFinalizeModal] = useState(false);
 
-  const subtotal = basketItems.reduce((sum: number, item: any) => 
+  const subtotal = basketItems.reduce((sum: number, item: any) =>
     sum + (item.qty * item.mrp - (item.discount || 0)), 0
   );
 
@@ -28,10 +28,10 @@ export default function PaymentPanel({ basketItems, customer, onCustomerChange, 
   };
 
   const confirmFinalize = () => {
-    // API call would go here
     setShowFinalizeModal(false);
-    onFinalize();
+    onFinalize(paymentMethod.toUpperCase());
   };
+
 
   return (
     <div className="h-full flex flex-col">
@@ -92,44 +92,40 @@ export default function PaymentPanel({ basketItems, customer, onCustomerChange, 
           <div className="grid grid-cols-2 gap-2">
             <button
               onClick={() => setPaymentMethod('cash')}
-              className={`p-3 rounded-lg border-2 flex flex-col items-center gap-1 ${
-                paymentMethod === 'cash'
+              className={`p-3 rounded-lg border-2 flex flex-col items-center gap-1 ${paymentMethod === 'cash'
                   ? 'border-[#0ea5a3] bg-[#f0fdfa]'
                   : 'border-[#e2e8f0] hover:border-[#cbd5e1]'
-              }`}
+                }`}
             >
               <FiDollarSign className="w-5 h-5" />
               <span className="text-xs font-medium">Cash</span>
             </button>
             <button
               onClick={() => setPaymentMethod('card')}
-              className={`p-3 rounded-lg border-2 flex flex-col items-center gap-1 ${
-                paymentMethod === 'card'
+              className={`p-3 rounded-lg border-2 flex flex-col items-center gap-1 ${paymentMethod === 'card'
                   ? 'border-[#0ea5a3] bg-[#f0fdfa]'
                   : 'border-[#e2e8f0] hover:border-[#cbd5e1]'
-              }`}
+                }`}
             >
               <FiCreditCard className="w-5 h-5" />
               <span className="text-xs font-medium">Card</span>
             </button>
             <button
               onClick={() => setPaymentMethod('upi')}
-              className={`p-3 rounded-lg border-2 flex flex-col items-center gap-1 ${
-                paymentMethod === 'upi'
+              className={`p-3 rounded-lg border-2 flex flex-col items-center gap-1 ${paymentMethod === 'upi'
                   ? 'border-[#0ea5a3] bg-[#f0fdfa]'
                   : 'border-[#e2e8f0] hover:border-[#cbd5e1]'
-              }`}
+                }`}
             >
               <FiSmartphone className="w-5 h-5" />
               <span className="text-xs font-medium">UPI</span>
             </button>
             <button
               onClick={() => setPaymentMethod('wallet')}
-              className={`p-3 rounded-lg border-2 flex flex-col items-center gap-1 ${
-                paymentMethod === 'wallet'
+              className={`p-3 rounded-lg border-2 flex flex-col items-center gap-1 ${paymentMethod === 'wallet'
                   ? 'border-[#0ea5a3] bg-[#f0fdfa]'
                   : 'border-[#e2e8f0] hover:border-[#cbd5e1]'
-              }`}
+                }`}
             >
               <BsWallet2 className="w-5 h-5" />
               <span className="text-xs font-medium">Wallet</span>

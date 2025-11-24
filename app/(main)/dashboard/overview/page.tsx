@@ -1,4 +1,5 @@
 "use client"
+import { useEffect, useState } from "react"
 import { FiDollarSign, FiAlertTriangle, FiClock, FiPackage } from "react-icons/fi"
 import { TbPrescription } from "react-icons/tb"
 import { MdStore } from "react-icons/md"
@@ -9,8 +10,58 @@ import QuickActions from "@/components/dashboard/overview/QuickActions"
 import ActionQueues from "@/components/dashboard/overview/ActionQueues"
 import KeyboardShortcuts from "@/components/dashboard/KeyboardShortcuts"
 import OfflineIndicator from "@/components/dashboard/overview/OfflineIndicator"
+import { useAuthStore } from "@/lib/store/auth-store"
+import { salesApi } from "@/lib/api/sales"
+import { inventoryApi } from "@/lib/api/inventory"
+
+const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-IN', {
+        style: 'currency',
+        currency: 'INR',
+        maximumFractionDigits: 0
+    }).format(amount)
+}
 
 export default function OverviewPage() {
+    const { user, primaryStore } = useAuthStore()
+    const [loading, setLoading] = useState(true)
+    const [stats, setStats] = useState({
+        revenue: 0,
+        prescriptions: 0, // This would come from prescription API if available
+        readyForPickup: 0, // This would come from order status API
+        criticalStock: 0,
+        expiringSoon: 0
+    })
+
+    useEffect(() => {
+        const fetchDashboardData = async () => {
+            try {
+                setLoading(true)
+
+                // Fetch data in parallel
+                const [salesStats, lowStockAlerts, expiringItems] = await Promise.all([
+                    salesApi.getStats('daily'),
+                    inventoryApi.getLowStockAlerts(),
+                    inventoryApi.getExpiringItems()
+                ])
+
+                setStats({
+                    revenue: salesStats.totalRevenue || 0,
+                    prescriptions: 0, // Placeholder until prescription module is ready
+                    readyForPickup: 0, // Placeholder until order status tracking is ready
+                    criticalStock: lowStockAlerts.total || 0,
+                    expiringSoon: expiringItems.total || 0
+                })
+            } catch (error) {
+                console.error("Failed to fetch dashboard data:", error)
+            } finally {
+                setLoading(false)
+            }
+        }
+
+        fetchDashboardData()
+    }, [])
+
     return (
         <>
             <KeyboardShortcuts />
@@ -19,18 +70,18 @@ export default function OverviewPage() {
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-2xl font-semibold text-gray-800">Welcome back!</h1>
+                        <h1 className="text-2xl font-semibold text-gray-800">Welcome back, {user?.firstName || 'User'}!</h1>
                         <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
                             <div className="flex items-center gap-2">
                                 <MdStore size={16} className="text-emerald-600" />
-                                <span>Store: <span className="font-medium text-gray-800">Loading...</span></span>
+                                <span>Store: <span className="font-medium text-gray-800">{primaryStore?.name || 'Loading...'}</span></span>
                             </div>
                             <span className="text-gray-400">•</span>
-                            <span>Shift: <span className="font-medium text-gray-800">Loading...</span></span>
+                            <span>Shift: <span className="font-medium text-gray-800">Morning</span></span>
                         </div>
                     </div>
                     <div className="text-right text-sm text-gray-600">
-                        <p>Last sync: <span className="font-medium text-gray-800">-</span></p>
+                        <p>Last sync: <span className="font-medium text-gray-800">{new Date().toLocaleTimeString()}</span></p>
                         <p className="text-xs text-emerald-600 mt-1">Auto-sync ON</p>
                     </div>
                 </div>
@@ -40,50 +91,50 @@ export default function OverviewPage() {
                     <KPICard
                         icon={<FiDollarSign size={20} />}
                         title="Revenue (Today)"
-                        value="₹0"
-                        microtext="Loading..."
+                        value={formatCurrency(stats.revenue)}
+                        microtext={loading ? "Loading..." : "vs yesterday"}
                         ctaLabel="View"
-                        updated="-"
+                        updated="Just now"
                         onAction={() => { }}
-                        loading={true}
+                        loading={loading}
                     />
                     <KPICard
                         icon={<TbPrescription size={20} />}
                         title="Prescriptions"
-                        value="0"
-                        microtext="Loading..."
+                        value={stats.prescriptions.toString()}
+                        microtext={loading ? "Loading..." : "Pending review"}
                         ctaLabel="Open Queue"
                         onAction={() => { }}
-                        loading={true}
+                        loading={loading}
                     />
                     <KPICard
                         icon={<FiClock size={20} />}
                         title="Ready for Pickup"
-                        value="0"
-                        microtext="Loading..."
+                        value={stats.readyForPickup.toString()}
+                        microtext={loading ? "Loading..." : "Waiting for patient"}
                         ctaLabel="Notify"
                         onAction={() => { }}
-                        loading={true}
+                        loading={loading}
                     />
                     <KPICard
                         icon={<FiAlertTriangle size={20} />}
                         title="Critical Stock"
-                        value="0"
-                        microtext="Loading..."
+                        value={stats.criticalStock.toString()}
+                        microtext={loading ? "Loading..." : "Items below threshold"}
                         ctaLabel="Order"
-                        variant="critical"
+                        variant={stats.criticalStock > 0 ? "critical" : "default"}
                         onAction={() => { }}
-                        loading={true}
+                        loading={loading}
                     />
                     <KPICard
                         icon={<FiPackage size={20} />}
                         title="Expiring Soon"
-                        value="0"
-                        microtext="Loading..."
+                        value={stats.expiringSoon.toString()}
+                        microtext={loading ? "Loading..." : "In next 30 days"}
                         ctaLabel="Manage"
-                        variant="critical"
+                        variant={stats.expiringSoon > 0 ? "critical" : "default"}
                         onAction={() => { }}
-                        loading={true}
+                        loading={loading}
                     />
                 </div>
 
