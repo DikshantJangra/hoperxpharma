@@ -103,6 +103,8 @@ export const onboardingApi = {
         store: StoreData;
         licenses?: LicenseData[];
         operatingHours?: OperatingHoursData[];
+        suppliers?: any[];
+        users?: any[];
     }) {
         const response = await apiClient.post('/onboarding/complete', data);
         return response.data;

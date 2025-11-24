@@ -21,10 +21,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (isAuthenticated && !isLoading) {
                 try {
                     const progress = await onboardingApi.getProgress();
-                    setOnboardingComplete(progress?.isComplete || false);
+                    const isComplete = progress?.isComplete || false;
+                    // If user has a store, consider onboarding complete regardless of progress flag
+                    setOnboardingComplete(hasStore || isComplete);
                 } catch (error) {
                     console.error('Failed to check onboarding status:', error);
-                    setOnboardingComplete(false);
+                    // If user has a store, consider onboarding complete
+                    setOnboardingComplete(hasStore);
                 }
             }
         };
@@ -32,7 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (isAuthenticated && !isLoading) {
             checkOnboardingStatus();
         }
-    }, [isAuthenticated, isLoading]);
+    }, [isAuthenticated, isLoading, hasStore]);
 
     useEffect(() => {
         console.log('AuthProvider Effect:', {

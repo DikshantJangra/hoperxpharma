@@ -20,12 +20,33 @@ export default function Step5Page() {
         deliveryArea: "",
         creditTerms: "COD"
     });
+    const [phoneError, setPhoneError] = useState("");
+
+    const validatePhone = (phone: string) => {
+        if (!phone) return "";
+        if (!/^\d{10}$/.test(phone)) {
+            return "Phone number must be exactly 10 digits";
+        }
+        return "";
+    };
+
+    const handlePhoneChange = (value: string) => {
+        const cleaned = value.replace(/\D/g, '').slice(0, 10);
+        setFormData({ ...formData, phone: cleaned });
+        setPhoneError(validatePhone(cleaned));
+    };
 
     useEffect(() => {
         setCurrentStep(5);
     }, [setCurrentStep]);
 
     const handleAdd = () => {
+        const phoneValidation = validatePhone(formData.phone);
+        if (phoneValidation) {
+            setPhoneError(phoneValidation);
+            return;
+        }
+        
         if (formData.name && formData.phone) {
             if (editIndex !== null) {
                 removeSupplier(editIndex);
@@ -35,6 +56,7 @@ export default function Step5Page() {
                 addSupplier({ ...formData, dlDocument: "" });
             }
             setFormData({ name: "", phone: "", category: "", gstin: "", deliveryArea: "", creditTerms: "COD" });
+            setPhoneError("");
             setShowForm(false);
         }
     };
@@ -49,6 +71,7 @@ export default function Step5Page() {
             deliveryArea: supplier.deliveryArea || "",
             creditTerms: supplier.creditTerms || "COD"
         });
+        setPhoneError("");
         setEditIndex(index);
         setShowForm(true);
     };
@@ -146,11 +169,17 @@ export default function Step5Page() {
                                         <input
                                             type="tel"
                                             value={formData.phone}
-                                            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                                            className="w-full pl-11 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 transition-all text-sm text-gray-900"
-                                            placeholder="Enter phone number"
+                                            onChange={(e) => handlePhoneChange(e.target.value)}
+                                            className={`w-full pl-11 pr-4 py-3 bg-white border rounded-xl focus:outline-none transition-all text-sm text-gray-900 ${
+                                                phoneError ? 'border-red-500 focus:border-red-500' : 'border-gray-200 focus:border-emerald-500'
+                                            }`}
+                                            placeholder="Enter 10-digit phone number"
+                                            maxLength={10}
                                         />
                                     </div>
+                                    {phoneError && (
+                                        <p className="text-xs text-red-500 mt-1 ml-1">{phoneError}</p>
+                                    )}
                                 </div>
                             </div>
 
@@ -199,7 +228,7 @@ export default function Step5Page() {
                                 </button>
                                 <button
                                     onClick={handleAdd}
-                                    disabled={!formData.name || !formData.phone}
+                                    disabled={!formData.name || !formData.phone || !!phoneError}
                                     className="flex-1 px-4 py-3 bg-emerald-500 text-white rounded-xl font-medium hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-emerald-500/20"
                                 >
                                     {editIndex !== null ? 'Update Supplier' : 'Add Supplier'}

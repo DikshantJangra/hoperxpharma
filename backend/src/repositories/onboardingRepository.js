@@ -85,7 +85,7 @@ class OnboardingRepository {
     /**
      * Create complete store setup (atomic)
      */
-    async createCompleteStore(storeData, licenses, hours, userId) {
+    async createCompleteStore(storeData, licenses, hours, suppliers, users, userId) {
         return await prisma.$transaction(async (tx) => {
             // Create store
             const store = await tx.store.create({
@@ -109,11 +109,11 @@ class OnboardingRepository {
                             data: {
                                 storeId: store.id,
                                 type: license.type,
-                                number: license.licenseNumber || license.number, // Map licenseNumber to number
-                                validFrom: new Date(license.issuedDate || license.validFrom), // Map issuedDate to validFrom
-                                validTo: new Date(license.expiryDate || license.validTo), // Map expiryDate to validTo
+                                number: license.licenseNumber || license.number,
+                                validFrom: new Date(license.issuedDate || license.validFrom),
+                                validTo: new Date(license.expiryDate || license.validTo),
                                 documentUrl: license.documentUrl || null,
-                                status: 'Active', // Default status
+                                status: 'Active',
                             },
                         })
                     )
@@ -124,7 +124,6 @@ class OnboardingRepository {
             if (hours && hours.length > 0) {
                 await Promise.all(
                     hours.map((hour) => {
-                        // Convert day name to number if it's a string
                         const dayOfWeek = typeof hour.dayOfWeek === 'string' 
                             ? DAY_MAP[hour.dayOfWeek] 
                             : hour.dayOfWeek;
@@ -138,6 +137,27 @@ class OnboardingRepository {
                         });
                     })
                 );
+            }
+
+            // Note: Suppliers are not store-specific in the schema
+            // They should be created separately via the supplier management API
+
+            // Add additional users if provided (excluding current user)
+            if (users && users.length > 0) {
+                const additionalUsers = users.filter(user => (user.userId || userId) !== userId);
+                if (additionalUsers.length > 0) {
+                    await Promise.all(
+                        additionalUsers.map((user) =>
+                            tx.storeUser.create({
+                                data: {
+                                    storeId: store.id,
+                                    userId: user.userId,
+                                    isPrimary: false,
+                                },
+                            })
+                        )
+                    );
+                }
             }
 
             return store;

@@ -7,10 +7,12 @@ import { FiArrowLeft, FiCheck, FiEdit, FiMapPin, FiShield, FiClock, FiUsers, FiT
 import { onboardingApi } from "@/lib/api/onboarding";
 import { toast } from "react-hot-toast";
 import OnboardingCard from "@/components/onboarding/OnboardingCard";
+import { useAuthStore } from "@/lib/store/auth-store";
 
 export default function Step10Page() {
     const { state, setCurrentStep, completeOnboarding } = useOnboarding();
     const router = useRouter();
+    const { refreshUserData } = useAuthStore();
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
@@ -20,51 +22,117 @@ export default function Step10Page() {
     const handleFinish = async () => {
         setIsSubmitting(true);
         try {
-            // Call the backend to create the store with all collected data
-            await onboardingApi.completeOnboarding({
-                store: {
-                    name: state.data.storeIdentity.pharmacyName || "My Pharmacy",
-                    gstin: state.data.licensing.gstin,
-                    dlNumber: state.data.licensing.dlNumber,
-                    addressLine1: state.data.storeIdentity.address || "",
-                    city: state.data.storeIdentity.city || "",
-                    state: state.data.storeIdentity.state || "",
-                    pinCode: state.data.storeIdentity.pinCode || "",
-                    phoneNumber: state.data.storeIdentity.phoneNumber ? `+91${state.data.storeIdentity.phoneNumber}` : "+919999999999",
-                },
-                licenses: state.data.licensing.dlNumber ? [{
-                    type: 'Drug License' as const,
+            // Validate required fields
+            if (!state.data.storeIdentity.pharmacyName || !state.data.storeIdentity.address || 
+                !state.data.storeIdentity.city || !state.data.storeIdentity.state || 
+                !state.data.storeIdentity.pinCode || !state.data.storeIdentity.phoneNumber) {
+                toast.error("Please complete Step 1 - Store Identity with all required fields");
+                setIsSubmitting(false);
+                return;
+            }
+
+            // Validate PIN code format
+            if (!/^\d{6}$/.test(state.data.storeIdentity.pinCode)) {
+                toast.error("Invalid PIN code. Must be 6 digits");
+                setIsSubmitting(false);
+                return;
+            }
+
+            // Validate phone number format
+            if (!/^[6-9]\d{9}$/.test(state.data.storeIdentity.phoneNumber)) {
+                toast.error("Invalid phone number. Must be 10 digits starting with 6-9");
+                setIsSubmitting(false);
+                return;
+            }
+
+            // Prepare licenses array
+            const licenses = [];
+            if (state.data.licensing.dlNumber) {
+                licenses.push({
+                    type: 'Drug License',
                     licenseNumber: state.data.licensing.dlNumber,
                     issuedBy: "State Authority",
-                    issuedDate: state.data.licensing.dlValidityStart ? new Date(state.data.licensing.dlValidityStart).toISOString() : new Date().toISOString(),
-                    expiryDate: state.data.licensing.dlValidityEnd ? new Date(state.data.licensing.dlValidityEnd).toISOString() : new Date().toISOString(),
-                }] : [],
-                operatingHours: state.data.timings?.operatingDays?.map(day => ({
-                    dayOfWeek: day as any,
+                    issuedDate: state.data.licensing.dlValidityStart || new Date().toISOString(),
+                    expiryDate: state.data.licensing.dlValidityEnd || new Date().toISOString(),
+                });
+            }
+            if (state.data.licensing.gstin) {
+                licenses.push({
+                    type: 'GST',
+                    licenseNumber: state.data.licensing.gstin,
+                    issuedBy: "GST Department",
+                    issuedDate: new Date().toISOString(),
+                    expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+                });
+            }
+
+            // Prepare operating hours
+            const operatingHours = state.data.timings?.is24x7 ? [] : 
+                (state.data.timings?.operatingDays || []).map(day => ({
+                    dayOfWeek: day,
                     openTime: state.data.timings?.openTime || "09:00",
                     closeTime: state.data.timings?.closeTime || "21:00",
                     isClosed: false,
-                })) || [],
-            });
+                    lunchStart: state.data.timings?.lunchBreak ? state.data.timings?.lunchStart : null,
+                    lunchEnd: state.data.timings?.lunchBreak ? state.data.timings?.lunchEnd : null,
+                }));
 
-            // Mark onboarding as complete in the database
-            await onboardingApi.saveProgress({
-                currentStep: 10,
-                completedSteps: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-                data: state.data,
-                isComplete: true,
+            // Prepare suppliers
+            const suppliers = (state.data.suppliers || []).map(sup => ({
+                name: sup.name,
+                phone: sup.phone,
+                category: sup.category || 'Distributor',
+                contactName: sup.name,
+                gstin: sup.gstin || null,
+                deliveryArea: sup.deliveryArea || null,
+                creditTerms: sup.creditTerms || null,
+            }));
+
+            // Prepare users
+            const users = (state.data.users || []).map(user => ({
+                name: user.name,
+                phone: user.phone,
+                role: user.role,
+                pin: user.pin,
+            }));
+
+            // Call the backend to create the store with all collected data
+            await onboardingApi.completeOnboarding({
+                store: {
+                    name: state.data.storeIdentity.pharmacyName,
+                    displayName: state.data.storeIdentity.displayName || state.data.storeIdentity.pharmacyName,
+                    businessType: state.data.storeIdentity.businessType || "Retail Pharmacy",
+                    addressLine1: state.data.storeIdentity.address,
+                    city: state.data.storeIdentity.city,
+                    state: state.data.storeIdentity.state,
+                    pinCode: state.data.storeIdentity.pinCode,
+                    phoneNumber: state.data.storeIdentity.phoneNumber,
+                    is24x7: state.data.timings?.is24x7 || false,
+                    homeDelivery: state.data.timings?.deliveryAvailable || false,
+                },
+                licenses,
+                operatingHours,
+                suppliers,
+                users,
             });
 
             // Mark onboarding as complete in the context
             completeOnboarding();
 
-            toast.success("Store setup complete successfully!");
+            // Refresh user data to update store information
+            await refreshUserData();
 
-            // Redirect to dashboard
-            router.push("/dashboard");
+            // Wait a bit for the auth state to update
+            await new Promise(resolve => setTimeout(resolve, 300));
+
+            toast.success("Store setup completed successfully!");
+
+            // Force navigation to dashboard
+            window.location.href = "/dashboard/overview";
         } catch (error: any) {
             console.error("Failed to complete onboarding:", error);
-            toast.error(error?.message || "Failed to create store. Please try again.");
+            const errorMessage = error?.response?.data?.message || error?.message || "Failed to create store. Please try again.";
+            toast.error(errorMessage);
             setIsSubmitting(false);
         }
     };

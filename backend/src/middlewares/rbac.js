@@ -33,20 +33,35 @@ const requirePharmacist = requireRole(USER_ROLES.ADMIN, USER_ROLES.PHARMACIST);
  * Store access middleware
  * Checks if user has access to the specified store
  */
-const requireStoreAccess = (req, res, next) => {
+const requireStoreAccess = async (req, res, next) => {
     if (!req.user) {
         return next(ApiError.unauthorized(MESSAGES.AUTH.UNAUTHORIZED));
+    }
+
+    // If stores not loaded, fetch them
+    if (!req.user.stores || !Array.isArray(req.user.stores) || req.user.stores.length === 0) {
+        try {
+            const userRepository = require('../repositories/userRepository');
+            const user = await userRepository.findById(req.user.id);
+            
+            if (user && user.storeUsers && user.storeUsers.length > 0) {
+                req.user.stores = user.storeUsers.map(su => ({
+                    id: su.store.id,
+                    name: su.store.name,
+                    isPrimary: su.isPrimary,
+                }));
+            } else {
+                return next(ApiError.forbidden('You do not have access to any stores. Please complete onboarding first.'));
+            }
+        } catch (error) {
+            return next(ApiError.forbidden('Failed to load store access'));
+        }
     }
 
     let storeId = req.params.storeId || req.body.storeId || req.query.storeId;
 
     // If no storeId is provided, use the user's primary store
     if (!storeId) {
-        // Check if user has stores array
-        if (!req.user.stores || !Array.isArray(req.user.stores) || req.user.stores.length === 0) {
-            return next(ApiError.forbidden('You do not have access to any stores. Please complete onboarding first.'));
-        }
-
         // Use primary store or first store
         const primaryStore = req.user.stores.find(s => s.isPrimary) || req.user.stores[0];
         storeId = primaryStore.id;

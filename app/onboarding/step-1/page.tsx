@@ -115,8 +115,12 @@ export default function Step1Page() {
             newErrors.displayName = "Display name must be at least 3 characters";
         }
 
-        if (!formData.phoneNumber || !/^[6-9]\d{9}$/.test(formData.phoneNumber)) {
-            newErrors.phoneNumber = "Please enter a valid 10-digit Indian mobile number";
+        if (!formData.phoneNumber) {
+            newErrors.phoneNumber = "Phone number is required";
+        } else if (formData.phoneNumber.length !== 10) {
+            newErrors.phoneNumber = "Phone number must be exactly 10 digits";
+        } else if (!/^[6-9]\d{9}$/.test(formData.phoneNumber)) {
+            newErrors.phoneNumber = "Phone number must start with 6, 7, 8, or 9";
         }
 
         setErrors(newErrors);
@@ -184,10 +188,13 @@ export default function Step1Page() {
                     {errors.businessType && <p className="mt-1 ml-1 text-xs text-red-500">{errors.businessType}</p>}
                 </div>
 
-                {/* Address */}
+                {/* Phone Number */}
                 <div className="group">
                     <label className="block text-gray-700 text-xs font-semibold mb-1.5 ml-1">
                         Phone Number <span className="text-red-500">*</span>
+                        <span className="ml-2 text-xs font-normal text-gray-400">
+                            ({formData.phoneNumber.length}/10 digits)
+                        </span>
                     </label>
                     <div className="relative transition-all duration-200 focus-within:ring-2 focus-within:ring-emerald-500/20 rounded-xl">
                         <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-500 transition-colors">
@@ -205,10 +212,20 @@ export default function Step1Page() {
                             }}
                             placeholder="9876543210"
                             maxLength={10}
-                            className={`w-full pl-24 pr-4 py-3 bg-gray-50 border rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-all text-sm text-gray-900 placeholder:text-gray-400 ${errors.phoneNumber ? "border-red-500" : "border-gray-200"}`}
+                            className={`w-full pl-24 pr-16 py-3 bg-gray-50 border rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-all text-sm text-gray-900 placeholder:text-gray-400 ${errors.phoneNumber ? "border-red-500" : formData.phoneNumber.length === 10 ? "border-emerald-500" : "border-gray-200"}`}
                         />
+                        {formData.phoneNumber.length === 10 && !errors.phoneNumber && (
+                            <div className="absolute right-4 top-1/2 -translate-y-1/2 text-emerald-500">
+                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                </svg>
+                            </div>
+                        )}
                     </div>
                     {errors.phoneNumber && <p className="mt-1 ml-1 text-xs text-red-500">{errors.phoneNumber}</p>}
+                    {!errors.phoneNumber && formData.phoneNumber.length > 0 && formData.phoneNumber.length < 10 && (
+                        <p className="mt-1 ml-1 text-xs text-amber-600">Enter {10 - formData.phoneNumber.length} more digit{10 - formData.phoneNumber.length !== 1 ? 's' : ''}</p>
+                    )}
                 </div>
 
                 {/* Address */}
@@ -250,16 +267,31 @@ export default function Step1Page() {
                     <div className="group">
                         <label className="block text-gray-700 text-xs font-semibold mb-1.5 ml-1">
                             PIN Code <span className="text-red-500">*</span>
+                            <span className="ml-2 text-xs font-normal text-gray-400">
+                                ({formData.pinCode.length}/6 digits)
+                            </span>
                         </label>
-                        <input
-                            type="text"
-                            value={formData.pinCode}
-                            onChange={(e) => setFormData({ ...formData, pinCode: e.target.value.replace(/\D/g, "").slice(0, 6) })}
-                            placeholder="400001"
-                            maxLength={6}
-                            className={`w-full px-4 py-3 bg-gray-50 border rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-all text-sm text-gray-900 placeholder:text-gray-400 ${errors.pinCode ? "border-red-500" : "border-gray-200"}`}
-                        />
+                        <div className="relative">
+                            <input
+                                type="text"
+                                value={formData.pinCode}
+                                onChange={(e) => setFormData({ ...formData, pinCode: e.target.value.replace(/\D/g, "").slice(0, 6) })}
+                                placeholder="400001"
+                                maxLength={6}
+                                className={`w-full px-4 py-3 bg-gray-50 border rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-all text-sm text-gray-900 placeholder:text-gray-400 ${errors.pinCode ? "border-red-500" : formData.pinCode.length === 6 ? "border-emerald-500" : "border-gray-200"}`}
+                            />
+                            {formData.pinCode.length === 6 && !errors.pinCode && (
+                                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-emerald-500">
+                                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                    </svg>
+                                </div>
+                            )}
+                        </div>
                         {errors.pinCode && <p className="mt-1 ml-1 text-xs text-red-500">{errors.pinCode}</p>}
+                        {!errors.pinCode && formData.pinCode.length > 0 && formData.pinCode.length < 6 && (
+                            <p className="mt-1 ml-1 text-xs text-amber-600">Enter {6 - formData.pinCode.length} more digit{6 - formData.pinCode.length !== 1 ? 's' : ''}</p>
+                        )}
                     </div>
 
                     <div className="group">

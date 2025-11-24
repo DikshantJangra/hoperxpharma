@@ -206,6 +206,7 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     // Save to API on state change (debounced)
     useEffect(() => {
         if (isLoading) return; // Don't save initial empty state or while loading
+        if (state.isComplete) return; // Don't save if onboarding is already complete
 
         const timer = setTimeout(() => {
             onboardingApi.saveProgress({
@@ -213,7 +214,10 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
                 completedSteps: state.completedSteps,
                 data: state.data,
                 isComplete: state.isComplete
-            }).catch(err => console.error("Failed to save progress", err));
+            }).catch(err => {
+                // Silently fail - don't disrupt user experience
+                console.warn("Failed to save onboarding progress:", err);
+            });
         }, 1000); // 1 second debounce
 
         return () => clearTimeout(timer);

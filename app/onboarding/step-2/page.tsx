@@ -161,6 +161,9 @@ export default function Step2Page() {
                 <div className="group">
                     <label className="block text-gray-700 text-xs font-semibold mb-1.5 ml-1">
                         GSTIN <span className="text-red-500">*</span>
+                        <span className="ml-2 text-xs font-normal text-gray-400">
+                            ({formData.gstin.length}/15 characters)
+                        </span>
                     </label>
                     <div className="relative transition-all duration-200 focus-within:ring-2 focus-within:ring-emerald-500/20 rounded-xl">
                         <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-500 transition-colors">
@@ -172,11 +175,20 @@ export default function Step2Page() {
                             onChange={(e) => setFormData({ ...formData, gstin: e.target.value.toUpperCase().slice(0, 15) })}
                             placeholder="27AABCU9603R1ZM"
                             maxLength={15}
-                            className={`w-full pl-11 pr-4 py-3 bg-gray-50 border rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-all text-sm text-gray-900 placeholder:text-gray-400 ${errors.gstin ? "border-red-500" : "border-gray-200"}`}
+                            className={`w-full pl-11 pr-16 py-3 bg-gray-50 border rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-all text-sm text-gray-900 placeholder:text-gray-400 font-mono ${errors.gstin ? "border-red-500" : formData.gstin.length === 15 ? "border-emerald-500" : "border-gray-200"}`}
                         />
+                        {formData.gstin.length === 15 && !errors.gstin && (
+                            <div className="absolute right-4 top-1/2 -translate-y-1/2 text-emerald-500">
+                                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                </svg>
+                            </div>
+                        )}
                     </div>
                     {errors.gstin && <p className="mt-1 ml-1 text-xs text-red-500">{errors.gstin}</p>}
-                    <p className="mt-1.5 ml-1 text-xs text-gray-400">15-character GST Identification Number</p>
+                    {!errors.gstin && formData.gstin.length > 0 && formData.gstin.length < 15 && (
+                        <p className="mt-1 ml-1 text-xs text-amber-600">Enter {15 - formData.gstin.length} more character{15 - formData.gstin.length !== 1 ? 's' : ''}</p>
+                    )}
                 </div>
 
                 {/* PAN */}

@@ -47,6 +47,20 @@ CREATE TABLE "User" (
 );
 
 -- CreateTable
+CREATE TABLE "OnboardingProgress" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "currentStep" INTEGER NOT NULL DEFAULT 1,
+    "completedSteps" INTEGER[],
+    "data" JSONB NOT NULL,
+    "isComplete" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "OnboardingProgress_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "Role" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -1246,6 +1260,9 @@ CREATE INDEX "User_phoneNumber_idx" ON "User"("phoneNumber");
 CREATE INDEX "User_deletedAt_idx" ON "User"("deletedAt");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "OnboardingProgress_userId_key" ON "OnboardingProgress"("userId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Role_name_key" ON "Role"("name");
 
 -- CreateIndex
@@ -1603,6 +1620,9 @@ CREATE INDEX "BackupSnapshot_storeId_createdAt_idx" ON "BackupSnapshot"("storeId
 CREATE INDEX "Document_storeId_entityType_entityId_idx" ON "Document"("storeId", "entityType", "entityId");
 
 -- AddForeignKey
+ALTER TABLE "OnboardingProgress" ADD CONSTRAINT "OnboardingProgress_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "RolePermission" ADD CONSTRAINT "RolePermission_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "Role"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -1769,4 +1789,3 @@ ALTER TABLE "APIRequest" ADD CONSTRAINT "APIRequest_apiKeyId_fkey" FOREIGN KEY (
 
 -- AddForeignKey
 ALTER TABLE "BackupSnapshot" ADD CONSTRAINT "BackupSnapshot_planId_fkey" FOREIGN KEY ("planId") REFERENCES "BackupPlan"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-

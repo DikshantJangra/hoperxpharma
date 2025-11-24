@@ -53,7 +53,7 @@ class OnboardingService {
      * Complete onboarding (all steps at once)
      */
     async completeOnboarding(data, userId) {
-        const { store, licenses, operatingHours } = data;
+        const { store, licenses, operatingHours, suppliers, users } = data;
 
         // Ensure all required fields are set and remove invalid fields
         const { gstin, dlNumber, ...validStoreFields } = store; // Remove fields that belong to StoreLicense
@@ -70,6 +70,8 @@ class OnboardingService {
             storeData,
             licenses,
             operatingHours,
+            suppliers,
+            users,
             userId
         );
 

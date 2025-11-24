@@ -73,7 +73,7 @@ const MESSAGES = {
 const RATE_LIMIT = {
     WINDOW_MS: 15 * 60 * 1000, // 15 minutes
     MAX_REQUESTS: 100,
-    AUTH_MAX_REQUESTS: 5, // For login/signup
+    AUTH_MAX_REQUESTS: 10, // For login/signup
 };
 
 module.exports = {
