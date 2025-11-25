@@ -1,9 +1,9 @@
-// User Roles, ideally pulled from database schema
+// User Roles - matches Prisma schema UserRole enum
 const USER_ROLES = {
   ADMIN: 'ADMIN',
-  OWNER: 'OWNER',
   PHARMACIST: 'PHARMACIST',
   TECHNICIAN: 'TECHNICIAN',
+  CASHIER: 'CASHIER',
 };
 
 module.exports = { USER_ROLES };

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import SupplierList from '@/components/inventory/suppliers/SupplierList';
 import SupplierForm from '@/components/inventory/suppliers/SupplierForm';
 import { FiUsers, FiAlertTriangle, FiDollarSign, FiCheckCircle } from 'react-icons/fi';
@@ -144,15 +145,16 @@ export default function SuppliersDashboardPage() {
             <SupplierList onAddClick={() => setIsAddModalOpen(true)} onRefresh={refreshKey} />
 
             {/* Add Modal */}
-            {isAddModalOpen && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+            {isAddModalOpen && typeof window !== 'undefined' && createPortal(
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
                     <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-white rounded-xl shadow-2xl">
                         <SupplierForm
                             onSave={handleSaveSupplier}
                             onCancel={() => setIsAddModalOpen(false)}
                         />
                     </div>
-                </div>
+                </div>,
+                document.body
             )}
         </div>
     );

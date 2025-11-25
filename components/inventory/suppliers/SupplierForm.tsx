@@ -27,21 +27,108 @@ export default function SupplierForm({ initialData, onSave, onCancel }: Supplier
         state: '',
         pinCode: '',
         paymentTerms: 'Net 30',
-        creditLimit: 0,
+        creditLimit: '',
     });
+
+    const [errors, setErrors] = useState<Record<string, string>>({});
 
     const handleChange = (field: string, value: any) => {
         setFormData((prev: any) => ({ ...prev, [field]: value }));
+        // Clear error when user starts typing
+        if (errors[field]) {
+            setErrors(prev => {
+                const newErrors = { ...prev };
+                delete newErrors[field];
+                return newErrors;
+            });
+        }
+    };
+
+    // Validation functions
+    const validatePhone = (phone: string): boolean => {
+        const phoneRegex = /^[0-9]{10}$/;
+        return phoneRegex.test(phone);
+    };
+
+    const validateEmail = (email: string): boolean => {
+        if (!email) return true; // Email is optional
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return emailRegex.test(email);
+    };
+
+    const validateGSTIN = (gstin: string): boolean => {
+        if (!gstin) return true; // GSTIN is optional
+        const gstinRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+        return gstin.length === 15 && gstinRegex.test(gstin);
+    };
+
+    const validatePAN = (pan: string): boolean => {
+        if (!pan) return true; // PAN is optional
+        const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+        return pan.length === 10 && panRegex.test(pan);
+    };
+
+    const validatePinCode = (pinCode: string): boolean => {
+        if (!pinCode) return true; // PIN is optional
+        const pinRegex = /^[0-9]{6}$/;
+        return pinRegex.test(pinCode);
     };
 
     const handleSubmit = () => {
-        // Basic validation
-        if (!formData.name || !formData.contactName || !formData.phoneNumber) {
-            alert('Please fill in all required fields (Name, Contact Person, Phone)');
+        const newErrors: Record<string, string> = {};
+
+        // Required field validations
+        if (!formData.name?.trim()) {
+            newErrors.name = 'Supplier name is required';
+        }
+
+        if (!formData.contactName?.trim()) {
+            newErrors.contactName = 'Contact person name is required';
+        }
+
+        if (!formData.phoneNumber?.trim()) {
+            newErrors.phoneNumber = 'Phone number is required';
+        } else if (!validatePhone(formData.phoneNumber)) {
+            newErrors.phoneNumber = 'Phone number must be exactly 10 digits';
+        }
+
+        // Optional field validations
+        if (formData.whatsapp && !validatePhone(formData.whatsapp)) {
+            newErrors.whatsapp = 'WhatsApp number must be exactly 10 digits';
+        }
+
+        if (formData.email && !validateEmail(formData.email)) {
+            newErrors.email = 'Please enter a valid email address';
+        }
+
+        if (formData.gstin && !validateGSTIN(formData.gstin)) {
+            newErrors.gstin = 'Invalid GSTIN format (e.g., 27AAAAA0000A1Z5)';
+        }
+
+        if (formData.pan && !validatePAN(formData.pan)) {
+            newErrors.pan = 'Invalid PAN format (e.g., ABCDE1234F)';
+        }
+
+        if (formData.pinCode && !validatePinCode(formData.pinCode)) {
+            newErrors.pinCode = 'PIN code must be exactly 6 digits';
+        }
+
+        if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors);
+            // Scroll to first error
+            const firstErrorField = Object.keys(newErrors)[0];
+            const element = document.querySelector(`[name="${firstErrorField}"]`);
+            element?.scrollIntoView({ behavior: 'smooth', block: 'center' });
             return;
         }
 
-        onSave(formData);
+        // Convert creditLimit to number before saving
+        const dataToSave = {
+            ...formData,
+            creditLimit: formData.creditLimit ? parseFloat(formData.creditLimit) : 0
+        };
+
+        onSave(dataToSave);
     };
 
     return (
@@ -66,11 +153,13 @@ export default function SupplierForm({ initialData, onSave, onCancel }: Supplier
                             <label className="block text-sm font-medium text-gray-700 mb-1">Supplier Name *</label>
                             <input
                                 type="text"
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500"
+                                name="name"
+                                className={`w-full px-3 py-2 border rounded-md focus:ring-emerald-500 focus:border-emerald-500 ${errors.name ? 'border-red-500' : 'border-gray-300'}`}
                                 value={formData.name}
                                 onChange={e => handleChange('name', e.target.value)}
                                 placeholder="e.g. MediCore Distributors"
                             />
+                            {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Category</label>
@@ -88,12 +177,14 @@ export default function SupplierForm({ initialData, onSave, onCancel }: Supplier
                             <label className="block text-sm font-medium text-gray-700 mb-1">GSTIN</label>
                             <input
                                 type="text"
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500"
+                                name="gstin"
+                                className={`w-full px-3 py-2 border rounded-md focus:ring-emerald-500 focus:border-emerald-500 ${errors.gstin ? 'border-red-500' : 'border-gray-300'}`}
                                 value={formData.gstin}
-                                onChange={e => handleChange('gstin', e.target.value)}
+                                onChange={e => handleChange('gstin', e.target.value.toUpperCase())}
                                 placeholder="27AAAAA0000A1Z5"
                                 maxLength={15}
                             />
+                            {errors.gstin && <p className="text-red-500 text-xs mt-1">{errors.gstin}</p>}
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Drug License No.</label>
@@ -108,12 +199,14 @@ export default function SupplierForm({ initialData, onSave, onCancel }: Supplier
                             <label className="block text-sm font-medium text-gray-700 mb-1">PAN</label>
                             <input
                                 type="text"
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500"
+                                name="pan"
+                                className={`w-full px-3 py-2 border rounded-md focus:ring-emerald-500 focus:border-emerald-500 ${errors.pan ? 'border-red-500' : 'border-gray-300'}`}
                                 value={formData.pan}
-                                onChange={e => handleChange('pan', e.target.value)}
+                                onChange={e => handleChange('pan', e.target.value.toUpperCase())}
                                 placeholder="AAAAA0000A"
                                 maxLength={10}
                             />
+                            {errors.pan && <p className="text-red-500 text-xs mt-1">{errors.pan}</p>}
                         </div>
                     </div>
                 </section>
@@ -128,39 +221,55 @@ export default function SupplierForm({ initialData, onSave, onCancel }: Supplier
                             <label className="block text-sm font-medium text-gray-700 mb-1">Contact Person *</label>
                             <input
                                 type="text"
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500"
+                                name="contactName"
+                                className={`w-full px-3 py-2 border rounded-md focus:ring-emerald-500 focus:border-emerald-500 ${errors.contactName ? 'border-red-500' : 'border-gray-300'}`}
                                 value={formData.contactName}
                                 onChange={e => handleChange('contactName', e.target.value)}
                             />
+                            {errors.contactName && <p className="text-red-500 text-xs mt-1">{errors.contactName}</p>}
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Phone *</label>
                             <input
                                 type="text"
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500"
+                                name="phoneNumber"
+                                className={`w-full px-3 py-2 border rounded-md focus:ring-emerald-500 focus:border-emerald-500 ${errors.phoneNumber ? 'border-red-500' : 'border-gray-300'}`}
                                 value={formData.phoneNumber}
-                                onChange={e => handleChange('phoneNumber', e.target.value)}
+                                onChange={e => {
+                                    const value = e.target.value.replace(/[^0-9]/g, '');
+                                    if (value.length <= 10) handleChange('phoneNumber', value);
+                                }}
                                 placeholder="9876543210"
+                                maxLength={10}
                             />
+                            {errors.phoneNumber && <p className="text-red-500 text-xs mt-1">{errors.phoneNumber}</p>}
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
                             <input
                                 type="email"
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500"
+                                name="email"
+                                className={`w-full px-3 py-2 border rounded-md focus:ring-emerald-500 focus:border-emerald-500 ${errors.email ? 'border-red-500' : 'border-gray-300'}`}
                                 value={formData.email}
                                 onChange={e => handleChange('email', e.target.value)}
                             />
+                            {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
                         </div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">WhatsApp</label>
                             <input
                                 type="text"
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500"
+                                name="whatsapp"
+                                className={`w-full px-3 py-2 border rounded-md focus:ring-emerald-500 focus:border-emerald-500 ${errors.whatsapp ? 'border-red-500' : 'border-gray-300'}`}
                                 value={formData.whatsapp}
-                                onChange={e => handleChange('whatsapp', e.target.value)}
+                                onChange={e => {
+                                    const value = e.target.value.replace(/[^0-9]/g, '');
+                                    if (value.length <= 10) handleChange('whatsapp', value);
+                                }}
                                 placeholder="9876543210"
+                                maxLength={10}
                             />
+                            {errors.whatsapp && <p className="text-red-500 text-xs mt-1">{errors.whatsapp}</p>}
                         </div>
                     </div>
                 </section>
@@ -211,11 +320,16 @@ export default function SupplierForm({ initialData, onSave, onCancel }: Supplier
                             <label className="block text-sm font-medium text-gray-700 mb-1">PIN Code</label>
                             <input
                                 type="text"
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500"
+                                name="pinCode"
+                                className={`w-full px-3 py-2 border rounded-md focus:ring-emerald-500 focus:border-emerald-500 ${errors.pinCode ? 'border-red-500' : 'border-gray-300'}`}
                                 value={formData.pinCode}
-                                onChange={e => handleChange('pinCode', e.target.value)}
+                                onChange={e => {
+                                    const value = e.target.value.replace(/[^0-9]/g, '');
+                                    if (value.length <= 6) handleChange('pinCode', value);
+                                }}
                                 maxLength={6}
                             />
+                            {errors.pinCode && <p className="text-red-500 text-xs mt-1">{errors.pinCode}</p>}
                         </div>
                     </div>
                 </section>
@@ -245,10 +359,15 @@ export default function SupplierForm({ initialData, onSave, onCancel }: Supplier
                             <label className="block text-sm font-medium text-gray-700 mb-1">Credit Limit (₹)</label>
                             <input
                                 type="number"
+                                name="creditLimit"
+                                min="0"
+                                step="1"
                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-emerald-500 focus:border-emerald-500"
                                 value={formData.creditLimit}
-                                onChange={e => handleChange('creditLimit', parseFloat(e.target.value) || 0)}
+                                onChange={e => handleChange('creditLimit', e.target.value)}
+                                placeholder="Enter credit limit (e.g., 50000)"
                             />
+                            <p className="text-xs text-gray-500 mt-1">Leave empty for no credit limit</p>
                         </div>
                     </div>
                 </section>

@@ -139,25 +139,74 @@ class OnboardingRepository {
                 );
             }
 
-            // Note: Suppliers are not store-specific in the schema
-            // They should be created separately via the supplier management API
+            // Create suppliers
+            if (suppliers && suppliers.length > 0) {
+                await Promise.all(
+                    suppliers.map((supplier) =>
+                        tx.supplier.create({
+                            data: {
+                                name: supplier.name,
+                                category: supplier.category || 'Distributor',
+                                status: 'Active',
+                                contactName: supplier.name,
+                                phoneNumber: supplier.phone,
+                                email: supplier.email || null,
+                                whatsapp: supplier.phone,
+                                gstin: supplier.gstin || null,
+                                dlNumber: supplier.dlNumber || null,
+                                pan: supplier.pan || null,
+                                addressLine1: supplier.deliveryArea || 'Not specified',
+                                city: 'Not specified',
+                                state: 'Not specified',
+                                pinCode: '000000',
+                                paymentTerms: supplier.creditTerms || 'COD',
+                            },
+                        })
+                    )
+                );
+            }
 
-            // Add additional users if provided (excluding current user)
+            // Create user accounts for team members
             if (users && users.length > 0) {
-                const additionalUsers = users.filter(user => (user.userId || userId) !== userId);
-                if (additionalUsers.length > 0) {
-                    await Promise.all(
-                        additionalUsers.map((user) =>
-                            tx.storeUser.create({
-                                data: {
-                                    storeId: store.id,
-                                    userId: user.userId,
-                                    isPrimary: false,
-                                },
-                            })
-                        )
-                    );
-                }
+                const bcrypt = require('bcrypt');
+                const defaultPassword = await bcrypt.hash('Change@123', 10);
+                
+                await Promise.all(
+                    users.map(async (user) => {
+                        // Map role to schema enum
+                        const roleMap = {
+                            'PHARMACIST': 'PHARMACIST',
+                            'MANAGER': 'PHARMACIST',
+                            'CASHIER': 'CASHIER',
+                            'ASSISTANT': 'TECHNICIAN',
+                            'TECHNICIAN': 'TECHNICIAN',
+                        };
+                        const mappedRole = roleMap[user.role.toUpperCase()] || 'PHARMACIST';
+                        
+                        // Create user account
+                        const newUser = await tx.user.create({
+                            data: {
+                                email: `${user.phone}@temp.hoperx.com`,
+                                phoneNumber: user.phone,
+                                passwordHash: defaultPassword,
+                                firstName: user.name.split(' ')[0] || user.name,
+                                lastName: user.name.split(' ').slice(1).join(' ') || '',
+                                role: mappedRole,
+                                approvalPin: user.pin,
+                                isActive: true,
+                            },
+                        });
+
+                        // Associate user with store
+                        await tx.storeUser.create({
+                            data: {
+                                storeId: store.id,
+                                userId: newUser.id,
+                                isPrimary: false,
+                            },
+                        });
+                    })
+                );
             }
 
             return store;

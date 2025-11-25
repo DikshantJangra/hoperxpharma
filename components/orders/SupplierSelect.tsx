@@ -1,10 +1,12 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Supplier } from '@/types/po';
+import { Supplier as ApiSupplier } from '@/lib/api/supplier';
 import { HiOutlineChevronDown, HiOutlineMagnifyingGlass } from 'react-icons/hi2';
 import SupplierForm from '@/components/inventory/suppliers/SupplierForm';
-import { FiPlus } from 'react-icons/fi';
+import { FiPlus, FiAlertCircle } from 'react-icons/fi';
 
 interface SupplierSelectProps {
   value?: Supplier;
@@ -13,29 +15,62 @@ interface SupplierSelectProps {
 
 export default function SupplierSelect({ value, onChange }: SupplierSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false); // New state for modal
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadSuppliers();
   }, []);
 
   const loadSuppliers = async () => {
-    // ... (keep existing loadSuppliers logic)
     setLoading(true);
+    setError(null);
     try {
-      // TODO: Replace with actual API call
-      const response = await fetch('/api/suppliers');
-      if (response.ok) {
-        const data = await response.json();
-        setSuppliers(data);
+      const { supplierApi } = await import('@/lib/api/supplier');
+      console.log('🔍 [SupplierSelect] Fetching suppliers...');
+
+      const response = await supplierApi.getSuppliers({
+        page: 1,
+        limit: 100, // Get more suppliers for selection
+        status: 'Active', // Only show active suppliers
+      });
+
+      console.log('📦 [SupplierSelect] API Response:', response);
+
+      let apiSuppliers: ApiSupplier[] = [];
+
+      // Handle direct array response or wrapped response
+      if (Array.isArray(response)) {
+        apiSuppliers = response;
+      } else if (response.success && response.data) {
+        apiSuppliers = response.data;
       } else {
-        setSuppliers([]);
+        console.warn('⚠️ [SupplierSelect] Unexpected response format:', response);
+        apiSuppliers = [];
       }
-    } catch (error) {
-      console.error('Failed to load suppliers:', error);
+
+      // Map API supplier format to PO supplier format
+      const mappedSuppliers: Supplier[] = apiSuppliers.map((apiSupplier) => ({
+        id: apiSupplier.id,
+        name: apiSupplier.name,
+        gstin: apiSupplier.gstin,
+        defaultLeadTimeDays: 7, // Default value, can be enhanced later
+        contact: {
+          email: apiSupplier.email,
+          phone: apiSupplier.phoneNumber,
+          whatsapp: apiSupplier.whatsapp,
+        },
+        paymentTerms: apiSupplier.paymentTerms || 'Net 30',
+      }));
+
+      console.log('✅ [SupplierSelect] Mapped suppliers:', mappedSuppliers.length);
+      setSuppliers(mappedSuppliers);
+    } catch (err: any) {
+      console.error('❌ [SupplierSelect] Failed to fetch suppliers:', err);
+      setError(err.message || 'Failed to load suppliers');
       setSuppliers([]);
     } finally {
       setLoading(false);
@@ -53,23 +88,55 @@ export default function SupplierSelect({ value, onChange }: SupplierSelectProps)
     setSearch('');
   };
 
-  const handleAddNew = (newSupplierData: any) => {
-    // In a real app, you'd save to DB first, then add to list
-    const newSupplier: Supplier = {
-      id: `sup_${Date.now()}`,
-      name: newSupplierData.name,
-      defaultLeadTimeDays: 7, // Default
-      contact: {
-        email: newSupplierData.contact?.email,
-        phone: newSupplierData.contact?.phone
-      },
-      paymentTerms: newSupplierData.paymentTerms
-    };
+  const handleAddNew = async (newSupplierData: any) => {
+    try {
+      console.log('💾 [SupplierSelect] Creating new supplier:', newSupplierData);
 
-    setSuppliers(prev => [...prev, newSupplier]);
-    onChange(newSupplier);
-    setIsAddModalOpen(false);
-    setIsOpen(false);
+      const { supplierApi } = await import('@/lib/api/supplier');
+
+      // Create supplier via API
+      const response = await supplierApi.createSupplier(newSupplierData);
+
+      console.log('✅ [SupplierSelect] Supplier created:', response);
+
+      let createdSupplier: ApiSupplier;
+      if (response.success && response.data) {
+        createdSupplier = response.data;
+      } else if (response.id) {
+        createdSupplier = response as ApiSupplier;
+      } else {
+        throw new Error('Invalid response from create supplier API');
+      }
+
+      // Map to PO supplier format
+      const newSupplier: Supplier = {
+        id: createdSupplier.id,
+        name: createdSupplier.name,
+        gstin: createdSupplier.gstin,
+        defaultLeadTimeDays: 7,
+        contact: {
+          email: createdSupplier.email,
+          phone: createdSupplier.phoneNumber,
+          whatsapp: createdSupplier.whatsapp,
+        },
+        paymentTerms: createdSupplier.paymentTerms || 'Net 30',
+      };
+
+      // Add to local list
+      setSuppliers(prev => [newSupplier, ...prev]);
+
+      // Set as selected supplier
+      onChange(newSupplier);
+
+      // Close modals
+      setIsAddModalOpen(false);
+      setIsOpen(false);
+
+      console.log('🎉 [SupplierSelect] Supplier created and selected:', newSupplier);
+    } catch (err: any) {
+      console.error('❌ [SupplierSelect] Failed to create supplier:', err);
+      alert(err.message || 'Failed to create supplier. Please try again.');
+    }
   };
 
   return (
@@ -77,7 +144,7 @@ export default function SupplierSelect({ value, onChange }: SupplierSelectProps)
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="relative w-64 bg-white border border-gray-300 rounded-md shadow-sm pl-3 pr-10 py-2 text-left cursor-default focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+        className="relative w-64 bg-white border border-gray-300 rounded-md shadow-sm pl-3 pr-10 py-2 text-left cursor-default focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
       >
         <span className="block truncate">
           {value ? value.name : 'Search supplier name or GSTIN...'}
@@ -97,7 +164,7 @@ export default function SupplierSelect({ value, onChange }: SupplierSelectProps)
                 placeholder="Search suppliers..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-9 pr-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="w-full pl-9 pr-3 py-1 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500"
                 autoFocus
               />
             </div>
@@ -109,10 +176,20 @@ export default function SupplierSelect({ value, onChange }: SupplierSelectProps)
             </button>
           </div>
 
+          {error && (
+            <div className="px-3 py-2 bg-red-50 border-b border-red-100 flex items-center gap-2 text-red-700 text-sm">
+              <FiAlertCircle size={14} />
+              <span>{error}</span>
+              <button onClick={loadSuppliers} className="ml-auto text-xs underline">Retry</button>
+            </div>
+          )}
+
           {loading ? (
             <div className="px-3 py-2 text-sm text-gray-500">Loading suppliers...</div>
           ) : filteredSuppliers.length === 0 ? (
-            <div className="px-3 py-2 text-sm text-gray-500">No suppliers found</div>
+            <div className="px-3 py-2 text-sm text-gray-500">
+              {search ? 'No suppliers found matching your search.' : 'No suppliers available. Click "Add New Supplier" to create one.'}
+            </div>
           ) : (
             filteredSuppliers.map((supplier) => (
               <button
@@ -138,15 +215,16 @@ export default function SupplierSelect({ value, onChange }: SupplierSelectProps)
       )}
 
       {/* Add Supplier Modal Overlay */}
-      {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      {isAddModalOpen && typeof window !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-white rounded-lg">
             <SupplierForm
               onSave={handleAddNew}
               onCancel={() => setIsAddModalOpen(false)}
             />
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

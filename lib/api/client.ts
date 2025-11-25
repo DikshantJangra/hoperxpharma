@@ -67,23 +67,70 @@ export class ApiError extends Error {
 /**
  * Base fetch wrapper with error handling
  */
+function isTokenExpiringSoon(token: string): boolean {
+    try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        const expiryTime = payload.exp * 1000;
+        const timeUntilExpiry = expiryTime - Date.now();
+        return timeUntilExpiry < 5 * 60 * 1000; // Less than 5 minutes
+    } catch {
+        return false;
+    }
+}
+
+let isRefreshing = false;
+let refreshPromise: Promise<void> | null = null;
+
+async function refreshTokenIfNeeded(): Promise<void> {
+    const token = tokenManager.getAccessToken();
+    if (!token || !isTokenExpiringSoon(token)) return;
+
+    if (isRefreshing) {
+        return refreshPromise!;
+    }
+
+    isRefreshing = true;
+    refreshPromise = (async () => {
+        try {
+            const response = await fetch(`${config.baseURL}/auth/refresh`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+            });
+            const data = await response.json();
+            if (data?.data?.accessToken) {
+                tokenManager.saveTokens(data.data.accessToken);
+            }
+        } catch (error) {
+            console.error('Token refresh failed:', error);
+        } finally {
+            isRefreshing = false;
+            refreshPromise = null;
+        }
+    })();
+
+    return refreshPromise;
+}
+
 async function baseFetch(
     endpoint: string,
     options: RequestInit = {}
 ): Promise<any> {
+    // Auto-refresh token if needed (except for auth endpoints)
+    if (!endpoint.includes('/auth/')) {
+        await refreshTokenIfNeeded();
+    }
+
     const url = `${config.baseURL}${endpoint}`;
 
     const headers: Record<string, string> = {
         'Content-Type': 'application/json',
     };
 
-    // Merge custom headers
     if (options.headers) {
         const customHeaders = options.headers as Record<string, string>;
         Object.assign(headers, customHeaders);
     }
 
-    // Add auth token if available
     const token = tokenManager.getAccessToken();
     if (token) {
         headers['Authorization'] = `Bearer ${token}`;
@@ -101,13 +148,11 @@ async function baseFetch(
 
         clearTimeout(timeoutId);
 
-        // Try to parse JSON, but handle cases where response body is empty or invalid
         let data: any;
         try {
             const text = await response.text();
             data = text ? JSON.parse(text) : {};
         } catch (parseError) {
-            // If JSON parsing fails, use empty object
             data = {};
         }
 

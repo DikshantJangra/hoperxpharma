@@ -33,18 +33,32 @@ export default function SupplierList({ onAddClick, onRefresh }: SupplierListProp
         setError(null);
         try {
             const { supplierApi } = await import('@/lib/api/supplier');
+            console.log('🔍 Fetching suppliers with params:', { page, limit, search: searchTerm });
+            
             const response = await supplierApi.getSuppliers({
                 page,
                 limit,
                 search: searchTerm || undefined,
             });
 
-            if (response.success) {
-                setSuppliers(response.data || []);
-                setTotal(response.pagination?.total || 0);
+            console.log('📦 API Response:', response);
+
+            // Handle direct array response or wrapped response
+            if (Array.isArray(response)) {
+                console.log('✅ Suppliers fetched (direct array):', response.length);
+                setSuppliers(response);
+                setTotal(response.length);
+            } else if (response.success && response.data) {
+                console.log('✅ Suppliers fetched (wrapped):', response.data.length);
+                setSuppliers(response.data);
+                setTotal(response.pagination?.total || response.data.length);
+            } else {
+                console.warn('⚠️ Unexpected response format:', response);
+                setSuppliers([]);
             }
         } catch (err: any) {
-            console.error('Failed to fetch suppliers:', err);
+            console.error('❌ Failed to fetch suppliers:', err);
+            console.error('Error details:', { message: err.message, statusCode: err.statusCode });
             setError(err.message || 'Failed to load suppliers');
             setSuppliers([]);
         } finally {
@@ -80,6 +94,8 @@ export default function SupplierList({ onAddClick, onRefresh }: SupplierListProp
     };
 
     const totalPages = Math.ceil(total / limit);
+
+    console.log('🎬 Rendering with:', { isLoading, suppliersCount: suppliers.length, suppliers });
 
     return (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200">
@@ -136,7 +152,7 @@ export default function SupplierList({ onAddClick, onRefresh }: SupplierListProp
                                 <SupplierRowSkeleton />
                                 <SupplierRowSkeleton />
                             </>
-                        ) : suppliers.length > 0 ? (
+                        ) : suppliers && suppliers.length > 0 ? (
                             suppliers.map((supplier) => (
                                 <tr key={supplier.id} className="hover:bg-gray-50 group">
                                     <td className="px-6 py-4">

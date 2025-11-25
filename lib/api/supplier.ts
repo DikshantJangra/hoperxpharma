@@ -59,7 +59,7 @@ export const supplierApi = {
         if (params.status) query.append('status', params.status);
 
         const response = await apiClient.get(`/suppliers?${query.toString()}`);
-        return response.data;
+        return response;
     },
 
     /**
@@ -67,7 +67,7 @@ export const supplierApi = {
      */
     async getSupplierById(id: string) {
         const response = await apiClient.get(`/suppliers/${id}`);
-        return response.data;
+        return response;
     },
 
     /**
@@ -75,7 +75,7 @@ export const supplierApi = {
      */
     async createSupplier(data: Partial<Supplier>) {
         const response = await apiClient.post('/suppliers', data);
-        return response.data;
+        return response;
     },
 
     /**
@@ -83,7 +83,7 @@ export const supplierApi = {
      */
     async updateSupplier(id: string, data: Partial<Supplier>) {
         const response = await apiClient.put(`/suppliers/${id}`, data);
-        return response.data;
+        return response;
     },
 
     /**
@@ -91,7 +91,7 @@ export const supplierApi = {
      */
     async deleteSupplier(id: string) {
         const response = await apiClient.delete(`/suppliers/${id}`);
-        return response.data;
+        return response;
     },
 
     /**
@@ -99,6 +99,6 @@ export const supplierApi = {
      */
     async getStats(): Promise<{ success: boolean; data: SupplierStats }> {
         const response = await apiClient.get('/suppliers/stats');
-        return response.data;
+        return response;
     }
 };
