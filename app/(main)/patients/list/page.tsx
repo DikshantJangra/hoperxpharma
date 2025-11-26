@@ -10,9 +10,11 @@ import RefillModal from "@/components/patients/RefillModal";
 import MessageComposer from "@/components/patients/MessageComposer";
 import BulkActionsBar from "@/components/patients/BulkActionsBar";
 import { usePatients } from "@/hooks/usePatients";
+import { useAuthStore } from "@/lib/store/auth-store";
 
 export default function PatientsListPage() {
-  const { patients, loading, page, setPage, totalPages, search, setSearch, filters, setFilters, refresh } = usePatients("store_01");
+  const { primaryStore } = useAuthStore();
+  const { patients, loading, error, page, setPage, totalPages, search, setSearch, filters, setFilters, refresh } = usePatients(primaryStore?.id || "");
   const [selectedPatient, setSelectedPatient] = React.useState<any>(null);
   const [showNewModal, setShowNewModal] = React.useState(false);
   const [showRefillModal, setShowRefillModal] = React.useState<any>(null);
@@ -21,7 +23,7 @@ export default function PatientsListPage() {
   const [showFilters, setShowFilters] = React.useState(true);
 
   const handleSelectRow = (id: string) => {
-    setSelectedRows(prev => 
+    setSelectedRows(prev =>
       prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
     );
   };
@@ -62,8 +64,8 @@ export default function PatientsListPage() {
               <BulkActionsBar
                 selectedCount={selectedRows.length}
                 onClear={() => setSelectedRows([])}
-                onExport={() => {}}
-                onMessage={() => {}}
+                onExport={() => { }}
+                onMessage={() => { }}
               />
             )}
 
@@ -88,6 +90,16 @@ export default function PatientsListPage() {
               <div className="divide-y divide-gray-100">
                 {loading ? (
                   <div className="p-8 text-center text-gray-500">Loading patients...</div>
+                ) : error ? (
+                  <div className="p-8 text-center">
+                    <p className="text-red-500 mb-2">{error}</p>
+                    <button
+                      onClick={refresh}
+                      className="text-sm text-teal-600 hover:text-teal-700"
+                    >
+                      Try again
+                    </button>
+                  </div>
                 ) : patients.length === 0 ? (
                   <div className="p-8 text-center">
                     <p className="text-gray-500 mb-2">No patients found.</p>

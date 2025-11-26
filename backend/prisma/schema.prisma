@@ -60,6 +60,23 @@ enum POStatus {
   CANCELLED
 }
 
+enum ReturnStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  COMPLETED
+  CANCELLED
+}
+
+enum ReturnReason {
+  DAMAGED
+  EXPIRED
+  WRONG_ITEM
+  QUALITY_ISSUE
+  OVERSTOCKED
+  OTHER
+}
+
 enum PaymentMethod {
   CASH
   CARD
@@ -114,6 +131,10 @@ model User {
   auditLogs     AuditLog[]
   accessLogs    AccessLog[]
   onboarding    OnboardingProgress?
+  returnsRequested SupplierReturn[] @relation("ReturnRequester")
+  returnsApproved  SupplierReturn[] @relation("ReturnApprover")
+  userRoles     UserRoleAssignment[]
+  adminPin      AdminPin?
   
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -142,21 +163,33 @@ model Role {
   id            String   @id @default(cuid())
   name          String   @unique
   description   String?
+  builtIn       Boolean  @default(false)
+  category      String?  // e.g., "clinical", "administrative", "system"
   
   permissions   RolePermission[]
+  userRoles     UserRoleAssignment[]
   
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  
+  @@index([builtIn])
+  @@index([category])
 }
 
 model Permission {
   id            String   @id @default(cuid())
-  name          String   @unique // e.g., "prescription:create"
+  code          String   @unique // e.g., "patient.create"
+  name          String   // Human-readable name
   description   String?
+  category      String   // e.g., "patient", "prescription", "inventory"
+  resource      String?  // e.g., "patient", "prescription"
   
   roles         RolePermission[]
   
   createdAt     DateTime @default(now())
+  
+  @@index([category])
+  @@index([resource])
 }
 
 model RolePermission {
@@ -181,6 +214,42 @@ model StoreUser {
   
   @@id([userId, storeId])
   @@index([storeId])
+}
+
+model UserRoleAssignment {
+  id            String   @id @default(cuid())
+  userId        String
+  roleId        String
+  storeId       String?  // NULL = global role, else store-specific
+  
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role          Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  store         Store?   @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  
+  assignedAt    DateTime @default(now())
+  assignedBy    String?  // User ID who assigned this role
+  
+  @@unique([userId, roleId, storeId])
+  @@index([userId])
+  @@index([roleId])
+  @@index([storeId])
+}
+
+model AdminPin {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  pinHash       String
+  salt          String
+  failedAttempts Int     @default(0)
+  lockedUntil   DateTime?
+  
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  lastUsedAt    DateTime?
+  
+  @@index([userId])
 }
 
 model Store {
@@ -209,6 +278,7 @@ model Store {
   operatingHours StoreOperatingHours[]
   devices       HardwareDevice[]
   subscription  Subscription?
+  userRoles     UserRoleAssignment[]
   
   // Relations to other tables
   patients      Patient[]
@@ -220,6 +290,7 @@ model Store {
   campaigns     Campaign[]
   auditLogs     AuditLog[]
   alerts        Alert[]
+  returns       SupplierReturn[]
   
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -480,6 +551,7 @@ model Drug {
   prescriptionItems PrescriptionItem[]
   poItems       PurchaseOrderItem[]
   saleItems     SaleItem[]
+  returnItems   SupplierReturnItem[]
   
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -763,6 +835,7 @@ model Supplier {
   
   licenses      SupplierLicense[]
   purchaseOrders PurchaseOrder[]
+  returns       SupplierReturn[]
   
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -811,6 +884,7 @@ model PurchaseOrder {
   supplier      Supplier @relation(fields: [supplierId], references: [id])
   items         PurchaseOrderItem[]
   receipts      POReceipt[]
+  returns       SupplierReturn[]
   
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -850,6 +924,106 @@ model POReceipt {
   createdAt     DateTime @default(now())
   
   @@index([poId])
+}
+
+model POTemplate {
+  id            String   @id @default(cuid())
+  storeId       String
+  name          String
+  description   String?
+  supplierId    String?
+  
+  paymentTerms  String?
+  notes         String?
+  
+  items         POTemplateItem[]
+  
+  createdBy     String
+  isActive      Boolean  @default(true)
+  usageCount    Int      @default(0)
+  lastUsedAt    DateTime?
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  deletedAt     DateTime?
+  
+  @@index([storeId, isActive])
+  @@index([storeId, deletedAt])
+}
+
+model POTemplateItem {
+  id            String   @id @default(cuid())
+  templateId    String
+  drugId        String
+  quantity      Int
+  unitPrice     Decimal? @db.Decimal(10, 2)
+  discountPercent Decimal @db.Decimal(5, 2) @default(0)
+  
+  template      POTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  
+  @@index([templateId])
+}
+
+
+model SupplierReturn {
+  id                String   @id @default(cuid())
+  returnNumber      String   @unique
+  poId              String
+  po                PurchaseOrder @relation(fields: [poId], references: [id], onDelete: Cascade)
+  storeId           String
+  store             Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  supplierId        String
+  supplier          Supplier @relation(fields: [supplierId], references: [id])
+  
+  status            ReturnStatus @default(PENDING)
+  reason            String
+  notes             String?
+  
+  items             SupplierReturnItem[]
+  
+  subtotal          Decimal  @db.Decimal(10, 2)
+  taxAmount         Decimal  @db.Decimal(10, 2)
+  total             Decimal  @db.Decimal(10, 2)
+  
+  requestedBy       String
+  requestedByUser   User     @relation("ReturnRequester", fields: [requestedBy], references: [id])
+  approvedBy        String?
+  approvedByUser    User?    @relation("ReturnApprover", fields: [approvedBy], references: [id])
+  approvedAt        DateTime?
+  completedAt       DateTime?
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  deletedAt         DateTime?
+  
+  @@index([poId])
+  @@index([storeId])
+  @@index([supplierId])
+  @@index([status])
+  @@index([deletedAt])
+}
+
+model SupplierReturnItem {
+  id                String   @id @default(cuid())
+  returnId          String
+  return            SupplierReturn @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  
+  drugId            String
+  drug              Drug     @relation(fields: [drugId], references: [id])
+  batchNumber       String
+  expiryDate        DateTime
+  
+  quantity          Int
+  unitPrice         Decimal  @db.Decimal(10, 2)
+  lineTotal         Decimal  @db.Decimal(10, 2)
+  
+  reason            ReturnReason
+  notes             String?
+  
+  createdAt         DateTime @default(now())
+  
+  @@index([returnId])
+  @@index([drugId])
 }
 
 // ============================================================================

@@ -1,97 +1,130 @@
-const { z } = require('zod');
+const Joi = require('joi');
 
 /**
- * Supplier creation schema
+ * Validation schemas for Purchase Orders
  */
-const supplierCreateSchema = z.object({
-    name: z.string().min(1, 'Name is required'),
-    category: z.enum(['Distributor', 'Manufacturer', 'Wholesaler']),
-    status: z.enum(['Active', 'Inactive']).default('Active'),
-    gstin: z.string().optional(),
-    dlNumber: z.string().optional(),
-    pan: z.string().optional(),
-    contactName: z.string().min(1, 'Contact name is required'),
-    phoneNumber: z.string().regex(/^[6-9]\d{9}$/, 'Invalid Indian phone number'),
-    email: z.string().email().optional(),
-    whatsapp: z.string().optional(),
-    addressLine1: z.string().min(1, 'Address is required'),
-    addressLine2: z.string().optional(),
-    city: z.string().min(1, 'City is required'),
-    state: z.string().min(1, 'State is required'),
-    pinCode: z.string().regex(/^\d{6}$/, 'Invalid PIN code'),
-    paymentTerms: z.string().optional(),
-    creditLimit: z.number().positive().optional(),
+
+const poLineItemSchema = Joi.object({
+    lineId: Joi.string().optional(),
+    drugId: Joi.string().required(),
+    description: Joi.string().required(),
+    packUnit: Joi.string().optional(),
+    packSize: Joi.number().optional(),
+    qty: Joi.number().min(1).required(),
+    unit: Joi.string().optional(),
+    pricePerUnit: Joi.number().min(0).required(),
+    discountPercent: Joi.number().min(0).max(100).default(0),
+    gstPercent: Joi.number().valid(0, 5, 12, 18, 28).required(),
+    lineNet: Joi.number().min(0).optional(),
+    lastPurchasePrice: Joi.number().optional(),
+    suggestedQty: Joi.number().optional(),
+    reorderReason: Joi.string().optional(),
+    preferredBatch: Joi.string().optional(),
+    notes: Joi.string().optional(),
+    moq: Joi.number().optional()
 });
 
-/**
- * Supplier update schema
- */
-const supplierUpdateSchema = supplierCreateSchema.partial();
-
-/**
- * PO item schema
- */
-const poItemSchema = z.object({
-    drugId: z.string().cuid(),
-    quantity: z.number().int().positive(),
-    unitPrice: z.number().positive(),
-    discountPercent: z.number().min(0).max(100).default(0),
-    gstPercent: z.number().min(0).max(100),
-    lineTotal: z.number().positive(),
+const poCreateSchema = Joi.object({
+    supplierId: Joi.string().required(),
+    items: Joi.array().items(poLineItemSchema).min(1).required(),
+    expectedDeliveryDate: Joi.date().optional(),
+    paymentTerms: Joi.string().optional(),
+    subtotal: Joi.number().min(0).required(),
+    taxAmount: Joi.number().min(0).required(),
+    total: Joi.number().min(0).required(),
+    currency: Joi.string().default('INR'),
+    notes: Joi.string().optional()
 });
 
-/**
- * Purchase order creation schema
- */
-const poCreateSchema = z.object({
-    storeId: z.string().cuid(),
-    supplierId: z.string().cuid(),
-    items: z.array(poItemSchema).min(1, 'At least one item is required'),
-    expectedDeliveryDate: z.string().datetime().optional(),
-    subtotal: z.number().positive(),
-    taxAmount: z.number().min(0),
-    total: z.number().positive(),
-    paymentTerms: z.string().optional(),
-    createdBy: z.string().cuid(),
+const poUpdateSchema = Joi.object({
+    supplierId: Joi.string().optional(),
+    items: Joi.array().items(poLineItemSchema).optional(),
+    expectedDeliveryDate: Joi.date().optional(),
+    paymentTerms: Joi.string().optional(),
+    subtotal: Joi.number().min(0).optional(),
+    taxAmount: Joi.number().min(0).optional(),
+    total: Joi.number().min(0).optional(),
+    status: Joi.string().valid('DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'SENT', 'PARTIALLY_RECEIVED', 'RECEIVED', 'CLOSED', 'CANCELLED').optional(),
+    notes: Joi.string().optional()
 });
 
-/**
- * PO receipt item schema
- */
-const receiptItemSchema = z.object({
-    drugId: z.string().cuid(),
-    quantityReceived: z.number().int().positive(),
-    batchNumber: z.string().min(1),
-    expiryDate: z.string().datetime(),
-    mrp: z.number().positive(),
-    purchasePrice: z.number().positive(),
+const poValidateSchema = Joi.object({
+    supplier: Joi.object().optional(),
+    supplierId: Joi.string().optional(),
+    lines: Joi.array().items(poLineItemSchema).min(1).required(),
+    subtotal: Joi.number().min(0).required(),
+    total: Joi.number().min(0).required()
+}).or('supplier', 'supplierId'); // At least one must be present
+
+const supplierCreateSchema = Joi.object({
+    name: Joi.string().required(),
+    category: Joi.string().valid('Distributor', 'Manufacturer', 'Wholesaler').required(),
+    status: Joi.string().valid('Active', 'Inactive').default('Active'),
+    gstin: Joi.string().pattern(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/).optional(),
+    dlNumber: Joi.string().optional(),
+    pan: Joi.string().pattern(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/).optional(),
+    contactName: Joi.string().required(),
+    phoneNumber: Joi.string().required(),
+    email: Joi.string().email().optional(),
+    whatsapp: Joi.string().optional(),
+    addressLine1: Joi.string().required(),
+    addressLine2: Joi.string().optional(),
+    city: Joi.string().required(),
+    state: Joi.string().required(),
+    pinCode: Joi.string().required(),
+    paymentTerms: Joi.string().optional(),
+    creditLimit: Joi.number().optional()
 });
 
-/**
- * PO receipt creation schema
- */
-const receiptCreateSchema = z.object({
-    poId: z.string().cuid(),
-    receivedBy: z.string().cuid(),
-    notes: z.string().optional(),
-    itemsReceived: z.array(receiptItemSchema).min(1, 'At least one item is required'),
+const supplierUpdateSchema = Joi.object({
+    name: Joi.string().optional(),
+    category: Joi.string().valid('Distributor', 'Manufacturer', 'Wholesaler').optional(),
+    status: Joi.string().valid('Active', 'Inactive').optional(),
+    gstin: Joi.string().pattern(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/).optional(),
+    dlNumber: Joi.string().optional(),
+    pan: Joi.string().pattern(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/).optional(),
+    contactName: Joi.string().optional(),
+    phoneNumber: Joi.string().optional(),
+    email: Joi.string().email().optional(),
+    whatsapp: Joi.string().optional(),
+    addressLine1: Joi.string().optional(),
+    addressLine2: Joi.string().optional(),
+    city: Joi.string().optional(),
+    state: Joi.string().optional(),
+    pinCode: Joi.string().optional(),
+    paymentTerms: Joi.string().optional(),
+    creditLimit: Joi.number().optional()
 });
 
-/**
- * Query parameters schema
- */
-const poQuerySchema = z.object({
-    page: z.string().transform(Number).pipe(z.number().int().positive()).optional(),
-    limit: z.string().transform(Number).pipe(z.number().int().positive().max(100)).optional(),
-    status: z.enum(['DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'SENT', 'PARTIALLY_RECEIVED', 'RECEIVED', 'CLOSED', 'CANCELLED']).optional(),
-    supplierId: z.string().cuid().optional(),
-    search: z.string().optional(),
+const receiptCreateSchema = Joi.object({
+    poId: Joi.string().required(),
+    notes: Joi.string().optional(),
+    itemsReceived: Joi.array().items(
+        Joi.object({
+            drugId: Joi.string().required(),
+            quantityReceived: Joi.number().min(1).required(),
+            batchNumber: Joi.string().required(),
+            expiryDate: Joi.date().required(),
+            mrp: Joi.number().min(0).required(),
+            purchasePrice: Joi.number().min(0).required()
+        })
+    ).min(1).required()
+});
+
+const poQuerySchema = Joi.object({
+    page: Joi.number().min(1).optional(),
+    limit: Joi.number().min(1).max(100).optional(),
+    status: Joi.string().optional(), // Can be single or comma-separated values like "SENT,PARTIALLY_RECEIVED"
+    supplierId: Joi.string().optional(),
+    search: Joi.string().optional()
 });
 
 module.exports = {
+    poCreateSchema,
+    poUpdateSchema,
+    poValidateSchema,
     supplierCreateSchema,
     supplierUpdateSchema,
-    poCreateSchema,
     receiptCreateSchema,
-    poQuerySchema,
+    poQuerySchema
 };

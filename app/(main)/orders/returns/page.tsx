@@ -56,19 +56,11 @@ export default function ReturnsPage() {
     }, [])
 
     const handleSubmitReturn = (returnData: ReturnData) => {
-        const newReturn: ReturnRequest = {
-            id: String(returns.length + 1),
-            poNumber: returnData.poNumber,
-            supplier: 'ABC Pharma', // Mock
-            date: new Date().toISOString().split('T')[0],
-            items: returnData.items.length,
-            amount: 15000, // Mock
-            status: 'pending',
-            reason: returnData.items[0]?.reason || 'Other'
-        };
-        setReturns([newReturn, ...returns]);
+        // TODO: Implement when backend API is ready
+        // POST /api/v1/returns
+        console.log('Return request:', returnData);
+        alert('Returns API not yet implemented. Backend endpoints needed.');
         setShowForm(false);
-        alert('Return request submitted successfully!');
     };
 
     // Calculate stats
@@ -109,9 +101,9 @@ export default function ReturnsPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 {isLoading ? (
                     <>
-                        <StatCardSkeleton/>
-                        <StatCardSkeleton/>
-                        <StatCardSkeleton/>
+                        <StatCardSkeleton />
+                        <StatCardSkeleton />
+                        <StatCardSkeleton />
                     </>
                 ) : (
                     <>
@@ -188,9 +180,9 @@ export default function ReturnsPage() {
                         <tbody className="bg-white divide-y divide-gray-200">
                             {isLoading ? (
                                 <>
-                                    <ReturnRowSkeleton/>
-                                    <ReturnRowSkeleton/>
-                                    <ReturnRowSkeleton/>
+                                    <ReturnRowSkeleton />
+                                    <ReturnRowSkeleton />
+                                    <ReturnRowSkeleton />
                                 </>
                             ) : returns.length > 0 ? (
                                 returns.map((returnReq) => (

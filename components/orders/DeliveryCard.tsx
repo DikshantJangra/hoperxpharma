@@ -32,7 +32,7 @@ export default function DeliveryCard({ value, expectedDate, onChange, onDateChan
           Delivery Details
         </h3>
       </div>
-      
+
       <div className="p-4 grid grid-cols-2 gap-4">
         <div className="col-span-2">
           <label className="block text-xs font-medium text-gray-700 mb-1">
@@ -46,7 +46,7 @@ export default function DeliveryCard({ value, expectedDate, onChange, onDateChan
             className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
         </div>
-        
+
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-1">
             City
@@ -59,7 +59,7 @@ export default function DeliveryCard({ value, expectedDate, onChange, onDateChan
             className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
         </div>
-        
+
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-1">
             PIN Code
@@ -72,7 +72,7 @@ export default function DeliveryCard({ value, expectedDate, onChange, onDateChan
             className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"
           />
         </div>
-        
+
         <div className="col-span-2">
           <label className="block text-xs font-medium text-gray-700 mb-1 flex items-center gap-1">
             <MdCalendarToday className="h-3 w-3" />
@@ -80,7 +80,7 @@ export default function DeliveryCard({ value, expectedDate, onChange, onDateChan
           </label>
           <input
             type="date"
-            value={expectedDate || ''}
+            value={expectedDate ? expectedDate.split('T')[0] : ''}
             onChange={(e) => onDateChange(e.target.value)}
             min={new Date().toISOString().split('T')[0]}
             className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-1 focus:ring-blue-500"

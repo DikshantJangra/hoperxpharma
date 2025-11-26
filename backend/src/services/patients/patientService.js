@@ -10,7 +10,14 @@ class PatientService {
      * Get all patients with pagination
      */
     async getPatients(filters) {
-        return await patientRepository.findPatients(filters);
+        // Parse pagination parameters to integers
+        const parsedFilters = {
+            ...filters,
+            page: filters.page ? parseInt(filters.page) : 1,
+            limit: filters.limit ? parseInt(filters.limit) : 20,
+        };
+
+        return await patientRepository.findPatients(parsedFilters);
     }
 
     /**
@@ -154,6 +161,182 @@ class PatientService {
      */
     async getPatientStats(storeId) {
         return await patientRepository.getPatientStats(storeId);
+    }
+
+    /**
+     * Get patient history timeline
+     */
+    async getPatientHistory(patientId, filters) {
+        const historyData = await patientRepository.getPatientHistory(patientId, filters);
+
+        if (!historyData) {
+            throw ApiError.notFound('Patient not found');
+        }
+
+        // Format history into timeline events
+        const events = [];
+
+        // Add prescription events
+        historyData.prescriptions.forEach((prescription) => {
+            events.push({
+                eventId: `prescription_${prescription.id}`,
+                type: 'prescription',
+                date: prescription.createdAt,
+                title: 'Prescription Created',
+                description: `${prescription.items.length} medication(s) prescribed by Dr. ${prescription.prescriber.name}`,
+                status: prescription.status,
+                data: prescription,
+            });
+        });
+
+        // Add sale events
+        historyData.sales.forEach((sale) => {
+            events.push({
+                eventId: `sale_${sale.id}`,
+                type: 'sale',
+                date: sale.createdAt,
+                title: 'Purchase Made',
+                description: `${sale.items.length} item(s) purchased - ₹${sale.totalAmount}`,
+                status: 'completed',
+                data: sale,
+            });
+        });
+
+        // Add consent events
+        historyData.consents.forEach((consent) => {
+            events.push({
+                eventId: `consent_${consent.id}`,
+                type: 'consent',
+                date: consent.grantedDate,
+                title: `Consent: ${consent.type}`,
+                description: `Status: ${consent.status}`,
+                status: consent.status,
+                data: consent,
+            });
+        });
+
+        // Add adherence events
+        historyData.adherence.forEach((adherence) => {
+            events.push({
+                eventId: `adherence_${adherence.id}`,
+                type: 'adherence',
+                date: adherence.actualRefillDate || adherence.expectedRefillDate,
+                title: 'Medication Refill',
+                description: `Adherence rate: ${Math.round(adherence.adherenceRate * 100)}%`,
+                status: adherence.actualRefillDate ? 'completed' : 'pending',
+                data: adherence,
+            });
+        });
+
+        // Sort events by date (most recent first)
+        events.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        // Group events by date
+        const groupedEvents = {};
+        events.forEach((event) => {
+            const dateKey = new Date(event.date).toISOString().split('T')[0];
+            if (!groupedEvents[dateKey]) {
+                groupedEvents[dateKey] = [];
+            }
+            groupedEvents[dateKey].push(event);
+        });
+
+        return {
+            patient: historyData.patient,
+            events: {
+                all: events,
+                groups: Object.entries(groupedEvents).map(([date, items]) => ({
+                    date,
+                    events: items,
+                })),
+            },
+        };
+    }
+
+    /**
+     * Get refills due
+     */
+    async getRefillsDue(storeId, filters) {
+        return await patientRepository.getRefillsDue(storeId, filters);
+    }
+
+    /**
+     * Process a refill
+     */
+    async processRefill(patientId, refillData) {
+        const patient = await patientRepository.findById(patientId);
+
+        if (!patient) {
+            throw ApiError.notFound('Patient not found');
+        }
+
+        // Create adherence record if not exists
+        const adherence = await patientRepository.createAdherence({
+            patientId,
+            prescriptionId: refillData.prescriptionId,
+            expectedRefillDate: refillData.expectedRefillDate,
+            actualRefillDate: new Date(),
+            adherenceRate: refillData.adherenceRate || 1.0,
+        });
+
+        logger.info(`Refill processed for patient ${patientId}`);
+
+        return adherence;
+    }
+
+    /**
+     * Get adherence data for a patient
+     */
+    async getAdherence(patientId) {
+        const patient = await patientRepository.findById(patientId);
+
+        if (!patient) {
+            throw ApiError.notFound('Patient not found');
+        }
+
+        const [adherenceRecords, stats] = await Promise.all([
+            patientRepository.getAdherence(patientId),
+            patientRepository.getAdherenceStats(patientId),
+        ]);
+
+        return {
+            records: adherenceRecords,
+            stats,
+        };
+    }
+
+    /**
+     * Record adherence
+     */
+    async recordAdherence(patientId, adherenceData) {
+        const patient = await patientRepository.findById(patientId);
+
+        if (!patient) {
+            throw ApiError.notFound('Patient not found');
+        }
+
+        const adherence = await patientRepository.createAdherence({
+            ...adherenceData,
+            patientId,
+        });
+
+        logger.info(`Adherence recorded for patient ${patientId}`);
+
+        return adherence;
+    }
+
+    /**
+     * Get all consents (for consents page)
+     */
+    async getAllConsents(storeId, filters) {
+        // Parse pagination parameters to integers
+        const parsedFilters = {
+            ...filters,
+            page: filters.page ? parseInt(filters.page) : 1,
+            limit: filters.limit ? parseInt(filters.limit) : 20,
+        };
+
+        return await patientRepository.getAllConsents(storeId, parsedFilters);
     }
 }
 

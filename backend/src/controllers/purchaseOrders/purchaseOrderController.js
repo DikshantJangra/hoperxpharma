@@ -74,6 +74,16 @@ const createPO = asyncHandler(async (req, res) => {
     res.status(response.statusCode).json(response);
 });
 
+const updatePO = asyncHandler(async (req, res) => {
+    const po = await purchaseOrderService.updatePO(req.params.id, {
+        ...req.body,
+        storeId: req.storeId,
+    });
+
+    const response = ApiResponse.success(po, 'Purchase order updated successfully');
+    res.status(response.statusCode).json(response);
+});
+
 const approvePO = asyncHandler(async (req, res) => {
     const po = await purchaseOrderService.approvePO(req.params.id, req.user.id);
 
@@ -105,6 +115,97 @@ const getPOStats = asyncHandler(async (req, res) => {
     res.status(response.statusCode).json(response);
 });
 
+const validatePO = asyncHandler(async (req, res) => {
+    const validation = await purchaseOrderService.validatePO(req.body);
+
+    const response = ApiResponse.success(validation);
+    res.status(response.statusCode).json(response);
+});
+
+const requestApproval = asyncHandler(async (req, res) => {
+    const { approvers, note } = req.body;
+    const poId = req.params.id;
+
+    const result = await purchaseOrderService.requestApproval({
+        poId,
+        requestedBy: req.user.id,
+        approvers,
+        note
+    });
+
+    const response = ApiResponse.success(result, 'Approval request sent successfully');
+    res.status(response.statusCode).json(response);
+});
+
+const getInventorySuggestions = asyncHandler(async (req, res) => {
+    const { limit = 100 } = req.query;
+
+    const suggestions = await purchaseOrderService.getInventorySuggestions({
+        storeId: req.storeId,
+        limit: parseInt(limit),
+    });
+
+    const response = ApiResponse.success(suggestions);
+    res.status(response.statusCode).json(response);
+});
+
+const pdfService = require('../../services/pdf/pdfService');
+
+const getPreviewPdf = asyncHandler(async (req, res) => {
+    const po = await purchaseOrderService.getPOById(req.params.id);
+
+    if (!po) {
+        throw new ApiError(404, 'Purchase order not found');
+    }
+
+    const pdfBuffer = await pdfService.generatePOPdf(po);
+
+    res.set({
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename=PO-${po.poNumber}.pdf`,
+        'Content-Length': pdfBuffer.length
+    });
+
+    res.send(pdfBuffer);
+});
+
+/**
+ * Efficient PO Composer Controllers
+ */
+
+const calculatePO = asyncHandler(async (req, res) => {
+    const { lines } = req.body;
+
+    if (!lines || !Array.isArray(lines)) {
+        throw new ApiError(400, 'Lines array is required');
+    }
+
+    const result = purchaseOrderService.calculateTotals(lines);
+
+    const response = ApiResponse.success(result);
+    res.status(response.statusCode).json(response);
+});
+
+const bulkAddItems = asyncHandler(async (req, res) => {
+    const { items, supplierId } = req.body;
+
+    if (!items || !Array.isArray(items)) {
+        throw new ApiError(400, 'Items array is required');
+    }
+
+    const enrichedLines = await purchaseOrderService.bulkEnrichItems(items, supplierId);
+
+    const response = ApiResponse.success({ lines: enrichedLines });
+    res.status(response.statusCode).json(response);
+});
+
+const autosavePO = asyncHandler(async (req, res) => {
+    const result = await purchaseOrderService.autosavePO(req.params.id, req.body);
+
+    const response = ApiResponse.success(result, 'Draft autosaved');
+    res.status(response.statusCode).json(response);
+});
+
 module.exports = {
     getSuppliers,
     getSupplierById,
@@ -113,8 +214,17 @@ module.exports = {
     getPurchaseOrders,
     getPOById,
     createPO,
+    updatePO,
+    requestApproval,
     approvePO,
     sendPO,
     createReceipt,
     getPOStats,
+    getInventorySuggestions,
+    validatePO,
+    getPreviewPdf,
+    // Efficient PO Composer
+    calculatePO,
+    bulkAddItems,
+    autosavePO,
 };

@@ -8,15 +8,7 @@ const { specs, swaggerUi } = require('./config/swagger');
 const requestLogger = require('./middlewares/requestLogger');
 const { generalLimiter } = require('./middlewares/rateLimiter');
 const { errorHandler, notFoundHandler } = require('./middlewares/errorHandler');
-const authRoutes = require('./routes/v1/auth.routes');
-const userRoutes = require('./routes/v1/user.routes');
-const storeRoutes = require('./routes/v1/stores.routes');
-const inventoryRoutes = require('./routes/v1/inventory.routes');
-const patientRoutes = require('./routes/v1/patients.routes');
-const salesRoutes = require('./routes/v1/sales.routes');
-const purchaseOrderRoutes = require('./routes/v1/purchaseOrders.routes');
-const supplierRoutes = require('./routes/v1/suppliers.routes');
-const onboardingRoutes = require('./routes/v1/onboarding.routes');
+const routes = require('./routes/v1');
 const logger = require('./config/logger');
 
 // Validate environment variables
@@ -81,15 +73,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs, {
 app.use('/api', generalLimiter);
 
 // API Routes
-app.use('/api/v1/auth', authRoutes);
-app.use('/api/v1/users', userRoutes);
-app.use('/api/v1/stores', storeRoutes);
-app.use('/api/v1/inventory', inventoryRoutes);
-app.use('/api/v1/patients', patientRoutes);
-app.use('/api/v1/sales', salesRoutes);
-app.use('/api/v1/purchase-orders', purchaseOrderRoutes);
-app.use('/api/v1/suppliers', supplierRoutes);
-app.use('/api/v1/onboarding', onboardingRoutes);
+app.use('/api/v1', routes);
 
 // Health check route
 app.get('/api/v1/health', (req, res) => {

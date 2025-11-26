@@ -57,6 +57,7 @@ export interface PurchaseOrder {
     tax: number;
   }>;
   total: number;
+  notes?: string;
   attachments?: Array<{
     id: string;
     name: string;

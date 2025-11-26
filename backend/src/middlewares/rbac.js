@@ -1,5 +1,6 @@
 const ApiError = require('../utils/ApiError');
 const { USER_ROLES, MESSAGES } = require('../constants');
+const permissionService = require('../services/permissionService');
 
 /**
  * Role-based access control middleware
@@ -43,7 +44,7 @@ const requireStoreAccess = async (req, res, next) => {
         try {
             const userRepository = require('../repositories/userRepository');
             const user = await userRepository.findById(req.user.id);
-            
+
             if (user && user.storeUsers && user.storeUsers.length > 0) {
                 req.user.stores = user.storeUsers.map(su => ({
                     id: su.store.id,
@@ -58,13 +59,20 @@ const requireStoreAccess = async (req, res, next) => {
         }
     }
 
-    let storeId = req.params.storeId || req.body.storeId || req.query.storeId;
+    // Safely get storeId from params, body, or query
+    let storeId = (req.params && req.params.storeId) ||
+        (req.body && req.body.storeId) ||
+        (req.query && req.query.storeId);
 
     // If no storeId is provided, use the user's primary store
     if (!storeId) {
         // Use primary store or first store
         const primaryStore = req.user.stores.find(s => s.isPrimary) || req.user.stores[0];
-        storeId = primaryStore.id;
+        if (primaryStore) {
+            storeId = primaryStore.id;
+        } else {
+            return next(ApiError.forbidden('No store found for user'));
+        }
     }
 
     // Admin has access to all stores
@@ -93,22 +101,89 @@ const requireStoreAccess = async (req, res, next) => {
 
 /**
  * Permission-based access control
- * Note: This is a placeholder for future permission system
+ * Checks if user has required permission(s) - ALL permissions required (AND logic)
  */
 const requirePermission = (...permissions) => {
-    return (req, res, next) => {
+    return async (req, res, next) => {
         if (!req.user) {
             return next(ApiError.unauthorized(MESSAGES.AUTH.UNAUTHORIZED));
         }
 
-        // TODO: Implement permission checking against Role-Permission table
-        // For now, admins have all permissions
-        if (req.user.role === USER_ROLES.ADMIN) {
-            return next();
+        const storeId = req.storeId || req.params.storeId || req.body.storeId || req.query.storeId;
+
+        try {
+            // Check each required permission
+            for (const permission of permissions) {
+                const hasPermission = await permissionService.hasPermission(
+                    req.user.id,
+                    permission,
+                    storeId
+                );
+
+                if (!hasPermission) {
+                    // Log permission denial for monitoring
+                    console.warn('Permission denied:', {
+                        userId: req.user.id,
+                        permission,
+                        storeId,
+                        path: req.path,
+                        method: req.method,
+                    });
+
+                    return next(ApiError.forbidden(
+                        `You do not have permission: ${permission}`
+                    ));
+                }
+            }
+
+            next();
+        } catch (error) {
+            console.error('Permission check failed:', error);
+            return next(ApiError.internal('Permission check failed'));
+        }
+    };
+};
+
+/**
+ * Require ANY of the specified permissions (OR logic)
+ */
+const requireAnyPermission = (...permissions) => {
+    return async (req, res, next) => {
+        if (!req.user) {
+            return next(ApiError.unauthorized(MESSAGES.AUTH.UNAUTHORIZED));
         }
 
-        // Placeholder: deny access for non-admins
-        return next(ApiError.forbidden('Insufficient permissions'));
+        const storeId = req.storeId || req.params.storeId || req.body.storeId || req.query.storeId;
+
+        try {
+            for (const permission of permissions) {
+                const hasPermission = await permissionService.hasPermission(
+                    req.user.id,
+                    permission,
+                    storeId
+                );
+
+                if (hasPermission) {
+                    return next(); // User has at least one permission
+                }
+            }
+
+            // None of the permissions matched
+            console.warn('Permission denied (any):', {
+                userId: req.user.id,
+                permissions,
+                storeId,
+                path: req.path,
+                method: req.method,
+            });
+
+            return next(ApiError.forbidden(
+                `You need one of these permissions: ${permissions.join(', ')}`
+            ));
+        } catch (error) {
+            console.error('Permission check failed:', error);
+            return next(ApiError.internal('Permission check failed'));
+        }
     };
 };
 
@@ -118,4 +193,5 @@ module.exports = {
     requirePharmacist,
     requireStoreAccess,
     requirePermission,
+    requireAnyPermission,
 };

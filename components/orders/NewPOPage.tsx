@@ -9,13 +9,18 @@ import POSummary from './POSummary';
 import DeliveryCard from './DeliveryCard';
 import AttachmentUploader from './AttachmentUploader';
 import { FiLayout, FiSave, FiSend, FiAlertCircle } from 'react-icons/fi';
+import toast, { Toaster } from 'react-hot-toast';
+import { useRouter } from 'next/navigation';
 
 interface NewPOPageProps {
   storeId: string;
+  poId?: string;
 }
 
-export default function NewPOPage({ storeId }: NewPOPageProps) {
+export default function NewPOPage({ storeId, poId }: NewPOPageProps) {
+  const router = useRouter();
   const [showSuggestions, setShowSuggestions] = useState(true);
+  const [isLoadingPO, setIsLoadingPO] = useState(!!poId);
 
   const {
     po,
@@ -35,22 +40,91 @@ export default function NewPOPage({ storeId }: NewPOPageProps) {
   } = usePOComposer(storeId);
 
   useEffect(() => {
-    loadSuggestions();
-  }, [loadSuggestions]);
+    if (poId) {
+      loadExistingPO(poId);
+    } else {
+      loadSuggestions();
+    }
+  }, [poId]);
+
+  const loadExistingPO = async (id: string) => {
+    setIsLoadingPO(true);
+    try {
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+      const response = await fetch(`${apiBaseUrl}/purchase-orders/${id}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+        }
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        const existingPO = result.data || result;
+
+        // Transform backend data to frontend format
+        setPO({
+          poId: existingPO.id,
+          status: existingPO.status,
+          storeId: existingPO.storeId,
+          supplier: existingPO.supplier ? {
+            id: existingPO.supplier.id,
+            name: existingPO.supplier.name,
+            gstin: existingPO.supplier.gstin,
+            defaultLeadTimeDays: 0, // Default if missing
+            contact: {
+              email: existingPO.supplier.email,
+              phone: existingPO.supplier.phoneNumber,
+              whatsapp: existingPO.supplier.whatsapp
+            },
+            paymentTerms: existingPO.supplier.paymentTerms
+          } : undefined,
+          deliveryAddress: { line1: '', city: '', pin: '' },
+          currency: existingPO.currency || 'INR',
+          lines: (existingPO.items || []).map((item: any) => ({
+            lineId: item.id,
+            drugId: item.drugId,
+            description: item.drug?.name || item.drugId,
+            packUnit: 'Strip',
+            packSize: 10,
+            qty: item.quantity,
+            unit: 'strip',
+            pricePerUnit: Number(item.unitPrice),
+            discountPercent: Number(item.discountPercent || 0),
+            gstPercent: Number(item.gstPercent),
+            lineNet: Number(item.lineTotal),
+          })),
+          subtotal: Number(existingPO.subtotal),
+          taxBreakdown: [],
+          total: Number(existingPO.total),
+          expectedDeliveryDate: existingPO.expectedDeliveryDate,
+          paymentTerms: existingPO.paymentTerms,
+          notes: existingPO.notes,
+        });
+        toast.success('Draft loaded successfully');
+      } else {
+        toast.error('Failed to load draft');
+      }
+    } catch (error) {
+      console.error('Failed to load PO:', error);
+      toast.error('Failed to load draft');
+    } finally {
+      setIsLoadingPO(false);
+    }
+  };
 
   const handleSaveDraft = async () => {
     try {
-      await saveDraft();
-      alert('Draft saved • PO will be available in Orders > Drafts');
-    } catch (error) {
-      alert('Failed to save draft');
+      const result = await saveDraft();
+      toast.success(`Draft saved successfully! PO #${result.poNumber || 'Draft'}`);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to save draft');
     }
   };
 
   const handleRequestApproval = async () => {
     const isValid = await validate();
     if (!isValid) {
-      alert('Please fix validation errors before requesting approval');
+      toast.error('Please fix validation errors before requesting approval');
       return;
     }
 
@@ -59,37 +133,56 @@ export default function NewPOPage({ storeId }: NewPOPageProps) {
         await saveDraft();
       }
       await requestApproval(['manager_01'], 'Please review this PO');
-      alert('Approval requested • awaiting approver');
-    } catch (error) {
-      alert('Failed to request approval');
+      toast.success('Approval request sent successfully!');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to request approval');
     }
   };
 
   const handleSendPO = async () => {
+    console.log('handleSendPO called');
+    console.log('po:', po);
+    console.log('canSend:', po.supplier && po.lines.length > 0 && validationResult.errors.length === 0);
+    console.log('validationResult:', validationResult);
+
     const isValid = await validate();
+    console.log('Validation result:', isValid);
+
     if (!isValid) {
-      alert('Please fix validation errors before sending');
+      toast.error('Please fix validation errors before sending');
       return;
     }
 
-    if (!confirm(`Send PO to supplier? This will create a record and notify the supplier.`)) {
-      return;
-    }
+    // Removed confirm dialog as it was being auto-cancelled
+    // TODO: Add a proper React-based confirmation modal later
 
     try {
+      let poIdToSend = po.poId;
+
       if (!po.poId) {
-        await saveDraft();
+        console.log('Saving draft first...');
+        const savedPO = await saveDraft();
+        poIdToSend = savedPO.id;
+        console.log('Draft saved with ID:', poIdToSend);
       }
-      const result = await sendPO({ channel: 'email' });
-      alert(`PO sent via email • Sent at ${new Date().toLocaleTimeString()}`);
-    } catch (error) {
-      alert('Failed to send PO');
+
+      console.log('Sending PO with ID:', poIdToSend);
+      const result = await sendPO({ channel: 'email' }, poIdToSend);
+      console.log('Send result:', result);
+      toast.success(`PO sent successfully at ${new Date().toLocaleTimeString()}`);
+
+      // Redirect to orders list
+      setTimeout(() => {
+        router.push('/orders');
+      }, 1500);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to send PO');
     }
   };
 
   const canSend = po.supplier && po.lines.length > 0 && validationResult.errors.length === 0;
   const needsApproval = po.total > (po.approvalThreshold || 50000);
-  const formatCurrency = (amount: number) => `₹${amount.toFixed(2)}`;
+  const formatCurrency = (amount: number | string) => `₹${Number(amount || 0).toFixed(2)}`;
 
   return (
     <div className="flex flex-col min-h-screen bg-gray-50/50">
@@ -225,6 +318,30 @@ export default function NewPOPage({ storeId }: NewPOPageProps) {
           </div>
         </div>
       </div>
+
+      {/* Toast Notifications */}
+      <Toaster
+        position="top-right"
+        toastOptions={{
+          duration: 4000,
+          style: {
+            background: '#fff',
+            color: '#363636',
+          },
+          success: {
+            iconTheme: {
+              primary: '#10b981',
+              secondary: '#fff',
+            },
+          },
+          error: {
+            iconTheme: {
+              primary: '#ef4444',
+              secondary: '#fff',
+            },
+          },
+        }}
+      />
     </div>
   );
 }

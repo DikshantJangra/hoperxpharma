@@ -13,6 +13,9 @@ interface PatientRowProps {
 }
 
 export default function PatientRow({ patient, selected, onSelect, onView, onRefill, onMessage }: PatientRowProps) {
+  // Construct full name from firstName and lastName
+  const fullName = `${patient.firstName || ''} ${patient.lastName || ''}`.trim() || 'Unknown Patient';
+
   return (
     <div className={`flex items-center gap-4 px-4 py-3 hover:bg-gray-50 transition-colors ${selected ? "bg-teal-50" : ""}`}>
       {/* Checkbox */}
@@ -25,17 +28,17 @@ export default function PatientRow({ patient, selected, onSelect, onView, onRefi
 
       {/* Patient Info */}
       <div className="flex-1 flex items-center gap-3">
-        <PatientAvatar name={patient.name} />
+        <PatientAvatar name={fullName} />
         <div>
           <div className="flex items-center gap-2">
             <button
               onClick={onView}
               className="text-sm font-medium text-gray-900 hover:text-teal-600"
             >
-              {patient.name}
+              {fullName}
             </button>
             <span className="text-xs text-gray-500">
-              {patient.age} • {patient.sex}
+              {patient.age || '—'} • {patient.gender || patient.sex || '—'}
             </span>
             {patient.tags?.length > 0 && (
               <span className="px-2 py-0.5 text-xs bg-yellow-100 text-yellow-800 rounded">
@@ -44,7 +47,7 @@ export default function PatientRow({ patient, selected, onSelect, onView, onRefi
             )}
           </div>
           <div className="text-xs text-gray-500 mt-0.5">
-            {patient.mrn}
+            {patient.mrn || patient.id}
           </div>
         </div>
       </div>
@@ -52,7 +55,7 @@ export default function PatientRow({ patient, selected, onSelect, onView, onRefi
       {/* Contact */}
       <div className="w-32">
         <MaskedValue
-          value={patient.primaryPhone}
+          value={patient.phoneNumber || patient.primaryPhone}
           masked={patient.maskedPhone}
           verified={patient.phoneVerified}
         />

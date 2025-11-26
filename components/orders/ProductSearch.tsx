@@ -41,54 +41,49 @@ export default function ProductSearch({ onSelect, onCancel, supplier }: ProductS
   const searchProducts = async (searchQuery: string) => {
     setLoading(true);
     try {
-      // Mock data - replace with actual API call
-      const mockProducts: Product[] = [
-        {
-          id: 'd_paracetamol_500',
-          name: 'Paracetamol 500mg Tablet - 10x10',
-          sku: 'PAR500T100',
-          packUnit: 'Strip',
-          packSize: 10,
-          unit: 'strip',
-          price: 45.50,
-          gstPercent: 12,
-          lastPrice: 44.00,
-          currentStock: 25,
-          moq: 50
-        },
-        {
-          id: 'd_amoxicillin_250',
-          name: 'Amoxicillin 250mg Capsule - 10x10',
-          sku: 'AMX250C100',
-          packUnit: 'Strip',
-          packSize: 10,
-          unit: 'strip',
-          price: 85.00,
-          gstPercent: 12,
-          lastPrice: 82.50,
-          currentStock: 15,
-          moq: 30
-        },
-        {
-          id: 'd_cetirizine_10',
-          name: 'Cetirizine 10mg Tablet - 10x10',
-          sku: 'CET10T100',
-          packUnit: 'Strip',
-          packSize: 10,
-          unit: 'strip',
-          price: 32.00,
-          gstPercent: 12,
-          currentStock: 40
-        }
-      ].filter(product => 
-        product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        product.sku.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+      const params = new URLSearchParams({
+        q: searchQuery,
+        limit: '10'
+      });
 
-      setProducts(mockProducts);
+      if (supplier?.id) {
+        params.append('supplierId', supplier.id);
+      }
+
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+      const response = await fetch(`${apiBaseUrl}/drugs/search?${params}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Search failed');
+      }
+
+      const data = await response.json();
+      const drugs = data.data || data || [];
+
+      // Map drug data to Product format
+      const mappedProducts: Product[] = drugs.map((drug: any) => ({
+        id: drug.id,
+        name: `${drug.name}${drug.strength ? ` ${drug.strength}` : ''}${drug.form ? ` ${drug.form}` : ''}`,
+        sku: drug.id, // Using ID as SKU for now
+        packUnit: drug.defaultUnit || 'Strip',
+        packSize: 10, // Default pack size
+        unit: drug.defaultUnit?.toLowerCase() || 'strip',
+        price: 0, // Will be filled by user
+        gstPercent: drug.gstRate || 12,
+        lastPrice: undefined,
+        currentStock: 0, // Will be fetched from inventory if needed
+        moq: undefined
+      }));
+
+      setProducts(mappedProducts);
       setSelectedIndex(0);
     } catch (error) {
       console.error('Search failed:', error);
+      setProducts([]);
     } finally {
       setLoading(false);
     }
@@ -149,9 +144,8 @@ export default function ProductSearch({ onSelect, onCancel, supplier }: ProductS
               <button
                 key={product.id}
                 onClick={() => onSelect(product)}
-                className={`w-full text-left px-4 py-3 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none ${
-                  index === selectedIndex ? 'bg-blue-50' : ''
-                }`}
+                className={`w-full text-left px-4 py-3 hover:bg-gray-100 focus:bg-gray-100 focus:outline-none ${index === selectedIndex ? 'bg-blue-50' : ''
+                  }`}
               >
                 <div className="flex justify-between items-start">
                   <div className="flex-1">

@@ -65,8 +65,8 @@ export default function LineItemRow({ line, onChange, onRemove, supplier }: Line
       <td className="px-4 py-3">
         <input
           type="number"
-          value={line.qty}
-          onChange={(e) => handleFieldChange('qty', parseInt(e.target.value) || 0)}
+          value={line.qty || ''}
+          onChange={(e) => handleFieldChange('qty', e.target.value === '' ? 0 : parseFloat(e.target.value))}
           className="w-20 px-2 py-1.5 text-sm border border-gray-200 rounded bg-transparent focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none transition-all"
           min="1"
         />
@@ -78,8 +78,8 @@ export default function LineItemRow({ line, onChange, onRemove, supplier }: Line
           <input
             type="number"
             step="0.01"
-            value={line.pricePerUnit}
-            onChange={(e) => handleFieldChange('pricePerUnit', parseFloat(e.target.value) || 0)}
+            value={line.pricePerUnit || ''}
+            onChange={(e) => handleFieldChange('pricePerUnit', e.target.value === '' ? 0 : parseFloat(e.target.value))}
             className="w-24 pl-5 pr-2 py-1.5 text-sm border border-gray-200 rounded bg-transparent focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none transition-all"
           />
         </div>
@@ -104,8 +104,8 @@ export default function LineItemRow({ line, onChange, onRemove, supplier }: Line
           <input
             type="number"
             step="0.1"
-            value={line.discountPercent}
-            onChange={(e) => handleFieldChange('discountPercent', parseFloat(e.target.value) || 0)}
+            value={line.discountPercent || ''}
+            onChange={(e) => handleFieldChange('discountPercent', e.target.value === '' ? 0 : parseFloat(e.target.value))}
             className="w-16 px-2 py-1.5 text-sm border border-gray-200 rounded bg-transparent focus:bg-white focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 focus:outline-none transition-all"
           />
           <span className="absolute right-6 top-1/2 -translate-y-1/2 text-gray-400 text-sm">%</span>

@@ -123,6 +123,71 @@ const getPatientStats = asyncHandler(async (req, res) => {
     res.status(response.statusCode).json(response);
 });
 
+/**
+ * Get patient history
+ */
+const getPatientHistory = asyncHandler(async (req, res) => {
+    const history = await patientService.getPatientHistory(req.params.id, req.query);
+
+    const response = ApiResponse.success(history);
+    res.status(response.statusCode).json(response);
+});
+
+/**
+ * Get refills due
+ */
+const getRefillsDue = asyncHandler(async (req, res) => {
+    const refills = await patientService.getRefillsDue(req.storeId, req.query);
+
+    const response = ApiResponse.success(refills);
+    res.status(response.statusCode).json(response);
+});
+
+/**
+ * Process refill
+ */
+const processRefill = asyncHandler(async (req, res) => {
+    const adherence = await patientService.processRefill(req.params.id, req.body);
+
+    const response = ApiResponse.created(adherence, 'Refill processed successfully');
+    res.status(response.statusCode).json(response);
+});
+
+/**
+ * Get adherence
+ */
+const getAdherence = asyncHandler(async (req, res) => {
+    const adherence = await patientService.getAdherence(req.params.id);
+
+    const response = ApiResponse.success(adherence);
+    res.status(response.statusCode).json(response);
+});
+
+/**
+ * Record adherence
+ */
+const recordAdherence = asyncHandler(async (req, res) => {
+    const adherence = await patientService.recordAdherence(req.params.id, req.body);
+
+    const response = ApiResponse.created(adherence, 'Adherence recorded successfully');
+    res.status(response.statusCode).json(response);
+});
+
+/**
+ * Get all consents
+ */
+const getAllConsents = asyncHandler(async (req, res) => {
+    const { consents, total } = await patientService.getAllConsents(req.storeId, req.query);
+
+    const response = ApiResponse.paginated(consents, {
+        page: parseInt(req.query.page) || 1,
+        limit: parseInt(req.query.limit) || 20,
+        total,
+    });
+
+    res.status(response.statusCode).json(response);
+});
+
 module.exports = {
     getPatients,
     getPatientById,
@@ -135,4 +200,10 @@ module.exports = {
     createInsurance,
     updateInsurance,
     getPatientStats,
+    getPatientHistory,
+    getRefillsDue,
+    processRefill,
+    getAdherence,
+    recordAdherence,
+    getAllConsents,
 };

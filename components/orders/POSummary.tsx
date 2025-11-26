@@ -9,7 +9,7 @@ interface POSummaryProps {
 }
 
 export default function POSummary({ po }: POSummaryProps) {
-  const formatCurrency = (amount: number) => `₹${amount.toFixed(2)}`;
+  const formatCurrency = (amount: number | string) => `₹${Number(amount || 0).toFixed(2)}`;
 
   const needsApproval = po.total > (po.approvalThreshold || 50000);
 
@@ -141,9 +141,9 @@ export default function POSummary({ po }: POSummaryProps) {
           </div>
           <div className="p-4">
             <div className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${po.status === 'sent' ? 'bg-green-100 text-green-800' :
-                po.status === 'approved' ? 'bg-blue-100 text-blue-800' :
-                  po.status === 'pending_approval' ? 'bg-yellow-100 text-yellow-800' :
-                    'bg-gray-100 text-gray-800'
+              po.status === 'approved' ? 'bg-blue-100 text-blue-800' :
+                po.status === 'pending_approval' ? 'bg-yellow-100 text-yellow-800' :
+                  'bg-gray-100 text-gray-800'
               }`}>
               {po.status.replace('_', ' ').toUpperCase()}
             </div>

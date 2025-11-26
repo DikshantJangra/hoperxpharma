@@ -1,7 +1,16 @@
 "use client"
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
-import { HiOutlinePlus, HiOutlineDocumentText, HiOutlineClock, HiOutlineCheckCircle } from 'react-icons/hi2';
+import { HiOutlinePlus, HiOutlineDocumentText, HiOutlineClock, HiOutlineCheckCircle, HiOutlinePencil } from 'react-icons/hi2';
+
+interface PurchaseOrder {
+    id: string;
+    poNumber: string;
+    supplier: { name: string };
+    createdAt: string;
+    total: number;
+    status: string;
+}
 
 const StatCard = ({ icon, label, value, loading, color = 'blue' }: any) => {
     const colors: any = {
@@ -32,7 +41,7 @@ const StatCard = ({ icon, label, value, loading, color = 'blue' }: any) => {
 }
 
 const TableRowSkeleton = () => (
-     <tr className="animate-pulse">
+    <tr className="animate-pulse">
         <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-24"></div></td>
         <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-32"></div></td>
         <td className="px-6 py-4"><div className="h-4 bg-gray-200 rounded w-20"></div></td>
@@ -42,20 +51,82 @@ const TableRowSkeleton = () => (
     </tr>
 )
 
+const getStatusBadge = (status: string) => {
+    const statusConfig: any = {
+        DRAFT: { bg: 'bg-gray-100', text: 'text-gray-700', label: 'Draft' },
+        PENDING_APPROVAL: { bg: 'bg-yellow-100', text: 'text-yellow-700', label: 'Pending' },
+        APPROVED: { bg: 'bg-blue-100', text: 'text-blue-700', label: 'Approved' },
+        SENT: { bg: 'bg-purple-100', text: 'text-purple-700', label: 'Sent' },
+        PARTIALLY_RECEIVED: { bg: 'bg-orange-100', text: 'text-orange-700', label: 'Partial' },
+        RECEIVED: { bg: 'bg-green-100', text: 'text-green-700', label: 'Received' },
+    };
+    const config = statusConfig[status] || statusConfig.DRAFT;
+    return (
+        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${config.bg} ${config.text}`}>
+            {config.label}
+        </span>
+    );
+};
+
 export default function OrdersPage() {
     const [isLoading, setIsLoading] = useState(true);
-    const [orders, setOrders] = useState([]);
+    const [orders, setOrders] = useState<PurchaseOrder[]>([]);
     const [stats, setStats] = useState<any>(null);
 
     useEffect(() => {
-        setIsLoading(true);
-        const timer = setTimeout(() => {
-            setOrders([]);
-            setStats({ draft: 0, pending: 0, received: 0, thisMonth: '₹0' });
-            setIsLoading(false);
-        }, 1500)
-        return () => clearTimeout(timer);
+        fetchOrders();
     }, [])
+
+    const fetchOrders = async () => {
+        setIsLoading(true);
+        try {
+            const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+            const response = await fetch(`${apiBaseUrl}/purchase-orders?limit=50`, {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+                }
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                // ApiResponse.paginated returns data as the array directly
+                const fetchedOrders = Array.isArray(result.data) ? result.data : (result.data?.orders || []);
+                setOrders(fetchedOrders);
+
+                // Calculate stats
+                const draft = fetchedOrders.filter((o: PurchaseOrder) => o.status === 'DRAFT').length;
+                const pending = fetchedOrders.filter((o: PurchaseOrder) => o.status === 'PENDING_APPROVAL' || o.status === 'SENT').length;
+                const received = fetchedOrders.filter((o: PurchaseOrder) => o.status === 'RECEIVED').length;
+
+                const thisMonth = fetchedOrders
+                    .filter((o: PurchaseOrder) => {
+                        const orderDate = new Date(o.createdAt);
+                        const now = new Date();
+                        return orderDate.getMonth() === now.getMonth() && orderDate.getFullYear() === now.getFullYear();
+                    })
+                    .reduce((sum: number, o: PurchaseOrder) => sum + Number(o.total || 0), 0);
+
+                setStats({
+                    draft,
+                    pending,
+                    received,
+                    thisMonth: `₹${thisMonth.toFixed(2)}`
+                });
+            }
+        } catch (error) {
+            console.error('Failed to fetch orders:', error);
+            setStats({ draft: 0, pending: 0, received: 0, thisMonth: '₹0' });
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const formatCurrency = (amount: number | string) => `₹${Number(amount || 0).toFixed(2)}`;
+    const formatDate = (date: string) => new Date(date).toLocaleDateString('en-IN', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+    });
 
     return (
         <div className="p-6 bg-gray-50 min-h-screen">
@@ -65,8 +136,8 @@ export default function OrdersPage() {
                     <p className="text-[#6b7280] mt-2">Manage supplier orders and purchase history.</p>
                 </div>
                 <Link
-                    href="/orders/new"
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-md hover:bg-blue-700 transition-colors"
+                    href="/orders/new-po"
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-md hover:bg-emerald-700 transition-colors"
                 >
                     <HiOutlinePlus className="h-4 w-4" />
                     New Purchase Order
@@ -75,10 +146,10 @@ export default function OrdersPage() {
 
             {/* Quick Stats */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-               <StatCard icon={<HiOutlineDocumentText className="h-5 w-5" />} label="Draft POs" value={stats?.draft} loading={isLoading} color="blue" />
-               <StatCard icon={<HiOutlineClock className="h-5 w-5" />} label="Pending" value={stats?.pending} loading={isLoading} color="yellow" />
-               <StatCard icon={<HiOutlineCheckCircle className="h-5 w-5" />} label="Received" value={stats?.received} loading={isLoading} color="green" />
-               <StatCard icon={<HiOutlineDocumentText className="h-5 w-5" />} label="This Month" value={stats?.thisMonth} loading={isLoading} color="purple" />
+                <StatCard icon={<HiOutlineDocumentText className="h-5 w-5" />} label="Draft POs" value={stats?.draft} loading={isLoading} color="blue" />
+                <StatCard icon={<HiOutlineClock className="h-5 w-5" />} label="Pending" value={stats?.pending} loading={isLoading} color="yellow" />
+                <StatCard icon={<HiOutlineCheckCircle className="h-5 w-5" />} label="Received" value={stats?.received} loading={isLoading} color="green" />
+                <StatCard icon={<HiOutlineDocumentText className="h-5 w-5" />} label="This Month" value={stats?.thisMonth} loading={isLoading} color="purple" />
             </div>
 
             {/* Recent Orders Table */}
@@ -113,9 +184,9 @@ export default function OrdersPage() {
                         <tbody className="bg-white divide-y divide-gray-200">
                             {isLoading ? (
                                 <>
-                                <TableRowSkeleton/>
-                                <TableRowSkeleton/>
-                                <TableRowSkeleton/>
+                                    <TableRowSkeleton />
+                                    <TableRowSkeleton />
+                                    <TableRowSkeleton />
                                 </>
                             ) : orders.length === 0 ? (
                                 <tr>
@@ -128,8 +199,43 @@ export default function OrdersPage() {
                                     </td>
                                 </tr>
                             ) : (
-                                // Map orders here when data is available
-                                null
+                                orders.map((order) => (
+                                    <tr key={order.id} className="hover:bg-gray-50">
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                            {order.poNumber || 'Draft'}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                            {order.supplier?.name || 'N/A'}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            {formatDate(order.createdAt)}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                            {formatCurrency(order.total)}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            {getStatusBadge(order.status)}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                            {order.status === 'DRAFT' ? (
+                                                <Link
+                                                    href={`/orders/new-po?id=${order.id}`}
+                                                    className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-md hover:bg-emerald-100 transition-colors"
+                                                >
+                                                    <HiOutlinePencil className="h-4 w-4" />
+                                                    Edit
+                                                </Link>
+                                            ) : (
+                                                <Link
+                                                    href={`/orders/${order.id}`}
+                                                    className="text-blue-600 hover:text-blue-800"
+                                                >
+                                                    View
+                                                </Link>
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))
                             )}
                         </tbody>
                     </table>

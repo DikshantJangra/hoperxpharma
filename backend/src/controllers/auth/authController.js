@@ -52,6 +52,7 @@ const signup = asyncHandler(async (req, res) => {
             secure: process.env.NODE_ENV === 'production',
             sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
             maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+            path: '/',
         });
 
         const response = ApiResponse.created(
@@ -103,6 +104,7 @@ const login = asyncHandler(async (req, res) => {
         secure: process.env.NODE_ENV === 'production',
         sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
         maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+        path: '/',
     });
 
     const response = ApiResponse.success(
@@ -137,6 +139,7 @@ const refresh = asyncHandler(async (req, res) => {
         secure: process.env.NODE_ENV === 'production',
         sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
         maxAge: 7 * 24 * 60 * 60 * 1000,
+        path: '/',
     });
 
     const response = ApiResponse.success(
@@ -161,7 +164,7 @@ const refresh = asyncHandler(async (req, res) => {
  */
 const logout = asyncHandler(async (req, res) => {
     // Clear refresh token cookie
-    res.clearCookie('refreshToken');
+    res.clearCookie('refreshToken', { path: '/' });
 
     const response = ApiResponse.success(null, MESSAGES.AUTH.LOGOUT_SUCCESS);
 

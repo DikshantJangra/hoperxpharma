@@ -39,4 +39,26 @@ router.get('/:patientId/consents', patientController.getPatientConsents);
 router.post('/insurance', validate(insuranceCreateSchema), patientController.createInsurance);
 router.put('/insurance/:id', patientController.updateInsurance);
 
+/**
+ * History routes
+ */
+router.get('/:id/history', patientController.getPatientHistory);
+
+/**
+ * Refills routes
+ */
+router.get('/refills', requireStoreAccess, patientController.getRefillsDue);
+router.post('/:id/refills', requirePharmacist, patientController.processRefill);
+
+/**
+ * Adherence routes
+ */
+router.get('/:id/adherence', patientController.getAdherence);
+router.post('/:id/adherence', patientController.recordAdherence);
+
+/**
+ * All consents route (for consents page)
+ */
+router.get('/consents/all', requireStoreAccess, patientController.getAllConsents);
+
 module.exports = router;

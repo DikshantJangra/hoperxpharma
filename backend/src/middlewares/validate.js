@@ -3,15 +3,43 @@ const ApiError = require('../utils/ApiError');
 
 /**
  * Validation middleware factory
- * Validates request body, query, or params against a Zod schema
+ * Validates request body, query, or params against a Zod or Joi schema
  */
 const validate = (schema, source = 'body') => {
     return (req, res, next) => {
         try {
             const data = req[source];
-            const validated = schema.parse(data);
-            req[source] = validated;
-            next();
+
+            // Check if it's a Zod schema (has parse method)
+            if (schema && typeof schema.parse === 'function') {
+                const validated = schema.parse(data);
+                req[source] = validated;
+                next();
+            }
+            // Check if it's a Joi schema (has validate method)
+            else if (schema && typeof schema.validate === 'function') {
+                const { error, value } = schema.validate(data, { abortEarly: false });
+
+                if (error) {
+                    const formattedErrors = error.details.map((err) => ({
+                        field: err.path ? err.path.join('.') : 'unknown',
+                        message: err.message || 'Validation error',
+                    }));
+
+                    return next(
+                        ApiError.unprocessableEntity(
+                            `Validation failed: ${formattedErrors.map((e) => `${e.field}: ${e.message}`).join(', ')}`,
+                            formattedErrors
+                        )
+                    );
+                }
+
+                req[source] = value;
+                next();
+            }
+            else {
+                throw new Error('Invalid schema: must be a Zod or Joi schema');
+            }
         } catch (error) {
             if (error instanceof z.ZodError) {
                 // Zod errors are in the 'issues' property

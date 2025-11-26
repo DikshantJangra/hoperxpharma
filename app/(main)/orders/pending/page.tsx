@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import OrderList, { Order } from '@/components/orders/OrderList';
 import OrderFilters, { FilterState } from '@/components/orders/OrderFilters';
 import { HiOutlineClock, HiOutlineExclamationCircle, HiOutlineCalendar } from 'react-icons/hi2';
+import { tokenManager } from '@/lib/api/client';
 
 const StatCardSkeleton = () => (
     <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 animate-pulse">
@@ -22,13 +23,43 @@ export default function PendingOrdersPage() {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        setIsLoading(true);
-        const timer = setTimeout(() => {
-            setOrders([]);
-            setIsLoading(false)
-        }, 1500)
-        return () => clearTimeout(timer);
+        fetchPendingOrders();
     }, [])
+
+    const fetchPendingOrders = async () => {
+        setIsLoading(true);
+        try {
+            const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+            const token = tokenManager.getAccessToken();
+            const response = await fetch(`${apiBaseUrl}/purchase-orders?status=SENT,PARTIALLY_RECEIVED&limit=100`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (response.ok) {
+                const result = await response.json();
+                const fetchedOrders = Array.isArray(result.data) ? result.data : [];
+
+                // Transform to Order format
+                const transformedOrders: Order[] = fetchedOrders.map((po: any) => ({
+                    id: po.id,
+                    poNumber: po.poNumber,
+                    supplier: po.supplier?.name || 'Unknown',
+                    date: po.createdAt,
+                    amount: Number(po.total),
+                    status: po.status.toLowerCase() as any,
+                    expectedDelivery: po.expectedDeliveryDate
+                }));
+
+                setOrders(transformedOrders);
+            }
+        } catch (error) {
+            console.error('Failed to fetch pending orders:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const handleFilterChange = (filters: FilterState) => {
         // This would refetch data with new filters
@@ -36,7 +67,7 @@ export default function PendingOrdersPage() {
     };
 
     const handleView = (order: Order) => {
-        alert(`View order: ${order.poNumber}`);
+        window.location.href = `/orders/${order.id}`;
     };
 
     // Calculate stats from the fetched orders
@@ -67,9 +98,9 @@ export default function PendingOrdersPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 {isLoading ? (
                     <>
-                       <StatCardSkeleton/>
-                       <StatCardSkeleton/>
-                       <StatCardSkeleton/>
+                        <StatCardSkeleton />
+                        <StatCardSkeleton />
+                        <StatCardSkeleton />
                     </>
                 ) : (
                     <>

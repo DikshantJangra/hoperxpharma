@@ -36,7 +36,7 @@ const TOKEN_TYPES = {
 };
 
 const TOKEN_EXPIRY = {
-    ACCESS: '15m',
+    ACCESS: '1h',
     REFRESH: '7d',
     RESET_PASSWORD: '1h',
 };

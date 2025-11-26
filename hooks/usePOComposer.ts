@@ -28,11 +28,11 @@ export function usePOComposer(storeId: string) {
 
   const calculateTaxBreakdown = (lines: POLine[]) => {
     const taxMap = new Map<number, { taxable: number; tax: number }>();
-    
+
     lines.forEach(line => {
       const taxable = line.lineNet;
       const tax = (taxable * line.gstPercent) / 100;
-      
+
       if (taxMap.has(line.gstPercent)) {
         const existing = taxMap.get(line.gstPercent)!;
         taxMap.set(line.gstPercent, {
@@ -110,24 +110,44 @@ export function usePOComposer(storeId: string) {
 
   const loadSuggestions = useCallback(async () => {
     try {
-      const response = await fetch(`/api/stores/${storeId}/inventory/suggestions?limit=100`);
-      const data = await response.json();
-      setSuggestions(data);
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+      const response = await fetch(`${apiBaseUrl}/purchase-orders/inventory/suggestions?limit=100`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to load suggestions');
+      }
+
+      const result = await response.json();
+      setSuggestions(result.data || result.results || []);
     } catch (error) {
       console.error('Failed to load suggestions:', error);
+      setSuggestions([]);
     }
-  }, [storeId]);
+  }, []);
 
   const validate = useCallback(async (): Promise<boolean> => {
     try {
-      const response = await fetch('/api/pos/validate', {
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+      const response = await fetch(`${apiBaseUrl}/purchase-orders/validate`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+        },
         body: JSON.stringify(po)
       });
+
+      if (!response.ok) {
+        return false;
+      }
+
       const result = await response.json();
-      setValidationResult(result);
-      return result.valid;
+      setValidationResult(result.data || result);
+      return result.data?.valid || result.valid || true;
     } catch (error) {
       console.error('Validation failed:', error);
       return false;
@@ -137,31 +157,79 @@ export function usePOComposer(storeId: string) {
   const saveDraft = useCallback(async () => {
     setLoading(true);
     try {
-      const response = await fetch(`/api/stores/${storeId}/pos/draft`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(po)
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+      const method = po.poId ? 'PUT' : 'POST';
+      const url = po.poId
+        ? `${apiBaseUrl}/purchase-orders/${po.poId}`
+        : `${apiBaseUrl}/purchase-orders`;
+
+      // Transform frontend PO structure to backend API structure
+      const taxAmount = po.taxBreakdown?.reduce((sum, tax) => sum + tax.tax, 0) || 0;
+
+      const payload = {
+        supplierId: po.supplier?.id,
+        items: po.lines.map(line => ({
+          drugId: line.drugId,
+          description: line.description || `${line.drugId}`,  // Add required description
+          qty: line.qty,
+          pricePerUnit: line.pricePerUnit,
+          discountPercent: line.discountPercent || 0,
+          gstPercent: Math.round(line.gstPercent),  // Ensure integer for validation
+          lineNet: line.lineNet,
+        })),
+        subtotal: po.subtotal,
+        taxAmount: taxAmount,
+        total: po.total,
+        expectedDeliveryDate: po.expectedDeliveryDate,
+        paymentTerms: po.paymentTerms,
+        currency: po.currency || 'INR',
+        notes: po.notes,
+      };
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+        },
+        body: JSON.stringify(payload)
       });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to save draft');
+      }
+
       const result = await response.json();
-      setPO(prev => ({ ...prev, ...result.po }));
-      return result;
+      const savedPO = result.data || result;
+      setPO(prev => ({ ...prev, ...savedPO, poId: savedPO.id }));
+      return savedPO;
     } catch (error) {
       console.error('Save failed:', error);
       throw error;
     } finally {
       setLoading(false);
     }
-  }, [po, storeId]);
+  }, [po]);
 
   const requestApproval = useCallback(async (approvers: string[], note?: string) => {
     if (!po.poId) throw new Error('PO must be saved before requesting approval');
-    
+
     try {
-      const response = await fetch(`/api/pos/${po.poId}/request-approval`, {
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+      const response = await fetch(`${apiBaseUrl}/purchase-orders/${po.poId}/request-approval`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+        },
         body: JSON.stringify({ approvers, note })
       });
+
+      if (!response.ok) {
+        throw new Error('Failed to request approval');
+      }
+
       return await response.json();
     } catch (error) {
       console.error('Approval request failed:', error);
@@ -169,15 +237,25 @@ export function usePOComposer(storeId: string) {
     }
   }, [po.poId]);
 
-  const sendPO = useCallback(async (sendRequest: { channel: string; channelPayload?: any }) => {
-    if (!po.poId) throw new Error('PO must be saved before sending');
-    
+  const sendPO = useCallback(async (sendRequest: { channel: string; channelPayload?: any }, poId?: string) => {
+    const idToUse = poId || po.poId;
+    if (!idToUse) throw new Error('PO must be saved before sending');
+
     try {
-      const response = await fetch(`/api/pos/${po.poId}/send`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+      const response = await fetch(`${apiBaseUrl}/purchase-orders/${idToUse}/send`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+        },
         body: JSON.stringify({ ...sendRequest, sendAsPdf: true })
       });
+
+      if (!response.ok) {
+        throw new Error('Failed to send PO');
+      }
+
       return await response.json();
     } catch (error) {
       console.error('Send failed:', error);

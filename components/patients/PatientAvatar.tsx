@@ -1,16 +1,19 @@
 import React from "react";
 
 interface PatientAvatarProps {
-  name: string;
+  name?: string; // Make name optional
 }
 
 export default function PatientAvatar({ name }: PatientAvatarProps) {
-  const initials = name
+  // Handle undefined/null names
+  const safeName = name || "Unknown";
+
+  const initials = safeName
     .split(" ")
-    .map((n) => n[0])
+    .map((n) => n[0] || "")
     .join("")
     .toUpperCase()
-    .slice(0, 2);
+    .slice(0, 2) || "?";
 
   const colors = [
     "bg-blue-500",
@@ -21,7 +24,7 @@ export default function PatientAvatar({ name }: PatientAvatarProps) {
     "bg-teal-500"
   ];
 
-  const colorIndex = name.charCodeAt(0) % colors.length;
+  const colorIndex = safeName.charCodeAt(0) % colors.length;
 
   return (
     <div className={`w-10 h-10 rounded-full ${colors[colorIndex]} flex items-center justify-center text-white text-sm font-medium`}>

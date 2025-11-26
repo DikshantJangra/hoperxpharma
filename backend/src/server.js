@@ -28,7 +28,7 @@ database.connect().then(() => {
     console.log('✅ Database connected');
     // Start server
     const server = app.listen(PORT, '0.0.0.0', () => {
-        logger.info(`Server is running on port ${PORT}`);
+        logger.info(`Server is running on port http://localhost:${PORT}`);
         logger.info(`API Documentation: /api-docs`);
         logger.info(`Health Check: /api/v1/health`);
     });

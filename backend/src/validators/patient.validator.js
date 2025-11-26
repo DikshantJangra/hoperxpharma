@@ -8,8 +8,28 @@ const patientCreateSchema = z.object({
     firstName: z.string().min(1, 'First name is required'),
     middleName: z.string().optional(),
     lastName: z.string().min(1, 'Last name is required'),
-    dateOfBirth: z.string().datetime().optional(),
-    gender: z.enum(['Male', 'Female', 'Other']).optional(),
+    dateOfBirth: z.string()
+        .optional()
+        .transform((val) => {
+            if (!val) return undefined;
+            // If it's just a date (YYYY-MM-DD), convert to ISO datetime
+            if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
+                return new Date(val + 'T00:00:00.000Z').toISOString();
+            }
+            return val;
+        }),
+    gender: z.string()
+        .optional()
+        .transform((val) => {
+            if (!val) return undefined;
+            // Normalize to proper case
+            const normalized = val.toLowerCase();
+            if (normalized === 'male') return 'Male';
+            if (normalized === 'female') return 'Female';
+            if (normalized === 'other') return 'Other';
+            return val; // Return original if doesn't match
+        })
+        .pipe(z.enum(['Male', 'Female', 'Other']).optional()),
     phoneNumber: z.string().regex(/^[6-9]\d{9}$/, 'Invalid Indian phone number'),
     email: z.string().email().optional(),
     addressLine1: z.string().optional(),
@@ -31,8 +51,28 @@ const patientUpdateSchema = z.object({
     firstName: z.string().min(1).optional(),
     middleName: z.string().optional(),
     lastName: z.string().min(1).optional(),
-    dateOfBirth: z.string().datetime().optional(),
-    gender: z.enum(['Male', 'Female', 'Other']).optional(),
+    dateOfBirth: z.string()
+        .optional()
+        .transform((val) => {
+            if (!val) return undefined;
+            // If it's just a date (YYYY-MM-DD), convert to ISO datetime
+            if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
+                return new Date(val + 'T00:00:00.000Z').toISOString();
+            }
+            return val;
+        }),
+    gender: z.string()
+        .optional()
+        .transform((val) => {
+            if (!val) return undefined;
+            // Normalize to proper case
+            const normalized = val.toLowerCase();
+            if (normalized === 'male') return 'Male';
+            if (normalized === 'female') return 'Female';
+            if (normalized === 'other') return 'Other';
+            return val;
+        })
+        .pipe(z.enum(['Male', 'Female', 'Other']).optional()),
     phoneNumber: z.string().regex(/^[6-9]\d{9}$/).optional(),
     email: z.string().email().optional(),
     addressLine1: z.string().optional(),

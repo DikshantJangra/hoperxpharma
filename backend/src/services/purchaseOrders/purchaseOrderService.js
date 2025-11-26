@@ -96,6 +96,38 @@ class PurchaseOrderService {
     }
 
     /**
+     * Update purchase order
+     */
+    async updatePO(id, poData) {
+        const { items, ...poInfo } = poData;
+
+        // Check if PO exists
+        const existingPO = await purchaseOrderRepository.findPOById(id);
+        if (!existingPO) {
+            throw ApiError.notFound('Purchase order not found');
+        }
+
+        // Check status
+        if (existingPO.status !== 'DRAFT') {
+            throw ApiError.badRequest('Only draft purchase orders can be updated');
+        }
+
+        // Update PO
+        const result = await purchaseOrderRepository.updatePO(
+            id,
+            poInfo,
+            items
+        );
+
+        logger.info(`Purchase order updated: ${existingPO.poNumber}`);
+
+        return {
+            ...result.po,
+            items: result.items,
+        };
+    }
+
+    /**
      * Approve purchase order
      */
     async approvePO(id, approvedBy) {
@@ -125,8 +157,8 @@ class PurchaseOrderService {
             throw ApiError.notFound('Purchase order not found');
         }
 
-        if (po.status !== 'APPROVED') {
-            throw ApiError.badRequest('Only approved POs can be sent');
+        if (po.status !== 'APPROVED' && po.status !== 'DRAFT') {
+            throw ApiError.badRequest('Only draft or approved POs can be sent');
         }
 
         const updatedPO = await purchaseOrderRepository.updatePOStatus(id, 'SENT');
@@ -167,6 +199,267 @@ class PurchaseOrderService {
      */
     async getPOStats(storeId) {
         return await purchaseOrderRepository.getPOStats(storeId);
+    }
+
+    /**
+     * Validate PO before approval/sending
+     */
+    async validatePO(poData) {
+        const errors = [];
+        const warnings = [];
+
+        // Check supplier
+        if (!poData.supplier && !poData.supplierId) {
+            errors.push('Supplier is required');
+        }
+
+        // Check line items
+        if (!poData.lines || poData.lines.length === 0) {
+            errors.push('At least one line item is required');
+        } else {
+            poData.lines.forEach((line, index) => {
+                if (!line.drugId) {
+                    errors.push(`Line ${index + 1}: Drug is required`);
+                }
+                if (!line.qty || line.qty <= 0) {
+                    errors.push(`Line ${index + 1}: Quantity must be greater than 0`);
+                }
+                if (line.pricePerUnit === undefined || line.pricePerUnit < 0) {
+                    errors.push(`Line ${index + 1}: Valid price is required`);
+                }
+                if (![0, 5, 12, 18, 28].includes(line.gstPercent)) {
+                    errors.push(`Line ${index + 1}: GST rate must be 0, 5, 12, 18, or 28`);
+                }
+            });
+        }
+
+        // Check totals
+        if (poData.total === undefined || poData.total < 0) {
+            errors.push('Valid total amount is required');
+        }
+
+        // Validate calculations
+        if (poData.lines && poData.lines.length > 0) {
+            const calculatedSubtotal = poData.lines.reduce((sum, line) => {
+                const lineTotal = line.qty * line.pricePerUnit * (1 - (line.discountPercent || 0) / 100);
+                return sum + lineTotal;
+            }, 0);
+
+            const calculatedTax = poData.lines.reduce((sum, line) => {
+                const lineNet = line.qty * line.pricePerUnit * (1 - (line.discountPercent || 0) / 100);
+                const tax = lineNet * (line.gstPercent / 100);
+                return sum + tax;
+            }, 0);
+
+            const calculatedTotal = calculatedSubtotal + calculatedTax;
+
+            // Allow small rounding differences (0.01)
+            if (Math.abs(calculatedSubtotal - poData.subtotal) > 0.01) {
+                warnings.push('Subtotal calculation mismatch - please verify');
+            }
+
+            if (Math.abs(calculatedTotal - poData.total) > 0.01) {
+                warnings.push('Total calculation mismatch - please verify');
+            }
+        }
+
+        // Check supplier credit limit if available
+        if (poData.supplierId) {
+            try {
+                const supplier = await purchaseOrderRepository.findSupplierById(poData.supplierId);
+                if (supplier && supplier.creditLimit && poData.total > supplier.creditLimit) {
+                    warnings.push(`PO total (₹${poData.total}) exceeds supplier credit limit (₹${supplier.creditLimit})`);
+                }
+            } catch (error) {
+                logger.warn('Could not check supplier credit limit', error);
+            }
+        }
+
+        return {
+            valid: errors.length === 0,
+            errors,
+            warnings
+        };
+    }
+
+    /**
+     * Request approval for PO
+     */
+    async requestApproval({ poId, requestedBy, approvers, note }) {
+        const po = await purchaseOrderRepository.findPOById(poId);
+
+        if (!po) {
+            throw ApiError.notFound('Purchase order not found');
+        }
+
+        if (po.status !== 'DRAFT') {
+            throw ApiError.badRequest(`Cannot request approval for PO with status: ${po.status}`);
+        }
+
+        // Update PO status to PENDING_APPROVAL
+        const updatedPO = await purchaseOrderRepository.updatePOStatus(poId, 'PENDING_APPROVAL');
+
+        // TODO: Send notification to approvers (email/WhatsApp)
+        // For MVP, we'll just log it
+        logger.info(`Approval requested for PO ${po.poNumber} by ${requestedBy}. Approvers: ${approvers.join(', ')}`);
+
+        return {
+            po: updatedPO,
+            message: 'Approval request sent',
+            approvers
+        };
+    }
+
+    /**
+     * Get inventory suggestions (simple threshold-based for MVP)
+     */
+    async getInventorySuggestions({ storeId, limit = 100 }) {
+        const drugRepository = require('../../repositories/drugRepository');
+
+        const suggestions = await drugRepository.getDrugsNeedingReorder(storeId);
+
+        // Limit results
+        return suggestions.slice(0, limit);
+    }
+
+    /**
+     * Calculate PO totals (lightweight, no DB access)
+     * For real-time local calculations in the UI
+     */
+    calculateTotals(lines) {
+        if (!lines || lines.length === 0) {
+            return {
+                subtotal: 0,
+                taxBreakdown: [],
+                total: 0
+            };
+        }
+
+        // Calculate subtotal
+        const subtotal = lines.reduce((sum, line) => {
+            const lineNet = line.qty * line.pricePerUnit * (1 - (line.discountPercent || 0) / 100);
+            return sum + lineNet;
+        }, 0);
+
+        // Calculate tax breakdown by GST rate
+        const taxMap = new Map();
+        lines.forEach(line => {
+            const lineNet = line.qty * line.pricePerUnit * (1 - (line.discountPercent || 0) / 100);
+            const tax = lineNet * (line.gstPercent / 100);
+
+            if (taxMap.has(line.gstPercent)) {
+                const existing = taxMap.get(line.gstPercent);
+                taxMap.set(line.gstPercent, {
+                    taxable: existing.taxable + lineNet,
+                    tax: existing.tax + tax
+                });
+            } else {
+                taxMap.set(line.gstPercent, {
+                    taxable: lineNet,
+                    tax: tax
+                });
+            }
+        });
+
+        const taxBreakdown = Array.from(taxMap.entries()).map(([gstPercent, values]) => ({
+            gstPercent,
+            ...values
+        }));
+
+        const total = subtotal + taxBreakdown.reduce((sum, t) => sum + t.tax, 0);
+
+        return {
+            subtotal: Math.round(subtotal * 100) / 100,
+            taxBreakdown: taxBreakdown.map(t => ({
+                gstPercent: t.gstPercent,
+                taxable: Math.round(t.taxable * 100) / 100,
+                tax: Math.round(t.tax * 100) / 100
+            })),
+            total: Math.round(total * 100) / 100,
+            calculatedAt: new Date().toISOString()
+        };
+    }
+
+    /**
+     * Bulk enrich items with drug data, last prices, stock levels
+     * For bulk-add functionality
+     */
+    async bulkEnrichItems(items, supplierId) {
+        const drugRepository = require('../../repositories/drugRepository');
+        const enrichedLines = [];
+
+        for (const item of items) {
+            try {
+                // Get drug details
+                const drug = await drugRepository.findDrugById(item.drugId);
+
+                if (!drug) {
+                    logger.warn(`Drug not found: ${item.drugId}`);
+                    continue;
+                }
+
+                // Get last purchase price for this drug from this supplier
+                const lastPO = await purchaseOrderRepository.getLastPurchasePrice(item.drugId, supplierId);
+
+                // Get current stock
+                const stock = await drugRepository.getCurrentStock(item.drugId);
+
+                enrichedLines.push({
+                    drugId: item.drugId,
+                    drugName: `${drug.name}${drug.strength ? ` ${drug.strength}` : ''}${drug.form ? ` ${drug.form}` : ''}`,
+                    qty: item.qty,
+                    pricePerUnit: item.pricePerUnit || lastPO?.unitPrice || 0,
+                    discountPercent: item.discountPercent || 0,
+                    gstPercent: drug.gstRate || 12,
+                    packUnit: drug.defaultUnit || 'Strip',
+                    packSize: 10, // Default
+                    lastPurchasePrice: lastPO?.unitPrice,
+                    currentStock: stock || 0
+                });
+            } catch (error) {
+                logger.error(`Failed to enrich item ${item.drugId}:`, error);
+            }
+        }
+
+        return enrichedLines;
+    }
+
+    /**
+     * Autosave PO (idempotent, optimistic)
+     * Returns immediately, queues DB write
+     */
+    async autosavePO(id, poData) {
+        const existingPO = await purchaseOrderRepository.findPOById(id);
+
+        if (!existingPO) {
+            throw ApiError.notFound('Purchase order not found');
+        }
+
+        // Only allow autosave for DRAFT status
+        if (existingPO.status !== 'DRAFT') {
+            throw ApiError.badRequest('Can only autosave draft purchase orders');
+        }
+
+        const { items, ...poInfo } = poData;
+
+        // Update PO asynchronously (fire and forget for speed)
+        setImmediate(async () => {
+            try {
+                await purchaseOrderRepository.updatePO(id, poInfo, items);
+                logger.info(`PO ${id} autosaved`);
+            } catch (error) {
+                logger.error(`Autosave failed for PO ${id}:`, error);
+            }
+        });
+
+        // Return immediately with optimistic response
+        return {
+            id: existingPO.id,
+            poNumber: existingPO.poNumber,
+            status: existingPO.status,
+            lastSaved: new Date().toISOString(),
+            version: (existingPO.version || 0) + 1
+        };
     }
 }
 

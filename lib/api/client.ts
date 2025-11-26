@@ -21,31 +21,21 @@ export const tokenManager = {
     setAccessToken: (token: string | null) => {
         accessToken = token;
     },
-    getRefreshToken: () => refreshToken,
-    setRefreshToken: (token: string | null) => {
-        refreshToken = token;
-    },
     clearTokens: () => {
         accessToken = null;
-        refreshToken = null;
         if (typeof window !== 'undefined') {
             localStorage.removeItem('accessToken');
-            localStorage.removeItem('refreshToken');
         }
     },
     loadTokens: () => {
         if (typeof window !== 'undefined') {
             accessToken = localStorage.getItem('accessToken');
-            refreshToken = localStorage.getItem('refreshToken');
         }
     },
-    saveTokens: (access: string, refresh?: string) => {
+    saveTokens: (access: string) => {
         accessToken = access;
-        if (refresh) refreshToken = refresh;
-
         if (typeof window !== 'undefined') {
             localStorage.setItem('accessToken', access);
-            if (refresh) localStorage.setItem('refreshToken', refresh);
         }
     },
 };
@@ -95,6 +85,7 @@ async function refreshTokenIfNeeded(): Promise<void> {
             const response = await fetch(`${config.baseURL}/auth/refresh`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
+                credentials: 'include', // Send refresh token cookie
             });
             const data = await response.json();
             if (data?.data?.accessToken) {
@@ -143,6 +134,7 @@ async function baseFetch(
         const response = await fetch(url, {
             ...options,
             headers,
+            credentials: 'include', // Send cookies with requests
             signal: controller.signal,
         });
 

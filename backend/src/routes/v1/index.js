@@ -8,6 +8,8 @@ const supplierRoutes = require('./suppliers.routes');
 const onboardingRoutes = require('./onboarding.routes');
 const storeRoutes = require('./stores.routes');
 const userRoutes = require('./user.routes');
+const drugRoutes = require('./drug.routes');
+const rbacRoutes = require('../rbac');
 
 const router = express.Router();
 
@@ -23,6 +25,8 @@ router.use('/patients', patientRoutes);
 router.use('/sales', salesRoutes);
 router.use('/purchase-orders', purchaseOrderRoutes);
 router.use('/suppliers', supplierRoutes);
+router.use('/drugs', drugRoutes);
+router.use('/rbac', rbacRoutes);
 
 
 // Health check route

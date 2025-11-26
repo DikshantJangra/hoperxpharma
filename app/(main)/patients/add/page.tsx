@@ -1,10 +1,17 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { FiSave, FiX, FiUser, FiPhone, FiMail, FiMapPin, FiCalendar, FiAlertCircle, FiShield, FiCamera } from "react-icons/fi";
 import { MdBloodtype } from "react-icons/md";
+import { patientsApi } from "@/lib/api/patients";
+import { useAuthStore } from "@/lib/store/auth-store";
 
 export default function AddPatientPage() {
+    const router = useRouter();
+    const { primaryStore } = useAuthStore();
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const [formData, setFormData] = useState({
         firstName: "",
         lastName: "",
@@ -27,10 +34,94 @@ export default function AddPatientPage() {
         consentMarketing: false
     });
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        console.log("Patient data:", formData);
-        // In production, save to backend
+
+        if (!primaryStore?.id) {
+            setError("Store not found. Please log in again.");
+            return;
+        }
+
+        setLoading(true);
+        setError(null);
+
+        try {
+            // Create patient
+            const patientData = {
+                storeId: primaryStore.id,
+                firstName: formData.firstName,
+                lastName: formData.lastName,
+                dateOfBirth: formData.dob,
+                gender: formData.gender,
+                phoneNumber: formData.phone,
+                email: formData.email || undefined,
+                addressLine1: formData.address,
+                city: formData.city,
+                state: formData.state,
+                pinCode: formData.pincode,
+                bloodGroup: formData.bloodGroup || undefined,
+                allergies: formData.allergies ? formData.allergies.split(',').map(a => a.trim()) : [],
+                chronicConditions: formData.chronicConditions ? formData.chronicConditions.split(',').map(c => c.trim()) : [],
+                emergencyContactName: formData.emergencyContact || undefined,
+                emergencyContactPhone: formData.emergencyPhone || undefined,
+            };
+
+            const patientResponse = await patientsApi.createPatient(patientData);
+
+            if (!patientResponse.success) {
+                throw new Error(patientResponse.message || "Failed to create patient");
+            }
+
+            const patientId = patientResponse.data.id;
+
+            // Create consents if granted
+            if (formData.consentData) {
+                await patientsApi.createConsent({
+                    patientId,
+                    type: "Data Processing",
+                    status: "Active",
+                });
+            }
+
+            if (formData.consentMarketing) {
+                await patientsApi.createConsent({
+                    patientId,
+                    type: "Marketing", // Fixed: was "Marketing Communications"
+                    status: "Active",
+                });
+            }
+
+            // Create insurance if provided
+            if (formData.insuranceProvider && formData.insuranceNumber) {
+                await patientsApi.addInsurance(patientId, {
+                    provider: formData.insuranceProvider,
+                    policyNumber: formData.insuranceNumber,
+                    validFrom: new Date().toISOString(),
+                    validTo: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 year from now
+                    status: "active",
+                });
+            }
+
+            // Success - redirect to patient list
+            router.push("/patients/list");
+        } catch (err: any) {
+            console.error("Error creating patient:", err);
+
+            // Extract the error message from various possible sources
+            let errorMessage = "An error occurred while creating the patient";
+
+            if (err.message) {
+                errorMessage = err.message;
+            } else if (err.data?.message) {
+                errorMessage = err.data.message;
+            } else if (typeof err === 'string') {
+                errorMessage = err;
+            }
+
+            setError(errorMessage);
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -40,6 +131,11 @@ export default function AddPatientPage() {
                 <div className="max-w-6xl mx-auto">
                     <h1 className="text-2xl font-bold text-[#0f172a] mb-2">Add New Patient</h1>
                     <p className="text-sm text-[#64748b]">Create a new patient record with complete information</p>
+                    {error && (
+                        <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                            {error}
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -368,10 +464,11 @@ export default function AddPatientPage() {
                     </button>
                     <button
                         type="submit"
-                        className="px-6 py-3 bg-[#0ea5a3] text-white rounded-lg font-medium hover:bg-[#0d9391] transition-colors flex items-center gap-2"
+                        disabled={loading}
+                        className="px-6 py-3 bg-[#0ea5a3] text-white rounded-lg font-medium hover:bg-[#0d9391] transition-colors flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                         <FiSave className="w-4 h-4" />
-                        Save Patient
+                        {loading ? "Saving..." : "Save Patient"}
                     </button>
                 </div>
             </form>
