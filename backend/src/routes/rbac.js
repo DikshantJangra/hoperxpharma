@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { requireAuth } = require('../middlewares/auth');
+const { authenticate } = require('../middlewares/auth');
 const { requirePermission, requireAdmin } = require('../middlewares/rbac');
 const { PERMISSIONS } = require('../constants/permissions');
 
@@ -10,7 +10,7 @@ const userRoleController = require('../controllers/rbac/userRoleController');
 const adminPinController = require('../controllers/rbac/adminPinController');
 
 // All RBAC routes require authentication
-router.use(requireAuth);
+router.use(authenticate);
 
 // ============================================================================
 // ROLE MANAGEMENT ROUTES

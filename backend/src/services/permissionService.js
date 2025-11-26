@@ -1,9 +1,9 @@
 const prisma = require('../db/prisma');
 const { USER_ROLES } = require('../constants/roles');
-const LRU = require('lru-cache');
+const { LRUCache } = require('lru-cache');
 
 // Cache for role-permission mappings (5 min TTL)
-const permissionCache = new LRU({
+const permissionCache = new LRUCache({
     max: 500,
     ttl: 1000 * 60 * 5, // 5 minutes
 });

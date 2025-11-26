@@ -1,4 +1,4 @@
-const argon2 = require('argon2');
+const bcrypt = require('bcrypt');
 const crypto = require('crypto');
 const prisma = require('../db/prisma');
 const ApiError = require('../utils/ApiError');
@@ -19,8 +19,9 @@ class AdminPinService {
             throw ApiError.badRequest('PIN must be exactly 6 digits');
         }
 
-        const salt = crypto.randomBytes(16).toString('hex');
-        const pinHash = await argon2.hash(pin + salt);
+        // Hash PIN using bcrypt (salt is included in the hash)
+        const pinHash = await bcrypt.hash(pin, 10);
+        const salt = 'bcrypt'; // Placeholder as bcrypt handles salt internally
 
         const adminPin = await prisma.adminPin.upsert({
             where: { userId },
@@ -64,7 +65,7 @@ class AdminPinService {
         }
 
         // Verify PIN
-        const isValid = await argon2.verify(adminPin.pinHash, pin + adminPin.salt);
+        const isValid = await bcrypt.compare(pin, adminPin.pinHash);
 
         if (!isValid) {
             // Increment failed attempts
