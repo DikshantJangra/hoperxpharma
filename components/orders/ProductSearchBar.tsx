@@ -97,7 +97,7 @@ const ProductSearchBar = forwardRef(({ onSelect, supplier }: ProductSearchBarPro
                 if (searchCache.size >= MAX_CACHE_SIZE) {
                     // Remove oldest entry
                     const firstKey = searchCache.keys().next().value;
-                    searchCache.delete(firstKey);
+                    if (firstKey) searchCache.delete(firstKey);
                 }
                 searchCache.set(searchQuery, mappedProducts);
 
