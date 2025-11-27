@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { FiSend, FiPaperclip, FiUser, FiCpu, FiCheckCircle } from "react-icons/fi";
 import { useChat } from "@/hooks/useChat";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 type MessageType = "ai" | "human" | "user";
 
@@ -151,7 +153,15 @@ export default function ChatPage() {
                                                 : "bg-[#f1f5f9] text-[#0f172a]"
                                             }`}
                                     >
-                                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+                                        {message.type === "ai" ? (
+                                            <div className="prose prose-sm max-w-none prose-blue dark:prose-invert">
+                                                <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                                                    {message.content}
+                                                </ReactMarkdown>
+                                            </div>
+                                        ) : (
+                                            <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+                                        )}
                                     </div>
 
                                     {/* Suggested Actions */}

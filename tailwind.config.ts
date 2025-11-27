@@ -29,6 +29,7 @@ const config: Config = {
         },
     },
     plugins: [
+        require('@tailwindcss/typography'),
         function ({ addUtilities }: { addUtilities: any }) {
             addUtilities({
                 '.animation-delay-200': {
