@@ -1,7 +1,8 @@
-import React, { useState, useEffect, forwardRef, useImperativeHandle, useRef } from 'react';
-import { HiOutlineMagnifyingGlass, HiOutlineXMark } from 'react-icons/hi2';
+import React, { useState, useEffect, forwardRef, useImperativeHandle, useRef, useCallback } from 'react';
+import { HiOutlineMagnifyingGlass, HiOutlineXMark, HiOutlinePlus } from 'react-icons/hi2';
 import { FiUpload } from 'react-icons/fi';
 import BulkAddModal from './BulkAddModal';
+import AddCustomItemInline from './AddCustomItemInline';
 
 interface Product {
     id: string;
@@ -16,28 +17,61 @@ interface ProductSearchBarProps {
     supplier?: any;
 }
 
+// Simple cache for search results
+const searchCache = new Map<string, Product[]>();
+const MAX_CACHE_SIZE = 50;
+
 const ProductSearchBar = forwardRef(({ onSelect, supplier }: ProductSearchBarProps, ref) => {
     const [query, setQuery] = useState('');
     const [products, setProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(false);
     const [selectedIndex, setSelectedIndex] = useState(0);
     const [showBulkAdd, setShowBulkAdd] = useState(false);
+    const [showCustomItemInline, setShowCustomItemInline] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
+    const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
 
     useImperativeHandle(ref, () => ({
         focus: () => inputRef.current?.focus(),
         blur: () => inputRef.current?.blur()
     }));
 
+    // Debounced search function
+    const debouncedSearch = useCallback((searchQuery: string) => {
+        // Clear existing timer
+        if (debounceTimerRef.current) {
+            clearTimeout(debounceTimerRef.current);
+        }
+
+        // Set new timer
+        debounceTimerRef.current = setTimeout(() => {
+            searchProducts(searchQuery);
+        }, 300); // 300ms debounce
+    }, []);
+
     useEffect(() => {
         if (query.length >= 2) {
-            searchProducts(query);
+            debouncedSearch(query);
         } else {
             setProducts([]);
         }
-    }, [query]);
+
+        // Cleanup on unmount
+        return () => {
+            if (debounceTimerRef.current) {
+                clearTimeout(debounceTimerRef.current);
+            }
+        };
+    }, [query, debouncedSearch]);
 
     const searchProducts = async (searchQuery: string) => {
+        // Check cache first
+        if (searchCache.has(searchQuery)) {
+            setProducts(searchCache.get(searchQuery) || []);
+            setSelectedIndex(0);
+            return;
+        }
+
         setLoading(true);
         try {
             const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
@@ -59,6 +93,14 @@ const ProductSearchBar = forwardRef(({ onSelect, supplier }: ProductSearchBarPro
                     currentStock: 0
                 }));
 
+                // Update cache
+                if (searchCache.size >= MAX_CACHE_SIZE) {
+                    // Remove oldest entry
+                    const firstKey = searchCache.keys().next().value;
+                    searchCache.delete(firstKey);
+                }
+                searchCache.set(searchQuery, mappedProducts);
+
                 setProducts(mappedProducts);
                 setSelectedIndex(0);
             }
@@ -79,12 +121,16 @@ const ProductSearchBar = forwardRef(({ onSelect, supplier }: ProductSearchBarPro
             setSelectedIndex(prev => Math.max(prev - 1, 0));
         } else if (e.key === 'Enter') {
             e.preventDefault();
-            if (products[selectedIndex]) {
+            if (products.length > 0 && products[selectedIndex]) {
                 handleSelect(products[selectedIndex]);
+            } else if (query.trim().length > 0) {
+                // If no products found or selected, show inline form
+                setShowCustomItemInline(true);
             }
         } else if (e.key === 'Escape') {
             setQuery('');
             setProducts([]);
+            setShowCustomItemInline(false);
             inputRef.current?.blur();
         }
     };
@@ -95,15 +141,24 @@ const ProductSearchBar = forwardRef(({ onSelect, supplier }: ProductSearchBarPro
             qty: 1,
             pricePerUnit: product.lastPrice || 0,
             gstPercent: product.gstPercent,
-            discountPercent: 0
+            discountPercent: 0,
+            description: product.name
         });
         setQuery('');
         setProducts([]);
         inputRef.current?.focus();
     };
 
+    const handleCustomItemAdd = (item: any) => {
+        onSelect(item);
+        setQuery('');
+        setProducts([]);
+        setShowCustomItemInline(false);
+        inputRef.current?.focus();
+    };
+
     return (
-        <div className="relative">
+        <div className="relative space-y-2">
             <div className="flex items-center gap-2">
                 {/* Search Input */}
                 <div className="relative flex-1">
@@ -142,42 +197,70 @@ const ProductSearchBar = forwardRef(({ onSelect, supplier }: ProductSearchBarPro
                 </button>
             </div>
 
+            {/* Inline Custom Item Form */}
+            {showCustomItemInline && (
+                <AddCustomItemInline
+                    onAdd={handleCustomItemAdd}
+                    onCancel={() => setShowCustomItemInline(false)}
+                    initialName={query}
+                />
+            )}
+
             {/* Search Results Dropdown */}
-            {query.length >= 2 && (
-                <div className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-80 rounded-lg border border-gray-200 overflow-auto">
+            {query.length >= 2 && !showCustomItemInline && (
+                <div className="absolute z-10 mt-1 w-full bg-white shadow-lg max-h-96 rounded-lg border border-gray-200 overflow-auto">
                     {loading ? (
                         <div className="px-4 py-3 text-sm text-gray-500">Searching...</div>
-                    ) : products.length === 0 ? (
-                        <div className="px-4 py-3 text-sm text-gray-500">
-                            No products found for "{query}"
-                        </div>
                     ) : (
-                        products.map((product, index) => (
-                            <button
-                                key={product.id}
-                                onClick={() => handleSelect(product)}
-                                className={`w-full text-left px-4 py-3 hover:bg-gray-50 focus:bg-gray-50 focus:outline-none transition-colors ${index === selectedIndex ? 'bg-emerald-50' : ''
-                                    }`}
-                            >
-                                <div className="flex justify-between items-start">
-                                    <div className="flex-1">
-                                        <div className="font-medium text-gray-900">{product.name}</div>
-                                        <div className="text-xs text-gray-500 mt-1">
-                                            Stock: {product.currentStock} • GST: {product.gstPercent}%
-                                            {product.lastPrice && ` • Last: ₹${product.lastPrice}`}
-                                        </div>
-                                    </div>
+                        <>
+                            {products.length === 0 ? (
+                                <div className="px-4 py-3 text-sm text-gray-500 border-b border-gray-100">
+                                    No products found for "{query}"
                                 </div>
+                            ) : (
+                                products.map((product, index) => (
+                                    <button
+                                        key={product.id}
+                                        onClick={() => handleSelect(product)}
+                                        className={`w-full text-left px-4 py-3 hover:bg-gray-50 focus:bg-gray-50 focus:outline-none transition-colors ${index === selectedIndex ? 'bg-emerald-50' : ''
+                                            }`}
+                                    >
+                                        <div className="flex justify-between items-start">
+                                            <div className="flex-1">
+                                                <div className="font-medium text-gray-900">{product.name}</div>
+                                                <div className="text-xs text-gray-500 mt-1">
+                                                    Stock: {product.currentStock} • GST: {product.gstPercent}%
+                                                    {product.lastPrice && ` • Last: ₹${product.lastPrice}`}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </button>
+                                ))
+                            )}
+
+                            {/* Add Custom Item Option */}
+                            <button
+                                onClick={() => setShowCustomItemInline(true)}
+                                className="w-full text-left px-4 py-3 hover:bg-emerald-50 text-emerald-600 font-medium flex items-center gap-2 border-t border-gray-100"
+                            >
+                                <HiOutlinePlus className="h-4 w-4" />
+                                Add "{query}" as custom item
                             </button>
-                        ))
+                        </>
                     )}
                 </div>
             )}
 
             {/* Help Text */}
-            {!query && (
-                <div className="mt-2 text-xs text-gray-500">
-                    Use ↑↓ to navigate, Enter to select, Esc to cancel
+            {!query && !showCustomItemInline && (
+                <div className="mt-2 flex justify-between text-xs text-gray-500">
+                    <span>Use ↑↓ to navigate, Enter to select, Esc to cancel</span>
+                    <button
+                        onClick={() => setShowCustomItemInline(true)}
+                        className="text-emerald-600 hover:text-emerald-700 font-medium"
+                    >
+                        + Add Custom Item
+                    </button>
                 </div>
             )}
 

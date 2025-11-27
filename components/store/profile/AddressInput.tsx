@@ -16,7 +16,7 @@ export default function AddressInput({ address, onChange }: AddressInputProps) {
   return (
     <div className="space-y-3">
       <label className="block text-sm font-medium text-gray-700">Address</label>
-      
+
       <input
         type="text"
         value={address?.line1 || ""}
@@ -24,13 +24,21 @@ export default function AddressInput({ address, onChange }: AddressInputProps) {
         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
         placeholder="Address Line 1"
       />
-      
+
       <input
         type="text"
         value={address?.line2 || ""}
         onChange={(e) => updateField("line2", e.target.value)}
         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
         placeholder="Address Line 2 (optional)"
+      />
+
+      <input
+        type="text"
+        value={address?.landmark || ""}
+        onChange={(e) => updateField("landmark", e.target.value)}
+        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+        placeholder="Landmark (optional)"
       />
 
       <div className="grid grid-cols-3 gap-3">

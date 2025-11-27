@@ -44,10 +44,17 @@ export default function StockTable({ searchQuery, onSelectItem, selectedItem, re
           search: searchQuery,
         });
 
-        if (response.success) {
-          setDrugs(response.data || []);
-          setTotal(response.pagination?.total || 0);
-        }
+        console.log('📦 Drugs API Response:', response);
+
+        // Handle both response formats (array or object with data property)
+        const drugsData = Array.isArray(response) ? response : (response.data || []);
+        const totalCount = response.pagination?.total || (Array.isArray(response) ? response.length : (response.total || 0));
+
+        console.log('📦 Drugs Data:', drugsData);
+        console.log('📦 Number of drugs:', drugsData.length);
+
+        setDrugs(drugsData);
+        setTotal(totalCount);
       } catch (error) {
         console.error('Failed to fetch drugs:', error);
         setDrugs([]);

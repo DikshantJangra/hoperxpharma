@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { FiSend, FiPaperclip, FiUser, FiCpu, FiCheckCircle } from "react-icons/fi";
+import { useChat } from "@/hooks/useChat";
 
 type MessageType = "ai" | "human" | "user";
 
@@ -23,19 +24,31 @@ const QUICK_CARDS = [
 
 export default function ChatPage() {
     const pathname = usePathname();
-    const [messages, setMessages] = useState<ChatMessage[]>([
+    const { messages: apiMessages, sendMessage, isLoading } = useChat();
+    const [inputValue, setInputValue] = useState("");
+    const messagesEndRef = useRef<HTMLDivElement>(null);
+    const ticketId = `TKT-${Date.now().toString().slice(-6)}`;
+
+    // Convert API messages to UI format
+    const uiMessages: ChatMessage[] = apiMessages.map((msg, index) => ({
+        id: `api-${index}`,
+        type: msg.role === 'user' ? 'user' : 'ai',
+        content: msg.text,
+        timestamp: new Date(msg.timestamp),
+        suggestedActions: undefined
+    }));
+
+    // Combine with initial static message
+    const allMessages: ChatMessage[] = [
         {
             id: "1",
             type: "ai",
             content: "Hi! I'm your HopeRx AI Assistant. How can I help you today?",
             timestamp: new Date(),
             suggestedActions: ["Check stock levels", "View recent sales", "GST filing help"]
-        }
-    ]);
-    const [inputValue, setInputValue] = useState("");
-    const [isTyping, setIsTyping] = useState(false);
-    const messagesEndRef = useRef<HTMLDivElement>(null);
-    const ticketId = `TKT-${Date.now().toString().slice(-6)}`;
+        },
+        ...uiMessages
+    ];
 
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -43,38 +56,21 @@ export default function ChatPage() {
 
     useEffect(() => {
         scrollToBottom();
-    }, [messages]);
+    }, [allMessages.length, isLoading]);
 
-    const handleSendMessage = () => {
+    const handleSendMessage = async () => {
         if (!inputValue.trim()) return;
 
-        const userMessage: ChatMessage = {
-            id: Date.now().toString(),
-            type: "user",
-            content: inputValue,
-            timestamp: new Date()
-        };
+        const text = inputValue;
+        setInputValue(""); // Clear input immediately
 
-        setMessages([...messages, userMessage]);
-        setInputValue("");
-        setIsTyping(true);
-
-        // Simulate AI response
-        setTimeout(() => {
-            const aiMessage: ChatMessage = {
-                id: (Date.now() + 1).toString(),
-                type: "ai",
-                content: "I understand you're having an issue. Let me help you with that. Based on your question, I recommend checking the documentation or I can connect you with a support agent.",
-                timestamp: new Date(),
-                suggestedActions: ["View docs", "Talk to agent"]
-            };
-            setMessages((prev) => [...prev, aiMessage]);
-            setIsTyping(false);
-        }, 1500);
+        await sendMessage(text);
     };
 
     const handleQuickCard = (title: string) => {
         setInputValue(title);
+        // Optional: Auto-send when clicking a quick card
+        // sendMessage(title);
     };
 
     return (
@@ -93,7 +89,7 @@ export default function ChatPage() {
                                 <span className="text-sm font-medium text-green-700">Online</span>
                             </div>
                             <div className="px-3 py-1.5 bg-[#f1f5f9] rounded-lg">
-                                <span className="text-xs text-[#64748b]">Ticket:</span>{" "}
+                                <span className="text-xs text-[#94a3b8]">Ticket:</span>{" "}
                                 <span className="text-sm font-mono font-semibold text-[#0f172a]">{ticketId}</span>
                             </div>
                         </div>
@@ -123,7 +119,7 @@ export default function ChatPage() {
             {/* Messages */}
             <div className="flex-1 overflow-auto p-4">
                 <div className="max-w-4xl mx-auto space-y-4">
-                    {messages.map((message) => (
+                    {allMessages.map((message) => (
                         <div
                             key={message.id}
                             className={`flex ${message.type === "user" ? "justify-end" : "justify-start"}`}
@@ -132,10 +128,10 @@ export default function ChatPage() {
                                 {/* Avatar */}
                                 <div
                                     className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${message.type === "ai"
-                                            ? "bg-blue-100"
-                                            : message.type === "human"
-                                                ? "bg-green-100"
-                                                : "bg-gray-200"
+                                        ? "bg-blue-100"
+                                        : message.type === "human"
+                                            ? "bg-green-100"
+                                            : "bg-gray-200"
                                         }`}
                                 >
                                     {message.type === "ai" ? (
@@ -149,13 +145,13 @@ export default function ChatPage() {
                                 <div>
                                     <div
                                         className={`px-4 py-3 rounded-2xl ${message.type === "ai"
-                                                ? "bg-[#dbeafe] text-[#1e3a8a]"
-                                                : message.type === "human"
-                                                    ? "bg-[#d1fae5] text-[#065f46]"
-                                                    : "bg-[#f1f5f9] text-[#0f172a]"
+                                            ? "bg-[#dbeafe] text-[#1e3a8a]"
+                                            : message.type === "human"
+                                                ? "bg-[#d1fae5] text-[#065f46]"
+                                                : "bg-[#f1f5f9] text-[#0f172a]"
                                             }`}
                                     >
-                                        <p className="text-sm leading-relaxed">{message.content}</p>
+                                        <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
                                     </div>
 
                                     {/* Suggested Actions */}
@@ -180,7 +176,7 @@ export default function ChatPage() {
                         </div>
                     ))}
 
-                    {isTyping && (
+                    {isLoading && (
                         <div className="flex justify-start">
                             <div className="flex gap-3">
                                 <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">

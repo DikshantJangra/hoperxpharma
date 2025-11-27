@@ -66,6 +66,17 @@ export interface PurchaseOrder {
   auditEventId?: string;
   approvalThreshold?: number;
   approvers?: string[];
+  store?: {
+    name: string;
+    displayName: string;
+    addressLine1: string;
+    city: string;
+    state: string;
+    pinCode: string;
+    phoneNumber: string;
+    email: string;
+    licenses?: Array<{ type: string; number: string }>;
+  };
 }
 
 export interface SuggestedItem {

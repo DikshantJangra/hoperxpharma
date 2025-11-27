@@ -10,7 +10,9 @@ class InventoryRepository {
      * Find all drugs with pagination and search
      */
     async findDrugs({ page = 1, limit = 20, search = '', storeId }) {
-        const skip = (page - 1) * limit;
+        const pageNum = parseInt(page);
+        const limitNum = parseInt(limit);
+        const skip = (pageNum - 1) * limitNum;
 
         const where = {
             ...(search && {
@@ -18,6 +20,15 @@ class InventoryRepository {
                     { name: { contains: search, mode: 'insensitive' } },
                     { manufacturer: { contains: search, mode: 'insensitive' } },
                     { hsnCode: { contains: search } },
+                    {
+                        inventory: {
+                            some: {
+                                batchNumber: { contains: search, mode: 'insensitive' },
+                                storeId,
+                                deletedAt: null
+                            }
+                        }
+                    }
                 ],
             }),
         };
@@ -26,8 +37,16 @@ class InventoryRepository {
             prisma.drug.findMany({
                 where,
                 skip,
-                take: limit,
+                take: limitNum,
                 orderBy: { name: 'asc' },
+                include: {
+                    inventory: {
+                        where: {
+                            storeId,
+                            deletedAt: null
+                        }
+                    }
+                }
             }),
             prisma.drug.count({ where }),
         ]);
@@ -72,21 +91,29 @@ class InventoryRepository {
     /**
      * Find inventory batches for a store
      */
-    async findBatches({ storeId, page = 1, limit = 20, drugId, expiringBefore }) {
-        const skip = (page - 1) * limit;
+    async findBatches({ storeId, page = 1, limit = 20, drugId, expiringBefore, search }) {
+        const pageNum = parseInt(page);
+        const limitNum = parseInt(limit);
+        const skip = (pageNum - 1) * limitNum;
 
         const where = {
             storeId,
             deletedAt: null,
             ...(drugId && { drugId }),
             ...(expiringBefore && { expiryDate: { lte: expiringBefore } }),
+            ...(search && {
+                OR: [
+                    { batchNumber: { contains: search, mode: 'insensitive' } },
+                    { drug: { name: { contains: search, mode: 'insensitive' } } },
+                ],
+            }),
         };
 
         const [batches, total] = await Promise.all([
             prisma.inventoryBatch.findMany({
                 where,
                 skip,
-                take: limit,
+                take: limitNum,
                 include: {
                     drug: true,
                 },
@@ -149,7 +176,7 @@ class InventoryRepository {
      * Get low stock items
      */
     async getLowStockItems(storeId) {
-        return await prisma.$queryRaw`
+        const result = await prisma.$queryRaw`
       SELECT 
         d.id as "drugId",
         d.name,
@@ -163,6 +190,11 @@ class InventoryRepository {
       HAVING SUM(ib."quantityInStock") <= COALESCE(d."lowStockThreshold", 10)
       ORDER BY "totalStock" ASC
     `;
+
+        return result.map(item => ({
+            ...item,
+            totalStock: Number(item.totalStock)
+        }));
     }
 
     /**
@@ -203,7 +235,12 @@ class InventoryRepository {
         AND ib."deletedAt" IS NULL
     `;
 
-        return result[0];
+        const data = result[0];
+        return {
+            totalValue: data.totalValue ? Number(data.totalValue) : 0,
+            uniqueDrugs: data.uniqueDrugs ? Number(data.uniqueDrugs) : 0,
+            totalUnits: data.totalUnits ? Number(data.totalUnits) : 0
+        };
     }
 
     /**

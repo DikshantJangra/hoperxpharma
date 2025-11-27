@@ -13,7 +13,15 @@ const ApiResponse = require('../../utils/ApiResponse');
  * Get all drugs
  */
 const getDrugs = asyncHandler(async (req, res) => {
-    const { drugs, total } = await inventoryService.getDrugs(req.query);
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+
+    const { drugs, total } = await inventoryService.getDrugs({
+        ...req.query,
+        page,
+        limit,
+        storeId: req.storeId,
+    });
 
     const response = ApiResponse.paginated(drugs, {
         page: parseInt(req.query.page) || 1,
@@ -58,8 +66,13 @@ const updateDrug = asyncHandler(async (req, res) => {
  * Get inventory batches
  */
 const getBatches = asyncHandler(async (req, res) => {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+
     const { batches, total } = await inventoryService.getBatches({
         ...req.query,
+        page,
+        limit,
         storeId: req.storeId,
     });
 

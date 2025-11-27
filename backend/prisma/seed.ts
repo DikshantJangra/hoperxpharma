@@ -87,31 +87,31 @@ async function main() {
     console.log('🔐 Creating roles and permissions...')
 
     const permissions = [
-        { name: 'patient:create', description: 'Create new patients' },
-        { name: 'patient:read', description: 'View patient information' },
-        { name: 'patient:update', description: 'Update patient information' },
-        { name: 'patient:delete', description: 'Delete patients' },
-        { name: 'prescription:create', description: 'Create prescriptions' },
-        { name: 'prescription:read', description: 'View prescriptions' },
-        { name: 'prescription:update', description: 'Update prescriptions' },
-        { name: 'prescription:delete', description: 'Delete prescriptions' },
-        { name: 'dispense:create', description: 'Dispense medications' },
-        { name: 'inventory:read', description: 'View inventory' },
-        { name: 'inventory:adjust', description: 'Adjust inventory' },
-        { name: 'sale:create', description: 'Create sales' },
-        { name: 'sale:read', description: 'View sales' },
-        { name: 'po:create', description: 'Create purchase orders' },
-        { name: 'po:approve', description: 'Approve purchase orders' },
-        { name: 'expense:create', description: 'Create expenses' },
-        { name: 'expense:approve', description: 'Approve expenses' },
-        { name: 'reports:view', description: 'View reports' },
-        { name: 'settings:manage', description: 'Manage store settings' },
-        { name: 'users:manage', description: 'Manage users' }
+        { code: 'patient.create', name: 'Create Patients', description: 'Create new patients', category: 'patient', resource: 'patient' },
+        { code: 'patient.read', name: 'View Patients', description: 'View patient information', category: 'patient', resource: 'patient' },
+        { code: 'patient.update', name: 'Update Patients', description: 'Update patient information', category: 'patient', resource: 'patient' },
+        { code: 'patient.delete', name: 'Delete Patients', description: 'Delete patients', category: 'patient', resource: 'patient' },
+        { code: 'prescription.create', name: 'Create Prescriptions', description: 'Create prescriptions', category: 'prescription', resource: 'prescription' },
+        { code: 'prescription.read', name: 'View Prescriptions', description: 'View prescriptions', category: 'prescription', resource: 'prescription' },
+        { code: 'prescription.update', name: 'Update Prescriptions', description: 'Update prescriptions', category: 'prescription', resource: 'prescription' },
+        { code: 'prescription.delete', name: 'Delete Prescriptions', description: 'Delete prescriptions', category: 'prescription', resource: 'prescription' },
+        { code: 'dispense.create', name: 'Dispense Medications', description: 'Dispense medications', category: 'dispense', resource: 'dispense' },
+        { code: 'inventory.read', name: 'View Inventory', description: 'View inventory', category: 'inventory', resource: 'inventory' },
+        { code: 'inventory.adjust', name: 'Adjust Inventory', description: 'Adjust inventory', category: 'inventory', resource: 'inventory' },
+        { code: 'sale.create', name: 'Create Sales', description: 'Create sales', category: 'sale', resource: 'sale' },
+        { code: 'sale.read', name: 'View Sales', description: 'View sales', category: 'sale', resource: 'sale' },
+        { code: 'po.create', name: 'Create POs', description: 'Create purchase orders', category: 'procurement', resource: 'po' },
+        { code: 'po.approve', name: 'Approve POs', description: 'Approve purchase orders', category: 'procurement', resource: 'po' },
+        { code: 'expense.create', name: 'Create Expenses', description: 'Create expenses', category: 'finance', resource: 'expense' },
+        { code: 'expense.approve', name: 'Approve Expenses', description: 'Approve expenses', category: 'finance', resource: 'expense' },
+        { code: 'reports.view', name: 'View Reports', description: 'View reports', category: 'reports', resource: 'reports' },
+        { code: 'settings.manage', name: 'Manage Settings', description: 'Manage store settings', category: 'settings', resource: 'settings' },
+        { code: 'users.manage', name: 'Manage Users', description: 'Manage users', category: 'users', resource: 'users' }
     ]
 
     for (const perm of permissions) {
         await prisma.permission.upsert({
-            where: { name: perm.name },
+            where: { code: perm.code },
             update: {},
             create: perm
         })

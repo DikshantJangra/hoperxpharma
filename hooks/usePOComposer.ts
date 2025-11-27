@@ -62,7 +62,7 @@ export function usePOComposer(storeId: string) {
 
   const addLine = useCallback((item: Partial<POLine>) => {
     const newLine: POLine = {
-      lineId: `L${Date.now()}`,
+      lineId: `L${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       drugId: item.drugId || '',
       description: item.description || '',
       packUnit: item.packUnit || 'Strip',

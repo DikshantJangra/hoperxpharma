@@ -129,6 +129,7 @@ class PurchaseOrderRepository {
                     },
                 },
                 receipts: true,
+                store: true,
             },
         });
     }

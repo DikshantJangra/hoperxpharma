@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import OrderStatusBadge from './OrderStatusBadge';
-import { FiEye, FiEdit2, FiDownload } from 'react-icons/fi';
+import { FiEye, FiEdit2, FiDownload, FiPackage } from 'react-icons/fi';
 
 export interface Order {
     id: string;
@@ -19,10 +19,11 @@ interface OrderListProps {
     loading?: boolean;
     onView?: (order: Order) => void;
     onEdit?: (order: Order) => void;
+    onReceive?: (order: Order) => void;
     showActions?: boolean;
 }
 
-export default function OrderList({ orders, loading = false, onView, onEdit, showActions = true }: OrderListProps) {
+export default function OrderList({ orders, loading = false, onView, onEdit, onReceive, showActions = true }: OrderListProps) {
     const formatCurrency = (amount: number) => `₹${amount.toLocaleString('en-IN')}`;
     const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString('en-IN', {
         year: 'numeric',
@@ -57,12 +58,7 @@ export default function OrderList({ orders, loading = false, onView, onEdit, sho
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Date
                             </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Items
-                            </th>
-                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                                Amount
-                            </th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Amount</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                 Status
                             </th>
@@ -92,9 +88,8 @@ export default function OrderList({ orders, loading = false, onView, onEdit, sho
                                 orders.map((order) => (
                                     <tr key={order.id} className="hover:bg-gray-50 transition-colors">
                                         <td className="px-6 py-4 font-medium text-gray-900">{order.poNumber}</td>
-                                        <td className="px-6 py-4 text-gray-600">{formatDate(order.date)}</td>
                                         <td className="px-6 py-4 text-gray-900">{order.supplier}</td>
-                                        <td className="px-6 py-4 text-gray-600">{order.items}</td>
+                                        <td className="px-6 py-4 text-gray-600">{formatDate(order.date)}</td>
                                         <td className="px-6 py-4 font-medium text-gray-900">{formatCurrency(order.amount)}</td>
                                         <td className="px-6 py-4">
                                             <OrderStatusBadge status={order.status} />
@@ -102,10 +97,20 @@ export default function OrderList({ orders, loading = false, onView, onEdit, sho
                                         {showActions && (
                                             <td className="px-6 py-4 text-right">
                                                 <div className="flex items-center justify-end gap-2">
-                                                    <button onClick={() => onView?.(order)} className="p-1 text-blue-600 hover:bg-blue-50 rounded">
+                                                    <button onClick={() => onView?.(order)} className="p-1 text-blue-600 hover:bg-blue-50 rounded" title="View">
                                                         <FiEye size={16} />
                                                     </button>
-                                                    <button onClick={() => onEdit?.(order)} className="p-1 text-emerald-600 hover:bg-emerald-50 rounded">
+                                                    {onReceive && (order.status === 'sent' || order.status === 'partial') && (
+                                                        <Link href={`/orders/pending/${order.id}/receive`} passHref>
+                                                            <button
+                                                                className="p-1 text-emerald-600 hover:bg-emerald-50 rounded"
+                                                                title="Receive Shipment"
+                                                            >
+                                                                <FiPackage size={16} />
+                                                            </button>
+                                                        </Link>
+                                                    )}
+                                                    <button onClick={() => onEdit?.(order)} className="p-1 text-gray-600 hover:bg-gray-50 rounded" title="Edit">
                                                         <FiEdit2 size={16} />
                                                     </button>
                                                 </div>

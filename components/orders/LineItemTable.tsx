@@ -3,8 +3,9 @@
 import React, { useState } from 'react';
 import { POLine, Supplier } from '@/types/po';
 import LineItemRow from './LineItemRow';
-import ProductSearch from './ProductSearch';
-import { MdAdd, MdSearch, MdShoppingCart } from 'react-icons/md';
+import ProductSearchBar from './ProductSearchBar';
+import AddCustomItemInline from './AddCustomItemInline';
+import { MdAdd, MdSearch, MdShoppingCart, MdPostAdd } from 'react-icons/md';
 
 interface LineItemTableProps {
   lines: POLine[];
@@ -22,20 +23,27 @@ export default function LineItemTable({
   supplier
 }: LineItemTableProps) {
   const [showSearch, setShowSearch] = useState(false);
+  const [showCustomItemInline, setShowCustomItemInline] = useState(false);
 
   const handleAddProduct = (product: any) => {
     onAddLine({
-      drugId: product.id,
-      description: product.name,
+      drugId: product.drugId || product.id,
+      description: product.description || product.name,
       packUnit: product.packUnit || 'Strip',
       packSize: product.packSize || 10,
       qty: 1,
-      unit: product.unit || 'strip',
-      pricePerUnit: product.price || 0,
+      unit: product.unit || (product.packUnit || 'strip').toLowerCase(),
+      pricePerUnit: product.pricePerUnit || product.price || 0,
       gstPercent: product.gstPercent || 12,
-      lastPurchasePrice: product.lastPrice
+      lastPurchasePrice: product.lastPurchasePrice || product.lastPrice
     });
-    setShowSearch(false);
+    // Don't close search automatically to allow adding multiple items
+    // setShowSearch(false); 
+  };
+
+  const handleCustomItemAdd = (item: any) => {
+    handleAddProduct(item);
+    setShowCustomItemInline(false);
   };
 
   return (
@@ -48,21 +56,47 @@ export default function LineItemTable({
             {lines.length}
           </span>
         </h3>
-        <button
-          onClick={() => setShowSearch(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors shadow-sm"
-        >
-          <MdAdd className="h-4 w-4" />
-          Add Item
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => {
+              setShowCustomItemInline(!showCustomItemInline);
+              setShowSearch(false); // Close search if open
+            }}
+            className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium border rounded-lg transition-colors shadow-sm ${showCustomItemInline
+                ? 'text-emerald-700 bg-emerald-100 border-emerald-300'
+                : 'text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100'
+              }`}
+          >
+            <MdPostAdd className="h-4 w-4" />
+            {showCustomItemInline ? 'Close Custom Item' : 'Add Custom Item'}
+          </button>
+          <button
+            onClick={() => {
+              setShowSearch(!showSearch);
+              setShowCustomItemInline(false); // Close custom item if open
+            }}
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors shadow-sm"
+          >
+            <MdAdd className="h-4 w-4" />
+            {showSearch ? 'Close Search' : 'Add Item'}
+          </button>
+        </div>
       </div>
 
       {showSearch && (
         <div className="px-4 py-4 border-b border-gray-200 bg-gray-50 animate-in slide-in-from-top-2">
-          <ProductSearch
+          <ProductSearchBar
             onSelect={handleAddProduct}
-            onCancel={() => setShowSearch(false)}
             supplier={supplier}
+          />
+        </div>
+      )}
+
+      {showCustomItemInline && (
+        <div className="px-4 py-4 border-b border-gray-200 bg-gray-50 animate-in slide-in-from-top-2">
+          <AddCustomItemInline
+            onAdd={handleCustomItemAdd}
+            onCancel={() => setShowCustomItemInline(false)}
           />
         </div>
       )}

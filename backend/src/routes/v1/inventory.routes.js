@@ -19,7 +19,7 @@ router.use(authenticate);
 /**
  * Drug routes
  */
-router.get('/drugs', validate(inventoryQuerySchema, 'query'), inventoryController.getDrugs);
+router.get('/drugs', requireStoreAccess, validate(inventoryQuerySchema, 'query'), inventoryController.getDrugs);
 router.get('/drugs/:id', inventoryController.getDrugById);
 router.post('/drugs', requirePharmacist, validate(drugSchema), inventoryController.createDrug);
 router.put('/drugs/:id', requirePharmacist, validate(drugSchema), inventoryController.updateDrug);

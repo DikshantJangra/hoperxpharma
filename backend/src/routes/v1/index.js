@@ -9,7 +9,10 @@ const onboardingRoutes = require('./onboarding.routes');
 const storeRoutes = require('./stores.routes');
 const userRoutes = require('./user.routes');
 const drugRoutes = require('./drug.routes');
+const grnRoutes = require('./grn.routes');
+const chatRoutes = require('./chatRoute');
 const rbacRoutes = require('../rbac');
+const geminiRoutes = require('../gemini.routes');
 
 const router = express.Router();
 
@@ -26,7 +29,10 @@ router.use('/sales', salesRoutes);
 router.use('/purchase-orders', purchaseOrderRoutes);
 router.use('/suppliers', supplierRoutes);
 router.use('/drugs', drugRoutes);
+router.use('/grn', grnRoutes);
+router.use('/chat', chatRoutes);
 router.use('/rbac', rbacRoutes);
+router.use('/gemini', geminiRoutes);
 
 
 // Health check route

@@ -1,60 +1,112 @@
-'use client';
-
-import React from 'react';
+import React, { useState } from 'react';
 import { PurchaseOrder } from '@/types/po';
-import { HiOutlineDocumentText, HiOutlinePrinter, HiOutlinePaperAirplane } from 'react-icons/hi2';
+import { HiOutlineDocumentText, HiOutlinePrinter, HiOutlinePaperAirplane, HiOutlineChatBubbleLeftRight } from 'react-icons/hi2';
+import toast from 'react-hot-toast';
+import POPrintView from './POPrintView';
 
 interface POSummaryProps {
   po: PurchaseOrder;
 }
 
 export default function POSummary({ po }: POSummaryProps) {
+  const [showPrintView, setShowPrintView] = useState(false);
+
   const formatCurrency = (amount: number | string) => `₹${Number(amount || 0).toFixed(2)}`;
 
   const needsApproval = po.total > (po.approvalThreshold || 50000);
 
+  const handlePreviewPdf = async () => {
+    try {
+      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+      // Use poId or fallback to casting for 'id' if it exists at runtime
+      const poId = po.poId || (po as any).id;
+      if (!poId) {
+        toast.error('Cannot generate PDF for unsaved PO');
+        return;
+      }
+
+      const response = await fetch(`${apiBaseUrl}/purchase-orders/${poId}/preview.pdf`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+        }
+      });
+
+      if (!response.ok) throw new Error('Failed to generate PDF');
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      window.open(url, '_blank');
+    } catch (error) {
+      console.error('PDF generation failed:', error);
+      toast.error('Failed to generate PDF preview');
+    }
+  };
+
+  const handlePrint = () => {
+    setShowPrintView(true);
+  };
+
+  const handleWhatsAppClick = () => {
+    toast('WhatsApp integration coming soon!', {
+      icon: <HiOutlineChatBubbleLeftRight className="text-emerald-500 h-5 w-5" />,
+      style: {
+        borderRadius: '10px',
+        background: '#fff',
+        color: '#333',
+      },
+    });
+  };
+
   return (
     <div className="space-y-4">
-      {/* PO Summary */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100 bg-gray-50/50">
-          <h3 className="font-semibold text-gray-800">Order Summary</h3>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 space-y-6">
+        <div>
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Order Summary</h3>
+          <div className="space-y-3 text-sm">
+            <div className="flex justify-between text-gray-600">
+              <span>Subtotal</span>
+              <span>{formatCurrency(po.subtotal)}</span>
+            </div>
+            {po.taxBreakdown.map((tax, index) => (
+              <div key={index} className="flex justify-between text-gray-600">
+                <span>GST ({tax.gstPercent}%)</span>
+                <span>{formatCurrency(tax.tax)}</span>
+              </div>
+            ))}
+            <div className="pt-3 border-t border-gray-100 flex justify-between font-semibold text-gray-900 text-base">
+              <span>Total</span>
+              <span>{formatCurrency(po.total)}</span>
+            </div>
+          </div>
         </div>
-        <div className="p-6 space-y-4">
-          <div className="flex justify-between text-sm">
-            <span className="text-gray-500">Items ({po.lines.length})</span>
-            <span className="text-gray-900 font-medium">{formatCurrency(po.subtotal)}</span>
+
+        <div className="space-y-3 pt-4 border-t border-gray-100">
+          <div className="space-y-3 pt-4 border-t border-gray-100">
+            <button
+              onClick={handleWhatsAppClick}
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition-colors shadow-sm"
+            >
+              <HiOutlinePaperAirplane className="h-4 w-4" />
+              Send via WhatsApp
+            </button>
+
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                onClick={handlePreviewPdf}
+                className="col-span-1 flex items-center justify-center gap-2 px-3 py-2 text-sm text-gray-600 bg-white hover:bg-gray-50 rounded-lg transition-colors border border-gray-200"
+              >
+                <HiOutlineDocumentText className="h-4 w-4" />
+                Preview PDF
+              </button>
+              <button
+                onClick={handlePrint}
+                className="col-span-1 flex items-center justify-center gap-2 px-3 py-2 text-sm text-gray-600 bg-white hover:bg-gray-50 rounded-lg transition-colors border border-gray-200"
+              >
+                <HiOutlinePrinter className="h-4 w-4" />
+                Print PO
+              </button>
+            </div>
           </div>
-
-          {po.taxBreakdown.map((tax) => (
-            <div key={tax.gstPercent} className="flex justify-between text-sm">
-              <span className="text-gray-500">GST {tax.gstPercent}%</span>
-              <span className="text-gray-900 font-medium">{formatCurrency(tax.tax)}</span>
-            </div>
-          ))}
-
-          <div className="border-t border-dashed border-gray-200 pt-4 mt-2">
-            <div className="flex justify-between items-end">
-              <span className="text-gray-900 font-semibold text-lg">Total</span>
-              <span className="text-emerald-600 font-bold text-2xl">{formatCurrency(po.total)}</span>
-            </div>
-          </div>
-
-          {needsApproval && (
-            <div className="mt-4 p-3 bg-amber-50 border border-amber-100 rounded-lg flex gap-3">
-              <div className="shrink-0 mt-0.5 text-amber-600">
-                {/* Icon could go here */}
-              </div>
-              <div>
-                <div className="text-xs font-semibold text-amber-800 uppercase tracking-wide">
-                  Approval Required
-                </div>
-                <div className="text-xs text-amber-700 mt-1">
-                  Total exceeds {formatCurrency(po.approvalThreshold || 50000)} limit.
-                </div>
-              </div>
-            </div>
-          )}
         </div>
       </div>
 
@@ -118,15 +170,24 @@ export default function POSummary({ po }: POSummaryProps) {
           <h3 className="text-sm font-medium text-gray-800">Quick Actions</h3>
         </div>
         <div className="p-4 space-y-2">
-          <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-md">
+          <button
+            onClick={() => setShowPrintView(true)}
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-md"
+          >
             <HiOutlineDocumentText className="h-4 w-4" />
             Preview PDF
           </button>
-          <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-md">
+          <button
+            onClick={() => setShowPrintView(true)}
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-md"
+          >
             <HiOutlinePrinter className="h-4 w-4" />
             Print PO
           </button>
-          <button className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-md">
+          <button
+            onClick={handleWhatsAppClick}
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-md"
+          >
             <HiOutlinePaperAirplane className="h-4 w-4" />
             Send via WhatsApp
           </button>
@@ -155,6 +216,11 @@ export default function POSummary({ po }: POSummaryProps) {
             )}
           </div>
         </div>
+      )}
+
+      {/* Print View Modal */}
+      {showPrintView && (
+        <POPrintView po={po} onClose={() => setShowPrintView(false)} />
       )}
     </div>
   );

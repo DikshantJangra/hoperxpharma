@@ -14,47 +14,60 @@ export default function BatchesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState<any>(null);
 
+  const fetchBatches = async () => {
+    setIsLoading(true);
+    try {
+      const { inventoryApi } = await import('@/lib/api/inventory');
+      const response = await inventoryApi.getBatches({
+        page: 1,
+        limit: 100,
+        search: searchQuery,
+      });
+
+      console.log('📦 Batches API Response:', response);
+      
+      // Handle both response formats
+      const batchesData = Array.isArray(response) ? response : (response.data || []);
+      console.log('📦 Batches Data:', batchesData);
+      console.log('📦 Number of batches:', batchesData.length);
+
+      setBatches(batchesData);
+
+      // Calculate stats
+      const total = batchesData.length;
+      const onHand = batchesData.reduce((sum: number, b: any) => sum + (b.quantityInStock || 0), 0);
+      const expiringSoon = batchesData.filter((b: any) => {
+        const daysToExpiry = Math.floor((new Date(b.expiryDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+        return daysToExpiry < 7 && daysToExpiry > 0;
+      }).length;
+
+      setStats({
+        total,
+        onHand,
+        expiringSoon,
+        quarantined: 0,
+        recalled: 0,
+      });
+      
+      console.log('📊 Stats:', { total, onHand, expiringSoon });
+    } catch (error) {
+      console.error('Failed to fetch batches:', error);
+      setBatches([]);
+      setStats({ total: 0, onHand: 0, expiringSoon: 0, quarantined: 0, recalled: 0 });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchBatches = async () => {
-      setIsLoading(true);
-      try {
-        const { inventoryApi } = await import('@/lib/api/inventory');
-        const response = await inventoryApi.getBatches({
-          page: 1,
-          limit: 100,
-          search: searchQuery,
-        });
-
-        if (response.success) {
-          setBatches(response.data || []);
-
-          // Calculate stats
-          const total = response.data?.length || 0;
-          const onHand = response.data?.reduce((sum: number, b: any) => sum + b.quantityInStock, 0) || 0;
-          const expiringSoon = response.data?.filter((b: any) => {
-            const daysToExpiry = Math.floor((new Date(b.expiryDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
-            return daysToExpiry < 7 && daysToExpiry > 0;
-          }).length || 0;
-
-          setStats({
-            total,
-            onHand,
-            expiringSoon,
-            quarantined: 0,
-            recalled: 0,
-          });
-        }
-      } catch (error) {
-        console.error('Failed to fetch batches:', error);
-        setBatches([]);
-        setStats({ total: 0, onHand: 0, expiringSoon: 0, quarantined: 0, recalled: 0 });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
     const timer = setTimeout(fetchBatches, searchQuery ? 300 : 0);
     return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Auto-refresh every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(fetchBatches, 30000);
+    return () => clearInterval(interval);
   }, [searchQuery]);
 
   useEffect(() => {
@@ -78,6 +91,10 @@ export default function BatchesPage() {
             <p className="text-sm text-[#64748b]">Inventory › Batches</p>
           </div>
           <div className="flex items-center gap-2">
+            <button onClick={fetchBatches} className="px-3 py-2 border border-[#cbd5e1] rounded-lg hover:bg-[#f8fafc] flex items-center gap-2 text-sm" disabled={isLoading}>
+              <FiDownload className="w-4 h-4" />
+              {isLoading ? 'Refreshing...' : 'Refresh'}
+            </button>
             <button className="px-3 py-2 border border-[#cbd5e1] rounded-lg hover:bg-[#f8fafc] flex items-center gap-2 text-sm" disabled={isLoading}>
               <BsQrCodeScan className="w-4 h-4" />
               Scan

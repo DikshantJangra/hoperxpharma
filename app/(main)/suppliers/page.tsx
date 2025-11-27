@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import SupplierList from '@/components/inventory/suppliers/SupplierList';
-import SupplierForm from '@/components/inventory/suppliers/SupplierForm';
+import SupplierList from '@/components/suppliers/SupplierList';
+import SupplierForm from '@/components/suppliers/SupplierForm';
 import { FiUsers, FiAlertTriangle, FiDollarSign, FiCheckCircle } from 'react-icons/fi';
 
 const StatCardSkeleton = () => (

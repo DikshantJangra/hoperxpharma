@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import { Supplier } from '@/types/po';
 import { Supplier as ApiSupplier } from '@/lib/api/supplier';
 import { HiOutlineChevronDown, HiOutlineMagnifyingGlass } from 'react-icons/hi2';
-import SupplierForm from '@/components/inventory/suppliers/SupplierForm';
+import SupplierForm from '@/components/suppliers/SupplierForm';
 import { FiPlus, FiAlertCircle } from 'react-icons/fi';
 
 interface SupplierSelectProps {

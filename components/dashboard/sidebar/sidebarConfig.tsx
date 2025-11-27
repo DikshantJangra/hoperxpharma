@@ -105,6 +105,7 @@ export const sidebarConfig: SidebarSection[] = [
                 icon: <FiPackage size={18} />,
                 label: "Orders",
                 subItems: [
+                    { label: "Overview", path: "/orders" },
                     { label: "New PO", path: "/orders/new-po" },
                     { label: "Pending", path: "/orders/pending" },
                     { label: "Received", path: "/orders/received" },
@@ -115,10 +116,10 @@ export const sidebarConfig: SidebarSection[] = [
                 icon: <FiUsers size={18} />,
                 label: "Suppliers",
                 subItems: [
-                    { label: "Overview", path: "/inventory/suppliers" },
-                    { label: "Payables", path: "/inventory/suppliers/payables" },
-                    { label: "Compliance", path: "/inventory/suppliers/compliance" },
-                    { label: "Analytics", path: "/inventory/suppliers/analytics" }
+                    { label: "Overview", path: "/suppliers" },
+                    { label: "Payables", path: "/suppliers/payables" },
+                    { label: "Compliance", path: "/suppliers/compliance" },
+                    { label: "Analytics", path: "/suppliers/analytics" }
                 ]
             },
             {

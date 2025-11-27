@@ -1,4 +1,4 @@
-import SupplierProfile from '@/components/inventory/suppliers/SupplierProfile';
+import SupplierProfile from '@/components/suppliers/SupplierProfile';
 
 export default async function SupplierProfilePage({ params }: { params: Promise<{ id: string }> }) {
     const { id } = await params;

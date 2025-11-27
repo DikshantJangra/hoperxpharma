@@ -1,0 +1,15 @@
+#!/bin/bash
+TOKEN=$(curl -s -X POST http://localhost:8000/api/v1/auth/login -H "Content-Type: application/json" -d '{"email": "Hopeuser1@gmail.com", "password": "Hopeuser1"}' | grep -o '"accessToken":"[^"]*"' | cut -d'"' -f4)
+
+curl -X POST http://localhost:8000/api/v1/drugs -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" -d '{"name":"Paracetamol","genericName":"Acetaminophen","manufacturer":"Cipla Ltd","dosageForm":"Tablet","strength":"500mg","schedule":"OTC","hsnCode":"30049099","gstRate":12}'
+curl -X POST http://localhost:8000/api/v1/drugs -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" -d '{"name":"Amoxicillin","genericName":"Amoxicillin","manufacturer":"Sun Pharma","dosageForm":"Capsule","strength":"250mg","schedule":"H","hsnCode":"30042010","gstRate":12}'
+curl -X POST http://localhost:8000/api/v1/drugs -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" -d '{"name":"Azithromycin","genericName":"Azithromycin","manufacturer":"Dr Reddys","dosageForm":"Tablet","strength":"500mg","schedule":"H","hsnCode":"30042090","gstRate":12}'
+curl -X POST http://localhost:8000/api/v1/drugs -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" -d '{"name":"Cetirizine","genericName":"Cetirizine HCl","manufacturer":"Cipla Ltd","dosageForm":"Tablet","strength":"10mg","schedule":"OTC","hsnCode":"30049099","gstRate":12}'
+curl -X POST http://localhost:8000/api/v1/drugs -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" -d '{"name":"Metformin","genericName":"Metformin HCl","manufacturer":"Sun Pharma","dosageForm":"Tablet","strength":"500mg","schedule":"H","hsnCode":"30049011","gstRate":12}'
+curl -X POST http://localhost:8000/api/v1/drugs -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" -d '{"name":"Omeprazole","genericName":"Omeprazole","manufacturer":"Lupin","dosageForm":"Capsule","strength":"20mg","schedule":"H","hsnCode":"30049039","gstRate":12}'
+curl -X POST http://localhost:8000/api/v1/drugs -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" -d '{"name":"Ibuprofen","genericName":"Ibuprofen","manufacturer":"Abbott","dosageForm":"Tablet","strength":"400mg","schedule":"OTC","hsnCode":"30049099","gstRate":12}'
+curl -X POST http://localhost:8000/api/v1/drugs -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" -d '{"name":"Atorvastatin","genericName":"Atorvastatin","manufacturer":"Ranbaxy","dosageForm":"Tablet","strength":"10mg","schedule":"H","hsnCode":"30049049","gstRate":12}'
+curl -X POST http://localhost:8000/api/v1/drugs -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" -d '{"name":"Pantoprazole","genericName":"Pantoprazole","manufacturer":"Torrent","dosageForm":"Tablet","strength":"40mg","schedule":"H","hsnCode":"30049039","gstRate":12}'
+curl -X POST http://localhost:8000/api/v1/drugs -H "Content-Type: application/json" -H "Authorization: Bearer $TOKEN" -d '{"name":"Diclofenac","genericName":"Diclofenac Sodium","manufacturer":"Novartis","dosageForm":"Tablet","strength":"50mg","schedule":"H","hsnCode":"30049099","gstRate":12}'
+
+echo "✅ 10 drugs added!"

@@ -71,6 +71,26 @@ export interface Supplier {
 
     createdAt: string;
     updatedAt: string;
+
+    purchaseOrders?: PurchaseOrder[];
+    returns?: SupplierReturn[];
+}
+
+export interface PurchaseOrder {
+    id: string;
+    poNumber: string;
+    createdAt: string;
+    total: number;
+    status: 'DRAFT' | 'PENDING_APPROVAL' | 'APPROVED' | 'SENT' | 'PARTIALLY_RECEIVED' | 'RECEIVED' | 'CANCELLED';
+}
+
+export interface SupplierReturn {
+    id: string;
+    returnNumber: string;
+    createdAt: string;
+    reason: string;
+    status: 'PENDING' | 'APPROVED' | 'COMPLETED' | 'REJECTED';
+    total: number;
 }
 
 export interface SupplierFilter {

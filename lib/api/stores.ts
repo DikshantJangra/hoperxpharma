@@ -6,12 +6,26 @@ export interface Store {
     displayName?: string;
     email?: string;
     phoneNumber: string;
+    whatsapp?: string;
+    businessType?: string;
+    logoUrl?: string;
+
+    // Address
     addressLine1: string;
+    addressLine2?: string;
     city: string;
     state: string;
     pinCode: string;
+    landmark?: string;
+
+    // Licenses
     gstin?: string;
     dlNumber?: string;
+
+    // Operations
+    is24x7?: boolean;
+    homeDelivery?: boolean;
+
     createdAt: string;
 }
 
@@ -55,6 +69,14 @@ export const storesApi = {
     async getStores() {
         const response = await apiClient.get('/stores');
         return response.data as Store[];
+    },
+
+    /**
+     * Get current user's primary store
+     */
+    async getMyStore() {
+        const response = await apiClient.get('/stores/me');
+        return response.data as Store;
     },
 
     /**

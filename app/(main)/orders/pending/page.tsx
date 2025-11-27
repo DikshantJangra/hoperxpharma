@@ -1,10 +1,14 @@
+
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import OrderList, { Order } from '@/components/orders/OrderList';
+import OrderList from '@/components/orders/OrderList';
 import OrderFilters, { FilterState } from '@/components/orders/OrderFilters';
 import { HiOutlineClock, HiOutlineExclamationCircle, HiOutlineCalendar } from 'react-icons/hi2';
+import { HiOutlineRefresh } from 'react-icons/hi'; // Added HiOutlineRefresh
+import { Order } from '@/components/orders/OrderList'; // Changed Order import source
 import { tokenManager } from '@/lib/api/client';
+import { useRouter } from 'next/navigation';
 
 const StatCardSkeleton = () => (
     <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 animate-pulse">
@@ -21,6 +25,7 @@ const StatCardSkeleton = () => (
 export default function PendingOrdersPage() {
     const [orders, setOrders] = useState<Order[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const router = useRouter();
 
     useEffect(() => {
         fetchPendingOrders();
@@ -67,35 +72,43 @@ export default function PendingOrdersPage() {
     };
 
     const handleView = (order: Order) => {
-        window.location.href = `/orders/${order.id}`;
+        router.push(`/orders/${order.id}`);
+    };
+
+    const handleReceive = (order: Order) => { // Updated signature to take Order object
+        router.push(`/orders/pending/${order.id}/receive`);
+    };
+
+    const handleEdit = (order: Order) => {
+        router.push(`/orders/pending/${order.id}/edit`);
     };
 
     // Calculate stats from the fetched orders
     const totalPending = orders.length;
-    const overdue = orders.filter(order => {
-        if (!order.expectedDelivery) return false;
-        return new Date(order.expectedDelivery) < new Date();
-    }).length;
-    const expectedThisWeek = orders.filter(order => {
-        if (!order.expectedDelivery) return false;
-        const expected = new Date(order.expectedDelivery);
-        const weekFromNow = new Date();
-        weekFromNow.setDate(weekFromNow.getDate() + 7);
-        return expected <= weekFromNow && expected >= new Date();
+    const totalValue = orders.reduce((sum, order) => sum + order.amount, 0);
+    const expectedThisWeek = orders.filter(o => {
+        const date = new Date(o.date);
+        const now = new Date();
+        const diffTime = Math.abs(now.getTime() - date.getTime());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return diffDays <= 7;
     }).length;
 
     return (
         <div className="p-6">
-            {/* Header */}
-            <div className="mb-6">
+            <div className="flex justify-between items-center mb-6">
                 <h1 className="text-2xl font-bold text-gray-900">Pending Orders</h1>
-                <p className="text-sm text-gray-500 mt-1">
-                    Track purchase orders awaiting delivery
-                </p>
+                <button
+                    onClick={fetchPendingOrders}
+                    className="flex items-center gap-2 px-4 py-2 text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                    <HiOutlineRefresh className={`h-5 w-5 ${isLoading ? 'animate-spin' : ''}`} />
+                    Refresh
+                </button>
             </div>
 
-            {/* Quick Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+            {/* Stats Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                 {isLoading ? (
                     <>
                         <StatCardSkeleton />
@@ -105,8 +118,8 @@ export default function PendingOrdersPage() {
                 ) : (
                     <>
                         <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-blue-100 rounded-lg">
+                            <div className="flex items-center justify-between">
+                                <div className="p-2 bg-blue-50 rounded-lg">
                                     <HiOutlineClock className="h-5 w-5 text-blue-600" />
                                 </div>
                                 <div>
@@ -115,22 +128,20 @@ export default function PendingOrdersPage() {
                                 </div>
                             </div>
                         </div>
-
                         <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-red-100 rounded-lg">
-                                    <HiOutlineExclamationCircle className="h-5 w-5 text-red-600" />
+                            <div className="flex items-center justify-between">
+                                <div className="p-2 bg-amber-50 rounded-lg">
+                                    <HiOutlineExclamationCircle className="h-5 w-5 text-amber-600" />
                                 </div>
                                 <div>
-                                    <div className="text-sm text-gray-600">Overdue</div>
-                                    <div className="text-xl font-semibold text-gray-900">{overdue}</div>
+                                    <div className="text-sm text-gray-600">Total Value</div>
+                                    <div className="text-xl font-semibold text-gray-900">₹{totalValue.toLocaleString()}</div>
                                 </div>
                             </div>
                         </div>
-
                         <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
-                            <div className="flex items-center gap-3">
-                                <div className="p-2 bg-emerald-100 rounded-lg">
+                            <div className="flex items-center justify-between">
+                                <div className="p-2 bg-emerald-50 rounded-lg">
                                     <HiOutlineCalendar className="h-5 w-5 text-emerald-600" />
                                 </div>
                                 <div>
@@ -147,7 +158,13 @@ export default function PendingOrdersPage() {
             <OrderFilters onFilterChange={handleFilterChange} disabled={isLoading} />
 
             {/* Orders List */}
-            <OrderList orders={orders} onView={handleView} loading={isLoading} />
+            <OrderList
+                orders={orders}
+                onView={handleView}
+                onReceive={handleReceive}
+                onEdit={handleEdit}
+                loading={isLoading}
+            />
         </div>
     );
 }

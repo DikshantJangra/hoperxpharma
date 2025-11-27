@@ -56,6 +56,10 @@ class SupplierRepository {
                     take: 10,
                     orderBy: { createdAt: 'desc' },
                 },
+                returns: {
+                    take: 10,
+                    orderBy: { createdAt: 'desc' },
+                },
             },
         });
     }

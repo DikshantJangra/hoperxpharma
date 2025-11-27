@@ -34,7 +34,7 @@ export default function SupplierList({ onAddClick, onRefresh }: SupplierListProp
         try {
             const { supplierApi } = await import('@/lib/api/supplier');
             console.log('🔍 Fetching suppliers with params:', { page, limit, search: searchTerm });
-            
+
             const response = await supplierApi.getSuppliers({
                 page,
                 limit,
@@ -185,7 +185,7 @@ export default function SupplierList({ onAddClick, onRefresh }: SupplierListProp
                                             <a href={`tel:${supplier.phoneNumber}`} className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded">
                                                 <FiPhone size={16} />
                                             </a>
-                                            <Link href={`/inventory/suppliers/${supplier.id}`} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded">
+                                            <Link href={`/suppliers/${supplier.id}`} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded">
                                                 <FiEye size={16} />
                                             </Link>
                                             <button

@@ -1,14 +1,12 @@
-const PDFDocument = require('pdfkit');
-const moment = require('moment');
-const path = require('path');
+const puppeteer = require('puppeteer');
 const fs = require('fs');
+const path = require('path');
+const handlebars = require('handlebars');
+const moment = require('moment');
 
 class PDFService {
     constructor() {
-        this.fonts = {
-            regular: 'Helvetica',
-            bold: 'Helvetica-Bold'
-        };
+        this.templatePath = path.join(__dirname, '../../templates/po-template.html');
     }
 
     /**
@@ -17,185 +15,199 @@ class PDFService {
      * @returns {Promise<Buffer>} - PDF buffer
      */
     async generatePOPdf(po) {
-        return new Promise((resolve, reject) => {
-            try {
-                const doc = new PDFDocument({ margin: 50 });
-                const buffers = [];
+        try {
+            // 1. Prepare Data (Canonical JSON)
+            console.log('Generating PDF for PO:', po.poNumber);
+            console.log('Store Data:', JSON.stringify(po.store, null, 2));
+            const data = this.mapPOToTemplateData(po);
+            console.log('Mapped Template Data:', JSON.stringify(data.company, null, 2));
 
-                doc.on('data', buffers.push.bind(buffers));
-                doc.on('end', () => {
-                    const pdfData = Buffer.concat(buffers);
-                    resolve(pdfData);
-                });
+            // 2. Read Template
+            const templateHtml = fs.readFileSync(this.templatePath, 'utf8');
 
-                // Header
-                this.generateHeader(doc, po);
+            // 3. Compile Template
+            const template = handlebars.compile(templateHtml);
+            const html = template(data);
 
-                // Supplier & Store Info
-                this.generateInfo(doc, po);
+            // 4. Generate PDF with Puppeteer
+            const browser = await puppeteer.launch({
+                headless: 'new',
+                args: ['--no-sandbox', '--disable-setuid-sandbox']
+            });
+            const page = await browser.newPage();
 
-                // Items Table
-                this.generateTable(doc, po);
+            // Set content
+            await page.setContent(html, { waitUntil: 'networkidle0' });
 
-                // Footer
-                this.generateFooter(doc, po);
+            // Generate PDF
+            const pdfBuffer = await page.pdf({
+                format: 'A4',
+                printBackground: true,
+                margin: {
+                    top: '0px',
+                    right: '0px',
+                    bottom: '0px',
+                    left: '0px'
+                }
+            });
 
-                doc.end();
-            } catch (error) {
-                reject(error);
-            }
-        });
+            await browser.close();
+
+            return pdfBuffer;
+        } catch (error) {
+            console.error('PDF Generation Error:', error);
+            throw error;
+        }
     }
 
-    generateHeader(doc, po) {
-        doc
-            .fontSize(20)
-            .text('PURCHASE ORDER', 50, 50, { align: 'right' })
-            .fontSize(10)
-            .text(`PO Number: ${po.poNumber}`, { align: 'right' })
-            .text(`Date: ${moment(po.orderDate).format('DD MMM YYYY')}`, { align: 'right' })
-            .text(`Status: ${po.status}`, { align: 'right' })
-            .moveDown();
+    mapPOToTemplateData(po) {
+        const formatCurrency = (amount) => {
+            return new Intl.NumberFormat('en-IN', {
+                style: 'currency',
+                currency: 'INR',
+                minimumFractionDigits: 2
+            }).format(amount || 0);
+        };
 
-        // Add logo if available (placeholder)
-        // doc.image('path/to/logo.png', 50, 45, { width: 50 })
+        const formatDate = (date) => {
+            return date ? moment(date).format('DD-MMM-YYYY') : '';
+        };
 
-        doc.moveDown();
-        doc.lineWidth(1).moveTo(50, 130).lineTo(550, 130).stroke();
-    }
+        // Calculate totals and tax splits
+        let taxableSubTotal = 0;
+        let cgstTotal = 0;
+        let sgstTotal = 0;
+        let igstTotal = 0;
 
-    generateInfo(doc, po) {
-        const customerTop = 150;
-
-        doc
-            .fontSize(10)
-            .font(this.fonts.bold)
-            .text('FROM:', 50, customerTop)
-            .font(this.fonts.regular)
-            .text(po.store.displayName)
-            .text(po.store.addressLine1)
-            .text(`${po.store.city}, ${po.store.state} - ${po.store.pinCode}`)
-            .text(`Phone: ${po.store.phoneNumber}`)
-            .text(`Email: ${po.store.email}`)
-            .moveDown();
-
-        doc
-            .font(this.fonts.bold)
-            .text('TO:', 300, customerTop)
-            .font(this.fonts.regular)
-            .text(po.supplier.name)
-            .text(po.supplier.addressLine1)
-            .text(`${po.supplier.city}, ${po.supplier.state} - ${po.supplier.pinCode}`)
-            .text(`Contact: ${po.supplier.contactName}`)
-            .text(`Phone: ${po.supplier.phoneNumber}`)
-            .moveDown();
-
-        doc.moveDown();
-    }
-
-    generateTable(doc, po) {
-        let i;
-        const invoiceTableTop = 300;
-        const fontBold = this.fonts.bold;
-        const fontRegular = this.fonts.regular;
-
-        doc.font(fontBold);
-        this.generateTableRow(
-            doc,
-            invoiceTableTop,
-            'Item',
-            'Unit Price',
-            'Quantity',
-            'Total'
-        );
-        doc.font(fontRegular);
-        this.generateHr(doc, invoiceTableTop + 20);
-
-        let position = invoiceTableTop + 30;
-
-        // Items
-        po.poItems.forEach((item, index) => {
-            // Check for page break
-            if (position > 700) {
-                doc.addPage();
-                position = 50;
+        const items = po.items.map((item, index) => {
+            const qty = item.quantity;
+            const rate = Number(item.unitPrice);
+            const discount = item.discountPercent || 0;
+            
+            // Taxable value per item (after discount)
+            const taxableValue = qty * rate * (1 - discount / 100);
+            
+            // Tax calculation
+            const gstRate = Number(item.gstPercent) || 0;
+            const taxAmount = taxableValue * (gstRate / 100);
+            
+            // Split tax (Assuming intra-state for now, so CGST + SGST)
+            // TODO: Add logic for inter-state (IGST) based on state comparison
+            const isInterState = false; // Placeholder
+            
+            let cgst = 0, sgst = 0, igst = 0;
+            if (isInterState) {
+                igst = taxAmount;
+            } else {
+                cgst = taxAmount / 2;
+                sgst = taxAmount / 2;
             }
 
-            const itemName = item.drug.name + (item.drug.strength ? ` ${item.drug.strength}` : '');
+            taxableSubTotal += taxableValue;
+            cgstTotal += cgst;
+            sgstTotal += sgst;
+            igstTotal += igst;
 
-            this.generateTableRow(
-                doc,
-                position,
-                itemName,
-                `₹${parseFloat(item.unitPrice).toFixed(2)}`,
-                item.quantityOrdered,
-                `₹${(item.quantityOrdered * parseFloat(item.unitPrice)).toFixed(2)}`
-            );
-
-            this.generateHr(doc, position + 20);
-            position += 30;
+            return {
+                sr_no: index + 1,
+                description: item.drug?.name || 'Item',
+                hsn: item.drug?.hsnCode || '-',
+                qty: qty,
+                uom: item.drug?.defaultUnit || 'Unit',
+                rate: formatCurrency(rate),
+                taxable_value: formatCurrency(taxableValue),
+                tax: {
+                    cgst: formatCurrency(cgst),
+                    sgst: formatCurrency(sgst),
+                    igst: formatCurrency(igst)
+                },
+                discount: discount
+            };
         });
 
-        const subtotalPosition = position + 20;
+        const totalTax = cgstTotal + sgstTotal + igstTotal;
+        const grandTotal = taxableSubTotal + totalTax;
 
-        doc.font(fontBold);
-        this.generateTableRow(
-            doc,
-            subtotalPosition,
-            '',
-            '',
-            'Subtotal',
-            `₹${parseFloat(po.subtotal).toFixed(2)}`
-        );
+        return {
+            invoice_id: po.poNumber,
+            invoice_date: formatDate(po.orderDate),
+            supply_date: formatDate(po.expectedDeliveryDate || po.orderDate),
+            place_of_supply: po.store?.state || '',
+            financial_year: '2025-26', // TODO: Calculate dynamic FY
+            irn: null, // Placeholder
+            status: po.status,
+            
+            company: {
+                legal_name: po.store?.displayName || po.store?.name || 'HopeRx Pharmaceuticals',
+                trade_name: po.store?.name || 'HopeRx',
+                address: `${po.store?.addressLine1 || ''}, ${po.store?.city || ''}`,
+                city: po.store?.city || '',
+                state: po.store?.state || '',
+                pincode: po.store?.pinCode || '',
+                gstin: po.store?.licenses?.find(l => l.type === 'GSTIN')?.number || 'N/A',
+                phone: po.store?.phoneNumber || '',
+                email: po.store?.email || '',
+                logo_url: po.store?.logoUrl || '', // Ensure this is a valid URL or base64
+                bank: {
+                    account_name: po.store?.displayName || 'HopeRx',
+                    account_no: 'XXXXXXXXXXXX', // Placeholder
+                    ifsc: 'XXXX0000000' // Placeholder
+                }
+            },
 
-        this.generateTableRow(
-            doc,
-            subtotalPosition + 20,
-            '',
-            '',
-            'Tax',
-            `₹${parseFloat(po.taxAmount).toFixed(2)}`
-        );
+            customer: { // In PO context, the "Customer" is the Supplier (Vendor) we are buying from? 
+                        // WAIT: A Purchase Order is sent TO a Supplier. 
+                        // So "Bill To" in a PO is usually US (The Store).
+                        // But the user's template says "Bill To: {{customer.name}}".
+                        // In an Invoice, "Bill To" is the Buyer.
+                        // In a PO, we are the Buyer.
+                        // So "Bill To" should be the Store.
+                        // And "Vendor" is the Supplier.
+                        // Let's map "customer" to the Supplier for now as per the user's JSON example?
+                        // User JSON: "customer": { "name": "ABC Pharmacy" ... } -> This looks like the BUYER.
+                        // User JSON: "company": { "legal_name": "HopeRx" ... } -> This looks like the ISSUER.
+                        // If this is a PO generated by HopeRx sent to a Supplier:
+                        // Issuer = HopeRx. Recipient = Supplier.
+                        // BUT usually a PO says "Vendor: [Supplier]" and "Ship To: [Us]".
+                        // The user's template has "Bill To" and "Ship To".
+                        // This template looks like a SALES INVOICE template.
+                        // For a PO, we need to adapt it.
+                        // Let's map "customer" to the Supplier so it shows up in the "Bill To" slot?
+                        // No, "Bill To" in a PO is US.
+                        // Let's map "customer" to the Store (Us).
+                        
+                name: po.supplier.name,
+                billing_address: `${po.supplier.addressLine1}, ${po.supplier.city}`,
+                shipping_address: `${po.store?.addressLine1}, ${po.store?.city}`, // Ship to Store
+                gstin: po.supplier.gstin || 'N/A',
+                contact: po.supplier.phoneNumber
+            },
 
-        this.generateTableRow(
-            doc,
-            subtotalPosition + 40,
-            '',
-            '',
-            'Grand Total',
-            `₹${(parseFloat(po.subtotal) + parseFloat(po.taxAmount)).toFixed(2)}`
-        );
+            items: items,
 
-        doc.font(fontRegular);
+            totals: {
+                taxable_sub_total: formatCurrency(taxableSubTotal),
+                cgst_total: formatCurrency(cgstTotal),
+                sgst_total: formatCurrency(sgstTotal),
+                igst_total: formatCurrency(igstTotal),
+                total_tax: formatCurrency(totalTax),
+                round_off: formatCurrency(0), // TODO
+                grand_total: formatCurrency(grandTotal),
+                amount_in_words: this.convertNumberToWords(grandTotal)
+            },
+
+            payment_terms: {
+                due_date: formatDate(moment(po.orderDate).add(30, 'days')),
+                terms_text: po.paymentTerms || 'Payment due within 30 days',
+                upi_vpa: 'hoperx@hdfcbank', // Placeholder
+                upi_qr_url: '' // Placeholder
+            }
+        };
     }
 
-    generateFooter(doc, po) {
-        doc
-            .fontSize(10)
-            .text(
-                'Payment is due within 30 days. Thank you for your business.',
-                50,
-                700,
-                { align: 'center', width: 500 }
-            );
-    }
-
-    generateTableRow(doc, y, item, unitCost, quantity, lineTotal) {
-        doc
-            .fontSize(10)
-            .text(item, 50, y, { width: 280 })
-            .text(unitCost, 340, y, { width: 90, align: 'right' })
-            .text(quantity, 440, y, { width: 50, align: 'right' })
-            .text(lineTotal, 500, y, { align: 'right' });
-    }
-
-    generateHr(doc, y) {
-        doc
-            .strokeColor('#aaaaaa')
-            .lineWidth(1)
-            .moveTo(50, y)
-            .lineTo(550, y)
-            .stroke();
+    convertNumberToWords(amount) {
+        // Simple placeholder for now, can use a library like 'number-to-words' if needed
+        return `${amount} Rupees Only`;
     }
 }
 
