@@ -87,23 +87,49 @@ class AuthService {
      * Refresh access token
      */
     async refreshToken(refreshToken) {
+        if (!refreshToken) {
+            logger.warn('Refresh token missing in request');
+            throw ApiError.unauthorized('Refresh token is required');
+        }
+
         try {
             // Verify refresh token
             const decoded = verifyRefreshToken(refreshToken);
+            logger.info(`Refresh token verified for user: ${decoded.userId}`);
 
             // Get user
             const user = await userRepository.findById(decoded.userId);
 
-            if (!user || !user.isActive) {
-                throw ApiError.unauthorized('User not found or inactive');
+            if (!user) {
+                logger.warn(`Refresh token used for non-existent user: ${decoded.userId}`);
+                throw ApiError.unauthorized('User not found');
+            }
+
+            if (!user.isActive) {
+                logger.warn(`Refresh token used for inactive user: ${user.email}`);
+                throw ApiError.forbidden('Account is inactive. Please contact support.');
             }
 
             // Generate new tokens
             const tokens = generateTokens(user.id, user.role);
+            logger.info(`New tokens generated for user: ${user.email}`);
 
             return tokens;
         } catch (error) {
-            throw ApiError.unauthorized(MESSAGES.AUTH.TOKEN_INVALID);
+            // Distinguish between different error types
+            if (error.name === 'TokenExpiredError') {
+                logger.warn('Refresh token expired');
+                throw ApiError.unauthorized('Refresh token has expired. Please login again.');
+            } else if (error.name === 'JsonWebTokenError') {
+                logger.warn('Invalid refresh token');
+                throw ApiError.unauthorized('Invalid refresh token. Please login again.');
+            } else if (error instanceof ApiError) {
+                // Re-throw ApiErrors as-is
+                throw error;
+            } else {
+                logger.error('Unexpected error during token refresh:', error);
+                throw ApiError.unauthorized(MESSAGES.AUTH.TOKEN_INVALID);
+            }
         }
     }
 

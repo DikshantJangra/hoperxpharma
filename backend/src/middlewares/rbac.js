@@ -109,7 +109,11 @@ const requirePermission = (...permissions) => {
             return next(ApiError.unauthorized(MESSAGES.AUTH.UNAUTHORIZED));
         }
 
-        const storeId = req.storeId || req.params.storeId || req.body.storeId || req.query.storeId;
+        const storeId = req.storeId ||
+            (req.params && req.params.storeId) ||
+            (req.body && req.body.storeId) ||
+            (req.query && req.query.storeId) ||
+            null;
 
         try {
             // Check each required permission
@@ -153,7 +157,11 @@ const requireAnyPermission = (...permissions) => {
             return next(ApiError.unauthorized(MESSAGES.AUTH.UNAUTHORIZED));
         }
 
-        const storeId = req.storeId || req.params.storeId || req.body.storeId || req.query.storeId;
+        const storeId = req.storeId ||
+            (req.params && req.params.storeId) ||
+            (req.body && req.body.storeId) ||
+            (req.query && req.query.storeId) ||
+            null;
 
         try {
             for (const permission of permissions) {

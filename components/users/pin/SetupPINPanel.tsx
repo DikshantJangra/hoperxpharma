@@ -1,15 +1,62 @@
 "use client";
 import { useState } from "react";
 import { FiKey, FiCheckCircle } from "react-icons/fi";
+import { rbacApi } from "@/lib/api/rbac";
 
 interface SetupPINPanelProps {
   status: "not_set" | "active" | "locked";
+  onPinSetup?: () => void;
 }
 
-export default function SetupPINPanel({ status }: SetupPINPanelProps) {
+export default function SetupPINPanel({ status, onPinSetup }: SetupPINPanelProps) {
   const [step, setStep] = useState(1);
   const [pin, setPin] = useState("");
   const [confirmPin, setConfirmPin] = useState("");
+  const [oldPin, setOldPin] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSubmit = async () => {
+    setError("");
+    setLoading(true);
+
+    try {
+      if (status === "not_set") {
+        // Setup new PIN
+        if (pin !== confirmPin) {
+          setError("PINs do not match");
+          setLoading(false);
+          return;
+        }
+        if (pin.length < 6) {
+          setError("PIN must be at least 6 digits");
+          setLoading(false);
+          return;
+        }
+        const response = await rbacApi.setupAdminPin(pin);
+        if (response.success) {
+          setStep(4);
+          if (onPinSetup) onPinSetup();
+        }
+      } else {
+        // Change existing PIN
+        if (pin !== confirmPin) {
+          setError("New PINs do not match");
+          setLoading(false);
+          return;
+        }
+        const response = await rbacApi.changeAdminPin(oldPin, pin);
+        if (response.success) {
+          setStep(4);
+          if (onPinSetup) onPinSetup();
+        }
+      }
+    } catch (err: any) {
+      setError(err.message || "Operation failed");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const getStrength = (p: string) => {
     if (p.length < 4) return { label: "Too Short", color: "text-red-600" };
@@ -58,12 +105,17 @@ export default function SetupPINPanel({ status }: SetupPINPanelProps) {
               💡 6–8 digits recommended for security
             </div>
           </div>
+          {error && (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+              <div className="text-xs text-red-800">{error}</div>
+            </div>
+          )}
           <button
             onClick={() => setStep(2)}
-            disabled={pin.length < 6}
+            disabled={pin.length < 6 || loading}
             className="w-full px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
           >
-            Continue
+            {loading ? "Processing..." : "Continue"}
           </button>
         </div>
       )}
@@ -129,10 +181,11 @@ export default function SetupPINPanel({ status }: SetupPINPanelProps) {
               Back
             </button>
             <button
-              onClick={() => setStep(4)}
-              className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium"
+              onClick={handleSubmit}
+              disabled={loading}
+              className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50"
             >
-              Confirm
+              {loading ? "Processing..." : "Confirm"}
             </button>
           </div>
         </div>

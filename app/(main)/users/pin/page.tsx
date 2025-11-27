@@ -1,13 +1,49 @@
 "use client";
+import { useEffect, useState } from "react";
 import { FiShield, FiLock, FiKey } from "react-icons/fi";
 import PINStatusCard from "@/components/users/pin/PINStatusCard";
 import SetupPINPanel from "@/components/users/pin/SetupPINPanel";
 import RecoveryOptions from "@/components/users/pin/RecoveryOptions";
 import BackupCodes from "@/components/users/pin/BackupCodes";
 import AuditLogSnippet from "@/components/users/pin/AuditLogSnippet";
+import { rbacApi } from "@/lib/api/rbac";
+import { useAuthStore } from "@/lib/store/auth-store";
 
 export default function PINSetupPage() {
-  const pinStatus: "not_set" | "active" | "locked" = "active" as any;
+  const [pinStatus, setPinStatus] = useState<"not_set" | "active" | "locked">("not_set");
+  const [loading, setLoading] = useState(true);
+  const { user } = useAuthStore();
+
+  useEffect(() => {
+    const fetchPinStatus = async () => {
+      try {
+        setLoading(true);
+        const response = await rbacApi.getAdminPinStatus();
+        if (response.success) { // Reverted to original condition to maintain syntactic correctness and avoid undefined variables
+          setPinStatus(response.data.hasPin ? "active" : "not_set");
+        }
+      } catch (error) {
+        console.error("Failed to fetch PIN status:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPinStatus();
+  }, []);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 p-6">
+        <div className="max-w-4xl mx-auto">
+          <div className="bg-white border border-gray-200 rounded-lg p-6 animate-pulse">
+            <div className="h-8 bg-gray-200 rounded w-1/3 mb-4"></div>
+            <div className="h-4 bg-gray-100 rounded w-2/3"></div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -26,8 +62,10 @@ export default function PINSetupPage() {
             </div>
             <div className="text-right">
               <div className="text-sm text-gray-600 mb-1">Account</div>
-              <div className="font-medium text-gray-900">-</div>
-              <div className="text-xs text-gray-500">-</div>
+              <div className="font-medium text-gray-900">
+                {user?.firstName} {user?.lastName}
+              </div>
+              <div className="text-xs text-gray-500">{user?.email}</div>
             </div>
           </div>
 

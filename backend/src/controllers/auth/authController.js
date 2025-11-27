@@ -1,6 +1,7 @@
 const authService = require('../../services/auth/authService');
 const asyncHandler = require('../../middlewares/asyncHandler');
 const ApiResponse = require('../../utils/ApiResponse');
+const ApiError = require('../../utils/ApiError');
 const { MESSAGES } = require('../../constants');
 
 /**
@@ -131,6 +132,12 @@ const login = asyncHandler(async (req, res) => {
 const refresh = asyncHandler(async (req, res) => {
     const refreshToken = req.cookies.refreshToken || req.body.refreshToken;
 
+    if (!refreshToken) {
+        console.log('Refresh attempt without token');
+        throw ApiError.unauthorized('Refresh token is required');
+    }
+
+    console.log('Processing token refresh request');
     const tokens = await authService.refreshToken(refreshToken);
 
     // Update refresh token cookie

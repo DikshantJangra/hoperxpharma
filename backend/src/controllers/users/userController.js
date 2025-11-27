@@ -1,6 +1,7 @@
 const userService = require('../../services/users/userService');
 const asyncHandler = require('../../middlewares/asyncHandler');
 const ApiResponse = require('../../utils/ApiResponse');
+const ApiError = require('../../utils/ApiError');
 
 /**
  * Get current user profile
@@ -50,9 +51,81 @@ const getOnboardingStatus = asyncHandler(async (req, res) => {
     );
 });
 
+/**
+ * Get all users
+ * @route GET /api/v1/users
+ */
+const getUsers = asyncHandler(async (req, res) => {
+    const users = await userService.getAllUsers();
+
+    res.status(200).json(
+        new ApiResponse(200, users, 'Users retrieved successfully')
+    );
+});
+
+const createUser = asyncHandler(async (req, res) => {
+    const user = await userService.createUser(req.body);
+
+    res.status(201).json(
+        new ApiResponse(201, user, 'User created successfully')
+    );
+});
+
+/**
+ * Update user details
+ * @route PATCH /api/v1/users/:id
+ */
+const updateUser = asyncHandler(async (req, res) => {
+    const user = await userService.updateUser(req.params.id, req.body);
+
+    res.status(200).json(
+        new ApiResponse(200, user, 'User updated successfully')
+    );
+});
+
+/**
+ * Toggle user status
+ * @route PATCH /api/v1/users/:id/status
+ */
+const toggleUserStatus = asyncHandler(async (req, res) => {
+    // Prevent deactivating self
+    if (req.params.id === req.user.id) {
+        throw new ApiError(400, "You cannot deactivate your own account");
+    }
+
+    const user = await userService.toggleUserStatus(req.params.id);
+
+    res.status(200).json(
+        new ApiResponse(200, user, `User ${user.isActive ? 'activated' : 'deactivated'} successfully`)
+    );
+});
+
+/**
+ * Delete user
+ * @route DELETE /api/v1/users/:id
+ */
+const deleteUser = asyncHandler(async (req, res) => {
+    // Prevent deleting self
+    if (req.params.id === req.user.id) {
+        throw new ApiError(400, "You cannot delete your own account");
+    }
+
+    await userService.deleteUser(req.params.id);
+
+    res.status(200).json(
+        new ApiResponse(200, null, 'User deleted successfully')
+    );
+});
+
 module.exports = {
     getMyProfile,
     getMyPrimaryStore,
     updateMyProfile,
     getOnboardingStatus,
+    getUsers,
+    getUsers,
+    createUser,
+    updateUser,
+    toggleUserStatus,
+    deleteUser,
 };

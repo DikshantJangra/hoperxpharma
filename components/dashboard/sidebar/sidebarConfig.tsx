@@ -261,6 +261,7 @@ export const sidebarConfig: SidebarSection[] = [
                 subItems: [
                     { label: "Roles", path: "/users/roles" },
                     { label: "Permissions", path: "/users/permissions" },
+                    { label: "Manage Users", path: "/users" },
                     { label: "PIN Setup", path: "/users/pin" }
                 ]
             },

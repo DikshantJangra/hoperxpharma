@@ -18,43 +18,41 @@ router.use(authenticate);
 
 router.get(
     '/roles',
-    requirePermission(PERMISSIONS.SYSTEM_ROLE_MANAGE),
-    roleController.listRoles
+    roleController.listRoles  // Authenticated users can view roles
 );
 
 router.post(
     '/roles',
-    requirePermission(PERMISSIONS.SYSTEM_ROLE_MANAGE),
+    requireAdmin,  // Only admins can create roles
     roleController.createRole
 );
 
 router.get(
     '/roles/:id',
-    requirePermission(PERMISSIONS.SYSTEM_ROLE_MANAGE),
-    roleController.getRole
+    roleController.getRole  // Authenticated users can view role details
 );
 
 router.put(
     '/roles/:id',
-    requirePermission(PERMISSIONS.SYSTEM_ROLE_MANAGE),
+    requireAdmin,  // Only admins can update roles
     roleController.updateRole
 );
 
 router.delete(
     '/roles/:id',
-    requirePermission(PERMISSIONS.SYSTEM_ROLE_MANAGE),
+    requireAdmin,  // Only admins can delete roles
     roleController.deleteRole
 );
 
 router.post(
     '/roles/:id/permissions',
-    requirePermission(PERMISSIONS.SYSTEM_ROLE_MANAGE),
+    requireAdmin,  // Only admins can add permissions
     roleController.addPermissionsToRole
 );
 
 router.delete(
     '/roles/:id/permissions/:permissionId',
-    requirePermission(PERMISSIONS.SYSTEM_ROLE_MANAGE),
+    requireAdmin,  // Only admins can remove permissions
     roleController.removePermissionFromRole
 );
 
@@ -88,31 +86,29 @@ router.get(
 
 router.get(
     '/users/:userId/roles',
-    requirePermission(PERMISSIONS.SYSTEM_USER_MANAGE),
-    userRoleController.getUserRoles
+    userRoleController.getUserRoles  // Authenticated users can view user roles
 );
 
 router.post(
     '/users/:userId/roles',
-    requirePermission(PERMISSIONS.SYSTEM_USER_MANAGE),
+    requireAdmin,  // Only admins can assign roles
     userRoleController.assignRole
 );
 
 router.delete(
     '/users/:userId/roles/:roleId',
-    requirePermission(PERMISSIONS.SYSTEM_USER_MANAGE),
+    requireAdmin,  // Only admins can remove roles
     userRoleController.removeRole
 );
 
 router.get(
     '/roles/:roleId/users',
-    requirePermission(PERMISSIONS.SYSTEM_USER_MANAGE),
-    userRoleController.getUsersWithRole
+    userRoleController.getUsersWithRole  // Authenticated users can view users with a role
 );
 
 router.post(
     '/roles/:roleId/users/bulk',
-    requirePermission(PERMISSIONS.SYSTEM_USER_MANAGE),
+    requireAdmin,  // Only admins can bulk assign roles
     userRoleController.bulkAssignRole
 );
 

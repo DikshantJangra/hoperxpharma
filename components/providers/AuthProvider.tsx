@@ -37,6 +37,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     }, [isAuthenticated, isLoading, hasStore]);
 
+    // Monitor authentication state and redirect to login when logged out
+    useEffect(() => {
+        if (!isLoading && !isAuthenticated) {
+            const publicRoutes = ['/login', '/signup', '/'];
+            const isPublicRoute = publicRoutes.includes(pathname);
+
+            // If user is not authenticated and not on a public route, redirect to login
+            if (!isPublicRoute) {
+                console.log('User not authenticated -> Redirecting to login');
+                router.push('/login');
+            }
+        }
+    }, [isAuthenticated, isLoading, pathname, router]);
+
     useEffect(() => {
         console.log('AuthProvider Effect:', {
             isAuthenticated,

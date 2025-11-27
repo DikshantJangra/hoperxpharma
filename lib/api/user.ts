@@ -146,6 +146,46 @@ export const userApi = {
         const response = await apiClient.get('/users/me/onboarding-status');
         return response.data;
     },
+
+    /**
+     * Get all users
+     */
+    async getAll(): Promise<{ success: boolean; data: UserProfile[] }> {
+        const response = await apiClient.get('/users');
+        return response;
+    },
+
+    /**
+     * Create a new user
+     */
+    async createUser(data: any): Promise<{ success: boolean; data: UserProfile }> {
+        const response = await apiClient.post('/users', data);
+        return response;
+    },
+
+    /**
+     * Update user details
+     */
+    async updateUser(id: string, data: any): Promise<{ success: boolean; data: UserProfile }> {
+        const response = await apiClient.patch(`/users/${id}`, data);
+        return response;
+    },
+
+    /**
+     * Toggle user status
+     */
+    async toggleUserStatus(id: string): Promise<{ success: boolean; data: UserProfile }> {
+        const response = await apiClient.patch(`/users/${id}/status`, {});
+        return response;
+    },
+
+    /**
+     * Delete user
+     */
+    async deleteUser(id: string): Promise<{ success: boolean; data: null }> {
+        const response = await apiClient.delete(`/users/${id}`);
+        return response;
+    },
 };
 
 // ============================================================================

@@ -136,6 +136,25 @@ class UserRepository {
             },
         });
     }
+    /**
+     * Find all users
+     */
+    async findAll() {
+        return await prisma.user.findMany({
+            where: { deletedAt: null },
+            select: {
+                id: true,
+                email: true,
+                phoneNumber: true,
+                firstName: true,
+                lastName: true,
+                role: true,
+                isActive: true,
+                createdAt: true,
+            },
+            orderBy: { createdAt: 'desc' },
+        });
+    }
 }
 
 module.exports = new UserRepository();

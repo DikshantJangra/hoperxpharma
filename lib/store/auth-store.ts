@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { authApi } from '@/lib/api/auth';
 import { userApi, UserProfile, Store, getPrimaryStore } from '@/lib/api/user';
+import { rbacApi } from '@/lib/api/rbac';
 import { tokenManager } from '@/lib/api/client';
 
 interface AuthState {
@@ -10,11 +11,13 @@ interface AuthState {
     isAuthenticated: boolean;
     isLoading: boolean;
     hasStore: boolean;
+    permissions: string[];
     login: (data: any) => Promise<void>;
     logout: () => Promise<void>;
     checkAuth: () => Promise<void>;
     updateUser: (user: UserProfile) => void;
     refreshUserData: () => Promise<void>;
+    fetchPermissions: (storeId?: string) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -25,6 +28,7 @@ export const useAuthStore = create<AuthState>()(
             isAuthenticated: false,
             isLoading: true,
             hasStore: false,
+            permissions: [],
 
             login: async (data) => {
                 set({ isLoading: true });
@@ -40,11 +44,23 @@ export const useAuthStore = create<AuthState>()(
                             // Only set cookie AFTER successful profile fetch
                             authApi.setLoggedInCookie();
 
+                            // Fetch permissions
+                            let permissions: string[] = [];
+                            try {
+                                const permResponse = await rbacApi.getMyPermissions(primaryStore?.id);
+                                if (permResponse.success) {
+                                    permissions = permResponse.data;
+                                }
+                            } catch (e) {
+                                console.error('Failed to fetch permissions', e);
+                            }
+
                             set({
                                 user: userProfile,
                                 primaryStore,
                                 isAuthenticated: true,
                                 hasStore,
+                                permissions,
                                 isLoading: false
                             });
                         } catch (profileError) {
@@ -70,16 +86,21 @@ export const useAuthStore = create<AuthState>()(
                 try {
                     await authApi.logout();
                 } catch (error) {
-                    console.error('Logout error:', error);
+                    console.error('Logout API error:', error);
+                    // Continue with cleanup even if API call fails
                 } finally {
+                    // Always clear tokens and state, even if API call fails
                     tokenManager.clearTokens();
+                    authApi.clearLoggedInCookie();
                     set({
                         user: null,
                         primaryStore: null,
                         isAuthenticated: false,
                         hasStore: false,
+                        permissions: [],
                         isLoading: false
                     });
+                    console.log('Logout complete - all state cleared');
                 }
             },
 
@@ -88,20 +109,34 @@ export const useAuthStore = create<AuthState>()(
 
                 // If no access token, try to refresh
                 if (!token) {
+                    console.log('No access token found, attempting refresh...');
                     try {
                         const refreshResponse = await authApi.refreshToken();
                         if (refreshResponse?.accessToken) {
                             token = refreshResponse.accessToken;
+                            console.log('Token refreshed successfully');
                         }
-                    } catch (refreshError) {
-                        // Refresh failed, user is truly unauthenticated
-                        set({ isAuthenticated: false, user: null, primaryStore: null, hasStore: false, isLoading: false });
-                        return;
+                    } catch (refreshError: any) {
+                        // Distinguish between network errors and auth errors
+                        const isNetworkError = refreshError?.statusCode === 408 || refreshError?.message?.includes('timeout') || refreshError?.message?.includes('network');
+
+                        if (isNetworkError) {
+                            console.warn('Network error during token refresh, will retry on next request');
+                            // Don't logout on network errors, just set loading to false
+                            set({ isLoading: false });
+                            return;
+                        } else {
+                            console.error('Token refresh failed - user is unauthenticated:', refreshError?.message);
+                            // Refresh failed due to invalid/expired token, user is truly unauthenticated
+                            set({ isAuthenticated: false, user: null, primaryStore: null, hasStore: false, permissions: [], isLoading: false });
+                            return;
+                        }
                     }
                 }
 
                 if (!token) {
-                    set({ isAuthenticated: false, user: null, primaryStore: null, hasStore: false, isLoading: false });
+                    console.log('No token available after refresh attempt');
+                    set({ isAuthenticated: false, user: null, primaryStore: null, hasStore: false, permissions: [], isLoading: false });
                     return;
                 }
 
@@ -114,19 +149,39 @@ export const useAuthStore = create<AuthState>()(
                     // Ensure cookie is set
                     authApi.setLoggedInCookie();
 
+                    // Fetch permissions
+                    let permissions: string[] = [];
+                    try {
+                        const permResponse = await rbacApi.getMyPermissions(primaryStore?.id);
+                        if (permResponse.success) {
+                            permissions = permResponse.data;
+                        }
+                    } catch (e) {
+                        console.error('Failed to fetch permissions', e);
+                    }
+
                     set({
                         user: userProfile,
                         primaryStore,
                         isAuthenticated: true,
                         hasStore,
+                        permissions,
                         isLoading: false
                     });
-                } catch (error) {
+                    console.log('Auth check successful - user authenticated');
+                } catch (error: any) {
                     // If profile fetch fails, token might be invalid
-                    console.error('Auth check failed:', error);
-                    tokenManager.clearTokens();
-                    authApi.clearLoggedInCookie();
-                    set({ user: null, primaryStore: null, isAuthenticated: false, hasStore: false, isLoading: false });
+                    const isNetworkError = error?.statusCode === 408 || error?.message?.includes('timeout') || error?.message?.includes('network');
+
+                    if (isNetworkError) {
+                        console.warn('Network error during profile fetch, will retry on next request');
+                        set({ isLoading: false });
+                    } else {
+                        console.error('Auth check failed - clearing auth state:', error?.message);
+                        tokenManager.clearTokens();
+                        authApi.clearLoggedInCookie();
+                        set({ user: null, primaryStore: null, isAuthenticated: false, hasStore: false, permissions: [], isLoading: false });
+                    }
                 }
             },
 
@@ -142,13 +197,36 @@ export const useAuthStore = create<AuthState>()(
                     const primaryStore = getPrimaryStore(userProfile);
                     const hasStore = !!(userProfile.storeUsers && userProfile.storeUsers.length > 0);
 
+                    // Fetch permissions
+                    let permissions: string[] = [];
+                    try {
+                        const permResponse = await rbacApi.getMyPermissions(primaryStore?.id);
+                        if (permResponse.success) {
+                            permissions = permResponse.data;
+                        }
+                    } catch (e) {
+                        console.error('Failed to fetch permissions', e);
+                    }
+
                     set({
                         user: userProfile,
                         primaryStore,
-                        hasStore
+                        hasStore,
+                        permissions
                     });
                 } catch (error) {
                     console.error('Failed to refresh user data:', error);
+                }
+            },
+
+            fetchPermissions: async (storeId) => {
+                try {
+                    const response = await rbacApi.getMyPermissions(storeId);
+                    if (response.success) {
+                        set({ permissions: response.data });
+                    }
+                } catch (error) {
+                    console.error('Failed to fetch permissions:', error);
                 }
             },
         }),
@@ -159,7 +237,8 @@ export const useAuthStore = create<AuthState>()(
                 user: state.user,
                 primaryStore: state.primaryStore,
                 isAuthenticated: state.isAuthenticated,
-                hasStore: state.hasStore
+                hasStore: state.hasStore,
+                permissions: state.permissions
             }),
         }
     )

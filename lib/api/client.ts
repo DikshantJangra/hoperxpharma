@@ -82,17 +82,30 @@ async function refreshTokenIfNeeded(): Promise<void> {
     isRefreshing = true;
     refreshPromise = (async () => {
         try {
+            console.log('Refreshing access token...');
             const response = await fetch(`${config.baseURL}/auth/refresh`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include', // Send refresh token cookie
             });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                console.error('Token refresh failed:', response.status, errorData.message);
+                throw new Error(errorData.message || 'Token refresh failed');
+            }
+
             const data = await response.json();
             if (data?.data?.accessToken) {
                 tokenManager.saveTokens(data.data.accessToken);
+                console.log('Access token refreshed successfully');
+            } else {
+                console.error('Token refresh response missing accessToken');
             }
-        } catch (error) {
-            console.error('Token refresh failed:', error);
+        } catch (error: any) {
+            console.error('Token refresh error:', error.message);
+            // Don't clear tokens here - let auth-store handle it
+            // This prevents premature logout on network errors
         } finally {
             isRefreshing = false;
             refreshPromise = null;
