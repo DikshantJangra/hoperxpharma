@@ -759,7 +759,6 @@ model Prescription {
   prescriber     Prescriber         @relation(fields: [prescriberId], references: [id])
   items          PrescriptionItem[]
   dispenseEvents DispenseEvent[]
-  refills        RefillHistory[]
   files          PrescriptionFile[]
 
   createdAt DateTime  @default(now())
@@ -840,19 +839,7 @@ model DispenseItem {
   @@index([dispenseEventId])
 }
 
-model PrescriptionFile {
-  id             String @id @default(cuid())
-  prescriptionId String
-  fileUrl        String
-  fileType       String // image, pdf
-  uploadedBy     String
 
-  prescription Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-
-  @@index([prescriptionId])
-}
 
 // ============================================================================
 // CATEGORY 11: HR & TEAM MANAGEMENT
