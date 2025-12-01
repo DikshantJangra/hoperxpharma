@@ -2,6 +2,8 @@
  * API Client Configuration
  */
 
+import { syncManager } from "@/lib/offline/sync-manager";
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 const API_TIMEOUT = parseInt(process.env.NEXT_PUBLIC_API_TIMEOUT || '30000');
 
@@ -51,6 +53,13 @@ export class ApiError extends Error {
     ) {
         super(message);
         this.name = 'ApiError';
+    }
+}
+
+export class OfflineError extends Error {
+    constructor() {
+        super('Network offline. Action queued for sync.');
+        this.name = 'OfflineError';
     }
 }
 
@@ -175,6 +184,21 @@ async function baseFetch(
 
         if (error instanceof ApiError) {
             throw error;
+        }
+
+        // Check for offline/network error
+        const isNetworkError = error instanceof TypeError && error.message === 'Failed to fetch';
+        const isMutation = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(options.method || 'GET');
+
+        if ((isNetworkError || !navigator.onLine) && isMutation) {
+            try {
+                const body = options.body ? JSON.parse(options.body as string) : undefined;
+                await syncManager.queueMutation(endpoint, options.method as any, body);
+                throw new OfflineError();
+            } catch (queueError) {
+                console.error('Failed to queue offline mutation:', queueError);
+                // Fall through to throw original error
+            }
         }
 
         if (error instanceof Error) {

@@ -72,13 +72,18 @@ class AuthService {
         // Generate tokens
         const tokens = generateTokens(user.id, user.role);
 
+        // Fetch user permissions
+        const permissionService = require('../permissionService');
+        const permissions = await permissionService.getUserPermissions(user.id);
+
         logger.info(`User logged in: ${user.email}`);
 
         // Remove password from response
-        const { passwordHash, ...userWithoutPassword } = user;
+        const { passwordHash, pinHash, ...userWithoutPassword } = user;
 
         return {
             user: userWithoutPassword,
+            permissions, // Include permissions array
             ...tokens,
         };
     }

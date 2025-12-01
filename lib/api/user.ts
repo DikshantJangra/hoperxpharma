@@ -186,6 +186,22 @@ export const userApi = {
         const response = await apiClient.delete(`/users/${id}`);
         return response;
     },
+
+    /**
+     * Reset user PIN
+     */
+    async resetUserPin(id: string, pin: string): Promise<{ success: boolean; data: null }> {
+        const response = await apiClient.post(`/users/${id}/reset-pin`, { pin });
+        return response;
+    },
+
+    /**
+     * Get user activity logs
+     */
+    async getUserActivity(id: string, limit?: number): Promise<{ success: boolean; data: any }> {
+        const response = await apiClient.get(`/users/${id}/activity${limit ? `?limit=${limit}` : ''}`);
+        return response;
+    },
 };
 
 // ============================================================================

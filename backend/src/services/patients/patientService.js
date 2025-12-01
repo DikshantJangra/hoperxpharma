@@ -270,18 +270,21 @@ class PatientService {
             throw ApiError.notFound('Patient not found');
         }
 
-        // Create adherence record if not exists
-        const adherence = await patientRepository.createAdherence({
+        // Use transaction to ensure atomicity
+        const result = await patientRepository.processRefillTransaction({
             patientId,
+            storeId: refillData.storeId || patient.storeId,
             prescriptionId: refillData.prescriptionId,
             expectedRefillDate: refillData.expectedRefillDate,
-            actualRefillDate: new Date(),
             adherenceRate: refillData.adherenceRate || 1.0,
+            items: refillData.items || [], // Array of { drugId, quantity, batchId }
+            soldBy: refillData.soldBy,
+            paymentMethod: refillData.paymentMethod || 'CASH',
         });
 
-        logger.info(`Refill processed for patient ${patientId}`);
+        logger.info(`Refill processed for patient ${patientId} - Sale ID: ${result.sale?.id || 'N/A'}`);
 
-        return adherence;
+        return result;
     }
 
     /**

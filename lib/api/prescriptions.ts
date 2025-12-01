@@ -72,3 +72,15 @@ export async function searchInventory(query: string): Promise<Batch[]> {
   const res = await fetch(`/api/inventory/search?q=${encodeURIComponent(query)}`)
   return res.json()
 }
+
+export async function uploadPrescriptionFile(patientId: string, file: File): Promise<{ id: string; url: string; ocrData?: any }> {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('patientId', patientId);
+
+  const res = await fetch("/api/prescriptions/upload", {
+    method: "POST",
+    body: formData
+  });
+  return res.json();
+}

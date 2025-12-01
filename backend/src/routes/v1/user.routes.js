@@ -46,6 +46,20 @@ router.patch('/:id/status', requirePermission(PERMISSIONS.SYSTEM_USER_MANAGE), u
 router.delete('/:id', requirePermission(PERMISSIONS.SYSTEM_USER_MANAGE), userController.deleteUser);
 
 /**
+ * @route   POST /api/v1/users/:id/reset-pin
+ * @desc    Reset user PIN
+ * @access  Private (Requires permission)
+ */
+router.post('/:id/reset-pin', requirePermission(PERMISSIONS.SYSTEM_USER_MANAGE), userController.resetUserPin);
+
+/**
+ * @route   GET /api/v1/users/:id/activity
+ * @desc    Get user activity logs
+ * @access  Private (Requires permission)
+ */
+router.get('/:id/activity', requirePermission(PERMISSIONS.SYSTEM_USER_MANAGE), userController.getUserActivity);
+
+/**
  * @route   GET /api/v1/users/me
  * @desc    Get current user profile
  * @access  Private
@@ -72,5 +86,16 @@ router.get('/me/primary-store', userController.getMyPrimaryStore);
  * @access  Private
  */
 router.get('/me/onboarding-status', userController.getOnboardingStatus);
+
+/**
+ * @route   POST /api/v1/users/migrate-stores
+ * @desc    Assign all users without stores to first available store (one-time migration)
+ * @access  Private (Admin only)
+ */
+router.post('/migrate-stores', requirePermission(PERMISSIONS.SYSTEM_USER_MANAGE), async (req, res) => {
+    const { assignUsersToStores } = require('../../scripts/assignUsersToStores');
+    const result = await assignUsersToStores();
+    res.json(result);
+});
 
 module.exports = router;

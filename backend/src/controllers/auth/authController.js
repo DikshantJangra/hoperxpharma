@@ -112,6 +112,7 @@ const login = asyncHandler(async (req, res) => {
         {
             user: result.user,
             accessToken: result.accessToken,
+            permissions: result.permissions, // Include permissions
         },
         MESSAGES.AUTH.LOGIN_SUCCESS
     );
@@ -198,10 +199,35 @@ const getProfile = asyncHandler(async (req, res) => {
     res.status(response.statusCode).json(response);
 });
 
+/**
+ * @swagger
+ * /api/v1/auth/permissions:
+ *   get:
+ *     summary: Get current user's permissions
+ *     tags: [Auth]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Permissions retrieved successfully
+ */
+const getPermissions = asyncHandler(async (req, res) => {
+    const permissionService = require('../../services/permissionService');
+    const permissions = await permissionService.getUserPermissions(req.user.id);
+
+    const response = ApiResponse.success(
+        { permissions },
+        'Permissions retrieved successfully'
+    );
+
+    res.status(response.statusCode).json(response);
+});
+
 module.exports = {
     signup,
     login,
     refresh,
     logout,
     getProfile,
+    getPermissions,
 };

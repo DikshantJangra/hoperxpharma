@@ -30,6 +30,7 @@ export interface AuthResponse {
             createdAt: string;
         };
         accessToken: string;
+        permissions?: string[]; // User's permission codes
     };
 }
 
@@ -141,5 +142,13 @@ export const authApi = {
      */
     getToken(): string | null {
         return tokenManager.getAccessToken();
+    },
+
+    /**
+     * Get current user's permissions
+     */
+    async getMyPermissions(): Promise<{ success: boolean; data: { permissions: string[] } }> {
+        const response = await apiClient.get('/auth/permissions');
+        return response;
     },
 };

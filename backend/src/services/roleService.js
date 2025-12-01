@@ -120,14 +120,53 @@ class RoleService {
             throw ApiError.notFound('Role not found');
         }
 
-        // Prevent updating built-in roles
+        const { name, description, category, permissionIds } = data;
+
+        // For built-in roles, only allow permission updates
         if (role.builtIn) {
-            throw ApiError.forbidden('Cannot modify built-in roles');
+            if (name || description || category) {
+                throw ApiError.forbidden('Cannot modify name, description, or category of built-in roles. You can only update permissions.');
+            }
+
+            // Only update permissions for built-in roles
+            if (permissionIds && Array.isArray(permissionIds)) {
+                // Remove existing permissions
+                await prisma.rolePermission.deleteMany({
+                    where: { roleId },
+                });
+
+                // Add new permissions
+                if (permissionIds.length > 0) {
+                    await prisma.rolePermission.createMany({
+                        data: permissionIds.map(permissionId => ({
+                            roleId,
+                            permissionId,
+                        })),
+                    });
+                }
+
+                // Return updated role with permissions
+                return await prisma.role.findUnique({
+                    where: { id: roleId },
+                    include: {
+                        permissions: {
+                            include: {
+                                permission: true,
+                            },
+                        },
+                        _count: {
+                            select: {
+                                userRoles: true,
+                            },
+                        },
+                    },
+                });
+            }
+
+            throw ApiError.badRequest('No valid updates provided for built-in role');
         }
 
-        const { name, description, category } = data;
-
-        // Check if new name conflicts with existing role
+        // Check if new name conflicts with existing role (for non-built-in roles)
         if (name && name !== role.name) {
             const existing = await prisma.role.findUnique({
                 where: { name },
@@ -269,6 +308,69 @@ class RoleService {
                     permissionId,
                 },
             },
+        });
+    }
+
+    /**
+     * Clone a role with all its permissions
+     * @param {string} sourceRoleId
+     * @param {string} newName
+     * @param {string} clonedBy - User ID
+     * @returns {Promise<object>}
+     */
+    async cloneRole(sourceRoleId, newName, clonedBy) {
+        const sourceRole = await this.getRoleById(sourceRoleId);
+
+        if (!sourceRole) {
+            throw ApiError.notFound('Source role not found');
+        }
+
+        // Check if new name already exists
+        const existing = await prisma.role.findUnique({
+            where: { name: newName },
+        });
+
+        if (existing) {
+            throw ApiError.badRequest('Role with this name already exists');
+        }
+
+        // Get permission IDs from source role
+        const permissionIds = sourceRole.permissions.map(rp => rp.permissionId);
+
+        // Create new role with same permissions
+        const clonedRole = await this.createRole({
+            name: newName,
+            description: sourceRole.description ? `${sourceRole.description} (Copy)` : null,
+            category: sourceRole.category,
+            permissionIds,
+        }, clonedBy);
+
+        return clonedRole;
+    }
+
+    /**
+     * Get role summary (for dropdowns)
+     * @returns {Promise<Array>}
+     */
+    async getRoleSummary() {
+        return await prisma.role.findMany({
+            select: {
+                id: true,
+                name: true,
+                description: true,
+                category: true,
+                builtIn: true,
+                _count: {
+                    select: {
+                        userRoles: true,
+                        permissions: true,
+                    },
+                },
+            },
+            orderBy: [
+                { builtIn: 'desc' },
+                { name: 'asc' },
+            ],
         });
     }
 }

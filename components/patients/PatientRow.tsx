@@ -1,4 +1,5 @@
 import React from "react";
+import { useRouter } from "next/navigation";
 import { FiEye, FiRefreshCw, FiMessageSquare, FiMoreVertical, FiCheckCircle } from "react-icons/fi";
 import PatientAvatar from "./PatientAvatar";
 import MaskedValue from "./MaskedValue";
@@ -7,14 +8,22 @@ interface PatientRowProps {
   patient: any;
   selected: boolean;
   onSelect: () => void;
-  onView: () => void;
+  onView?: () => void; // Made optional since we'll use router
+  onEdit: () => void;
   onRefill: () => void;
   onMessage: () => void;
 }
 
-export default function PatientRow({ patient, selected, onSelect, onView, onRefill, onMessage }: PatientRowProps) {
+export default function PatientRow({ patient, selected, onSelect, onView, onEdit, onRefill, onMessage }: PatientRowProps) {
+  const router = useRouter();
+
   // Construct full name from firstName and lastName
   const fullName = `${patient.firstName || ''} ${patient.lastName || ''}`.trim() || 'Unknown Patient';
+
+  const handleViewClick = () => {
+    // Navigate to profile page
+    router.push(`/patients/${patient.id}`);
+  };
 
   return (
     <div className={`flex items-center gap-4 px-4 py-3 hover:bg-gray-50 transition-colors ${selected ? "bg-teal-50" : ""}`}>
@@ -32,7 +41,7 @@ export default function PatientRow({ patient, selected, onSelect, onView, onRefi
         <div>
           <div className="flex items-center gap-2">
             <button
-              onClick={onView}
+              onClick={handleViewClick}
               className="text-sm font-medium text-gray-900 hover:text-teal-600"
             >
               {fullName}
@@ -88,11 +97,18 @@ export default function PatientRow({ patient, selected, onSelect, onView, onRefi
       {/* Actions */}
       <div className="w-40 flex items-center gap-2">
         <button
-          onClick={onView}
+          onClick={handleViewClick}
           className="p-2 text-gray-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg"
           title="View details"
         >
           <FiEye size={16} />
+        </button>
+        <button
+          onClick={onEdit}
+          className="px-3 py-1.5 text-xs font-medium text-gray-700 hover:text-teal-600 hover:bg-teal-50 rounded-lg border border-gray-200"
+          title="Edit patient"
+        >
+          Edit
         </button>
         {patient.pendingRefillsCount > 0 && (
           <button
@@ -109,9 +125,6 @@ export default function PatientRow({ patient, selected, onSelect, onView, onRefi
           title="Send message"
         >
           <FiMessageSquare size={16} />
-        </button>
-        <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg">
-          <FiMoreVertical size={16} />
         </button>
       </div>
     </div>

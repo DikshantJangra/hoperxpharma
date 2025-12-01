@@ -6,7 +6,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { onboardingApi } from '@/lib/api/onboarding';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-    const { checkAuth, isAuthenticated, isLoading, hasStore } = useAuthStore();
+    const { checkAuth, isAuthenticated, isLoading, hasStore, user } = useAuthStore();
     const router = useRouter();
     const pathname = usePathname();
     const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null);
@@ -19,6 +19,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         const checkOnboardingStatus = async () => {
             if (isAuthenticated && !isLoading) {
+                // Staff members (non-ADMIN) don't need onboarding - they work at admin's store
+                // Check this BEFORE making any API calls
+                if (user && user.role !== 'ADMIN') {
+                    setOnboardingComplete(true);
+                    return;
+                }
+
+                // Only ADMIN users need to check onboarding progress
                 try {
                     const progress = await onboardingApi.getProgress();
                     const isComplete = progress?.isComplete || false;
@@ -35,7 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (isAuthenticated && !isLoading) {
             checkOnboardingStatus();
         }
-    }, [isAuthenticated, isLoading, hasStore]);
+    }, [isAuthenticated, isLoading, hasStore, user]);
 
     // Monitor authentication state and redirect to login when logged out
     useEffect(() => {

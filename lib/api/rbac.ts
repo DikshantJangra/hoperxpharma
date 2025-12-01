@@ -79,6 +79,11 @@ export const rbacApi = {
     removePermissionFromRole: (roleId: string, permissionId: string) =>
         apiClient.delete(`/rbac/roles/${roleId}/permissions/${permissionId}`),
 
+    cloneRole: (roleId: string, name: string) =>
+        apiClient.post(`/rbac/roles/${roleId}/clone`, { name }),
+
+    getRoleSummary: () => apiClient.get('/rbac/roles/summary'),
+
     // Permission Management
     getPermissions: () => apiClient.get('/rbac/permissions'),
 

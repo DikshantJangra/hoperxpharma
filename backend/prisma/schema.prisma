@@ -147,8 +147,24 @@ model User {
   firstName    String
   lastName     String
   role         UserRole @default(PHARMACIST)
-  approvalPin  String?
+  approvalPin  String?  // DEPRECATED - will migrate to AdminPin
   isActive     Boolean  @default(true)
+
+  // POS PIN fields (for quick authorization at point-of-sale)
+  pinHash        String?   // Bcrypt hashed PIN for POS operations
+  pinAttempts    Int       @default(0) // Failed PIN attempt counter
+  pinLockedUntil DateTime? // PIN lockout timestamp
+  lastLoginAt    DateTime? // Last login timestamp for activity tracking
+
+  // HR fields
+  faceDataUrl          String?   // S3 URL for reference face photos (JSON array)
+  hourlyRate           Decimal?  @db.Decimal(10, 2) // For hourly employees
+  monthlyRate          Decimal?  @db.Decimal(10, 2) // For salaried employees
+  shiftId              String?   // Default shift assignment
+  joiningDate          DateTime? // Employment start date
+  emergencyContactName String?
+  emergencyContactPhone String?
+  employeeId           String?   @unique // Internal employee ID
 
   storeUsers       StoreUser[]
   auditLogs        AuditLog[]
@@ -159,6 +175,12 @@ model User {
   userRoles        UserRoleAssignment[]
   adminPin         AdminPin?
   grns             GoodsReceivedNote[]
+
+  // HR Relations
+  attendanceLogs     AttendanceLog[]
+  documents          StaffDocument[]
+  performanceMetrics PerformanceMetric[]
+  shift              Shift?               @relation(fields: [shiftId], references: [id])
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -297,6 +319,11 @@ model Store {
   is24x7       Boolean @default(false)
   homeDelivery Boolean @default(false)
 
+  // HR & Geofencing
+  latitude        Float?   // Store GPS latitude for geofencing
+  longitude       Float?   // Store GPS longitude for geofencing
+  geofenceRadius  Int?     @default(50) // Radius in meters for attendance check
+
   users          StoreUser[]
   licenses       StoreLicense[]
   operatingHours StoreOperatingHours[]
@@ -305,16 +332,22 @@ model Store {
   userRoles      UserRoleAssignment[]
 
   // Relations to other tables
-  patients       Patient[]
-  prescriptions  Prescription[]
-  inventory      InventoryBatch[]
-  sales          Sale[]
-  purchaseOrders PurchaseOrder[]
-  expenses       Expense[]
-  campaigns      Campaign[]
-  auditLogs      AuditLog[]
-  alerts         Alert[]
-  returns        SupplierReturn[]
+  patients        Patient[]
+  prescriptions   Prescription[]
+  inventory       InventoryBatch[]
+  sales           Sale[]
+  purchaseOrders  PurchaseOrder[]
+  expenses        Expense[]
+  campaigns       Campaign[]
+  auditLogs       AuditLog[]
+  alerts          Alert[]
+  returns         SupplierReturn[]
+  whatsappAccount WhatsAppAccount?
+
+  // HR Relations
+  attendanceLogs     AttendanceLog[]
+  shifts             Shift[]
+  performanceMetrics PerformanceMetric[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -476,6 +509,7 @@ model Patient {
   consents      PatientConsent[]
   insurance     PatientInsurance[]
   adherence     PatientAdherence[]
+  auditLogs     PatientAudit[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -726,6 +760,7 @@ model Prescription {
   items          PrescriptionItem[]
   dispenseEvents DispenseEvent[]
   refills        RefillHistory[]
+  files          PrescriptionFile[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -805,16 +840,101 @@ model DispenseItem {
   @@index([dispenseEventId])
 }
 
-model RefillHistory {
-  id             String   @id @default(cuid())
+model PrescriptionFile {
+  id             String @id @default(cuid())
   prescriptionId String
-  refillNumber   Int
-  refillDate     DateTime
-  dispensedBy    String
+  fileUrl        String
+  fileType       String // image, pdf
+  uploadedBy     String
 
   prescription Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
 
+  createdAt DateTime @default(now())
+
   @@index([prescriptionId])
+}
+
+// ============================================================================
+// CATEGORY 11: HR & TEAM MANAGEMENT
+// ============================================================================
+
+model Shift {
+  id          String   @id @default(cuid())
+  storeId     String
+  name        String   // "Morning Shift", "Evening Shift"
+  startTime   String   // "08:00" HH:MM format
+  endTime     String   // "16:00"
+  daysOfWeek  Int[]    // [1,2,3,4,5] = Mon-Fri (0=Sunday, 6=Saturday)
+  isActive    Boolean  @default(true)
+  
+  store       Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  users       User[]
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([storeId])
+  @@index([storeId, isActive])
+}
+
+model AttendanceLog {
+  id                      String    @id @default(cuid())
+  userId                  String
+  storeId                 String
+  checkInTime             DateTime
+  checkOutTime            DateTime?
+  locationSnapshot        Json?     // {lat, lng, accuracy}
+  faceVerificationScore   Float?    // 0-100 confidence score
+  status                  String    // PRESENT, LATE, ABSENT, HALF_DAY
+  notes                   String?
+  
+  user                    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  store                   Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+  
+  @@index([userId, checkInTime])
+  @@index([storeId, checkInTime])
+  @@index([userId, storeId, checkInTime])
+}
+
+model StaffDocument {
+  id            String    @id @default(cuid())
+  userId        String
+  documentType  String    // AADHAAR, LICENSE, REGISTRATION, CERTIFICATE
+  fileUrl       String    // S3 URL
+  expiryDate    DateTime?
+  status        String    @default("ACTIVE") // ACTIVE, EXPIRED, EXPIRING_SOON
+  
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  @@index([userId])
+  @@index([userId, status])
+}
+
+model PerformanceMetric {
+  id                      String   @id @default(cuid())
+  userId                  String
+  storeId                 String
+  date                    DateTime
+  salesAmount             Decimal  @db.Decimal(10, 2)
+  hoursWorked             Float
+  prescriptionsProcessed  Int      @default(0)
+  prescriptionsVerified   Int      @default(0)
+  prescriptionsRejected   Int      @default(0)
+  
+  user                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  store                   Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  
+  createdAt               DateTime @default(now())
+  
+  @@unique([userId, storeId, date])
+  @@index([userId, date])
+  @@index([storeId, date])
 }
 
 model DispenseWorkflowStep {
@@ -1011,9 +1131,9 @@ model GoodsReceivedNote {
   supplierInvoiceDate DateTime?
 
   // Receipt Details
-  receivedBy   String
+  receivedBy     String
   receivedByUser User     @relation(fields: [receivedBy], references: [id])
-  receivedDate DateTime @default(now())
+  receivedDate   DateTime @default(now())
 
   // Totals (actual billed amounts)
   subtotal  Decimal @db.Decimal(12, 2)
@@ -1341,19 +1461,6 @@ model OCRJob {
   @@index([storeId, status])
 }
 
-model PerformanceMetric {
-  id         String   @id @default(cuid())
-  storeId    String
-  metricType String // sales_per_hour, avg_dispense_time
-  value      Float
-  date       DateTime
-
-  createdAt DateTime @default(now())
-
-  @@unique([storeId, metricType, date])
-  @@index([storeId, date])
-}
-
 // ============================================================================
 // CATEGORY 8: BANK RECONCILIATION (3 tables)
 // ============================================================================
@@ -1564,27 +1671,230 @@ model ComplianceCheck {
 }
 
 // ============================================================================
-// CATEGORY 11: WHATSAPP (4 tables)
+// CATEGORY 11: WHATSAPP BUSINESS INTEGRATION (8 tables)
 // ============================================================================
 
-model WhatsAppTemplate {
-  id         String    @id @default(cuid())
-  storeId    String
-  name       String
-  category   String // transactional, reminder, marketing
-  status     String // approved, pending, rejected
-  body       String    @db.Text
-  language   String    @default("en")
-  variables  String[]
-  usageCount Int       @default(0)
-  lastUsedAt DateTime?
+enum WhatsAppStatus {
+  DISCONNECTED
+  TEMP_STORED // Temporary token received, pending finalization
+  ACTIVE // Fully connected and operational
+  NO_PHONE // WABA exists but no phone number registered
+  NEEDS_VERIFICATION // Phone OTP or business verification required
+  ERROR // Connection error, needs reconnection
+}
 
-  messages WhatsAppMessageLog[]
+enum MessageDirection {
+  inbound
+  outbound
+}
+
+enum MessageType {
+  text
+  image
+  document
+  audio
+  video
+  template
+  interactive
+  location
+  contacts
+}
+
+enum MessageStatus {
+  sent
+  delivered
+  read
+  failed
+}
+
+model WhatsAppAccount {
+  id      String @id @default(cuid())
+  storeId String @unique // One WhatsApp account per store
+
+  // Meta identifiers
+  wabaId        String? // WhatsApp Business Account ID
+  phoneNumberId String? @unique // Phone number ID in Meta system
+  phoneNumber   String? // E.164 format phone number
+
+  // Credentials (encrypt access_token at application layer)
+  accessToken    String?   @db.Text // Encrypted long-lived token
+  tempToken      String?   @db.Text // Temporary token during signup
+  tokenExpiresAt DateTime?
+  webhookSecret  String? // Optional additional verification
+
+  // Status tracking
+  status                WhatsAppStatus @default(DISCONNECTED)
+  businessVerified      Boolean        @default(false)
+  lastWebhookReceivedAt DateTime?
+
+  // Business info
+  businessDisplayName       String?
+  businessAbout             String?
+  businessProfilePictureUrl String?
+
+  store         Store              @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  conversations Conversation[]
+  templates     WhatsAppTemplate[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([phoneNumberId]) // Fast webhook routing
   @@index([storeId, status])
+}
+
+model Conversation {
+  id                String @id @default(cuid())
+  storeId           String
+  whatsappAccountId String
+
+  // Customer info
+  phoneNumber   String // E.164 format
+  displayName   String?
+  profilePicUrl String?
+
+  // Status
+  status          String  @default("open") // open, pending, resolved, archived
+  assignedAgentId String? // User ID of assigned staff member
+
+  // Metadata
+  lastMessageAt   DateTime?
+  lastMessageBody String?   @db.Text
+  unreadCount     Int       @default(0)
+  tags            String[]  @default([])
+
+  // Session tracking (for 24-hour window enforcement)
+  lastCustomerMessageAt DateTime?
+  sessionActive         Boolean   @default(false)
+
+  whatsappAccount WhatsAppAccount @relation(fields: [whatsappAccountId], references: [id], onDelete: Cascade)
+  messages        Message[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([storeId, phoneNumber]) // One conversation per phone per store
+  @@index([storeId, status])
+  @@index([storeId, lastMessageAt])
+  @@index([assignedAgentId])
+}
+
+model Message {
+  id             String @id @default(cuid())
+  conversationId String
+  storeId        String // Denormalized for faster queries
+
+  // Provider info
+  providerMessageId String? @unique // Meta's message ID
+  wabaPhoneNumberId String? // Which phone_number_id this came through
+
+  // Message content
+  direction MessageDirection
+  type      MessageType
+  body      String?          @db.Text
+  caption   String?          @db.Text
+
+  // Media
+  mediaUrl      String? // Local or S3 URL after fetching from Meta
+  mediaType     String? // image/jpeg, application/pdf, etc.
+  mediaSize     Int? // bytes
+  mediaFileName String?
+
+  // Sender info
+  from String? // Phone number or user ID
+  to   String?
+
+  // Status (for outbound messages)
+  status       MessageStatus?
+  statusReason String? // Error reason if failed
+
+  // Template info (if type = template)
+  templateName     String?
+  templateLanguage String?
+  templateParams   Json? // Variable values
+
+  // Raw data
+  payload Json? // Full webhook payload for debugging
+
+  // Timestamps
+  sentAt      DateTime? // When we sent it
+  deliveredAt DateTime?
+  readAt      DateTime?
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([conversationId, createdAt])
+  @@index([storeId, direction, createdAt])
+  @@index([providerMessageId])
+  @@index([wabaPhoneNumberId]) // For webhook mapping
+}
+
+model WhatsAppTemplate {
+  id                String  @id @default(cuid())
+  storeId           String
+  whatsappAccountId String?
+
+  // Template info
+  name     String
+  language String @default("en")
+  category String @default("MARKETING") // MARKETING, UTILITY, AUTHENTICATION, transactional, reminder
+
+  // Content
+  headerType String? // text, image, document, video
+  headerText String?
+  body       String   @db.Text // Can contain {{1}}, {{2}} placeholders
+  footer     String?
+  variables  String[] @default([]) // Variable names for compatibility
+
+  // Buttons (optional)
+  buttons Json? // Array of button objects
+
+  // Status from Meta
+  status         String  @default("PENDING") // PENDING, APPROVED, REJECTED
+  rejectedReason String?
+
+  // Meta identifiers
+  templateId String? // Meta's template ID after approval
+  namespace  String? // Meta namespace
+
+  // Usage tracking
+  usageCount Int       @default(0)
+  lastUsedAt DateTime?
+
+  whatsappAccount WhatsAppAccount? @relation(fields: [whatsappAccountId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([storeId, name, language])
+  @@index([storeId, status])
+}
+
+model WhatsAppOutboundQueue {
+  id             BigInt  @id @default(autoincrement())
+  storeId        String
+  conversationId String?
+
+  // Message to send
+  payload Json // Full message payload for Meta API
+
+  // Retry logic
+  attemptCount Int      @default(0)
+  maxAttempts  Int      @default(3)
+  runAfter     DateTime @default(now())
+
+  // Status
+  status       String    @default("pending") // pending, in_progress, sent, failed
+  errorMessage String?   @db.Text
+  sentAt       DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([storeId, status, runAfter])
+  @@index([status, runAfter]) // For queue worker
 }
 
 model WhatsAppFlow {
@@ -1601,23 +1911,6 @@ model WhatsAppFlow {
   updatedAt DateTime @updatedAt
 
   @@index([storeId, active])
-}
-
-model WhatsAppMessageLog {
-  id            String   @id @default(cuid())
-  storeId       String
-  patientId     String?
-  templateId    String?
-  providerMsgId String // WhatsApp's message ID
-  direction     String // sent, received
-  cost          Decimal? @db.Decimal(6, 4)
-
-  template WhatsAppTemplate? @relation(fields: [templateId], references: [id])
-
-  sentAt DateTime @default(now())
-
-  @@index([storeId, sentAt])
-  @@index([providerMsgId])
 }
 
 model WhatsAppConsent {
@@ -1919,4 +2212,37 @@ model Document {
   createdAt DateTime @default(now())
 
   @@index([storeId, entityType, entityId])
+}
+
+// ============================================================================
+// CATEGORY 10: PATIENT AUDIT & FILES
+// ============================================================================
+
+model PatientAudit {
+  id        String   @id @default(cuid())
+  patientId String
+  userId    String
+  action    String   // CREATED, UPDATED, MERGED, DELETED
+  changes   Json     // { field: { old, new } }
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  
+  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  
+  @@index([patientId, createdAt])
+}
+
+model PrescriptionFile {
+  id             String   @id @default(cuid())
+  prescriptionId String
+  fileUrl        String
+  thumbnailUrl   String?
+  ocrData        Json?    // Extracted data
+  uploadedBy     String
+  createdAt      DateTime @default(now())
+  
+  prescription Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  
+  @@index([prescriptionId])
 }

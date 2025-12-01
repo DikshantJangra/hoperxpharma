@@ -64,7 +64,13 @@ const getUsers = asyncHandler(async (req, res) => {
 });
 
 const createUser = asyncHandler(async (req, res) => {
-    const user = await userService.createUser(req.body);
+    // Pass the current user ID for audit logging
+    const userData = {
+        ...req.body,
+        createdBy: req.user.id,
+    };
+
+    const user = await userService.createUser(userData);
 
     res.status(201).json(
         new ApiResponse(201, user, 'User created successfully')
@@ -76,7 +82,7 @@ const createUser = asyncHandler(async (req, res) => {
  * @route PATCH /api/v1/users/:id
  */
 const updateUser = asyncHandler(async (req, res) => {
-    const user = await userService.updateUser(req.params.id, req.body);
+    const user = await userService.updateUser(req.params.id, req.body, req.user.id);
 
     res.status(200).json(
         new ApiResponse(200, user, 'User updated successfully')
@@ -117,15 +123,47 @@ const deleteUser = asyncHandler(async (req, res) => {
     );
 });
 
+/**
+ * Reset user PIN
+ * @route POST /api/v1/users/:id/reset-pin
+ */
+const resetUserPin = asyncHandler(async (req, res) => {
+    const { pin } = req.body;
+
+    if (!pin || pin.length !== 4) {
+        throw new ApiError(400, 'PIN must be exactly 4 digits');
+    }
+
+    await userService.resetUserPin(req.params.id, pin, req.user.id);
+
+    res.status(200).json(
+        new ApiResponse(200, null, 'PIN reset successfully')
+    );
+});
+
+/**
+ * Get user activity logs
+ * @route GET /api/v1/users/:id/activity
+ */
+const getUserActivity = asyncHandler(async (req, res) => {
+    const limit = parseInt(req.query.limit) || 20;
+    const activity = await userService.getUserActivity(req.params.id, limit);
+
+    res.status(200).json(
+        new ApiResponse(200, activity, 'User activity retrieved successfully')
+    );
+});
+
 module.exports = {
     getMyProfile,
     getMyPrimaryStore,
     updateMyProfile,
     getOnboardingStatus,
     getUsers,
-    getUsers,
     createUser,
     updateUser,
     toggleUserStatus,
     deleteUser,
+    resetUserPin,
+    getUserActivity,
 };

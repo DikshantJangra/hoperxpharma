@@ -5,6 +5,7 @@ import Link from "next/link"
 import { FiChevronRight } from "react-icons/fi"
 import { sidebarConfig } from "./sidebarConfig"
 import Logo from "@/components/ui/Logo"
+import { usePermissions } from "@/contexts/PermissionContext"
 
 interface SidebarProps {
     isOpen: boolean
@@ -14,7 +15,7 @@ interface SidebarProps {
 
 export default function Sidebar({ isOpen, expandedItems, onToggleItem }: SidebarProps) {
     if (!Array.isArray(sidebarConfig)) return null;
-    
+
     return (
         <aside className={`${isOpen ? 'w-64' : 'w-20'} bg-white border-r border-gray-100 transition-all duration-300 flex flex-col`}>
             <SidebarHeader isOpen={isOpen} />
@@ -44,12 +45,26 @@ function SidebarHeader({ isOpen }: { isOpen: boolean }) {
 }
 
 function SidebarSection({ section, isOpen, expandedItems, onToggleItem }: any) {
+    const { permissions } = usePermissions();
+
     if (!section || !Array.isArray(section.items)) return null;
-    
+
+    // Filter items based on permissions
+    const visibleItems = section.items.filter((item: any) => {
+        // If no permission required, show the item
+        if (!item.requiredPermission) return true;
+
+        // Check if user has the required permission
+        return permissions.includes(item.requiredPermission);
+    });
+
+    // Don't render section if no items are visible
+    if (visibleItems.length === 0) return null;
+
     return (
         <div className="mb-3">
             {isOpen && <SectionLabel>{section.title}</SectionLabel>}
-            {section.items.map((item: any, idx: number) => (
+            {visibleItems.map((item: any, idx: number) => (
                 <NavItem
                     key={idx}
                     item={item}
@@ -68,11 +83,25 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 function NavItem({ item, isOpen, expanded, onToggle }: any) {
     const pathname = usePathname()
+    const { permissions } = usePermissions()
+
     const hasSubItems = item.subItems && Array.isArray(item.subItems) && item.subItems.length > 0
-    const isActive = item.path ? pathname === item.path : (hasSubItems && item.subItems.some((sub: any) => pathname === sub.path))
+
+    // Filter sub-items based on permissions
+    const visibleSubItems = hasSubItems
+        ? item.subItems.filter((subItem: any) => {
+            // If no permission required, show the sub-item
+            if (!subItem.requiredPermission) return true
+            // Check if user has the required permission
+            return permissions.includes(subItem.requiredPermission)
+        })
+        : []
+
+    const hasVisibleSubItems = visibleSubItems.length > 0
+    const isActive = item.path ? pathname === item.path : (hasVisibleSubItems && visibleSubItems.some((sub: any) => pathname === sub.path))
 
     // If item has a direct path (no subitems), render as Link
-    if (item.path && !hasSubItems) {
+    if (item.path && !hasVisibleSubItems) {
         return (
             <Link
                 href={item.path}
@@ -91,7 +120,7 @@ function NavItem({ item, isOpen, expanded, onToggle }: any) {
     return (
         <div className="mb-0.5">
             <button
-                onClick={hasSubItems ? onToggle : undefined}
+                onClick={hasVisibleSubItems ? onToggle : undefined}
                 className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-md transition-colors ${isActive ? 'bg-emerald-50 text-emerald-600 font-semibold' : 'text-gray-700 hover:bg-gray-50'
                     }`}
             >
@@ -99,12 +128,12 @@ function NavItem({ item, isOpen, expanded, onToggle }: any) {
                     <span className="shrink-0">{item.icon}</span>
                     {isOpen && <span className="text-sm">{item.label}</span>}
                 </div>
-                {isOpen && hasSubItems && (
+                {isOpen && hasVisibleSubItems && (
                     <FiChevronRight size={16} className={`text-gray-400 transition-transform duration-200 ${expanded ? 'rotate-90' : ''}`} />
                 )}
             </button>
-            {isOpen && expanded && hasSubItems && (
-                <div className="ml-9 mt-1 space-y-0.5">{item.subItems.map((subItem: any, idx: number) => (
+            {isOpen && expanded && hasVisibleSubItems && (
+                <div className="ml-9 mt-1 space-y-0.5">{visibleSubItems.map((subItem: any, idx: number) => (
                     <SubItem key={idx} label={subItem.label} path={subItem.path} active={pathname === subItem.path} />
                 ))}</div>
             )}

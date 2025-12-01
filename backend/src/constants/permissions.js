@@ -46,6 +46,12 @@ const PERMISSIONS = {
     REPORT_FINANCIAL: 'report.financial',
     REPORT_COMPLIANCE: 'report.compliance',
 
+    // Communication & Marketing
+    COMMUNICATION_SEND: 'communication.send',
+    COMMUNICATION_TEMPLATE: 'communication.template',
+    MARKETING_CAMPAIGN: 'marketing.campaign',
+    MARKETING_LOYALTY: 'marketing.loyalty',
+
     // System Administration
     SYSTEM_USER_MANAGE: 'system.user.manage',
     SYSTEM_ROLE_MANAGE: 'system.role.manage',
@@ -114,6 +120,12 @@ const PERMISSION_METADATA = [
     { code: 'report.inventory', name: 'Inventory Reports', description: 'View inventory reports', category: 'report', resource: 'report' },
     { code: 'report.financial', name: 'Financial Reports', description: 'View financial reports', category: 'report', resource: 'report' },
     { code: 'report.compliance', name: 'Compliance Reports', description: 'View compliance reports', category: 'report', resource: 'report' },
+
+    // Communication & Marketing
+    { code: 'communication.send', name: 'Send Messages', description: 'Send WhatsApp, SMS, and email messages', category: 'communication', resource: 'message' },
+    { code: 'communication.template', name: 'Manage Templates', description: 'Create and edit message templates', category: 'communication', resource: 'template' },
+    { code: 'marketing.campaign', name: 'Manage Campaigns', description: 'Create and manage marketing campaigns', category: 'marketing', resource: 'campaign' },
+    { code: 'marketing.loyalty', name: 'Manage Loyalty', description: 'Manage loyalty programs and coupons', category: 'marketing', resource: 'loyalty' },
 
     // System Administration
     { code: 'system.user.manage', name: 'Manage Users', description: 'Create, edit, and delete users', category: 'system', resource: 'user' },

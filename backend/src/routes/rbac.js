@@ -17,6 +17,11 @@ router.use(authenticate);
 // ============================================================================
 
 router.get(
+    '/roles/summary',
+    roleController.getRoleSummary  // Get role summary for dropdowns
+);
+
+router.get(
     '/roles',
     roleController.listRoles  // Authenticated users can view roles
 );
@@ -54,6 +59,12 @@ router.delete(
     '/roles/:id/permissions/:permissionId',
     requireAdmin,  // Only admins can remove permissions
     roleController.removePermissionFromRole
+);
+
+router.post(
+    '/roles/:id/clone',
+    requireAdmin,  // Only admins can clone roles
+    roleController.cloneRole
 );
 
 // ============================================================================

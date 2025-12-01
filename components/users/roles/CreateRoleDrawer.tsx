@@ -11,6 +11,7 @@ interface CreateRoleDrawerProps {
     name: string;
     description: string | null;
     category: string | null;
+    builtIn?: boolean;
     permissions: { permission: Permission }[];
   } | null;
 }
@@ -76,12 +77,17 @@ export default function CreateRoleDrawer({ onClose, onSuccess, editRole }: Creat
       setLoading(true);
       setError("");
 
-      const roleData = {
-        name: roleName.trim(),
-        description: description.trim() || undefined,
-        category: category || undefined,
-        permissionIds: Array.from(selectedPermissions),
-      };
+      // For built-in roles, only send permissionIds
+      const roleData: any = editRole?.builtIn
+        ? {
+          permissionIds: Array.from(selectedPermissions),
+        }
+        : {
+          name: roleName.trim(),
+          description: description.trim() || undefined,
+          category: category || undefined,
+          permissionIds: Array.from(selectedPermissions),
+        };
 
       let response;
       if (editRole) {
@@ -135,10 +141,14 @@ export default function CreateRoleDrawer({ onClose, onSuccess, editRole }: Creat
         <div className="flex items-center justify-between px-8 py-6 border-b border-gray-100 bg-gray-50/50">
           <div>
             <h3 className="text-xl font-bold text-gray-900">
-              {editRole ? "Edit Role" : "Create New Role"}
+              {editRole ? (editRole.builtIn ? "Edit Role Permissions" : "Edit Role") : "Create New Role"}
             </h3>
             <p className="text-sm text-gray-500 mt-1">
-              {editRole ? "Modify existing role details and permissions" : "Define a new role and assign permissions"}
+              {editRole
+                ? (editRole.builtIn
+                  ? "Modify permissions for this built-in role"
+                  : "Modify existing role details and permissions")
+                : "Define a new role and assign permissions"}
             </p>
           </div>
           <button
@@ -167,8 +177,8 @@ export default function CreateRoleDrawer({ onClose, onSuccess, editRole }: Creat
                   value={roleName}
                   onChange={(e) => setRoleName(e.target.value)}
                   placeholder="e.g., Inventory Manager"
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all text-gray-900 placeholder-gray-400"
-                  disabled={loading}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all text-gray-900 placeholder-gray-400 disabled:bg-gray-50 disabled:text-gray-500"
+                  disabled={loading || editRole?.builtIn}
                 />
               </div>
 
@@ -201,8 +211,8 @@ export default function CreateRoleDrawer({ onClose, onSuccess, editRole }: Creat
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Describe what this role can do..."
                   rows={3}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all text-gray-900 placeholder-gray-400 resize-none"
-                  disabled={loading}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all text-gray-900 placeholder-gray-400 resize-none disabled:bg-gray-50 disabled:text-gray-500"
+                  disabled={loading || editRole?.builtIn}
                 />
               </div>
             </div>
@@ -245,8 +255,8 @@ export default function CreateRoleDrawer({ onClose, onSuccess, editRole }: Creat
                         <label
                           key={perm.id}
                           className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-all ${selectedPermissions.has(perm.id)
-                              ? "bg-white border-teal-200 shadow-sm ring-1 ring-teal-500/10"
-                              : "bg-white border-gray-100 hover:border-gray-300"
+                            ? "bg-white border-teal-200 shadow-sm ring-1 ring-teal-500/10"
+                            : "bg-white border-gray-100 hover:border-gray-300"
                             }`}
                         >
                           <div className="relative flex items-center mt-0.5">

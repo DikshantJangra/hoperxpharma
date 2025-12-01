@@ -111,3 +111,42 @@ exports.removePermissionFromRole = asyncHandler(async (req, res) => {
         message: 'Permission removed from role',
     });
 });
+
+/**
+ * @route   POST /api/rbac/roles/:id/clone
+ * @desc    Clone a role with all permissions
+ * @access  Admin
+ */
+exports.cloneRole = asyncHandler(async (req, res) => {
+    const { name } = req.body;
+
+    if (!name) {
+        throw new ApiError(400, 'New role name is required');
+    }
+
+    const clonedRole = await roleService.cloneRole(
+        req.params.id,
+        name,
+        req.user.id
+    );
+
+    res.status(201).json({
+        success: true,
+        data: clonedRole,
+        message: 'Role cloned successfully',
+    });
+});
+
+/**
+ * @route   GET /api/rbac/roles/summary
+ * @desc    Get role summary for dropdowns
+ * @access  Authenticated
+ */
+exports.getRoleSummary = asyncHandler(async (req, res) => {
+    const roles = await roleService.getRoleSummary();
+
+    res.json({
+        success: true,
+        data: roles,
+    });
+});

@@ -148,9 +148,12 @@ export const patientsApi = {
     },
 
     /**
-     * Process a refill
+     * Process a refill (creates adherence + sale)
      */
-    async processRefill(patientId: string, data: { prescriptionId: string; expectedRefillDate: string; adherenceRate?: number }) {
+    async processRefill(patientId: string, data: {
+        items: Array<{ prescriptionId: string; drugId: string; quantity: number; expectedRefillDate?: string }>;
+        storeId: string;
+    }) {
         const response = await apiClient.post(`/patients/${patientId}/refills`, data);
         return response.data;
     },
@@ -197,6 +200,22 @@ export const patientsApi = {
      */
     async getPatientConsents(patientId: string) {
         const response = await apiClient.get(`/patients/${patientId}/consents`);
+        return response.data;
+    },
+
+    /**
+     * Merge two patients
+     */
+    async mergePatients(targetId: string, sourceId: string) {
+        const response = await apiClient.post(`/patients/merge`, { targetId, sourceId });
+        return response.data;
+    },
+
+    /**
+     * Get patient audit logs
+     */
+    async getAuditLogs(patientId: string) {
+        const response = await apiClient.get(`/patients/${patientId}/audit-logs`);
         return response.data;
     }
 };

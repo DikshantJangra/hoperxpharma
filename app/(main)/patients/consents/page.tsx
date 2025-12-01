@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { FiCheck, FiX, FiDownload, FiEye, FiShield, FiAlertCircle } from "react-icons/fi";
 import { MdVerifiedUser } from "react-icons/md";
 import { patientsApi } from "@/lib/api/patients";
@@ -67,10 +67,24 @@ export default function PatientConsentsPage() {
     const [consents, setConsents] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const debounceTimer = useRef<NodeJS.Timeout | null>(null);
 
     useEffect(() => {
         if (primaryStore?.id) {
-            loadConsents();
+            // Debounce API calls to prevent rate limiting
+            if (debounceTimer.current) {
+                clearTimeout(debounceTimer.current);
+            }
+
+            debounceTimer.current = setTimeout(() => {
+                loadConsents();
+            }, 300); // 300ms debounce
+
+            return () => {
+                if (debounceTimer.current) {
+                    clearTimeout(debounceTimer.current);
+                }
+            };
         }
     }, [filter, primaryStore?.id]);
 
@@ -92,7 +106,15 @@ export default function PatientConsentsPage() {
             }
         } catch (err: any) {
             console.error("Error loading consents:", err);
-            setError(err.message || "An error occurred");
+
+            // Better error messages
+            if (err.statusCode === 429) {
+                setError("Too many requests. Please wait a moment and try again.");
+            } else if (err.statusCode === 404) {
+                setError("Consents endpoint not found. Please check backend configuration.");
+            } else {
+                setError(err.message || "Failed to load consents. Please try again.");
+            }
             setConsents([]);
         } finally {
             setIsLoading(false);
@@ -134,9 +156,9 @@ export default function PatientConsentsPage() {
     };
 
     return (
-        <div className="min-h-screen bg-[#f8fafc] pb-20">
-            {/* Header */}
-            <div className="bg-white border-b border-[#e2e8f0] p-6">
+        <div className="h-screen flex flex-col bg-[#f8fafc] overflow-hidden">
+            {/* Fixed Header */}
+            <div className="bg-white border-b border-[#e2e8f0] p-6 flex-shrink-0">
                 <div className="max-w-7xl mx-auto">
                     <div className="flex items-center justify-between">
                         <div>
@@ -153,81 +175,56 @@ export default function PatientConsentsPage() {
                 </div>
             </div>
 
-            <div className="max-w-7xl mx-auto px-6 py-8">
-                {/* Compliance Banner */}
-                <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 mb-8 flex items-start gap-4">
-                    <FiShield className="w-6 h-6 text-blue-600 flex-shrink-0 mt-1" />
-                    <div>
-                        <h3 className="font-semibold text-blue-900 mb-2">DPDPA 2023 Compliance</h3>
-                        <p className="text-sm text-blue-700 mb-3">
-                            All patient consents are managed in accordance with the Digital Personal Data Protection Act, 2023.
-                            Patients have the right to withdraw consent at any time.
-                        </p>
-                        <div className="flex gap-4 text-sm">
-                            <div className="flex items-center gap-2">
-                                <FiCheck className="w-4 h-4 text-blue-600" />
-                                <span className="text-blue-700">Digital Signatures</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <FiCheck className="w-4 h-4 text-blue-600" />
-                                <span className="text-blue-700">Version Control</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <FiCheck className="w-4 h-4 text-blue-600" />
-                                <span className="text-blue-700">Audit Trail</span>
-                            </div>
-                        </div>
+            {/* Fixed Stats and Filters */}
+            <div className="bg-white border-b border-[#e2e8f0] flex-shrink-0">
+                <div className="max-w-7xl mx-auto px-6 py-6">
+                    {/* Stats Cards */}
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                        {isLoading ? (
+                            <>
+                                <StatCardSkeleton />
+                                <StatCardSkeleton />
+                                <StatCardSkeleton />
+                                <StatCardSkeleton />
+                            </>
+                        ) : (
+                            <>
+                                <div className="bg-white border border-[#e2e8f0] rounded-xl p-4">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-sm text-[#64748b]">Active</span>
+                                        <MdVerifiedUser className="w-5 h-5 text-green-500" />
+                                    </div>
+                                    <div className="text-2xl font-bold text-green-600">{stats.active}</div>
+                                </div>
+
+                                <div className="bg-white border border-[#e2e8f0] rounded-xl p-4">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-sm text-[#64748b]">Expired</span>
+                                        <FiAlertCircle className="w-5 h-5 text-red-500" />
+                                    </div>
+                                    <div className="text-2xl font-bold text-red-600">{stats.expired}</div>
+                                </div>
+
+                                <div className="bg-white border border-[#e2e8f0] rounded-xl p-4">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-sm text-[#64748b]">Withdrawn</span>
+                                        <FiX className="w-5 h-5 text-gray-500" />
+                                    </div>
+                                    <div className="text-2xl font-bold text-gray-600">{stats.withdrawn}</div>
+                                </div>
+
+                                <div className="bg-white border border-[#e2e8f0] rounded-xl p-4">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-sm text-[#64748b]">Total</span>
+                                        <FiShield className="w-5 h-5 text-[#0ea5a3]" />
+                                    </div>
+                                    <div className="text-2xl font-bold text-[#0ea5a3]">{stats.total}</div>
+                                </div>
+                            </>
+                        )}
                     </div>
-                </div>
 
-                {/* Stats Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-                    {isLoading ? (
-                        <>
-                            <StatCardSkeleton />
-                            <StatCardSkeleton />
-                            <StatCardSkeleton />
-                            <StatCardSkeleton />
-                        </>
-                    ) : (
-                        <>
-                            <div className="bg-white border border-[#e2e8f0] rounded-xl p-6">
-                                <div className="flex items-center justify-between mb-2">
-                                    <span className="text-sm text-[#64748b]">Active</span>
-                                    <MdVerifiedUser className="w-5 h-5 text-green-500" />
-                                </div>
-                                <div className="text-3xl font-bold text-green-600">{stats.active}</div>
-                            </div>
-
-                            <div className="bg-white border border-[#e2e8f0] rounded-xl p-6">
-                                <div className="flex items-center justify-between mb-2">
-                                    <span className="text-sm text-[#64748b]">Expired</span>
-                                    <FiAlertCircle className="w-5 h-5 text-red-500" />
-                                </div>
-                                <div className="text-3xl font-bold text-red-600">{stats.expired}</div>
-                            </div>
-
-                            <div className="bg-white border border-[#e2e8f0] rounded-xl p-6">
-                                <div className="flex items-center justify-between mb-2">
-                                    <span className="text-sm text-[#64748b]">Withdrawn</span>
-                                    <FiX className="w-5 h-5 text-gray-500" />
-                                </div>
-                                <div className="text-3xl font-bold text-gray-600">{stats.withdrawn}</div>
-                            </div>
-
-                            <div className="bg-white border border-[#e2e8f0] rounded-xl p-6">
-                                <div className="flex items-center justify-between mb-2">
-                                    <span className="text-sm text-[#64748b]">Total</span>
-                                    <FiShield className="w-5 h-5 text-[#0ea5a3]" />
-                                </div>
-                                <div className="text-3xl font-bold text-[#0ea5a3]">{stats.total}</div>
-                            </div>
-                        </>
-                    )}
-                </div>
-
-                {/* Filters */}
-                <div className="bg-white border border-[#e2e8f0] rounded-xl p-6 mb-6">
+                    {/* Filters */}
                     <div className="flex gap-2">
                         <button
                             onClick={() => setFilter("all")}
@@ -263,98 +260,97 @@ export default function PatientConsentsPage() {
                         </button>
                     </div>
                 </div>
+            </div>
 
-                {/* Consent Types Reference */}
-                <div className="bg-white border border-[#e2e8f0] rounded-xl p-6 mb-6">
-                    <h3 className="font-semibold text-[#0f172a] mb-4">Consent Types</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {consentTypes.map((type) => (
-                            <div key={type.name} className="p-4 border border-[#e2e8f0] rounded-lg">
-                                <div className="flex items-start justify-between mb-2">
-                                    <h4 className="font-medium text-[#0f172a]">{type.name}</h4>
-                                    <span className={`px-2 py-1 rounded text-xs font-medium ${type.required ? "bg-red-100 text-red-700" : "bg-blue-100 text-blue-700"
-                                        }`}>
-                                        {type.category}
-                                    </span>
-                                </div>
-                                <p className="text-sm text-[#64748b]">{type.description}</p>
-                            </div>
-                        ))}
+            {/* Sticky Table Header */}
+            <div className="bg-gray-50 border-b border-gray-200 flex-shrink-0">
+                <div className="max-w-7xl mx-auto px-6">
+                    <div className="grid grid-cols-12 gap-4 py-3 text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        <div className="col-span-3">Patient</div>
+                        <div className="col-span-2">Contact</div>
+                        <div className="col-span-2">Consent Type</div>
+                        <div className="col-span-2">Last Visit</div>
+                        <div className="col-span-2">Status</div>
+                        <div className="col-span-1 text-right">Actions</div>
                     </div>
                 </div>
+            </div>
 
-                {/* Consents List */}
-                <div className="space-y-4">
-                    {isLoading ? (
-                        <>
-                            <ConsentCardSkeleton />
-                            <ConsentCardSkeleton />
-                        </>
-                    ) : filteredConsents.length > 0 ? (
-                        filteredConsents.map((consent) => (
-                            <div key={consent.id} className="bg-white border border-[#e2e8f0] rounded-xl p-6 hover:shadow-md transition-shadow">
-                                <div className="flex items-start justify-between mb-4">
-                                    <div className="flex-1">
-                                        <div className="flex items-center gap-3 mb-2">
-                                            <h3 className="text-lg font-semibold text-[#0f172a]">
+            {/* Scrollable Content Area */}
+            <div className="flex-1 overflow-y-auto">
+                <div className="max-w-7xl mx-auto px-6 py-6">
+                    <div className="space-y-3">
+                        {isLoading ? (
+                            <>
+                                <ConsentCardSkeleton />
+                                <ConsentCardSkeleton />
+                                <ConsentCardSkeleton />
+                            </>
+                        ) : filteredConsents.length > 0 ? (
+                            filteredConsents.map((consent) => (
+                                <div key={consent.id} className="bg-white border border-[#e2e8f0] rounded-lg hover:shadow-md transition-shadow">
+                                    <div className="grid grid-cols-12 gap-4 p-4 items-center">
+                                        {/* Patient */}
+                                        <div className="col-span-3">
+                                            <h3 className="font-semibold text-[#0f172a]">
                                                 {consent.patient?.firstName} {consent.patient?.lastName}
                                             </h3>
-                                            <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(consent.status)}`}>
+                                            <p className="text-xs text-[#64748b] mt-1">ID: {consent.patient?.id?.slice(0, 8)}</p>
+                                        </div>
+
+                                        {/* Contact */}
+                                        <div className="col-span-2">
+                                            <p className="text-sm text-[#0f172a]">{consent.patient?.phoneNumber || 'N/A'}</p>
+                                            <p className="text-xs text-[#64748b] mt-1">{consent.patient?.email || 'No email'}</p>
+                                        </div>
+
+                                        {/* Consent Type */}
+                                        <div className="col-span-2">
+                                            <p className="text-sm font-medium text-[#0f172a]">{consent.type}</p>
+                                            <p className="text-xs text-[#64748b] mt-1">
+                                                Granted: {consent.grantedDate ? new Date(consent.grantedDate).toLocaleDateString() : "N/A"}
+                                            </p>
+                                        </div>
+
+                                        {/* Last Visit */}
+                                        <div className="col-span-2">
+                                            <p className="text-sm text-[#0f172a]">
+                                                {consent.expiryDate ? new Date(consent.expiryDate).toLocaleDateString() : "No Expiry"}
+                                            </p>
+                                            <p className="text-xs text-[#64748b] mt-1">Expiry Date</p>
+                                        </div>
+
+                                        {/* Status */}
+                                        <div className="col-span-2">
+                                            <span className={`px-3 py-1 rounded-full text-xs font-medium border inline-block ${getStatusColor(consent.status)}`}>
                                                 {consent.status?.charAt(0).toUpperCase() + consent.status?.slice(1)}
                                             </span>
                                         </div>
-                                        <div className="flex items-center gap-4 text-sm text-[#64748b]">
-                                            <span>Patient ID: {consent.patient?.id}</span>
+
+                                        {/* Actions */}
+                                        <div className="col-span-1 text-right">
+                                            {consent.status?.toLowerCase() === "active" && (
+                                                <button
+                                                    onClick={() => handleWithdrawConsent(consent.id)}
+                                                    className="text-red-600 hover:text-red-700 text-sm font-medium flex items-center gap-1 ml-auto"
+                                                    title="Withdraw Consent"
+                                                >
+                                                    <FiX className="w-4 h-4" />
+                                                    Withdraw
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
                                 </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 p-4 bg-[#f8fafc] rounded-lg">
-                                    <div>
-                                        <div className="text-xs text-[#64748b] mb-1">Consent Type</div>
-                                        <div className="font-medium text-[#0f172a]">{consent.type}</div>
-                                    </div>
-                                    <div>
-                                        <div className="text-xs text-[#64748b] mb-1">Granted Date</div>
-                                        <div className="font-medium text-[#0f172a]">
-                                            {consent.grantedDate ? new Date(consent.grantedDate).toLocaleDateString() : "N/A"}
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <div className="text-xs text-[#64748b] mb-1">Expiry Date</div>
-                                        <div className="font-medium text-[#0f172a]">
-                                            {consent.expiryDate ? new Date(consent.expiryDate).toLocaleDateString() : "No Expiry"}
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <div className="text-xs text-[#64748b] mb-1">Status</div>
-                                        <div className="flex items-center gap-2">
-                                            <MdVerifiedUser className="w-4 h-4 text-green-600" />
-                                            <span className="text-sm font-medium text-green-600">Verified</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {consent.status?.toLowerCase() === "active" && (
-                                    <div className="mt-4 pt-4 border-t border-[#e2e8f0] flex justify-end">
-                                        <button
-                                            onClick={() => handleWithdrawConsent(consent.id)}
-                                            className="text-red-600 hover:text-red-700 font-medium text-sm flex items-center gap-2"
-                                        >
-                                            <FiX className="w-4 h-4" />
-                                            Withdraw Consent
-                                        </button>
-                                    </div>
-                                )}
+                            ))
+                        ) : (
+                            <div className="bg-white border border-[#e2e8f0] rounded-xl p-12 text-center">
+                                <FiShield className="w-16 h-16 text-[#cbd5e1] mx-auto mb-4" />
+                                <h3 className="text-lg font-semibold text-[#0f172a] mb-2">No Consents Found</h3>
+                                <p className="text-[#64748b]">Try adjusting your filters</p>
                             </div>
-                        ))
-                    ) : (
-                        <div className="bg-white border border-[#e2e8f0] rounded-xl p-12 text-center">
-                            <FiShield className="w-16 h-16 text-[#cbd5e1] mx-auto mb-4" />
-                            <h3 className="text-lg font-semibold text-[#0f172a] mb-2">No Consents Found</h3>
-                            <p className="text-[#64748b]">Try adjusting your filters</p>
-                        </div>
-                    )}
+                        )}
+                    </div>
                 </div>
             </div>
         </div>

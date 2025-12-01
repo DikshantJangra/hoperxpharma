@@ -23,6 +23,7 @@ import {
 export interface SubMenuItem {
     label: string
     path: string
+    requiredPermission?: string | null // Permission required for this specific sub-item
 }
 
 export interface MenuItem {
@@ -30,6 +31,7 @@ export interface MenuItem {
     label: string
     path?: string
     subItems?: SubMenuItem[]
+    requiredPermission?: string | null // Permission code required to view this item (null = public)
 }
 
 export interface SidebarSection {
@@ -44,6 +46,7 @@ export const sidebarConfig: SidebarSection[] = [
             {
                 icon: <MdDashboard size={18} />,
                 label: "Dashboard",
+                requiredPermission: null, // Dashboard is public - everyone can see it
                 subItems: [
                     { label: "Overview", path: "/dashboard/overview" },
                     { label: "Alerts", path: "/dashboard/alerts" },
@@ -53,6 +56,7 @@ export const sidebarConfig: SidebarSection[] = [
             {
                 icon: <TbPrescription size={18} />,
                 label: "Prescriptions",
+                requiredPermission: "prescription.read",
                 subItems: [
                     { label: "New", path: "/prescriptions/new" },
                     { label: "Verified", path: "/prescriptions/verified" },
@@ -65,6 +69,7 @@ export const sidebarConfig: SidebarSection[] = [
             {
                 icon: <RiCapsuleLine size={18} />,
                 label: "Dispense",
+                requiredPermission: "prescription.fulfill",
                 subItems: [
                     { label: "Queue", path: "/dispense/queue" },
                     { label: "Verify", path: "/dispense/verify" },
@@ -77,12 +82,11 @@ export const sidebarConfig: SidebarSection[] = [
             {
                 icon: <MdPeople size={18} />,
                 label: "Patients",
+                requiredPermission: "patient.read",
                 subItems: [
-                    { label: "List", path: "/patients/list" },
-                    { label: "Add / Edit", path: "/patients/add" },
-                    { label: "History", path: "/patients/history" },
-                    { label: "Refills", path: "/patients/refills" },
-                    { label: "Consents", path: "/patients/consents" }
+                    { label: "List", path: "/patients/list", requiredPermission: "patient.read" },
+                    { label: "Refills", path: "/patients/refills", requiredPermission: "prescription.refill" },
+                    { label: "Consents", path: "/patients/consents", requiredPermission: "patient.read" }
                 ]
             }
         ]
@@ -93,28 +97,31 @@ export const sidebarConfig: SidebarSection[] = [
             {
                 icon: <MdInventory size={18} />,
                 label: "Inventory",
+                requiredPermission: "inventory.read",
                 subItems: [
-                    { label: "Stock", path: "/inventory/stock" },
-                    { label: "Batches", path: "/inventory/batches" },
-                    { label: "Expiry", path: "/inventory/expiry" },
-                    { label: "Adjust", path: "/inventory/adjust" },
-                    { label: "Forecast", path: "/inventory/forecast" }
+                    { label: "Stock", path: "/inventory/stock", requiredPermission: "inventory.read" },
+                    { label: "Batches", path: "/inventory/batches", requiredPermission: "inventory.read" },
+                    { label: "Expiry", path: "/inventory/expiry", requiredPermission: "inventory.read" },
+                    { label: "Adjust", path: "/inventory/adjust", requiredPermission: "inventory.adjust" },
+                    { label: "Forecast", path: "/inventory/forecast", requiredPermission: "inventory.read" }
                 ]
             },
             {
                 icon: <FiPackage size={18} />,
                 label: "Orders",
+                requiredPermission: "po.read",
                 subItems: [
-                    { label: "Overview", path: "/orders" },
-                    { label: "New PO", path: "/orders/new-po" },
-                    { label: "Pending", path: "/orders/pending" },
-                    { label: "Received", path: "/orders/received" },
-                    { label: "Returns", path: "/orders/returns" }
+                    { label: "Overview", path: "/orders", requiredPermission: "po.read" },
+                    { label: "New PO", path: "/orders/new-po", requiredPermission: "po.create" },
+                    { label: "Pending", path: "/orders/pending", requiredPermission: "po.read" },
+                    { label: "Received", path: "/orders/received", requiredPermission: "po.receive" },
+                    { label: "Returns", path: "/orders/returns", requiredPermission: "po.read" }
                 ]
             },
             {
                 icon: <FiUsers size={18} />,
                 label: "Suppliers",
+                requiredPermission: "po.read",
                 subItems: [
                     { label: "Overview", path: "/suppliers" },
                     { label: "Payables", path: "/suppliers/payables" },
@@ -125,6 +132,7 @@ export const sidebarConfig: SidebarSection[] = [
             {
                 icon: <HiOutlineClipboardList size={18} />,
                 label: "Claims",
+                requiredPermission: "sales.read",
                 subItems: [
                     { label: "Customer", path: "/claims/customer" },
                     { label: "Supplier", path: "/claims/supplier" },
@@ -139,16 +147,18 @@ export const sidebarConfig: SidebarSection[] = [
             {
                 icon: <MdShoppingCart size={18} />,
                 label: "POS",
+                requiredPermission: "sales.create",
                 subItems: [
-                    { label: "New Sale", path: "/pos/new-sale" },
-                    { label: "Invoices", path: "/pos/invoices" },
-                    { label: "Drafts", path: "/pos/drafts" },
-                    { label: "Refunds", path: "/pos/refunds" }
+                    { label: "New Sale", path: "/pos/new-sale", requiredPermission: "sales.create" },
+                    { label: "Invoices", path: "/pos/invoices", requiredPermission: "sales.read" },
+                    { label: "Drafts", path: "/pos/drafts", requiredPermission: "sales.read" },
+                    { label: "Refunds", path: "/pos/refunds", requiredPermission: "sales.refund" }
                 ]
             },
             {
                 icon: <MdReceipt size={18} />,
                 label: "GST",
+                requiredPermission: "report.financial",
                 subItems: [
                     { label: "Dashboard", path: "/gst" },
                     { label: "Invoices", path: "/gst/invoices" },
@@ -162,6 +172,7 @@ export const sidebarConfig: SidebarSection[] = [
             {
                 icon: <FiDollarSign size={18} />,
                 label: "Finance",
+                requiredPermission: "report.financial",
                 subItems: [
                     { label: "Sales", path: "/finance/sales" },
                     { label: "Expenses", path: "/finance/expenses" },
@@ -176,6 +187,7 @@ export const sidebarConfig: SidebarSection[] = [
             {
                 icon: <TbReportAnalytics size={18} />,
                 label: "Reports",
+                requiredPermission: "report.sales",
                 subItems: [
                     { label: "Sales", path: "/reports/sales" },
                     { label: "Purchase", path: "/reports/purchase" },
@@ -187,6 +199,7 @@ export const sidebarConfig: SidebarSection[] = [
             {
                 icon: <FiTrendingUp size={18} />,
                 label: "Insights",
+                requiredPermission: "report.sales",
                 subItems: [
                     { label: "Forecast", path: "/insights/forecast" },
                     { label: "Adherence", path: "/insights/adherence" },
@@ -201,21 +214,23 @@ export const sidebarConfig: SidebarSection[] = [
             {
                 icon: <FiMessageSquare size={18} />,
                 label: "Messages",
+                requiredPermission: "communication.send",
                 subItems: [
-                    { label: "WhatsApp", path: "/messages/whatsapp" },
-                    { label: "SMS", path: "/messages/sms" },
-                    { label: "Email", path: "/messages/email" },
-                    { label: "Templates", path: "/messages/templates" }
+                    { label: "WhatsApp", path: "/messages/whatsapp", requiredPermission: "communication.send" },
+                    { label: "SMS", path: "/messages/sms", requiredPermission: "communication.send" },
+                    { label: "Email", path: "/messages/email", requiredPermission: "communication.send" },
+                    { label: "Templates", path: "/messages/templates", requiredPermission: "communication.template" }
                 ]
             },
             {
                 icon: <BsGift size={18} />,
                 label: "Engage",
+                requiredPermission: "marketing.loyalty",
                 subItems: [
-                    { label: "Loyalty", path: "/engage/loyalty" },
-                    { label: "Coupons", path: "/engage/coupons" },
-                    { label: "Campaigns", path: "/engage/campaigns" },
-                    { label: "Feedback", path: "/engage/feedback" }
+                    { label: "Loyalty", path: "/engage/loyalty", requiredPermission: "marketing.loyalty" },
+                    { label: "Coupons", path: "/engage/coupons", requiredPermission: "marketing.loyalty" },
+                    { label: "Campaigns", path: "/engage/campaigns", requiredPermission: "marketing.campaign" },
+                    { label: "Feedback", path: "/engage/feedback", requiredPermission: null }
                 ]
             }
         ]
@@ -226,6 +241,7 @@ export const sidebarConfig: SidebarSection[] = [
             {
                 icon: <AiOutlineAudit size={18} />,
                 label: "Audit",
+                requiredPermission: "system.audit.view",
                 subItems: [
                     { label: "Activity Log", path: "/audit/activity-log" },
                     { label: "Access Log", path: "/audit/access" },
@@ -235,6 +251,7 @@ export const sidebarConfig: SidebarSection[] = [
             {
                 icon: <FiShield size={18} />,
                 label: "Regulations",
+                requiredPermission: "report.compliance",
                 subItems: [
                     { label: "DPDPA", path: "/regulations/dpdpa" },
                     { label: "HIPAA / GDPR", path: "/regulations/hipaa-gdpr" },
@@ -249,6 +266,7 @@ export const sidebarConfig: SidebarSection[] = [
             {
                 icon: <MdStore size={18} />,
                 label: "Store",
+                requiredPermission: "system.store.manage",
                 subItems: [
                     { label: "Profile", path: "/store/profile" },
                     { label: "Licenses", path: "/store/licenses" },
@@ -258,17 +276,17 @@ export const sidebarConfig: SidebarSection[] = [
             },
             {
                 icon: <FiUsers size={18} />,
-                label: "Users",
+                label: "Team",
+                requiredPermission: "system.user.manage",
                 subItems: [
-                    { label: "Roles", path: "/users/roles" },
-                    { label: "Permissions", path: "/users/permissions" },
                     { label: "Manage Users", path: "/users" },
-                    { label: "PIN Setup", path: "/users/pin" }
+                    { label: "Roles & Access", path: "/users?tab=roles" }
                 ]
             },
             {
                 icon: <MdIntegrationInstructions size={18} />,
                 label: "Integrations",
+                requiredPermission: "system.settings",
                 subItems: [
                     { label: "APIs", path: "/integrations/apis" },
                     { label: "WhatsApp", path: "/integrations/whatsapp" },
@@ -279,6 +297,7 @@ export const sidebarConfig: SidebarSection[] = [
             {
                 icon: <MdStore size={18} />,
                 label: "Multi-Store",
+                requiredPermission: "system.store.manage",
                 subItems: [
                     { label: "Switch", path: "/multi-store/switch" },
                     { label: "Transfer", path: "/multi-store/transfer" },
@@ -293,6 +312,7 @@ export const sidebarConfig: SidebarSection[] = [
             {
                 icon: <FiBook size={18} />,
                 label: "Knowledge",
+                requiredPermission: null, // Public - everyone needs drug info
                 subItems: [
                     { label: "Drug Info", path: "/knowledge/drug-info" },
                     { label: "Interactions", path: "/knowledge/interactions" },
@@ -302,6 +322,7 @@ export const sidebarConfig: SidebarSection[] = [
             {
                 icon: <FiHelpCircle size={18} />,
                 label: "Help",
+                requiredPermission: null, // Public - everyone can access help
                 subItems: [
                     { label: "Chat", path: "/help/chat" },
                     { label: "Docs", path: "/help/docs" },

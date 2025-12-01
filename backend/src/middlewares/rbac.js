@@ -23,7 +23,24 @@ const requireRole = (...allowedRoles) => {
 /**
  * Check if user is admin
  */
-const requireAdmin = requireRole(USER_ROLES.ADMIN);
+const requireAdmin = (req, res, next) => {
+    if (!req.user) {
+        return next(ApiError.unauthorized(MESSAGES.AUTH.UNAUTHORIZED));
+    }
+
+    console.log('requireAdmin check:', {
+        userId: req.user.id,
+        role: req.user.role,
+        expectedRole: USER_ROLES.ADMIN,
+        matches: req.user.role === USER_ROLES.ADMIN
+    });
+
+    if (req.user.role !== USER_ROLES.ADMIN) {
+        return next(ApiError.forbidden(MESSAGES.AUTH.FORBIDDEN));
+    }
+
+    next();
+};
 
 /**
  * Check if user is pharmacist or admin
@@ -102,11 +119,17 @@ const requireStoreAccess = async (req, res, next) => {
 /**
  * Permission-based access control
  * Checks if user has required permission(s) - ALL permissions required (AND logic)
+ * ADMIN role bypasses all permission checks
  */
 const requirePermission = (...permissions) => {
     return async (req, res, next) => {
         if (!req.user) {
             return next(ApiError.unauthorized(MESSAGES.AUTH.UNAUTHORIZED));
+        }
+
+        // ADMIN role bypasses all permission checks
+        if (req.user.role === USER_ROLES.ADMIN) {
+            return next();
         }
 
         const storeId = req.storeId ||
@@ -150,11 +173,17 @@ const requirePermission = (...permissions) => {
 
 /**
  * Require ANY of the specified permissions (OR logic)
+ * ADMIN role bypasses all permission checks
  */
 const requireAnyPermission = (...permissions) => {
     return async (req, res, next) => {
         if (!req.user) {
             return next(ApiError.unauthorized(MESSAGES.AUTH.UNAUTHORIZED));
+        }
+
+        // ADMIN role bypasses all permission checks
+        if (req.user.role === USER_ROLES.ADMIN) {
+            return next();
         }
 
         const storeId = req.storeId ||

@@ -51,4 +51,10 @@ router.get(
     authController.getProfile
 );
 
+router.get(
+    '/permissions',
+    authenticate,
+    authController.getPermissions
+);
+
 module.exports = router;

@@ -5,6 +5,7 @@ import { FiClock, FiCheck, FiX, FiPhone, FiCalendar, FiAlertTriangle, FiRefreshC
 import { MdLocalPharmacy } from "react-icons/md";
 import { patientsApi } from "@/lib/api/patients";
 import { useAuthStore } from "@/lib/store/auth-store";
+import RefillModal from "@/components/patients/RefillModal";
 
 const RefillCardSkeleton = () => (
     <div className="bg-white border border-[#e2e8f0] rounded-xl p-6 animate-pulse">
@@ -43,6 +44,7 @@ export default function PatientRefillsPage() {
     const [refills, setRefills] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [showRefillModal, setShowRefillModal] = useState<any>(null);
 
     useEffect(() => {
         if (primaryStore?.id) {
@@ -67,27 +69,29 @@ export default function PatientRefillsPage() {
             }
         } catch (err: any) {
             console.error("Error loading refills:", err);
-            setError(err.message || "An error occurred");
+
+            // Show specific error messages
+            if (err.statusCode === 401) {
+                setError("Session expired. Please log in again.");
+            } else if (err.statusCode === 403) {
+                setError("You don't have permission to view refills.");
+            } else if (err.statusCode === 404) {
+                setError("Refills endpoint not found. Please check backend configuration.");
+            } else {
+                setError(err.message || "Failed to load refills. Please try again.");
+            }
             setRefills([]);
         } finally {
             setIsLoading(false);
         }
     };
 
-    const handleProcessRefill = async (refill: any) => {
-        try {
-            await patientsApi.processRefill(refill.patientId, {
-                prescriptionId: refill.prescriptionId,
-                expectedRefillDate: refill.expectedRefillDate,
-                adherenceRate: 1.0
-            });
-
-            // Reload refills
-            loadRefills();
-        } catch (err: any) {
-            console.error("Error processing refill:", err);
-            alert(err.message || "Failed to process refill");
-        }
+    const handleProcessRefill = (refill: any) => {
+        // Open RefillModal with patient data
+        setShowRefillModal({
+            ...refill.patient,
+            prescriptions: refill.prescription ? [refill.prescription] : []
+        });
     };
 
     const getStatusColor = (status: string) => {
@@ -297,6 +301,17 @@ export default function PatientRefillsPage() {
                     )}
                 </div>
             </div>
+
+            {/* Refill Modal */}
+            {showRefillModal && (
+                <RefillModal
+                    patient={showRefillModal}
+                    onClose={() => {
+                        setShowRefillModal(null);
+                        loadRefills(); // Refresh list after refill
+                    }}
+                />
+            )}
         </div>
     );
 }
