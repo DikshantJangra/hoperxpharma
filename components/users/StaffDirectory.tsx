@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { FiSearch, FiEdit2, FiPower, FiClock, FiDownload, FiMail, FiPhone, FiAlertTriangle } from "react-icons/fi";
+import { FiSearch, FiEdit2, FiPower, FiClock, FiDownload, FiMail, FiPhone, FiAlertTriangle, FiUsers } from "react-icons/fi";
 import { userApi, UserProfile } from "@/lib/api/user";
 import { rbacApi, Role } from "@/lib/api/rbac";
 import EditUserDrawer from "./EditUserDrawer";

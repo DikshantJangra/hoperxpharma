@@ -1,19 +1,12 @@
 "use client";
 import { useState, useEffect } from "react";
 import { FiX, FiCheck } from "react-icons/fi";
-import { rbacApi, Permission } from "@/lib/api/rbac";
+import { rbacApi, Permission, Role } from "@/lib/api/rbac";
 
 interface CreateRoleDrawerProps {
   onClose: () => void;
   onSuccess?: () => void;
-  editRole?: {
-    id: string;
-    name: string;
-    description: string | null;
-    category: string | null;
-    builtIn?: boolean;
-    permissions: { permission: Permission }[];
-  } | null;
+  editRole?: Role | null;
 }
 
 export default function CreateRoleDrawer({ onClose, onSuccess, editRole }: CreateRoleDrawerProps) {

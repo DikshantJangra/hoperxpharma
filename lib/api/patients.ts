@@ -18,6 +18,7 @@ export interface Patient {
     bloodGroup?: string;
     allergies?: string[];
     chronicConditions?: string[];
+    storeId?: string;
     createdAt: string;
     updatedAt: string;
 }

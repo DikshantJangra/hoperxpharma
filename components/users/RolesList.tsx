@@ -188,7 +188,7 @@ export default function RolesList() {
                                     <button
                                         onClick={() => handleDeleteRole(role)}
                                         className="px-3 py-2 text-sm text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors"
-                                        disabled={role._count?.userRoles > 0}
+                                        disabled={(role._count?.userRoles || 0) > 0}
                                     >
                                         <FiTrash2 size={14} />
                                     </button>

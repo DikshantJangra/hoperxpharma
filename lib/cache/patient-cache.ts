@@ -10,7 +10,7 @@ interface PatientDB extends DBSchema {
     };
     metadata: {
         key: string;
-        value: { lastSync: number; storeId: string };
+        value: { key: string; lastSync: number; storeId: string };
     };
 }
 
