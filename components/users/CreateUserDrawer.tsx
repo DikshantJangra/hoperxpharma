@@ -81,9 +81,10 @@ export default function CreateUserDrawer({ onClose, onSuccess }: CreateUserDrawe
             return;
         }
 
-        // Validate password is required
-        if (!formData.password) {
-            setError("Password is required");
+        // Validate password strength
+        const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+        if (!passwordRegex.test(formData.password)) {
+            setError("Password must be at least 8 characters long and include uppercase, lowercase, number, and special character");
             return;
         }
 
@@ -229,7 +230,9 @@ export default function CreateUserDrawer({ onClose, onSuccess }: CreateUserDrawe
                                 className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all"
                                 placeholder="Enter initial password"
                             />
-                            <p className="text-xs text-gray-500 mt-1">User will use this password to login</p>
+                            <p className="text-xs text-gray-500 mt-1">
+                                Must be 8+ chars with uppercase, lowercase, number & special char
+                            </p>
                         </div>
 
 

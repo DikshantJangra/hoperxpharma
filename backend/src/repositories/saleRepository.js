@@ -174,13 +174,25 @@ class SaleRepository {
     /**
      * Get sales statistics
      */
+    /**
+     * Helper to serialize BigInt
+     */
+    _serializeBigInt(obj) {
+        return JSON.parse(JSON.stringify(obj, (key, value) =>
+            typeof value === 'bigint' ? Number(value) : value
+        ));
+    }
+
+    /**
+     * Get sales statistics
+     */
     async getSalesStats(storeId, startDate, endDate) {
         const result = await prisma.$queryRaw`
       SELECT 
-        COUNT(*) as "totalSales",
-        SUM("total") as "totalRevenue",
-        AVG("total") as "averageOrderValue",
-        SUM("discountAmount") as "totalDiscount"
+        COUNT(*)::int as "totalSales",
+        COALESCE(SUM("total"), 0)::float as "totalRevenue",
+        COALESCE(AVG("total"), 0)::float as "averageOrderValue",
+        COALESCE(SUM("discountAmount"), 0)::float as "totalDiscount"
       FROM "Sale"
       WHERE "storeId" = ${storeId}
         AND "deletedAt" IS NULL
@@ -201,9 +213,9 @@ class SaleRepository {
         d.name,
         d.strength,
         d.form,
-        SUM(si.quantity) as "totalQuantity",
-        SUM(si."lineTotal") as "totalRevenue",
-        COUNT(DISTINCT s.id) as "salesCount"
+        COALESCE(SUM(si.quantity), 0)::int as "totalQuantity",
+        COALESCE(SUM(si."lineTotal"), 0)::float as "totalRevenue",
+        COUNT(DISTINCT s.id)::int as "salesCount"
       FROM "SaleItem" si
       INNER JOIN "Sale" s ON s.id = si."saleId"
       INNER JOIN "Drug" d ON d.id = si."drugId"
