@@ -1,4 +1,5 @@
 const database = require('../config/database');
+const { buildOrderBy } = require('../utils/queryParser');
 
 const prisma = database.getClient();
 
@@ -7,19 +8,16 @@ const prisma = database.getClient();
  */
 class InventoryRepository {
     /**
-     * Find all drugs with pagination and search
+     * Find drugs with stock information for a store
      */
-    async findDrugs({ page = 1, limit = 20, search = '', storeId }) {
-        const pageNum = parseInt(page);
-        const limitNum = parseInt(limit);
-        const skip = (pageNum - 1) * limitNum;
+    async findDrugs({ page = 1, limit = 20, search = '', storeId, sortConfig }) {
+        const skip = (page - 1) * limit;
 
         const where = {
             ...(search && {
                 OR: [
                     { name: { contains: search, mode: 'insensitive' } },
                     { manufacturer: { contains: search, mode: 'insensitive' } },
-                    { hsnCode: { contains: search } },
                     {
                         inventory: {
                             some: {
@@ -33,25 +31,29 @@ class InventoryRepository {
             }),
         };
 
-        const [drugs, total] = await Promise.all([
-            prisma.drug.findMany({
-                where,
-                skip,
-                take: limitNum,
-                orderBy: { name: 'asc' },
-                include: {
-                    inventory: {
-                        where: {
-                            storeId,
-                            deletedAt: null
-                        }
-                    }
-                }
-            }),
-            prisma.drug.count({ where }),
-        ]);
+        // Build dynamic orderBy
+        const orderBy = buildOrderBy(sortConfig, { name: 'asc' });
 
-        return { drugs, total };
+        const drugs = await prisma.drug.findMany({
+            where,
+            skip,
+            take: limit,
+            orderBy,
+            include: {
+                inventory: {
+                    where: { storeId, deletedAt: null },
+                    select: {
+                        id: true,
+                        batchNumber: true,
+                        quantityInStock: true,
+                        mrp: true,
+                        expiryDate: true,
+                    },
+                },
+            },
+        });
+
+        return drugs;
     }
 
     /**

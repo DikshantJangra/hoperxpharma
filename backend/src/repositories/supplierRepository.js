@@ -1,4 +1,5 @@
 const database = require('../config/database');
+const { buildOrderBy } = require('../utils/queryParser');
 
 const prisma = database.getClient();
 
@@ -9,7 +10,7 @@ class SupplierRepository {
     /**
      * Find suppliers with pagination and filtering
      */
-    async findSuppliers({ storeId, page = 1, limit = 20, search, category, status }) {
+    async findSuppliers({ storeId, page = 1, limit = 20, search, category, status, sortConfig }) {
         if (!storeId) {
             throw new Error('storeId is required for findSuppliers');
         }
@@ -30,6 +31,9 @@ class SupplierRepository {
             ...(status && { status }),
         };
 
+        // Build dynamic orderBy
+        const orderBy = buildOrderBy(sortConfig, { createdAt: 'desc' });
+
         const [suppliers, total] = await Promise.all([
             prisma.supplier.findMany({
                 where,
@@ -41,7 +45,7 @@ class SupplierRepository {
                         orderBy: { validTo: 'asc' },
                     },
                 },
-                orderBy: { createdAt: 'desc' },
+                orderBy,
             }),
             prisma.supplier.count({ where }),
         ]);

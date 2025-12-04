@@ -2,7 +2,7 @@
 
 Scalable, industry-standard backend for comprehensive pharmacy management system.
 
-## 🚀 Features
+## Features
 
 - **Authentication & Authorization**: JWT-based auth with refresh tokens, RBAC, multi-store support
 - **Inventory Management**: Drug catalog, batch tracking, FIFO/FEFO, low stock & expiry alerts
@@ -14,13 +14,13 @@ Scalable, industry-standard backend for comprehensive pharmacy management system
 - **Security**: Helmet, rate limiting, input validation, CORS
 - **Error Handling**: Centralized error handling with detailed logging
 
-## 📋 Prerequisites
+## Prerequisites
 
 - Node.js >= 18.x
 - PostgreSQL >= 14.x
 - npm or yarn
 
-## 🛠️ Installation
+## Installation
 
 ```bash
 # Install dependencies
@@ -40,7 +40,7 @@ npx prisma db seed
 npx prisma generate
 ```
 
-## 🔧 Configuration
+## Configuration
 
 Create a `.env` file with the following variables:
 
@@ -64,7 +64,7 @@ CORS_ORIGIN=http://localhost:3000
 LOG_LEVEL=info
 ```
 
-## 🏃 Running the Application
+## Running the Application
 
 ```bash
 # Development mode with auto-reload
@@ -77,13 +77,13 @@ npm start
 npx prisma studio
 ```
 
-## 📚 API Documentation
+## API Documentation
 
 Once the server is running, visit:
 - **Swagger UI**: http://localhost:8000/api-docs
 - **Health Check**: http://localhost:8000/api/v1/health
 
-## 🗂️ Project Structure
+## Project Structure
 
 ```
 backend/
@@ -107,7 +107,7 @@ backend/
 
 ```
 
-## 🔐 Authentication
+## Authentication
 
 ### Signup
 ```bash
@@ -141,7 +141,7 @@ Include the access token in the Authorization header:
 Authorization: Bearer <access_token>
 ```
 
-## 📦 API Endpoints
+## API Endpoints
 
 ### Authentication
 - `POST /api/v1/auth/signup` - Register new user
@@ -164,7 +164,7 @@ Authorization: Bearer <access_token>
 - `GET /api/v1/inventory/alerts/expiring` - Expiring items
 - `GET /api/v1/inventory/summary` - Inventory summary
 
-## 🔒 Security Features
+## Security Features
 
 - **Helmet**: Security headers
 - **Rate Limiting**: Prevents brute force attacks
@@ -175,7 +175,7 @@ Authorization: Bearer <access_token>
 - **JWT**: Secure token-based authentication
 - **Password Hashing**: bcrypt with salt rounds
 
-## 📊 Database Schema
+## Database Schema
 
 68 tables organized into 16 categories:
 1. Core Infrastructure (12 tables)
@@ -195,7 +195,7 @@ Authorization: Bearer <access_token>
 15. API Integration (3 tables)
 16. Backup & Documents (3 tables)
 
-## 🧪 Testing
+## Testing
 
 ```bash
 # Run unit tests
@@ -208,7 +208,7 @@ npm run test:integration
 npm run test:coverage
 ```
 
-## 📝 Logging
+## Logging
 
 Logs are stored in the `logs/` directory:
 - `combined.log` - All logs
@@ -216,7 +216,7 @@ Logs are stored in the `logs/` directory:
 - `exceptions.log` - Uncaught exceptions
 - `rejections.log` - Unhandled promise rejections
 
-## 🚢 Deployment
+## Deployment
 
 1. Set `NODE_ENV=production`
 2. Update JWT secrets with strong random values
@@ -226,7 +226,7 @@ Logs are stored in the `logs/` directory:
 6. Set up monitoring and alerting
 7. Configure automated backups
 
-## 🤝 Contributing
+## Contributing
 
 1. Follow the existing code structure
 2. Write tests for new features
@@ -234,10 +234,10 @@ Logs are stored in the `logs/` directory:
 4. Follow ESLint rules
 5. Use conventional commits
 
-## 📄 License
+## License
 
 Proprietary - HopeRxPharma
 
-## 🆘 Support
+## Support
 
 For issues and questions, contact: support@hoperxpharma.com

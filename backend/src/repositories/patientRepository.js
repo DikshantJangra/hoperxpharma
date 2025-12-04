@@ -1,4 +1,5 @@
 const database = require('../config/database');
+const { buildOrderBy } = require('../utils/queryParser');
 
 const prisma = database.getClient();
 
@@ -9,7 +10,7 @@ class PatientRepository {
     /**
      * Find patients with pagination and search
      */
-    async findPatients({ storeId, page = 1, limit = 20, search = '' }) {
+    async findPatients({ storeId, page = 1, limit = 20, search = '', sortConfig }) {
         const skip = (page - 1) * limit;
 
         const where = {
@@ -25,12 +26,15 @@ class PatientRepository {
             }),
         };
 
+        // Build dynamic orderBy from sortConfig
+        const orderBy = buildOrderBy(sortConfig, { createdAt: 'desc' });
+
         const [patients, total] = await Promise.all([
             prisma.patient.findMany({
                 where,
                 skip,
                 take: limit,
-                orderBy: { createdAt: 'desc' },
+                orderBy,
                 select: {
                     id: true,
                     firstName: true,
@@ -241,40 +245,64 @@ class PatientRepository {
     /**
      * Get refills due for a store
      */
-    async getRefillsDue(storeId, { status = 'all', search = '' } = {}) {
+    async getRefillsDue(storeId, { status = 'all', search = '', page = 1, limit = 100, sortConfig } = {}) {
         try {
             const today = new Date();
             const threeDaysFromNow = new Date(today);
             threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
 
-            // Get all adherence records with expected refill dates
-            const adherenceRecords = await prisma.patientAdherence.findMany({
-                where: {
-                    patient: {
-                        storeId,
-                        deletedAt: null,
-                    },
-                    actualRefillDate: null, // Not yet refilled
+            const skip = (page - 1) * limit;
+
+            // Build where clause with database-level filtering
+            const where = {
+                patient: {
+                    storeId,
+                    deletedAt: null,
+                    ...(search && {
+                        OR: [
+                            { firstName: { contains: search, mode: 'insensitive' } },
+                            { lastName: { contains: search, mode: 'insensitive' } },
+                            { phoneNumber: { contains: search } },
+                        ],
+                    }),
                 },
-                include: {
-                    patient: {
-                        select: {
-                            id: true,
-                            firstName: true,
-                            lastName: true,
-                            phoneNumber: true,
+                actualRefillDate: null, // Not yet refilled
+            };
+
+            // Add date filtering based on status at database level
+            if (status === 'overdue') {
+                where.expectedRefillDate = { lt: today };
+            } else if (status === 'due') {
+                where.expectedRefillDate = { gte: today, lte: threeDaysFromNow };
+            } else if (status === 'upcoming') {
+                where.expectedRefillDate = { gt: threeDaysFromNow };
+            }
+            // If status === 'all', no date filter is added
+
+            // Build dynamic orderBy
+            const orderBy = buildOrderBy(sortConfig, { expectedRefillDate: 'asc' });
+
+            const [adherenceRecords, total] = await Promise.all([
+                prisma.patientAdherence.findMany({
+                    where,
+                    skip,
+                    take: limit,
+                    include: {
+                        patient: {
+                            select: {
+                                id: true,
+                                firstName: true,
+                                lastName: true,
+                                phoneNumber: true,
+                            },
                         },
                     },
-                },
-                orderBy: { expectedRefillDate: 'asc' },
-            });
+                    orderBy,
+                }),
+                prisma.patientAdherence.count({ where }),
+            ]);
 
-            // If no records found, return empty array
-            if (!adherenceRecords || adherenceRecords.length === 0) {
-                return [];
-            }
-
-            // Calculate status for each record
+            // Calculate status for each record (for display purposes)
             const refills = adherenceRecords.map((record) => {
                 const expectedDate = new Date(record.expectedRefillDate);
                 let refillStatus = 'upcoming';
@@ -291,28 +319,11 @@ class PatientRepository {
                 };
             });
 
-            // Filter by status if specified
-            let filteredRefills = refills;
-            if (status !== 'all') {
-                filteredRefills = refills.filter((r) => r.status === status);
-            }
-
-            // Filter by search if specified
-            if (search) {
-                const searchLower = search.toLowerCase();
-                filteredRefills = filteredRefills.filter(
-                    (r) =>
-                        r.patient.firstName.toLowerCase().includes(searchLower) ||
-                        r.patient.lastName.toLowerCase().includes(searchLower) ||
-                        r.patient.phoneNumber.includes(search)
-                );
-            }
-
-            return filteredRefills;
+            return { refills, total };
         } catch (error) {
             console.error('Error fetching refills due:', error);
-            // Return empty array instead of throwing error
-            return [];
+            // Return empty result instead of throwing error
+            return { refills: [], total: 0 };
         }
     }
 
@@ -527,7 +538,7 @@ class PatientRepository {
     /**
      * Get all consents for a store (for consents page)
      */
-    async getAllConsents(storeId, { status = 'all', page = 1, limit = 20 } = {}) {
+    async getAllConsents(storeId, { status = 'all', page = 1, limit = 20, sortConfig } = {}) {
         const skip = (page - 1) * limit;
 
         const where = {
@@ -537,6 +548,9 @@ class PatientRepository {
             },
             ...(status !== 'all' && { status }),
         };
+
+        // Build dynamic orderBy
+        const orderBy = buildOrderBy(sortConfig, { grantedDate: 'desc' });
 
         const [consents, total] = await Promise.all([
             prisma.patientConsent.findMany({
@@ -552,7 +566,7 @@ class PatientRepository {
                         },
                     },
                 },
-                orderBy: { grantedDate: 'desc' },
+                orderBy,
             }),
             prisma.patientConsent.count({ where }),
         ]);

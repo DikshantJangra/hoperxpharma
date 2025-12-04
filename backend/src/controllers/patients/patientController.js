@@ -1,22 +1,25 @@
 const patientService = require('../../services/patients/patientService');
 const asyncHandler = require('../../middlewares/asyncHandler');
 const ApiResponse = require('../../utils/ApiResponse');
+const { parsePagination, parseSort, buildPaginationMeta } = require('../../utils/queryParser');
+const { SORTABLE_FIELDS } = require('../../config/sortableFields');
 
 /**
  * Get all patients
  */
 const getPatients = asyncHandler(async (req, res) => {
+    const { page, limit } = parsePagination(req.query);
+    const sortConfig = parseSort(req.query, SORTABLE_FIELDS.patients);
+
     const { patients, total } = await patientService.getPatients({
-        ...req.query,
         storeId: req.storeId,
+        page,
+        limit,
+        search: req.query.search || '',
+        sortConfig,
     });
 
-    const response = ApiResponse.paginated(patients, {
-        page: parseInt(req.query.page) || 1,
-        limit: parseInt(req.query.limit) || 20,
-        total,
-    });
-
+    const response = ApiResponse.paginated(patients, buildPaginationMeta(total, page, limit));
     res.status(response.statusCode).json(response);
 });
 
@@ -137,9 +140,18 @@ const getPatientHistory = asyncHandler(async (req, res) => {
  * Get refills due
  */
 const getRefillsDue = asyncHandler(async (req, res) => {
-    const refills = await patientService.getRefillsDue(req.storeId, req.query);
+    const { page, limit } = parsePagination(req.query);
+    const sortConfig = parseSort(req.query, SORTABLE_FIELDS.refills);
 
-    const response = ApiResponse.success(refills);
+    const { refills, total } = await patientService.getRefillsDue(req.storeId, {
+        status: req.query.status || 'all',
+        search: req.query.search || '',
+        page,
+        limit,
+        sortConfig,
+    });
+
+    const response = ApiResponse.paginated(refills, buildPaginationMeta(total, page, limit));
     res.status(response.statusCode).json(response);
 });
 
@@ -177,14 +189,17 @@ const recordAdherence = asyncHandler(async (req, res) => {
  * Get all consents
  */
 const getAllConsents = asyncHandler(async (req, res) => {
-    const { consents, total } = await patientService.getAllConsents(req.storeId, req.query);
+    const { page, limit } = parsePagination(req.query);
+    const sortConfig = parseSort(req.query, SORTABLE_FIELDS.consents);
 
-    const response = ApiResponse.paginated(consents, {
-        page: parseInt(req.query.page) || 1,
-        limit: parseInt(req.query.limit) || 20,
-        total,
+    const { consents, total } = await patientService.getAllConsents(req.storeId, {
+        status: req.query.status || 'all',
+        page,
+        limit,
+        sortConfig,
     });
 
+    const response = ApiResponse.paginated(consents, buildPaginationMeta(total, page, limit));
     res.status(response.statusCode).json(response);
 });
 

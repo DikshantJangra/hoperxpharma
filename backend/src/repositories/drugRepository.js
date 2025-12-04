@@ -1,4 +1,5 @@
 const database = require('../config/database');
+const { buildOrderBy } = require('../utils/queryParser');
 
 const prisma = database.getClient();
 
@@ -155,7 +156,7 @@ class DrugRepository {
     /**
      * Find all drugs with pagination
      */
-    async findAllDrugs({ storeId, page = 1, limit = 20, search = '' }) {
+    async findAllDrugs({ storeId, page = 1, limit = 20, search = '', sortConfig }) {
         if (!storeId) {
             throw new Error('storeId is required for findAllDrugs');
         }
@@ -172,12 +173,15 @@ class DrugRepository {
             })
         };
 
+        // Build dynamic orderBy
+        const orderBy = buildOrderBy(sortConfig, { name: 'asc' });
+
         const [drugs, total] = await Promise.all([
             prisma.drug.findMany({
                 where,
                 skip,
                 take: limit,
-                orderBy: { name: 'asc' }
+                orderBy
             }),
             prisma.drug.count({ where })
         ]);
