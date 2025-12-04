@@ -1,12 +1,23 @@
 const purchaseOrderService = require('../../services/purchaseOrders/purchaseOrderService');
 const asyncHandler = require('../../middlewares/asyncHandler');
 const ApiResponse = require('../../utils/ApiResponse');
+const ApiError = require('../../utils/ApiError');
 
 /**
  * Supplier Controllers
  */
 const getSuppliers = asyncHandler(async (req, res) => {
-    const { suppliers, total } = await purchaseOrderService.getSuppliers(req.query);
+    // Extract storeId from authenticated user
+    const storeId = req.user.stores?.find(s => s.isPrimary)?.id || req.user.stores?.[0]?.id;
+
+    if (!storeId) {
+        throw ApiError.badRequest('No store associated with user');
+    }
+
+    const { suppliers, total } = await purchaseOrderService.getSuppliers({
+        ...req.query,
+        storeId
+    });
 
     const response = ApiResponse.paginated(suppliers, {
         page: parseInt(req.query.page) || 1,
