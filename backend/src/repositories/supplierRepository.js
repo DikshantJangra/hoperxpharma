@@ -9,10 +9,15 @@ class SupplierRepository {
     /**
      * Find suppliers with pagination and filtering
      */
-    async findSuppliers({ page = 1, limit = 20, search, category, status }) {
+    async findSuppliers({ storeId, page = 1, limit = 20, search, category, status }) {
+        if (!storeId) {
+            throw new Error('storeId is required for findSuppliers');
+        }
+
         const skip = (page - 1) * limit;
 
         const where = {
+            storeId,
             deletedAt: null,
             ...(search && {
                 OR: [
@@ -47,16 +52,24 @@ class SupplierRepository {
     /**
      * Find supplier by ID
      */
-    async findById(id) {
+    async findById(id, storeId = null) {
+        const where = {
+            id,
+            deletedAt: null,
+            ...(storeId && { storeId })
+        };
+
         return await prisma.supplier.findUnique({
-            where: { id, deletedAt: null },
+            where,
             include: {
                 licenses: true,
                 purchaseOrders: {
+                    where: storeId ? { storeId } : {},
                     take: 10,
                     orderBy: { createdAt: 'desc' },
                 },
                 returns: {
+                    where: storeId ? { storeId } : {},
                     take: 10,
                     orderBy: { createdAt: 'desc' },
                 },
@@ -68,6 +81,10 @@ class SupplierRepository {
      * Create supplier
      */
     async create(supplierData) {
+        if (!supplierData.storeId) {
+            throw new Error('storeId is required to create a supplier');
+        }
+
         const { licenses, ...supplierInfo } = supplierData;
 
         return await prisma.$transaction(async (tx) => {
@@ -133,16 +150,21 @@ class SupplierRepository {
     /**
      * Get supplier statistics
      */
-    async getStats() {
+    async getStats(storeId) {
+        if (!storeId) {
+            throw new Error('storeId is required for getStats');
+        }
+
         const [total, active, expiringLicenses] = await Promise.all([
             prisma.supplier.count({
-                where: { deletedAt: null },
+                where: { storeId, deletedAt: null },
             }),
             prisma.supplier.count({
-                where: { deletedAt: null, status: 'Active' },
+                where: { storeId, deletedAt: null, status: 'Active' },
             }),
             prisma.supplierLicense.count({
                 where: {
+                    supplier: { storeId },
                     validTo: {
                         gte: new Date(),
                         lte: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000), // 90 days
@@ -151,11 +173,12 @@ class SupplierRepository {
             }),
         ]);
 
-        // Get outstanding amount from pending POs
+        // Get outstanding amount from pending POs for this store
         const outstandingResult = await prisma.$queryRaw`
             SELECT COALESCE(SUM(total), 0) as "outstanding"
             FROM "PurchaseOrder"
-            WHERE "deletedAt" IS NULL
+            WHERE "storeId" = ${storeId}
+            AND "deletedAt" IS NULL
             AND status IN ('SENT', 'PARTIALLY_RECEIVED')
         `;
 
@@ -168,11 +191,15 @@ class SupplierRepository {
     }
 
     /**
-     * Check if supplier with GSTIN exists
+     * Check if supplier with GSTIN exists (within store)
      */
-    async findByGSTIN(gstin) {
+    async findByGSTIN(gstin, storeId) {
+        if (!storeId) {
+            throw new Error('storeId is required for findByGSTIN');
+        }
+
         return await prisma.supplier.findFirst({
-            where: { gstin, deletedAt: null },
+            where: { gstin, storeId, deletedAt: null },
         });
     }
 }

@@ -14,6 +14,12 @@ CREATE TYPE "DispenseWorkflowStatus" AS ENUM ('INTAKE', 'VERIFY', 'FILL', 'CHECK
 CREATE TYPE "POStatus" AS ENUM ('DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'SENT', 'PARTIALLY_RECEIVED', 'RECEIVED', 'CLOSED', 'CANCELLED');
 
 -- CreateEnum
+CREATE TYPE "ReturnStatus" AS ENUM ('PENDING', 'APPROVED', 'REJECTED', 'COMPLETED', 'CANCELLED');
+
+-- CreateEnum
+CREATE TYPE "ReturnReason" AS ENUM ('DAMAGED', 'EXPIRED', 'WRONG_ITEM', 'QUALITY_ISSUE', 'OVERSTOCKED', 'OTHER');
+
+-- CreateEnum
 CREATE TYPE "PaymentMethod" AS ENUM ('CASH', 'CARD', 'UPI', 'WALLET');
 
 -- CreateEnum
@@ -28,6 +34,27 @@ CREATE TYPE "AlertSeverity" AS ENUM ('CRITICAL', 'WARNING', 'INFO');
 -- CreateEnum
 CREATE TYPE "AlertStatus" AS ENUM ('NEW', 'SNOOZED', 'RESOLVED');
 
+-- CreateEnum
+CREATE TYPE "GRNStatus" AS ENUM ('DRAFT', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED');
+
+-- CreateEnum
+CREATE TYPE "DiscrepancyReason" AS ENUM ('SHORTAGE', 'OVERAGE', 'DAMAGED', 'EXPIRED', 'WRONG_ITEM', 'MISSING');
+
+-- CreateEnum
+CREATE TYPE "DiscrepancyResolution" AS ENUM ('BACKORDER', 'CANCELLED', 'DEBIT_NOTE', 'ACCEPTED');
+
+-- CreateEnum
+CREATE TYPE "WhatsAppStatus" AS ENUM ('DISCONNECTED', 'TEMP_STORED', 'ACTIVE', 'NO_PHONE', 'NEEDS_VERIFICATION', 'ERROR');
+
+-- CreateEnum
+CREATE TYPE "MessageDirection" AS ENUM ('inbound', 'outbound');
+
+-- CreateEnum
+CREATE TYPE "MessageType" AS ENUM ('text', 'image', 'document', 'audio', 'video', 'template', 'interactive', 'location', 'contacts');
+
+-- CreateEnum
+CREATE TYPE "MessageStatus" AS ENUM ('sent', 'delivered', 'read', 'failed');
+
 -- CreateTable
 CREATE TABLE "User" (
     "id" TEXT NOT NULL,
@@ -39,6 +66,18 @@ CREATE TABLE "User" (
     "role" "UserRole" NOT NULL DEFAULT 'PHARMACIST',
     "approvalPin" TEXT,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "pinHash" TEXT,
+    "pinAttempts" INTEGER NOT NULL DEFAULT 0,
+    "pinLockedUntil" TIMESTAMP(3),
+    "lastLoginAt" TIMESTAMP(3),
+    "faceDataUrl" TEXT,
+    "hourlyRate" DECIMAL(10,2),
+    "monthlyRate" DECIMAL(10,2),
+    "shiftId" TEXT,
+    "joiningDate" TIMESTAMP(3),
+    "emergencyContactName" TEXT,
+    "emergencyContactPhone" TEXT,
+    "employeeId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "deletedAt" TIMESTAMP(3),
@@ -65,6 +104,8 @@ CREATE TABLE "Role" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "description" TEXT,
+    "builtIn" BOOLEAN NOT NULL DEFAULT false,
+    "category" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -74,8 +115,11 @@ CREATE TABLE "Role" (
 -- CreateTable
 CREATE TABLE "Permission" (
     "id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "description" TEXT,
+    "category" TEXT NOT NULL,
+    "resource" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Permission_pkey" PRIMARY KEY ("id")
@@ -100,6 +144,33 @@ CREATE TABLE "StoreUser" (
 );
 
 -- CreateTable
+CREATE TABLE "UserRoleAssignment" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "roleId" TEXT NOT NULL,
+    "storeId" TEXT,
+    "assignedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "assignedBy" TEXT,
+
+    CONSTRAINT "UserRoleAssignment_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "AdminPin" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "pinHash" TEXT NOT NULL,
+    "salt" TEXT NOT NULL,
+    "failedAttempts" INTEGER NOT NULL DEFAULT 0,
+    "lockedUntil" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "lastUsedAt" TIMESTAMP(3),
+
+    CONSTRAINT "AdminPin_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "Store" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -116,6 +187,9 @@ CREATE TABLE "Store" (
     "landmark" TEXT,
     "is24x7" BOOLEAN NOT NULL DEFAULT false,
     "homeDelivery" BOOLEAN NOT NULL DEFAULT false,
+    "latitude" DOUBLE PRECISION,
+    "longitude" DOUBLE PRECISION,
+    "geofenceRadius" INTEGER DEFAULT 50,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "deletedAt" TIMESTAMP(3),
@@ -310,9 +384,11 @@ CREATE TABLE "Drug" (
     "id" TEXT NOT NULL,
     "rxcui" TEXT,
     "name" TEXT NOT NULL,
+    "genericName" TEXT,
     "strength" TEXT,
     "form" TEXT,
     "manufacturer" TEXT,
+    "schedule" TEXT,
     "hsnCode" TEXT,
     "gstRate" DECIMAL(5,2) NOT NULL,
     "requiresPrescription" BOOLEAN NOT NULL DEFAULT false,
@@ -507,14 +583,65 @@ CREATE TABLE "DispenseItem" (
 );
 
 -- CreateTable
-CREATE TABLE "RefillHistory" (
+CREATE TABLE "Shift" (
     "id" TEXT NOT NULL,
-    "prescriptionId" TEXT NOT NULL,
-    "refillNumber" INTEGER NOT NULL,
-    "refillDate" TIMESTAMP(3) NOT NULL,
-    "dispensedBy" TEXT NOT NULL,
+    "storeId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "startTime" TEXT NOT NULL,
+    "endTime" TEXT NOT NULL,
+    "daysOfWeek" INTEGER[],
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
-    CONSTRAINT "RefillHistory_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "Shift_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "AttendanceLog" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "storeId" TEXT NOT NULL,
+    "checkInTime" TIMESTAMP(3) NOT NULL,
+    "checkOutTime" TIMESTAMP(3),
+    "locationSnapshot" JSONB,
+    "faceVerificationScore" DOUBLE PRECISION,
+    "status" TEXT NOT NULL,
+    "notes" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "AttendanceLog_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "StaffDocument" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "documentType" TEXT NOT NULL,
+    "fileUrl" TEXT NOT NULL,
+    "expiryDate" TIMESTAMP(3),
+    "status" TEXT NOT NULL DEFAULT 'ACTIVE',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "StaffDocument_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PerformanceMetric" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "storeId" TEXT NOT NULL,
+    "date" TIMESTAMP(3) NOT NULL,
+    "salesAmount" DECIMAL(10,2) NOT NULL,
+    "hoursWorked" DOUBLE PRECISION NOT NULL,
+    "prescriptionsProcessed" INTEGER NOT NULL DEFAULT 0,
+    "prescriptionsVerified" INTEGER NOT NULL DEFAULT 0,
+    "prescriptionsRejected" INTEGER NOT NULL DEFAULT 0,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "PerformanceMetric_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -599,6 +726,9 @@ CREATE TABLE "PurchaseOrderItem" (
     "poId" TEXT NOT NULL,
     "drugId" TEXT NOT NULL,
     "quantity" INTEGER NOT NULL,
+    "receivedQty" INTEGER NOT NULL DEFAULT 0,
+    "packSize" INTEGER NOT NULL DEFAULT 1,
+    "packUnit" TEXT NOT NULL DEFAULT 'Strip',
     "unitPrice" DECIMAL(10,2) NOT NULL,
     "discountPercent" DECIMAL(5,2) NOT NULL DEFAULT 0,
     "gstPercent" DECIMAL(5,2) NOT NULL,
@@ -618,6 +748,142 @@ CREATE TABLE "POReceipt" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "POReceipt_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "POTemplate" (
+    "id" TEXT NOT NULL,
+    "storeId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "description" TEXT,
+    "supplierId" TEXT,
+    "paymentTerms" TEXT,
+    "notes" TEXT,
+    "createdBy" TEXT NOT NULL,
+    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "usageCount" INTEGER NOT NULL DEFAULT 0,
+    "lastUsedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "deletedAt" TIMESTAMP(3),
+
+    CONSTRAINT "POTemplate_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "POTemplateItem" (
+    "id" TEXT NOT NULL,
+    "templateId" TEXT NOT NULL,
+    "drugId" TEXT NOT NULL,
+    "quantity" INTEGER NOT NULL,
+    "unitPrice" DECIMAL(10,2),
+    "discountPercent" DECIMAL(5,2) NOT NULL DEFAULT 0,
+
+    CONSTRAINT "POTemplateItem_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "GoodsReceivedNote" (
+    "id" TEXT NOT NULL,
+    "grnNumber" TEXT NOT NULL,
+    "poId" TEXT NOT NULL,
+    "storeId" TEXT NOT NULL,
+    "supplierId" TEXT NOT NULL,
+    "status" "GRNStatus" NOT NULL DEFAULT 'DRAFT',
+    "supplierInvoiceNo" TEXT,
+    "supplierInvoiceDate" TIMESTAMP(3),
+    "receivedBy" TEXT NOT NULL,
+    "receivedDate" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "subtotal" DECIMAL(12,2) NOT NULL,
+    "taxAmount" DECIMAL(12,2) NOT NULL,
+    "total" DECIMAL(12,2) NOT NULL,
+    "notes" TEXT,
+    "completedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "GoodsReceivedNote_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "GRNItem" (
+    "id" TEXT NOT NULL,
+    "grnId" TEXT NOT NULL,
+    "poItemId" TEXT NOT NULL,
+    "drugId" TEXT NOT NULL,
+    "orderedQty" INTEGER NOT NULL,
+    "receivedQty" INTEGER NOT NULL,
+    "freeQty" INTEGER NOT NULL DEFAULT 0,
+    "rejectedQty" INTEGER NOT NULL DEFAULT 0,
+    "batchNumber" TEXT NOT NULL,
+    "expiryDate" TIMESTAMP(3) NOT NULL,
+    "mrp" DECIMAL(10,2) NOT NULL,
+    "unitPrice" DECIMAL(10,2) NOT NULL,
+    "discountPercent" DECIMAL(5,2) NOT NULL DEFAULT 0,
+    "gstPercent" DECIMAL(5,2) NOT NULL,
+    "lineTotal" DECIMAL(12,2) NOT NULL,
+
+    CONSTRAINT "GRNItem_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "GRNDiscrepancy" (
+    "id" TEXT NOT NULL,
+    "grnId" TEXT NOT NULL,
+    "grnItemId" TEXT,
+    "reason" "DiscrepancyReason" NOT NULL,
+    "resolution" "DiscrepancyResolution",
+    "expectedQty" INTEGER,
+    "actualQty" INTEGER,
+    "discrepancyQty" INTEGER NOT NULL,
+    "description" TEXT NOT NULL,
+    "debitNoteValue" DECIMAL(10,2),
+    "debitNoteGenerated" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "resolvedAt" TIMESTAMP(3),
+
+    CONSTRAINT "GRNDiscrepancy_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "SupplierReturn" (
+    "id" TEXT NOT NULL,
+    "returnNumber" TEXT NOT NULL,
+    "poId" TEXT NOT NULL,
+    "storeId" TEXT NOT NULL,
+    "supplierId" TEXT NOT NULL,
+    "status" "ReturnStatus" NOT NULL DEFAULT 'PENDING',
+    "reason" TEXT NOT NULL,
+    "notes" TEXT,
+    "subtotal" DECIMAL(10,2) NOT NULL,
+    "taxAmount" DECIMAL(10,2) NOT NULL,
+    "total" DECIMAL(10,2) NOT NULL,
+    "requestedBy" TEXT NOT NULL,
+    "approvedBy" TEXT,
+    "approvedAt" TIMESTAMP(3),
+    "completedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "deletedAt" TIMESTAMP(3),
+
+    CONSTRAINT "SupplierReturn_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "SupplierReturnItem" (
+    "id" TEXT NOT NULL,
+    "returnId" TEXT NOT NULL,
+    "drugId" TEXT NOT NULL,
+    "batchNumber" TEXT NOT NULL,
+    "expiryDate" TIMESTAMP(3) NOT NULL,
+    "quantity" INTEGER NOT NULL,
+    "unitPrice" DECIMAL(10,2) NOT NULL,
+    "lineTotal" DECIMAL(10,2) NOT NULL,
+    "reason" "ReturnReason" NOT NULL,
+    "notes" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "SupplierReturnItem_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -763,18 +1029,6 @@ CREATE TABLE "OCRJob" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "OCRJob_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "PerformanceMetric" (
-    "id" TEXT NOT NULL,
-    "storeId" TEXT NOT NULL,
-    "metricType" TEXT NOT NULL,
-    "value" DOUBLE PRECISION NOT NULL,
-    "date" TIMESTAMP(3) NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "PerformanceMetric_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -949,21 +1203,123 @@ CREATE TABLE "ComplianceCheck" (
 );
 
 -- CreateTable
+CREATE TABLE "WhatsAppAccount" (
+    "id" TEXT NOT NULL,
+    "storeId" TEXT NOT NULL,
+    "wabaId" TEXT,
+    "phoneNumberId" TEXT,
+    "phoneNumber" TEXT,
+    "accessToken" TEXT,
+    "tempToken" TEXT,
+    "tokenExpiresAt" TIMESTAMP(3),
+    "webhookSecret" TEXT,
+    "status" "WhatsAppStatus" NOT NULL DEFAULT 'DISCONNECTED',
+    "businessVerified" BOOLEAN NOT NULL DEFAULT false,
+    "lastWebhookReceivedAt" TIMESTAMP(3),
+    "businessDisplayName" TEXT,
+    "businessAbout" TEXT,
+    "businessProfilePictureUrl" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "WhatsAppAccount_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Conversation" (
+    "id" TEXT NOT NULL,
+    "storeId" TEXT NOT NULL,
+    "whatsappAccountId" TEXT NOT NULL,
+    "phoneNumber" TEXT NOT NULL,
+    "displayName" TEXT,
+    "profilePicUrl" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'open',
+    "assignedAgentId" TEXT,
+    "lastMessageAt" TIMESTAMP(3),
+    "lastMessageBody" TEXT,
+    "unreadCount" INTEGER NOT NULL DEFAULT 0,
+    "tags" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "lastCustomerMessageAt" TIMESTAMP(3),
+    "sessionActive" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Conversation_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Message" (
+    "id" TEXT NOT NULL,
+    "conversationId" TEXT NOT NULL,
+    "storeId" TEXT NOT NULL,
+    "providerMessageId" TEXT,
+    "wabaPhoneNumberId" TEXT,
+    "direction" "MessageDirection" NOT NULL,
+    "type" "MessageType" NOT NULL,
+    "body" TEXT,
+    "caption" TEXT,
+    "mediaUrl" TEXT,
+    "mediaType" TEXT,
+    "mediaSize" INTEGER,
+    "mediaFileName" TEXT,
+    "from" TEXT,
+    "to" TEXT,
+    "status" "MessageStatus",
+    "statusReason" TEXT,
+    "templateName" TEXT,
+    "templateLanguage" TEXT,
+    "templateParams" JSONB,
+    "payload" JSONB,
+    "sentAt" TIMESTAMP(3),
+    "deliveredAt" TIMESTAMP(3),
+    "readAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Message_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "WhatsAppTemplate" (
     "id" TEXT NOT NULL,
     "storeId" TEXT NOT NULL,
+    "whatsappAccountId" TEXT,
     "name" TEXT NOT NULL,
-    "category" TEXT NOT NULL,
-    "status" TEXT NOT NULL,
-    "body" TEXT NOT NULL,
     "language" TEXT NOT NULL DEFAULT 'en',
-    "variables" TEXT[],
+    "category" TEXT NOT NULL DEFAULT 'MARKETING',
+    "headerType" TEXT,
+    "headerText" TEXT,
+    "body" TEXT NOT NULL,
+    "footer" TEXT,
+    "variables" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "buttons" JSONB,
+    "status" TEXT NOT NULL DEFAULT 'PENDING',
+    "rejectedReason" TEXT,
+    "templateId" TEXT,
+    "namespace" TEXT,
     "usageCount" INTEGER NOT NULL DEFAULT 0,
     "lastUsedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "WhatsAppTemplate_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "WhatsAppOutboundQueue" (
+    "id" BIGSERIAL NOT NULL,
+    "storeId" TEXT NOT NULL,
+    "conversationId" TEXT,
+    "payload" JSONB NOT NULL,
+    "attemptCount" INTEGER NOT NULL DEFAULT 0,
+    "maxAttempts" INTEGER NOT NULL DEFAULT 3,
+    "runAfter" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "status" TEXT NOT NULL DEFAULT 'pending',
+    "errorMessage" TEXT,
+    "sentAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "WhatsAppOutboundQueue_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -980,20 +1336,6 @@ CREATE TABLE "WhatsAppFlow" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "WhatsAppFlow_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "WhatsAppMessageLog" (
-    "id" TEXT NOT NULL,
-    "storeId" TEXT NOT NULL,
-    "patientId" TEXT,
-    "templateId" TEXT,
-    "providerMsgId" TEXT NOT NULL,
-    "direction" TEXT NOT NULL,
-    "cost" DECIMAL(6,4),
-    "sentAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "WhatsAppMessageLog_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -1244,11 +1586,41 @@ CREATE TABLE "Document" (
     CONSTRAINT "Document_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "PatientAudit" (
+    "id" TEXT NOT NULL,
+    "patientId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "action" TEXT NOT NULL,
+    "changes" JSONB NOT NULL,
+    "ipAddress" TEXT,
+    "userAgent" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "PatientAudit_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PrescriptionFile" (
+    "id" TEXT NOT NULL,
+    "prescriptionId" TEXT NOT NULL,
+    "fileUrl" TEXT NOT NULL,
+    "thumbnailUrl" TEXT,
+    "ocrData" JSONB,
+    "uploadedBy" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "PrescriptionFile_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "User_phoneNumber_key" ON "User"("phoneNumber");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "User_employeeId_key" ON "User"("employeeId");
 
 -- CreateIndex
 CREATE INDEX "User_email_idx" ON "User"("email");
@@ -1266,10 +1638,40 @@ CREATE UNIQUE INDEX "OnboardingProgress_userId_key" ON "OnboardingProgress"("use
 CREATE UNIQUE INDEX "Role_name_key" ON "Role"("name");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Permission_name_key" ON "Permission"("name");
+CREATE INDEX "Role_builtIn_idx" ON "Role"("builtIn");
+
+-- CreateIndex
+CREATE INDEX "Role_category_idx" ON "Role"("category");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Permission_code_key" ON "Permission"("code");
+
+-- CreateIndex
+CREATE INDEX "Permission_category_idx" ON "Permission"("category");
+
+-- CreateIndex
+CREATE INDEX "Permission_resource_idx" ON "Permission"("resource");
 
 -- CreateIndex
 CREATE INDEX "StoreUser_storeId_idx" ON "StoreUser"("storeId");
+
+-- CreateIndex
+CREATE INDEX "UserRoleAssignment_userId_idx" ON "UserRoleAssignment"("userId");
+
+-- CreateIndex
+CREATE INDEX "UserRoleAssignment_roleId_idx" ON "UserRoleAssignment"("roleId");
+
+-- CreateIndex
+CREATE INDEX "UserRoleAssignment_storeId_idx" ON "UserRoleAssignment"("storeId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "UserRoleAssignment_userId_roleId_storeId_key" ON "UserRoleAssignment"("userId", "roleId", "storeId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "AdminPin_userId_key" ON "AdminPin"("userId");
+
+-- CreateIndex
+CREATE INDEX "AdminPin_userId_idx" ON "AdminPin"("userId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Store_email_key" ON "Store"("email");
@@ -1407,7 +1809,34 @@ CREATE INDEX "DispenseEvent_prescriptionId_idx" ON "DispenseEvent"("prescription
 CREATE INDEX "DispenseItem_dispenseEventId_idx" ON "DispenseItem"("dispenseEventId");
 
 -- CreateIndex
-CREATE INDEX "RefillHistory_prescriptionId_idx" ON "RefillHistory"("prescriptionId");
+CREATE INDEX "Shift_storeId_idx" ON "Shift"("storeId");
+
+-- CreateIndex
+CREATE INDEX "Shift_storeId_isActive_idx" ON "Shift"("storeId", "isActive");
+
+-- CreateIndex
+CREATE INDEX "AttendanceLog_userId_checkInTime_idx" ON "AttendanceLog"("userId", "checkInTime");
+
+-- CreateIndex
+CREATE INDEX "AttendanceLog_storeId_checkInTime_idx" ON "AttendanceLog"("storeId", "checkInTime");
+
+-- CreateIndex
+CREATE INDEX "AttendanceLog_userId_storeId_checkInTime_idx" ON "AttendanceLog"("userId", "storeId", "checkInTime");
+
+-- CreateIndex
+CREATE INDEX "StaffDocument_userId_idx" ON "StaffDocument"("userId");
+
+-- CreateIndex
+CREATE INDEX "StaffDocument_userId_status_idx" ON "StaffDocument"("userId", "status");
+
+-- CreateIndex
+CREATE INDEX "PerformanceMetric_userId_date_idx" ON "PerformanceMetric"("userId", "date");
+
+-- CreateIndex
+CREATE INDEX "PerformanceMetric_storeId_date_idx" ON "PerformanceMetric"("storeId", "date");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "PerformanceMetric_userId_storeId_date_key" ON "PerformanceMetric"("userId", "storeId", "date");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "DispenseWorkflowStep_storeId_stepName_key" ON "DispenseWorkflowStep"("storeId", "stepName");
@@ -1438,6 +1867,63 @@ CREATE INDEX "PurchaseOrderItem_poId_idx" ON "PurchaseOrderItem"("poId");
 
 -- CreateIndex
 CREATE INDEX "POReceipt_poId_idx" ON "POReceipt"("poId");
+
+-- CreateIndex
+CREATE INDEX "POTemplate_storeId_isActive_idx" ON "POTemplate"("storeId", "isActive");
+
+-- CreateIndex
+CREATE INDEX "POTemplate_storeId_deletedAt_idx" ON "POTemplate"("storeId", "deletedAt");
+
+-- CreateIndex
+CREATE INDEX "POTemplateItem_templateId_idx" ON "POTemplateItem"("templateId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "GoodsReceivedNote_grnNumber_key" ON "GoodsReceivedNote"("grnNumber");
+
+-- CreateIndex
+CREATE INDEX "GoodsReceivedNote_poId_idx" ON "GoodsReceivedNote"("poId");
+
+-- CreateIndex
+CREATE INDEX "GoodsReceivedNote_storeId_idx" ON "GoodsReceivedNote"("storeId");
+
+-- CreateIndex
+CREATE INDEX "GoodsReceivedNote_status_idx" ON "GoodsReceivedNote"("status");
+
+-- CreateIndex
+CREATE INDEX "GRNItem_grnId_idx" ON "GRNItem"("grnId");
+
+-- CreateIndex
+CREATE INDEX "GRNItem_poItemId_idx" ON "GRNItem"("poItemId");
+
+-- CreateIndex
+CREATE INDEX "GRNDiscrepancy_grnId_idx" ON "GRNDiscrepancy"("grnId");
+
+-- CreateIndex
+CREATE INDEX "GRNDiscrepancy_reason_idx" ON "GRNDiscrepancy"("reason");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "SupplierReturn_returnNumber_key" ON "SupplierReturn"("returnNumber");
+
+-- CreateIndex
+CREATE INDEX "SupplierReturn_poId_idx" ON "SupplierReturn"("poId");
+
+-- CreateIndex
+CREATE INDEX "SupplierReturn_storeId_idx" ON "SupplierReturn"("storeId");
+
+-- CreateIndex
+CREATE INDEX "SupplierReturn_supplierId_idx" ON "SupplierReturn"("supplierId");
+
+-- CreateIndex
+CREATE INDEX "SupplierReturn_status_idx" ON "SupplierReturn"("status");
+
+-- CreateIndex
+CREATE INDEX "SupplierReturn_deletedAt_idx" ON "SupplierReturn"("deletedAt");
+
+-- CreateIndex
+CREATE INDEX "SupplierReturnItem_returnId_idx" ON "SupplierReturnItem"("returnId");
+
+-- CreateIndex
+CREATE INDEX "SupplierReturnItem_drugId_idx" ON "SupplierReturnItem"("drugId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Sale_invoiceNumber_key" ON "Sale"("invoiceNumber");
@@ -1477,12 +1963,6 @@ CREATE INDEX "Reconciliation_storeId_reconcileDate_idx" ON "Reconciliation"("sto
 
 -- CreateIndex
 CREATE INDEX "OCRJob_storeId_status_idx" ON "OCRJob"("storeId", "status");
-
--- CreateIndex
-CREATE INDEX "PerformanceMetric_storeId_date_idx" ON "PerformanceMetric"("storeId", "date");
-
--- CreateIndex
-CREATE UNIQUE INDEX "PerformanceMetric_storeId_metricType_date_key" ON "PerformanceMetric"("storeId", "metricType", "date");
 
 -- CreateIndex
 CREATE INDEX "BankAccount_storeId_idx" ON "BankAccount"("storeId");
@@ -1536,16 +2016,58 @@ CREATE INDEX "IRN_irn_idx" ON "IRN"("irn");
 CREATE INDEX "ComplianceCheck_storeId_checkType_idx" ON "ComplianceCheck"("storeId", "checkType");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "WhatsAppAccount_storeId_key" ON "WhatsAppAccount"("storeId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "WhatsAppAccount_phoneNumberId_key" ON "WhatsAppAccount"("phoneNumberId");
+
+-- CreateIndex
+CREATE INDEX "WhatsAppAccount_phoneNumberId_idx" ON "WhatsAppAccount"("phoneNumberId");
+
+-- CreateIndex
+CREATE INDEX "WhatsAppAccount_storeId_status_idx" ON "WhatsAppAccount"("storeId", "status");
+
+-- CreateIndex
+CREATE INDEX "Conversation_storeId_status_idx" ON "Conversation"("storeId", "status");
+
+-- CreateIndex
+CREATE INDEX "Conversation_storeId_lastMessageAt_idx" ON "Conversation"("storeId", "lastMessageAt");
+
+-- CreateIndex
+CREATE INDEX "Conversation_assignedAgentId_idx" ON "Conversation"("assignedAgentId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Conversation_storeId_phoneNumber_key" ON "Conversation"("storeId", "phoneNumber");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Message_providerMessageId_key" ON "Message"("providerMessageId");
+
+-- CreateIndex
+CREATE INDEX "Message_conversationId_createdAt_idx" ON "Message"("conversationId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "Message_storeId_direction_createdAt_idx" ON "Message"("storeId", "direction", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "Message_providerMessageId_idx" ON "Message"("providerMessageId");
+
+-- CreateIndex
+CREATE INDEX "Message_wabaPhoneNumberId_idx" ON "Message"("wabaPhoneNumberId");
+
+-- CreateIndex
 CREATE INDEX "WhatsAppTemplate_storeId_status_idx" ON "WhatsAppTemplate"("storeId", "status");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "WhatsAppTemplate_storeId_name_language_key" ON "WhatsAppTemplate"("storeId", "name", "language");
+
+-- CreateIndex
+CREATE INDEX "WhatsAppOutboundQueue_storeId_status_runAfter_idx" ON "WhatsAppOutboundQueue"("storeId", "status", "runAfter");
+
+-- CreateIndex
+CREATE INDEX "WhatsAppOutboundQueue_status_runAfter_idx" ON "WhatsAppOutboundQueue"("status", "runAfter");
+
+-- CreateIndex
 CREATE INDEX "WhatsAppFlow_storeId_active_idx" ON "WhatsAppFlow"("storeId", "active");
-
--- CreateIndex
-CREATE INDEX "WhatsAppMessageLog_storeId_sentAt_idx" ON "WhatsAppMessageLog"("storeId", "sentAt");
-
--- CreateIndex
-CREATE INDEX "WhatsAppMessageLog_providerMsgId_idx" ON "WhatsAppMessageLog"("providerMsgId");
 
 -- CreateIndex
 CREATE INDEX "WhatsAppConsent_patientId_revokedAt_idx" ON "WhatsAppConsent"("patientId", "revokedAt");
@@ -1619,6 +2141,15 @@ CREATE INDEX "BackupSnapshot_storeId_createdAt_idx" ON "BackupSnapshot"("storeId
 -- CreateIndex
 CREATE INDEX "Document_storeId_entityType_entityId_idx" ON "Document"("storeId", "entityType", "entityId");
 
+-- CreateIndex
+CREATE INDEX "PatientAudit_patientId_createdAt_idx" ON "PatientAudit"("patientId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "PrescriptionFile_prescriptionId_idx" ON "PrescriptionFile"("prescriptionId");
+
+-- AddForeignKey
+ALTER TABLE "User" ADD CONSTRAINT "User_shiftId_fkey" FOREIGN KEY ("shiftId") REFERENCES "Shift"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
 -- AddForeignKey
 ALTER TABLE "OnboardingProgress" ADD CONSTRAINT "OnboardingProgress_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
@@ -1633,6 +2164,18 @@ ALTER TABLE "StoreUser" ADD CONSTRAINT "StoreUser_userId_fkey" FOREIGN KEY ("use
 
 -- AddForeignKey
 ALTER TABLE "StoreUser" ADD CONSTRAINT "StoreUser_storeId_fkey" FOREIGN KEY ("storeId") REFERENCES "Store"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "UserRoleAssignment" ADD CONSTRAINT "UserRoleAssignment_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "UserRoleAssignment" ADD CONSTRAINT "UserRoleAssignment_roleId_fkey" FOREIGN KEY ("roleId") REFERENCES "Role"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "UserRoleAssignment" ADD CONSTRAINT "UserRoleAssignment_storeId_fkey" FOREIGN KEY ("storeId") REFERENCES "Store"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AdminPin" ADD CONSTRAINT "AdminPin_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "StoreLicense" ADD CONSTRAINT "StoreLicense_storeId_fkey" FOREIGN KEY ("storeId") REFERENCES "Store"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -1698,7 +2241,22 @@ ALTER TABLE "DispenseItem" ADD CONSTRAINT "DispenseItem_dispenseEventId_fkey" FO
 ALTER TABLE "DispenseItem" ADD CONSTRAINT "DispenseItem_batchId_fkey" FOREIGN KEY ("batchId") REFERENCES "InventoryBatch"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "RefillHistory" ADD CONSTRAINT "RefillHistory_prescriptionId_fkey" FOREIGN KEY ("prescriptionId") REFERENCES "Prescription"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Shift" ADD CONSTRAINT "Shift_storeId_fkey" FOREIGN KEY ("storeId") REFERENCES "Store"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AttendanceLog" ADD CONSTRAINT "AttendanceLog_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AttendanceLog" ADD CONSTRAINT "AttendanceLog_storeId_fkey" FOREIGN KEY ("storeId") REFERENCES "Store"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "StaffDocument" ADD CONSTRAINT "StaffDocument_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PerformanceMetric" ADD CONSTRAINT "PerformanceMetric_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PerformanceMetric" ADD CONSTRAINT "PerformanceMetric_storeId_fkey" FOREIGN KEY ("storeId") REFERENCES "Store"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "SupplierLicense" ADD CONSTRAINT "SupplierLicense_supplierId_fkey" FOREIGN KEY ("supplierId") REFERENCES "Supplier"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -1717,6 +2275,42 @@ ALTER TABLE "PurchaseOrderItem" ADD CONSTRAINT "PurchaseOrderItem_drugId_fkey" F
 
 -- AddForeignKey
 ALTER TABLE "POReceipt" ADD CONSTRAINT "POReceipt_poId_fkey" FOREIGN KEY ("poId") REFERENCES "PurchaseOrder"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "POTemplateItem" ADD CONSTRAINT "POTemplateItem_templateId_fkey" FOREIGN KEY ("templateId") REFERENCES "POTemplate"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "GoodsReceivedNote" ADD CONSTRAINT "GoodsReceivedNote_receivedBy_fkey" FOREIGN KEY ("receivedBy") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "GoodsReceivedNote" ADD CONSTRAINT "GoodsReceivedNote_poId_fkey" FOREIGN KEY ("poId") REFERENCES "PurchaseOrder"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "GRNItem" ADD CONSTRAINT "GRNItem_grnId_fkey" FOREIGN KEY ("grnId") REFERENCES "GoodsReceivedNote"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "GRNDiscrepancy" ADD CONSTRAINT "GRNDiscrepancy_grnId_fkey" FOREIGN KEY ("grnId") REFERENCES "GoodsReceivedNote"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "SupplierReturn" ADD CONSTRAINT "SupplierReturn_poId_fkey" FOREIGN KEY ("poId") REFERENCES "PurchaseOrder"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "SupplierReturn" ADD CONSTRAINT "SupplierReturn_storeId_fkey" FOREIGN KEY ("storeId") REFERENCES "Store"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "SupplierReturn" ADD CONSTRAINT "SupplierReturn_supplierId_fkey" FOREIGN KEY ("supplierId") REFERENCES "Supplier"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "SupplierReturn" ADD CONSTRAINT "SupplierReturn_requestedBy_fkey" FOREIGN KEY ("requestedBy") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "SupplierReturn" ADD CONSTRAINT "SupplierReturn_approvedBy_fkey" FOREIGN KEY ("approvedBy") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "SupplierReturnItem" ADD CONSTRAINT "SupplierReturnItem_returnId_fkey" FOREIGN KEY ("returnId") REFERENCES "SupplierReturn"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "SupplierReturnItem" ADD CONSTRAINT "SupplierReturnItem_drugId_fkey" FOREIGN KEY ("drugId") REFERENCES "Drug"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Sale" ADD CONSTRAINT "Sale_storeId_fkey" FOREIGN KEY ("storeId") REFERENCES "Store"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -1761,7 +2355,16 @@ ALTER TABLE "Settlement" ADD CONSTRAINT "Settlement_gatewayId_fkey" FOREIGN KEY 
 ALTER TABLE "WebhookLog" ADD CONSTRAINT "WebhookLog_gatewayId_fkey" FOREIGN KEY ("gatewayId") REFERENCES "PaymentGateway"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "WhatsAppMessageLog" ADD CONSTRAINT "WhatsAppMessageLog_templateId_fkey" FOREIGN KEY ("templateId") REFERENCES "WhatsAppTemplate"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "WhatsAppAccount" ADD CONSTRAINT "WhatsAppAccount_storeId_fkey" FOREIGN KEY ("storeId") REFERENCES "Store"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Conversation" ADD CONSTRAINT "Conversation_whatsappAccountId_fkey" FOREIGN KEY ("whatsappAccountId") REFERENCES "WhatsAppAccount"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Message" ADD CONSTRAINT "Message_conversationId_fkey" FOREIGN KEY ("conversationId") REFERENCES "Conversation"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "WhatsAppTemplate" ADD CONSTRAINT "WhatsAppTemplate_whatsappAccountId_fkey" FOREIGN KEY ("whatsappAccountId") REFERENCES "WhatsAppAccount"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Campaign" ADD CONSTRAINT "Campaign_storeId_fkey" FOREIGN KEY ("storeId") REFERENCES "Store"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -1789,3 +2392,9 @@ ALTER TABLE "APIRequest" ADD CONSTRAINT "APIRequest_apiKeyId_fkey" FOREIGN KEY (
 
 -- AddForeignKey
 ALTER TABLE "BackupSnapshot" ADD CONSTRAINT "BackupSnapshot_planId_fkey" FOREIGN KEY ("planId") REFERENCES "BackupPlan"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PatientAudit" ADD CONSTRAINT "PatientAudit_patientId_fkey" FOREIGN KEY ("patientId") REFERENCES "Patient"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PrescriptionFile" ADD CONSTRAINT "PrescriptionFile_prescriptionId_fkey" FOREIGN KEY ("prescriptionId") REFERENCES "Prescription"("id") ON DELETE CASCADE ON UPDATE CASCADE;

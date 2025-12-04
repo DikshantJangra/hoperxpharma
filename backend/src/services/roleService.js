@@ -4,11 +4,33 @@ const permissionService = require('./permissionService');
 
 class RoleService {
     /**
-     * Get all roles
+     * Get all roles (filtered by user's store)
+     * @param {string} userId - Requesting user ID
      * @returns {Promise<Array>}
      */
-    async getAllRoles() {
+    async getAllRoles(userId) {
+        // Get user's stores
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            include: {
+                storeUsers: true
+            }
+        });
+
+        if (!user) {
+            throw ApiError.notFound('User not found');
+        }
+
+        const storeIds = user.storeUsers.map(su => su.storeId);
+
+        // Return built-in roles + roles created by user's stores
         return await prisma.role.findMany({
+            where: {
+                OR: [
+                    { builtIn: true }, // Built-in roles are global
+                    { storeId: { in: storeIds } } // Custom roles from user's stores
+                ]
+            },
             include: {
                 permissions: {
                     include: {
@@ -77,6 +99,22 @@ class RoleService {
     async createRole(data, createdBy) {
         const { name, description, category, permissionIds } = data;
 
+        // Get creator's primary store
+        const user = await prisma.user.findUnique({
+            where: { id: createdBy },
+            include: {
+                storeUsers: {
+                    where: { isPrimary: true }
+                }
+            }
+        });
+
+        if (!user || !user.storeUsers || user.storeUsers.length === 0) {
+            throw ApiError.badRequest('User must have a primary store to create roles');
+        }
+
+        const storeId = user.storeUsers[0].storeId;
+
         // Check if role name already exists
         const existing = await prisma.role.findUnique({
             where: { name },
@@ -86,13 +124,14 @@ class RoleService {
             throw ApiError.badRequest('Role with this name already exists');
         }
 
-        // Create role
+        // Create role linked to the store
         const role = await prisma.role.create({
             data: {
                 name,
                 description,
                 category,
                 builtIn: false,
+                storeId, // Link to creator's store
             },
         });
 

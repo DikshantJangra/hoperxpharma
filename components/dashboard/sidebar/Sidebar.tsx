@@ -6,6 +6,7 @@ import { FiChevronRight } from "react-icons/fi"
 import { sidebarConfig } from "./sidebarConfig"
 import Logo from "@/components/ui/Logo"
 import { usePermissions } from "@/contexts/PermissionContext"
+import { useAuthStore } from "@/lib/store/auth-store"
 
 interface SidebarProps {
     isOpen: boolean
@@ -46,11 +47,18 @@ function SidebarHeader({ isOpen }: { isOpen: boolean }) {
 
 function SidebarSection({ section, isOpen, expandedItems, onToggleItem }: any) {
     const { permissions } = usePermissions();
+    const { user } = useAuthStore();
 
     if (!section || !Array.isArray(section.items)) return null;
 
+    // ADMIN users see everything - bypass permission checks
+    const isAdmin = user?.role === 'ADMIN';
+
     // Filter items based on permissions
     const visibleItems = section.items.filter((item: any) => {
+        // If user is ADMIN, show all items
+        if (isAdmin) return true;
+
         // If no permission required, show the item
         if (!item.requiredPermission) return true;
 
@@ -84,12 +92,18 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 function NavItem({ item, isOpen, expanded, onToggle }: any) {
     const pathname = usePathname()
     const { permissions } = usePermissions()
+    const { user } = useAuthStore()
 
     const hasSubItems = item.subItems && Array.isArray(item.subItems) && item.subItems.length > 0
+
+    // ADMIN users see everything - bypass permission checks
+    const isAdmin = user?.role === 'ADMIN'
 
     // Filter sub-items based on permissions
     const visibleSubItems = hasSubItems
         ? item.subItems.filter((subItem: any) => {
+            // If user is ADMIN, show all sub-items
+            if (isAdmin) return true
             // If no permission required, show the sub-item
             if (!subItem.requiredPermission) return true
             // Check if user has the required permission

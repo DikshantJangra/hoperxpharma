@@ -48,6 +48,13 @@ export function PermissionProvider({ children, initialPermissions = [] }: Permis
         return perms.every(p => permissions.includes(p));
     };
 
+    // Fetch permissions on mount if not already loaded
+    useEffect(() => {
+        if (permissions.length === 0 && !loading) {
+            refreshPermissions();
+        }
+    }, []);
+
     return (
         <PermissionContext.Provider
             value={{

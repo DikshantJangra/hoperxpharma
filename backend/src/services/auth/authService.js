@@ -21,8 +21,15 @@ class AuthService {
             throw ApiError.conflict(MESSAGES.AUTH.USER_EXISTS);
         }
 
+        // Check if this is the first user in the system
+        const allUsers = await userRepository.findAll();
+        const isFirstUser = allUsers.length === 0;
+
         // Hash password
         const passwordHash = await bcrypt.hash(password, 10);
+
+        // Determine user role: first user is always ADMIN, others default to PHARMACIST
+        const userRole = role || (isFirstUser ? 'ADMIN' : 'PHARMACIST');
 
         // Create user
         const user = await userRepository.create({
@@ -31,13 +38,13 @@ class AuthService {
             passwordHash,
             firstName,
             lastName,
-            role: role || 'PHARMACIST',
+            role: userRole,
         });
 
         // Generate tokens
         const tokens = generateTokens(user.id, user.role);
 
-        logger.info(`New user registered: ${user.email}`);
+        logger.info(`New user registered: ${user.email} (role: ${user.role}, firstUser: ${isFirstUser})`);
 
         // Return clean user object
         return {

@@ -81,10 +81,64 @@ class UserService {
         return user.storeUsers && user.storeUsers.length > 0;
     }
     /**
-     * Get all users
+     * Get all users (filtered by requesting user's stores)
      */
-    async getAllUsers() {
-        return await userRepository.findAll();
+    async getAllUsers(requestingUserId) {
+        const db = require('../../config/database');
+        const prisma = db.getClient();
+
+        // Get requesting user's stores
+        const requestingUser = await userRepository.getUserWithStores(requestingUserId);
+
+        if (!requestingUser) {
+            throw ApiError.notFound('Requesting user not found');
+        }
+
+        // Get all store IDs the requesting user has access to
+        const storeIds = requestingUser.storeUsers.map(su => su.storeId);
+
+        // If user has no stores, return empty array
+        if (storeIds.length === 0) {
+            return [];
+        }
+
+        // Find all users who belong to any of these stores
+        const users = await prisma.user.findMany({
+            where: {
+                deletedAt: null,
+                storeUsers: {
+                    some: {
+                        storeId: {
+                            in: storeIds
+                        }
+                    }
+                }
+            },
+            include: {
+                storeUsers: {
+                    include: {
+                        store: {
+                            select: {
+                                id: true,
+                                name: true
+                            }
+                        }
+                    }
+                },
+                userRoles: {
+                    include: {
+                        role: true
+                    }
+                }
+            },
+            orderBy: { createdAt: 'desc' }
+        });
+
+        // Remove sensitive data
+        return users.map(user => {
+            const { passwordHash, pinHash, approvalPin, ...safeUser } = user;
+            return safeUser;
+        });
     }
 
     /**

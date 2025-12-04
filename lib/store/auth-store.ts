@@ -127,7 +127,9 @@ export const useAuthStore = create<AuthState>()(
                             return;
                         } else {
                             console.error('Token refresh failed - user is unauthenticated:', refreshError?.message);
-                            // Refresh failed due to invalid/expired token, user is truly unauthenticated
+                            // Clear all auth data including tokens and cookies
+                            tokenManager.clearTokens();
+                            authApi.clearLoggedInCookie();
                             set({ isAuthenticated: false, user: null, primaryStore: null, hasStore: false, permissions: [], isLoading: false });
                             return;
                         }

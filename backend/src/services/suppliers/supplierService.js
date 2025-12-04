@@ -10,14 +10,15 @@ class SupplierService {
      * Get all suppliers with pagination
      */
     async getSuppliers(filters) {
+        // storeId is required and should be passed in filters
         return await supplierRepository.findSuppliers(filters);
     }
 
     /**
      * Get supplier by ID
      */
-    async getSupplierById(id) {
-        const supplier = await supplierRepository.findById(id);
+    async getSupplierById(id, storeId = null) {
+        const supplier = await supplierRepository.findById(id, storeId);
 
         if (!supplier) {
             throw ApiError.notFound('Supplier not found');
@@ -30,21 +31,26 @@ class SupplierService {
      * Create new supplier
      */
     async createSupplier(supplierData) {
+        // storeId must be in supplierData
+        if (!supplierData.storeId) {
+            throw ApiError.badRequest('storeId is required');
+        }
+
         // Validate GSTIN format if provided
         if (supplierData.gstin) {
             if (!/^\d{2}[A-Z]{5}\d{4}[A-Z]{1}[A-Z\d]{1}[Z]{1}[A-Z\d]{1}$/.test(supplierData.gstin)) {
                 throw ApiError.badRequest('Invalid GSTIN format');
             }
 
-            // Check for duplicate GSTIN
-            const existingSupplier = await supplierRepository.findByGSTIN(supplierData.gstin);
+            // Check for duplicate GSTIN within the same store
+            const existingSupplier = await supplierRepository.findByGSTIN(supplierData.gstin, supplierData.storeId);
             if (existingSupplier) {
-                throw ApiError.conflict('Supplier with this GSTIN already exists');
+                throw ApiError.conflict('Supplier with this GSTIN already exists in your store');
             }
         }
 
         const supplier = await supplierRepository.create(supplierData);
-        logger.info(`Supplier created: ${supplier.name} (ID: ${supplier.id})`);
+        logger.info(`Supplier created: ${supplier.name} (ID: ${supplier.id}) for store ${supplierData.storeId}`);
 
         return supplier;
     }
@@ -52,8 +58,8 @@ class SupplierService {
     /**
      * Update supplier
      */
-    async updateSupplier(id, supplierData) {
-        const existingSupplier = await supplierRepository.findById(id);
+    async updateSupplier(id, supplierData, storeId = null) {
+        const existingSupplier = await supplierRepository.findById(id, storeId);
 
         if (!existingSupplier) {
             throw ApiError.notFound('Supplier not found');
@@ -65,9 +71,9 @@ class SupplierService {
                 throw ApiError.badRequest('Invalid GSTIN format');
             }
 
-            const duplicate = await supplierRepository.findByGSTIN(supplierData.gstin);
+            const duplicate = await supplierRepository.findByGSTIN(supplierData.gstin, existingSupplier.storeId);
             if (duplicate) {
-                throw ApiError.conflict('Supplier with this GSTIN already exists');
+                throw ApiError.conflict('Supplier with this GSTIN already exists in your store');
             }
         }
 
@@ -80,8 +86,8 @@ class SupplierService {
     /**
      * Delete supplier (soft delete)
      */
-    async deleteSupplier(id) {
-        const existingSupplier = await supplierRepository.findById(id);
+    async deleteSupplier(id, storeId = null) {
+        const existingSupplier = await supplierRepository.findById(id, storeId);
 
         if (!existingSupplier) {
             throw ApiError.notFound('Supplier not found');
@@ -96,8 +102,12 @@ class SupplierService {
     /**
      * Get supplier statistics
      */
-    async getSupplierStats() {
-        return await supplierRepository.getStats();
+    async getSupplierStats(storeId) {
+        if (!storeId) {
+            throw ApiError.badRequest('storeId is required');
+        }
+
+        return await supplierRepository.getStats(storeId);
     }
 }
 

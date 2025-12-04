@@ -147,14 +147,14 @@ export default function ChatPage() {
                                 <div>
                                     <div
                                         className={`px-4 py-3 rounded-2xl ${message.type === "ai"
-                                            ? "bg-[#dbeafe] text-[#1e3a8a]"
+                                            ? "bg-blue-500 text-white"
                                             : message.type === "human"
-                                                ? "bg-[#d1fae5] text-[#065f46]"
-                                                : "bg-[#f1f5f9] text-[#0f172a]"
+                                                ? "bg-[#059669] text-white"
+                                                : "bg-[#0ea5a3] text-white"
                                             }`}
                                     >
                                         {message.type === "ai" ? (
-                                            <div className="prose prose-sm max-w-none prose-blue dark:prose-invert">
+                                            <div className="prose prose-sm max-w-none prose-invert">
                                                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
                                                     {message.content}
                                                 </ReactMarkdown>
@@ -192,11 +192,11 @@ export default function ChatPage() {
                                 <div className="w-8 h-8 rounded-full bg-blue-100 flex items-center justify-center">
                                     <FiCpu className="w-4 h-4 text-blue-600" />
                                 </div>
-                                <div className="px-4 py-3 bg-[#dbeafe] rounded-2xl">
+                                <div className="px-4 py-3 bg-blue-500 rounded-2xl">
                                     <div className="flex gap-1">
-                                        <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }}></div>
-                                        <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }}></div>
-                                        <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }}></div>
+                                        <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: "0ms" }}></div>
+                                        <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: "150ms" }}></div>
+                                        <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: "300ms" }}></div>
                                     </div>
                                 </div>
                             </div>

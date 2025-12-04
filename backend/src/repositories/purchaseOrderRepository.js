@@ -9,10 +9,15 @@ class PurchaseOrderRepository {
     /**
      * Find suppliers with pagination
      */
-    async findSuppliers({ page = 1, limit = 20, search = '', status }) {
+    async findSuppliers({ storeId, page = 1, limit = 20, search = '', status }) {
+        if (!storeId) {
+            throw new Error('storeId is required for findSuppliers');
+        }
+
         const skip = (page - 1) * limit;
 
         const where = {
+            storeId,
             deletedAt: null,
             ...(status && { status }),
             ...(search && {
@@ -40,12 +45,19 @@ class PurchaseOrderRepository {
     /**
      * Find supplier by ID
      */
-    async findSupplierById(id) {
+    async findSupplierById(id, storeId = null) {
+        const where = {
+            id,
+            deletedAt: null,
+            ...(storeId && { storeId })
+        };
+
         return await prisma.supplier.findUnique({
-            where: { id, deletedAt: null },
+            where,
             include: {
                 licenses: true,
                 purchaseOrders: {
+                    where: storeId ? { storeId } : {},
                     take: 10,
                     orderBy: { createdAt: 'desc' },
                 },
@@ -57,6 +69,10 @@ class PurchaseOrderRepository {
      * Create supplier
      */
     async createSupplier(supplierData) {
+        if (!supplierData.storeId) {
+            throw new Error('storeId is required to create a supplier');
+        }
+
         return await prisma.supplier.create({
             data: supplierData,
         });

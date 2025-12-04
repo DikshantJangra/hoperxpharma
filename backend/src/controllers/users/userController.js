@@ -56,7 +56,7 @@ const getOnboardingStatus = asyncHandler(async (req, res) => {
  * @route GET /api/v1/users
  */
 const getUsers = asyncHandler(async (req, res) => {
-    const users = await userService.getAllUsers();
+    const users = await userService.getAllUsers(req.user.id);
 
     res.status(200).json(
         new ApiResponse(200, users, 'Users retrieved successfully')

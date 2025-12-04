@@ -7,8 +7,8 @@ const { completeOnboardingSchema } = require('../../validators/store.validator')
 
 const router = express.Router();
 
-router.get('/progress', optionalAuth, progressController.getProgress);
-router.post('/progress', optionalAuth, progressController.saveProgress);
+router.get('/progress', authenticate, progressController.getProgress);
+router.post('/progress', authenticate, progressController.saveProgress);
 router.post(
     '/complete',
     authenticate,

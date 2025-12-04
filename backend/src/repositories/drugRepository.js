@@ -10,7 +10,11 @@ class DrugRepository {
      * Search drugs with fuzzy matching
      * Uses Prisma's contains for partial matching (MVP approach)
      */
-    async searchDrugs(query, limit = 20) {
+    async searchDrugs(query, storeId, limit = 20) {
+        if (!storeId) {
+            throw new Error('storeId is required for searchDrugs');
+        }
+
         const searchQuery = query.toLowerCase();
 
         // Use raw SQL for better ranking control
@@ -34,9 +38,12 @@ class DrugRepository {
                 END as priority
             FROM "Drug"
             WHERE 
-                LOWER(name) LIKE ${`%${searchQuery}%`}
-                OR LOWER(manufacturer) LIKE ${`%${searchQuery}%`}
-                OR LOWER(form) LIKE ${`%${searchQuery}%`}
+                "storeId" = ${storeId}
+                AND (
+                    LOWER(name) LIKE ${`%${searchQuery}%`}
+                    OR LOWER(manufacturer) LIKE ${`%${searchQuery}%`}
+                    OR LOWER(form) LIKE ${`%${searchQuery}%`}
+                )
             ORDER BY priority ASC, name ASC
             LIMIT ${limit}
         `;
@@ -48,11 +55,14 @@ class DrugRepository {
     /**
      * Find drug by ID
      */
-    async findDrugById(id) {
+    async findDrugById(id, storeId = null) {
+        const where = storeId ? { id, storeId } : { id };
+
         return await prisma.drug.findUnique({
-            where: { id },
+            where,
             include: {
                 inventory: {
+                    where: storeId ? { storeId, deletedAt: null } : { deletedAt: null },
                     select: {
                         id: true,
                         storeId: true,
@@ -70,9 +80,14 @@ class DrugRepository {
     /**
      * Find drug by name and strength (for deduplication during import)
      */
-    async findDrugByNameAndStrength(name, strength) {
+    async findDrugByNameAndStrength(name, strength, storeId) {
+        if (!storeId) {
+            throw new Error('storeId is required for findDrugByNameAndStrength');
+        }
+
         return await prisma.drug.findFirst({
             where: {
+                storeId,
                 name: {
                     equals: name,
                     mode: 'insensitive'
@@ -118,6 +133,10 @@ class DrugRepository {
      * Create new drug
      */
     async createDrug(drugData) {
+        if (!drugData.storeId) {
+            throw new Error('storeId is required to create a drug');
+        }
+
         return await prisma.drug.create({
             data: drugData
         });
@@ -136,17 +155,22 @@ class DrugRepository {
     /**
      * Find all drugs with pagination
      */
-    async findAllDrugs({ page = 1, limit = 20, search = '' }) {
+    async findAllDrugs({ storeId, page = 1, limit = 20, search = '' }) {
+        if (!storeId) {
+            throw new Error('storeId is required for findAllDrugs');
+        }
+
         const skip = (page - 1) * limit;
 
-        const where = search
-            ? {
+        const where = {
+            storeId,
+            ...(search && {
                 OR: [
                     { name: { contains: search, mode: 'insensitive' } },
                     { manufacturer: { contains: search, mode: 'insensitive' } }
                 ]
-            }
-            : {};
+            })
+        };
 
         const [drugs, total] = await Promise.all([
             prisma.drug.findMany({
@@ -166,6 +190,10 @@ class DrugRepository {
      * Optimized to handle large drug databases
      */
     async getDrugsNeedingReorder(storeId) {
+        if (!storeId) {
+            throw new Error('storeId is required for getDrugsNeedingReorder');
+        }
+
         // Use raw SQL for better performance with large datasets
         const suggestions = await prisma.$queryRaw`
             SELECT 
@@ -192,7 +220,8 @@ class DrugRepository {
             LEFT JOIN "InventoryBatch" ib ON ib."drugId" = d.id 
                 AND ib."storeId" = ${storeId}
                 AND ib."deletedAt" IS NULL
-            WHERE d."lowStockThreshold" IS NOT NULL
+            WHERE d."storeId" = ${storeId}
+                AND d."lowStockThreshold" IS NOT NULL
             GROUP BY d.id, d.name, d.strength, d.form, d.manufacturer, d."lowStockThreshold", d."gstRate", d."defaultUnit"
             HAVING COALESCE(SUM(ib."quantityInStock"), 0) < d."lowStockThreshold"
             ORDER BY 

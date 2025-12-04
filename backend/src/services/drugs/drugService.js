@@ -11,8 +11,12 @@ class DrugService {
     /**
      * Search drugs with fuzzy matching
      */
-    async searchDrugs({ query, supplierId, limit }) {
-        const drugs = await drugRepository.searchDrugs(query, limit);
+    async searchDrugs({ query, storeId, supplierId, limit }) {
+        if (!storeId) {
+            throw ApiError.badRequest('storeId is required');
+        }
+
+        const drugs = await drugRepository.searchDrugs(query, storeId, limit);
 
         // If supplierId provided, filter by supplier's catalog
         // This is a placeholder - enhance when supplier catalog is implemented
@@ -28,7 +32,7 @@ class DrugService {
      * Get drug by ID with additional details
      */
     async getDrugById(id, storeId) {
-        const drug = await drugRepository.findDrugById(id);
+        const drug = await drugRepository.findDrugById(id, storeId);
 
         if (!drug) {
             throw ApiError.notFound('Drug not found');
@@ -95,8 +99,13 @@ class DrugService {
     /**
      * Create or update drug from CSV row
      */
-    async createOrUpdateDrugFromRow(row) {
+    async createOrUpdateDrugFromRow(row, storeId) {
+        if (!storeId) {
+            throw new Error('storeId is required for drug import');
+        }
+
         const drugData = {
+            storeId,
             name: row.name || row.drug_name || row.product_name,
             strength: row.strength || row.dosage,
             form: row.form || row.dosage_form || 'Tablet',
@@ -114,10 +123,11 @@ class DrugService {
             throw new Error('Drug name is required');
         }
 
-        // Check if drug already exists by name + strength
+        // Check if drug already exists by name + strength in this store
         const existing = await drugRepository.findDrugByNameAndStrength(
             drugData.name,
-            drugData.strength
+            drugData.strength,
+            storeId
         );
 
         if (existing) {
@@ -147,8 +157,12 @@ class DrugService {
             throw ApiError.badRequest('Drug name is required');
         }
 
+        if (!drugData.storeId) {
+            throw ApiError.badRequest('storeId is required');
+        }
+
         const drug = await drugRepository.createDrug(drugData);
-        logger.info(`Drug created: ${drug.name} (ID: ${drug.id})`);
+        logger.info(`Drug created: ${drug.name} (ID: ${drug.id}) for store ${drugData.storeId}`);
 
         return drug;
     }
@@ -156,8 +170,8 @@ class DrugService {
     /**
      * Update drug
      */
-    async updateDrug(id, drugData) {
-        const existing = await drugRepository.findDrugById(id);
+    async updateDrug(id, drugData, storeId = null) {
+        const existing = await drugRepository.findDrugById(id, storeId);
 
         if (!existing) {
             throw ApiError.notFound('Drug not found');

@@ -7,7 +7,12 @@ const asyncHandler = require('../../middlewares/asyncHandler');
  * @access  Admin
  */
 exports.listRoles = asyncHandler(async (req, res) => {
-    const roles = await roleService.getAllRoles();
+    const roles = await roleService.getAllRoles(req.user.id);
+
+    console.log('🔍 Roles API Debug:');
+    console.log('Total roles:', roles.length);
+    console.log('Built-in roles:', roles.filter(r => r.builtIn).map(r => r.name));
+    console.log('Custom roles:', roles.filter(r => !r.builtIn).map(r => r.name));
 
     res.json({
         success: true,

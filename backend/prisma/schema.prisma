@@ -7,8 +7,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ============================================================================
@@ -211,15 +212,18 @@ model Role {
   description String?
   builtIn     Boolean @default(false)
   category    String? // e.g., "clinical", "administrative", "system"
+  storeId     String? // NULL for built-in/global roles, set for store-specific custom roles
 
   permissions RolePermission[]
   userRoles   UserRoleAssignment[]
+  store       Store?               @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([builtIn])
   @@index([category])
+  @@index([storeId])
 }
 
 model Permission {
@@ -330,11 +334,14 @@ model Store {
   devices        HardwareDevice[]
   subscription   Subscription?
   userRoles      UserRoleAssignment[]
+  roles          Role[] // Custom roles created by this store
 
   // Relations to other tables
   patients        Patient[]
   prescriptions   Prescription[]
   inventory       InventoryBatch[]
+  suppliers       Supplier[]
+  drugs           Drug[]
   sales           Sale[]
   purchaseOrders  PurchaseOrder[]
   expenses        Expense[]
@@ -590,7 +597,8 @@ model InteractionCheckLog {
 
 model Drug {
   id                   String  @id @default(cuid())
-  rxcui                String? @unique // RxNorm ID
+  storeId              String
+  rxcui                String? // RxNorm ID (removed @unique for multi-store)
   name                 String
   genericName          String? // Generic/scientific name
   strength             String?
@@ -607,6 +615,7 @@ model Drug {
   description  String?   @db.Text
   lastSyncedAt DateTime?
 
+  store             Store                @relation(fields: [storeId], references: [id], onDelete: Cascade)
   inventory         InventoryBatch[]
   prescriptionItems PrescriptionItem[]
   poItems           PurchaseOrderItem[]
@@ -618,6 +627,9 @@ model Drug {
 
   @@index([name])
   @@index([hsnCode])
+  @@index([storeId])
+  @@index([storeId, name])
+  @@index([storeId, hsnCode])
 }
 
 model TaxRate {
@@ -942,6 +954,7 @@ model DispenseWorkflowStep {
 
 model Supplier {
   id       String  @id @default(cuid())
+  storeId  String
   name     String
   category String // Distributor, Manufacturer, Wholesaler
   status   String // Active, Inactive
@@ -966,6 +979,7 @@ model Supplier {
   paymentTerms String? // Net 30, Net 60
   creditLimit  Decimal? @db.Decimal(12, 2)
 
+  store          Store             @relation(fields: [storeId], references: [id], onDelete: Cascade)
   licenses       SupplierLicense[]
   purchaseOrders PurchaseOrder[]
   returns        SupplierReturn[]
@@ -976,6 +990,9 @@ model Supplier {
 
   @@index([gstin])
   @@index([deletedAt])
+  @@index([storeId])
+  @@index([storeId, status])
+  @@index([storeId, deletedAt])
 }
 
 model SupplierLicense {
