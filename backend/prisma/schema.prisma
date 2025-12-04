@@ -308,8 +308,13 @@ model Store {
   displayName  String
   email        String  @unique
   phoneNumber  String
+  whatsapp     String? // WhatsApp number for business communication
   businessType String?
   logoUrl      String?
+
+  // Regulatory/License Information
+  gstin    String? // GST Identification Number
+  dlNumber String? // Drug License Number
 
   // Address
   addressLine1 String

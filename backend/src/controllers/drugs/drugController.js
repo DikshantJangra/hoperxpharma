@@ -1,6 +1,7 @@
 const drugService = require('../../services/drugs/drugService');
 const asyncHandler = require('../../middlewares/asyncHandler');
 const ApiResponse = require('../../utils/ApiResponse');
+const ApiError = require('../../utils/ApiError');
 const multer = require('multer');
 const path = require('path');
 
@@ -35,8 +36,16 @@ const searchDrugs = asyncHandler(async (req, res) => {
         return res.status(200).json(ApiResponse.success([]));
     }
 
+    // Extract storeId from authenticated user
+    const storeId = req.user.stores?.find(s => s.isPrimary)?.id || req.user.stores?.[0]?.id;
+
+    if (!storeId) {
+        throw ApiError.badRequest('No store associated with user');
+    }
+
     const drugs = await drugService.searchDrugs({
         query: q.trim(),
+        storeId,
         supplierId,
         limit: parseInt(limit)
     });
@@ -76,7 +85,14 @@ const importDrugsFromCSV = asyncHandler(async (req, res) => {
  * Create a new drug manually
  */
 const createDrug = asyncHandler(async (req, res) => {
-    const drug = await drugService.createDrug(req.body);
+    const storeId = req.user.stores?.find(s => s.isPrimary)?.id || req.user.stores?.[0]?.id;
+
+    if (!storeId) {
+        throw ApiError.badRequest('No store associated with user');
+    }
+
+    const drugData = { ...req.body, storeId };
+    const drug = await drugService.createDrug(drugData);
 
     const response = ApiResponse.created(drug, 'Drug created successfully');
     res.status(response.statusCode).json(response);
@@ -97,7 +113,15 @@ const updateDrug = asyncHandler(async (req, res) => {
  * Get all drugs (paginated)
  */
 const getAllDrugs = asyncHandler(async (req, res) => {
-    const { drugs, total } = await drugService.getAllDrugs(req.query);
+    // Extract storeId from authenticated user
+    const storeId = req.user.stores?.find(s => s.isPrimary)?.id || req.user.stores?.[0]?.id;
+
+    if (!storeId) {
+        throw ApiError.badRequest('No store associated with user');
+    }
+
+    const filters = { ...req.query, storeId };
+    const { drugs, total } = await drugService.getAllDrugs(filters);
 
     const response = ApiResponse.paginated(drugs, {
         page: parseInt(req.query.page) || 1,

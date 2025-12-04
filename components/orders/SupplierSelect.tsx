@@ -34,8 +34,8 @@ export default function SupplierSelect({ value, onChange }: SupplierSelectProps)
 
       const response = await supplierApi.getSuppliers({
         page: 1,
-        limit: 100, // Get more suppliers for selection
-        status: 'Active', // Only show active suppliers
+        limit: 50,
+        status: 'Active',
       });
 
       console.log('📦 [SupplierSelect] API Response:', response);

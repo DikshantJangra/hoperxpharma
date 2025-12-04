@@ -213,20 +213,19 @@ export function useStoreProfile(storeId: string) {
 
     try {
       // Map back to API structure
+      // NOTE: gstin, dlNumber, and whatsapp are NOT in the Store model
+      // They should be managed via StoreLicense table separately
       const updateData: Partial<Store> = {
         name: draftProfile.name,
         displayName: draftProfile.displayName,
         phoneNumber: draftProfile.primaryContact.phone,
         email: draftProfile.primaryContact.email,
-        whatsapp: draftProfile.primaryContact.whatsapp,
         addressLine1: draftProfile.address.line1,
         addressLine2: draftProfile.address.line2,
         city: draftProfile.address.city,
         state: draftProfile.address.state,
         pinCode: draftProfile.address.postalCode,
         landmark: draftProfile.address.landmark,
-        gstin: draftProfile.gst.gstin,
-        dlNumber: draftProfile.licenses.dlNumber,
         businessType: draftProfile.businessType,
         is24x7: draftProfile.operations.is24x7,
         homeDelivery: draftProfile.operations.homeDelivery,
