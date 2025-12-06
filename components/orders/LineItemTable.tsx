@@ -68,7 +68,7 @@ export default function LineItemTable({
     const packSize = packSizeMatch ? parseInt(packSizeMatch[2]) : 10;
 
     onAddLine({
-      // drugId is undefined for catalog medicines (they don't exist in Drug table)
+      drugId: medicine.id, // Use medicine ID as drugId
       description: `${medicine.name} - ${medicine.composition}`,
       packUnit: packUnit,
       packSize: packSize,
