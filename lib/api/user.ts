@@ -60,6 +60,9 @@ export interface Store {
     phoneNumber: string;
     businessType?: string;
     logoUrl?: string;
+    gstin?: string; // GST Identification Number
+    dlNumber?: string; // Drug License Number
+    pan?: string; // PAN Card Number
     addressLine1: string;
     addressLine2?: string;
     city: string;
@@ -248,15 +251,13 @@ export function getPrimaryStore(user: UserProfile | null): Store | null {
 }
 
 /**
- * Get store GSTIN from licenses
+ * Get store GSTIN
  */
 export function getStoreGSTIN(store: Store | null): string {
-    if (!store?.licenses || store.licenses.length === 0) {
+    if (!store) {
         return '-';
     }
-
-    const gstLicense = store.licenses.find(l => l.type === 'GSTIN');
-    return gstLicense?.number || '-';
+    return store.gstin || '-';
 }
 
 /**
