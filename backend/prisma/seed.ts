@@ -339,55 +339,9 @@ async function main() {
 
     console.log('✅ Created expense categories')
 
-    // ============================================================================
-    // 7. SAMPLE DRUGS
-    // ============================================================================
-    console.log('💊 Creating sample drugs...')
-
-    const sampleDrugs = [
-        { name: 'Paracetamol 500mg', strength: '500mg', form: 'Tablet', manufacturer: 'Generic Pharma', hsnCode: '3004', gstRate: 12, requiresPrescription: false },
-        { name: 'Amoxicillin 500mg', strength: '500mg', form: 'Capsule', manufacturer: 'Generic Pharma', hsnCode: '3004', gstRate: 12, requiresPrescription: true },
-        { name: 'Omeprazole 20mg', strength: '20mg', form: 'Capsule', manufacturer: 'Generic Pharma', hsnCode: '3004', gstRate: 12, requiresPrescription: true },
-        { name: 'Metformin 500mg', strength: '500mg', form: 'Tablet', manufacturer: 'Generic Pharma', hsnCode: '3004', gstRate: 12, requiresPrescription: true },
-        { name: 'Aspirin 75mg', strength: '75mg', form: 'Tablet', manufacturer: 'Generic Pharma', hsnCode: '3004', gstRate: 12, requiresPrescription: false }
-    ]
-
-    for (const drugData of sampleDrugs) {
-        const drug = await prisma.drug.create({
-            data: {
-                ...drugData,
-                defaultUnit: 'Strips',
-                lowStockThreshold: 10,
-                store: {
-                    connect: { id: demoStore.id }
-                }
-            }
-        })
-
-        // Create 2 batches for each drug
-        for (let i = 0; i < 2; i++) {
-            const expiryDate = new Date()
-            expiryDate.setMonth(expiryDate.getMonth() + 12 + i * 6) // 12-18 months from now
-
-            const mrp = Math.floor(Math.random() * 200) + 50 // Random MRP between 50-250
-            const purchaseRate = Math.floor(mrp * 0.7) // 70% of MRP
-
-            await prisma.inventoryBatch.create({
-                data: {
-                    drugId: drug.id,
-                    storeId: demoStore.id,
-                    batchNumber: `BATCH-${Date.now()}-${i}`,
-                    expiryDate,
-                    quantityInStock: Math.floor(Math.random() * 200) + 50, // 50-250 units
-                    mrp,
-                    purchasePrice: purchaseRate,
-                    supplierId: null
-                }
-            })
-        }
-    }
-
-    console.log('✅ Created sample drugs with batches')
+    // NOTE: Sample drugs and inventory are NOT created in seed
+    // Each store should add their own inventory through the proper workflow
+    // (Purchase Orders -> GRN -> Inventory)
 
     console.log('\n🎉 Database seeding completed successfully!')
     console.log('\n📝 Demo Credentials:')

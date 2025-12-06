@@ -45,11 +45,8 @@ export default function Login() {
 
             toast.success('Login successful!');
 
-            // Wait a bit for state to update
-            await new Promise(resolve => setTimeout(resolve, 200));
-
             // AuthProvider will handle redirection automatically based on state change
-            router.push("/dashboard");
+            // No manual redirect needed here
         } catch (error: any) {
             const toast = (await import('react-hot-toast')).default;
 
