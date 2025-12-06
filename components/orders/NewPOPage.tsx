@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { usePOComposer } from '@/hooks/usePOComposer';
+import { useAuthStore } from '@/lib/store/auth-store';
 import SupplierSelect from './SupplierSelect';
 import SuggestionsPanel from './SuggestionsPanel';
 import LineItemTable from './LineItemTable';
@@ -19,8 +20,18 @@ interface NewPOPageProps {
 
 export default function NewPOPage({ storeId, poId }: NewPOPageProps) {
   const router = useRouter();
+  const { primaryStore } = useAuthStore();
   const [showSuggestions, setShowSuggestions] = useState(true);
   const [isLoadingPO, setIsLoadingPO] = useState(!!poId);
+
+  // Build store address from primaryStore
+  const storeAddress = primaryStore ? [
+    primaryStore.addressLine1,
+    primaryStore.addressLine2,
+    primaryStore.city,
+    primaryStore.state,
+    primaryStore.pinCode
+  ].filter(Boolean).join(', ') : 'Loading store address...';
 
   const {
     po,
@@ -237,10 +248,11 @@ export default function NewPOPage({ storeId, poId }: NewPOPageProps) {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="space-y-6">
                 <DeliveryCard
-                  value={po.deliveryAddress}
-                  expectedDate={po.expectedDeliveryDate}
-                  onChange={(address) => setPO(prev => ({ ...prev, deliveryAddress: address }))}
-                  onDateChange={(date) => setPO(prev => ({ ...prev, expectedDeliveryDate: date }))}
+                  storeAddress={storeAddress}
+                  deliveryDate={po.expectedDeliveryDate || ''}
+                  notes={po.notes || ''}
+                  onDeliveryDateChange={(date) => setPO(prev => ({ ...prev, expectedDeliveryDate: date }))}
+                  onNotesChange={(notes) => setPO(prev => ({ ...prev, notes }))}
                 />
                 <AttachmentUploader
                   poId={po.poId}
