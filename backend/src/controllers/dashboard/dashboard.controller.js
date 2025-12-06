@@ -13,8 +13,16 @@ const prisma = database.getClient();
 const getDashboardStats = asyncHandler(async (req, res) => {
     const storeId = req.user.primaryStoreId;
 
+    // If user has no store, return zero stats
     if (!storeId) {
-        throw new ApiError(400, 'User has no associated store');
+        return res.status(200).json(new ApiResponse(200, {
+            revenue: 0,
+            salesCount: 0,
+            prescriptions: 0,
+            readyForPickup: 0,
+            criticalStock: 0,
+            expiringSoon: 0
+        }));
     }
 
     const today = new Date();
@@ -273,8 +281,9 @@ const getActionQueues = asyncHandler(async (req, res) => {
 const getInsights = asyncHandler(async (req, res) => {
     const storeId = req.user.primaryStoreId;
 
+    // If user has no store, return empty insights
     if (!storeId) {
-        throw new ApiError(400, 'User has no associated store');
+        return res.status(200).json(new ApiResponse(200, []));
     }
 
     // Get top 3 critical/high alerts as insights
