@@ -14,6 +14,7 @@ export interface StoreIdentityData {
     storeLogo: string;
     displayName: string;
     phoneNumber: string;
+    email: string;
 }
 
 export interface LicensingData {
