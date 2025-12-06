@@ -53,76 +53,84 @@ export const alertsApi = {
         const queryString = params.toString();
         const url = `/alerts${queryString ? `?${queryString}` : ''}`;
 
-        return baseFetch<Alert[]>(url);
+        const response = await baseFetch<{ data: Alert[] }>(url);
+        return response.data || [];
     },
 
     /**
      * Get alert counts
      */
     async getAlertCounts(): Promise<AlertCounts> {
-        return baseFetch<AlertCounts>('/alerts/count');
+        const response = await baseFetch<{ data: AlertCounts }>('/alerts/count');
+        return response.data;
     },
 
     /**
      * Get alert by ID
      */
     async getAlertById(id: string): Promise<Alert> {
-        return baseFetch<Alert>(`/alerts/${id}`);
+        const response = await baseFetch<{ data: Alert }>(`/alerts/${id}`);
+        return response.data;
     },
 
     /**
      * Create a new alert
      */
     async createAlert(data: CreateAlertData): Promise<Alert> {
-        return baseFetch<Alert>('/alerts', {
+        const response = await baseFetch<{ data: Alert }>('/alerts', {
             method: 'POST',
             body: JSON.stringify(data),
         });
+        return response.data;
     },
 
     /**
      * Acknowledge an alert
      */
     async acknowledgeAlert(id: string): Promise<Alert> {
-        return baseFetch<Alert>(`/alerts/${id}/acknowledge`, {
+        const response = await baseFetch<{ data: Alert }>(`/alerts/${id}/acknowledge`, {
             method: 'PATCH',
         });
+        return response.data;
     },
 
     /**
      * Resolve an alert
      */
     async resolveAlert(id: string, resolution?: string): Promise<Alert> {
-        return baseFetch<Alert>(`/alerts/${id}/resolve`, {
+        const response = await baseFetch<{ data: Alert }>(`/alerts/${id}/resolve`, {
             method: 'PATCH',
             body: JSON.stringify({ resolution }),
         });
+        return response.data;
     },
 
     /**
      * Snooze an alert
      */
     async snoozeAlert(id: string, snoozeUntil: Date): Promise<Alert> {
-        return baseFetch<Alert>(`/alerts/${id}/snooze`, {
+        const response = await baseFetch<{ data: Alert }>(`/alerts/${id}/snooze`, {
             method: 'PATCH',
             body: JSON.stringify({ snoozeUntil: snoozeUntil.toISOString() }),
         });
+        return response.data;
     },
 
     /**
      * Dismiss an alert
      */
     async dismissAlert(id: string): Promise<Alert> {
-        return baseFetch<Alert>(`/alerts/${id}/dismiss`, {
+        const response = await baseFetch<{ data: Alert }>(`/alerts/${id}/dismiss`, {
             method: 'PATCH',
         });
+        return response.data;
     },
 
     /**
      * Delete an alert (admin only)
      */
     async deleteAlert(id: string): Promise<void> {
-        return baseFetch<void>(`/alerts/${id}`, {
+        await baseFetch<{ data: null }>(`/alerts/${id}`, {
             method: 'DELETE',
         });
     },
