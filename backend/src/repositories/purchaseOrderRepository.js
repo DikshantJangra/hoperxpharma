@@ -185,13 +185,53 @@ class PurchaseOrderRepository {
                 data: poData,
             });
 
+            // For each item, ensure the drug exists in the Drug table
+            // If drugId doesn't exist, create it from the item description
+            const itemsWithValidDrugs = await Promise.all(
+                items.map(async (item) => {
+                    let drugId = item.drugId;
+
+                    // Check if drug exists
+                    const drugExists = await tx.drug.findUnique({
+                        where: { id: drugId }
+                    });
+
+                    // If drug doesn't exist, create it
+                    if (!drugExists) {
+                        // Extract drug info from description
+                        const description = item.description || '';
+                        const parts = description.split(' - ');
+                        const name = parts[0] || 'Unknown Medicine';
+                        const composition = parts[1] || '';
+
+                        const newDrug = await tx.drug.create({
+                            data: {
+                                id: drugId, // Use the catalog medicine ID
+                                name: name,
+                                genericName: composition || name,
+                                strength: '', // Will be updated later
+                                form: 'Tablet', // Default
+                                manufacturer: '', // Will be updated later
+                                schedule: 'OTC', // Default
+                                gstRate: item.gstPercent || 12,
+                                storeId: poData.storeId,
+                            }
+                        });
+
+                        drugId = newDrug.id;
+                    }
+
+                    return { ...item, drugId };
+                })
+            );
+
             // Transform items to match Prisma schema
             const poItems = await Promise.all(
-                items.map((item) =>
+                itemsWithValidDrugs.map((item) =>
                     tx.purchaseOrderItem.create({
                         data: {
                             poId: po.id,
-                            ...(item.drugId && { drugId: item.drugId }), // Only include drugId if it exists
+                            drugId: item.drugId,
                             quantity: item.qty,  // Transform qty → quantity
                             unitPrice: item.pricePerUnit,  // Transform pricePerUnit → unitPrice
                             discountPercent: item.discountPercent || 0,
