@@ -16,6 +16,8 @@ const geminiRoutes = require('../gemini.routes');
 const whatsappRoutes = require('../whatsapp');
 const auditRoutes = require('./audit.routes');
 const reportsRoutes = require('./reports.routes');
+const alertRoutes = require('./alerts.routes');
+const dashboardRoutes = require('./dashboard.routes');
 
 const router = express.Router();
 
@@ -39,6 +41,8 @@ router.use('/gemini', geminiRoutes);
 router.use('/whatsapp', whatsappRoutes);
 router.use('/audit', auditRoutes);
 router.use('/reports', reportsRoutes);
+router.use('/alerts', alertRoutes);
+router.use('/dashboard', dashboardRoutes);
 
 
 

@@ -11,8 +11,7 @@ import ActionQueues from "@/components/dashboard/overview/ActionQueues"
 import KeyboardShortcuts from "@/components/dashboard/KeyboardShortcuts"
 import OfflineIndicator from "@/components/dashboard/overview/OfflineIndicator"
 import { useAuthStore } from "@/lib/store/auth-store"
-import { salesApi } from "@/lib/api/sales"
-import { inventoryApi } from "@/lib/api/inventory"
+import { dashboardApi } from "@/lib/api/dashboard"
 
 const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
@@ -27,8 +26,8 @@ export default function OverviewPage() {
     const [loading, setLoading] = useState(true)
     const [stats, setStats] = useState({
         revenue: 0,
-        prescriptions: 0, // This would come from prescription API if available
-        readyForPickup: 0, // This would come from order status API
+        prescriptions: 0,
+        readyForPickup: 0,
         criticalStock: 0,
         expiringSoon: 0
     })
@@ -44,19 +43,15 @@ export default function OverviewPage() {
             try {
                 setLoading(true)
 
-                // Fetch data in parallel
-                const [salesStats, lowStockAlerts, expiringItems] = await Promise.all([
-                    salesApi.getStats('daily'),
-                    inventoryApi.getLowStockAlerts(),
-                    inventoryApi.getExpiringItems()
-                ])
+                // Fetch real dashboard stats
+                const dashboardStats = await dashboardApi.getStats()
 
                 setStats({
-                    revenue: salesStats.totalRevenue || 0,
-                    prescriptions: 0, // Placeholder until prescription module is ready
-                    readyForPickup: 0, // Placeholder until order status tracking is ready
-                    criticalStock: lowStockAlerts.total || 0,
-                    expiringSoon: expiringItems.total || 0
+                    revenue: dashboardStats.revenue || 0,
+                    prescriptions: dashboardStats.prescriptions || 0,
+                    readyForPickup: dashboardStats.readyForPickup || 0,
+                    criticalStock: dashboardStats.criticalStock || 0,
+                    expiringSoon: dashboardStats.expiringSoon || 0
                 })
             } catch (error) {
                 console.error("Failed to fetch dashboard data:", error)

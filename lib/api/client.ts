@@ -249,6 +249,9 @@ export const apiClient = {
     },
 };
 
+// Export baseFetch for direct use in API modules
+export { baseFetch };
+
 // Load tokens on initialization (client-side only)
 if (typeof window !== 'undefined') {
     tokenManager.loadTokens();
