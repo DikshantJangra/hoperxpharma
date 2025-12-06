@@ -7,17 +7,26 @@ const prisma = database.getClient();
  * Inventory Repository - Data access layer for inventory operations
  */
 class InventoryRepository {
-    /**
-     * Find drugs with stock information for a store
-     */
-    async findDrugs({ page = 1, limit = 20, search = '', storeId, sortConfig }) {
-        const skip = (page - 1) * limit;
+    async findDrugs({
+        page = 1,
+        limit = 20,
+        search = '',
+        storeId,
+        sortConfig,
+        stockStatus = [],
+        expiryWindow = [],
+        storage = []
+    }) {
+        const pageNum = parseInt(page);
+        const limitNum = parseInt(limit);
+        const skip = (pageNum - 1) * limitNum;
 
         const where = {
             ...(search && {
                 OR: [
                     { name: { contains: search, mode: 'insensitive' } },
                     { manufacturer: { contains: search, mode: 'insensitive' } },
+                    { hsnCode: { contains: search } },
                     {
                         inventory: {
                             some: {
@@ -31,29 +40,96 @@ class InventoryRepository {
             }),
         };
 
+        // Add storage filters based on schedule field
+        if (storage && storage.length > 0) {
+            const scheduleConditions = [];
+            if (storage.includes('schedule_h')) {
+                scheduleConditions.push({ schedule: 'H' });
+            }
+            if (storage.includes('controlled')) {
+                scheduleConditions.push({ schedule: { in: ['H1', 'X'] } });
+            }
+            // Note: cold_chain and ambient filters are not supported as the Drug model
+            // doesn't have a requiresColdStorage field
+            if (scheduleConditions.length > 0) {
+                where.OR = where.OR || [];
+                where.OR.push(...scheduleConditions);
+            }
+        }
+
         // Build dynamic orderBy
         const orderBy = buildOrderBy(sortConfig, { name: 'asc' });
 
-        const drugs = await prisma.drug.findMany({
-            where,
-            skip,
-            take: limit,
-            orderBy,
-            include: {
-                inventory: {
-                    where: { storeId, deletedAt: null },
-                    select: {
-                        id: true,
-                        batchNumber: true,
-                        quantityInStock: true,
-                        mrp: true,
-                        expiryDate: true,
+        const [drugs, total] = await Promise.all([
+            prisma.drug.findMany({
+                where,
+                skip,
+                take: limitNum,
+                orderBy,
+                include: {
+                    inventory: {
+                        where: { storeId, deletedAt: null },
+                        select: {
+                            id: true,
+                            batchNumber: true,
+                            quantityInStock: true,
+                            mrp: true,
+                            purchasePrice: true,
+                            expiryDate: true,
+                            location: true,
+                            supplierId: true
+                        },
+                        orderBy: { expiryDate: 'asc' }
                     },
                 },
-            },
-        });
+            }),
+            prisma.drug.count({ where }),
+        ]);
 
-        return drugs;
+        // Post-process for stock status and expiry filters
+        let filteredDrugs = drugs;
+
+        // Apply stock status filters
+        if (stockStatus && stockStatus.length > 0) {
+            filteredDrugs = filteredDrugs.filter(drug => {
+                const totalStock = drug.inventory?.reduce((sum, batch) => sum + batch.quantityInStock, 0) || 0;
+                const lowStockThreshold = drug.lowStockThreshold || 10;
+
+                return stockStatus.some(status => {
+                    if (status === 'in_stock') return totalStock > lowStockThreshold;
+                    if (status === 'out_of_stock') return totalStock === 0;
+                    if (status === 'low_stock') return totalStock > 0 && totalStock <= lowStockThreshold;
+                    if (status === 'overstocked') return totalStock > lowStockThreshold * 3;
+                    return false;
+                });
+            });
+        }
+
+        // Apply expiry window filters
+        if (expiryWindow && expiryWindow.length > 0) {
+            filteredDrugs = filteredDrugs.filter(drug => {
+                if (!drug.inventory || drug.inventory.length === 0) return false;
+
+                return drug.inventory.some(batch => {
+                    const daysToExpiry = Math.floor(
+                        (new Date(batch.expiryDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
+                    );
+
+                    return expiryWindow.some(window => {
+                        if (window === '<7days') return daysToExpiry < 7 && daysToExpiry >= 0;
+                        if (window === '<30days') return daysToExpiry < 30 && daysToExpiry >= 0;
+                        if (window === '30-90days') return daysToExpiry >= 30 && daysToExpiry <= 90;
+                        if (window === '>90days') return daysToExpiry > 90;
+                        return false;
+                    });
+                });
+            });
+        }
+
+        return {
+            drugs: filteredDrugs,
+            total: filteredDrugs.length
+        };
     }
 
     /**
@@ -267,9 +343,12 @@ class InventoryRepository {
      * Search drugs with stock availability for POS
      */
     async searchDrugsWithStock(storeId, searchTerm) {
-        // Search drugs that have inventory in this store
-        return await prisma.drug.findMany({
+        console.log('🔍 POS Search - StoreId:', storeId, 'SearchTerm:', searchTerm);
+
+        // Search drugs that belong to this store and have inventory
+        const drugs = await prisma.drug.findMany({
             where: {
+                storeId, // Drug must belong to this store
                 AND: [
                     {
                         OR: [
@@ -280,7 +359,6 @@ class InventoryRepository {
                     {
                         inventory: {
                             some: {
-                                storeId,
                                 deletedAt: null,
                                 quantityInStock: { gt: 0 },
                             },
@@ -291,6 +369,9 @@ class InventoryRepository {
             take: 20, // Limit results for performance
             orderBy: { name: 'asc' },
         });
+
+        console.log('🔍 POS Search - Found drugs:', drugs.length);
+        return drugs;
     }
 }
 

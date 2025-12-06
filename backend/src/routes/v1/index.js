@@ -14,6 +14,7 @@ const chatRoutes = require('./chatRoute');
 const rbacRoutes = require('../rbac');
 const geminiRoutes = require('../gemini.routes');
 const whatsappRoutes = require('../whatsapp');
+const auditRoutes = require('./audit.routes');
 
 const router = express.Router();
 
@@ -35,6 +36,8 @@ router.use('/chat', chatRoutes);
 router.use('/rbac', rbacRoutes);
 router.use('/gemini', geminiRoutes);
 router.use('/whatsapp', whatsappRoutes);
+router.use('/audit', auditRoutes);
+
 
 
 // Health check route

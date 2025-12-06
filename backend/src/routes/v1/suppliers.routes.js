@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const supplierController = require('../../controllers/suppliers/supplierController');
 const { authenticate } = require('../../middlewares/auth');
+const auditLogger = require('../../middlewares/auditLogger');
 
 /**
  * @swagger
@@ -99,7 +100,7 @@ router.get('/:id', authenticate, supplierController.getSupplierById);
  *       201:
  *         description: Supplier created successfully
  */
-router.post('/', authenticate, supplierController.createSupplier);
+router.post('/', authenticate, auditLogger.logActivity('SUPPLIER_CREATED', 'supplier'), supplierController.createSupplier);
 
 /**
  * @swagger
@@ -125,7 +126,7 @@ router.post('/', authenticate, supplierController.createSupplier);
  *       200:
  *         description: Supplier updated successfully
  */
-router.put('/:id', authenticate, supplierController.updateSupplier);
+router.put('/:id', authenticate, auditLogger.logActivity('SUPPLIER_UPDATED', 'supplier'), supplierController.updateSupplier);
 
 /**
  * @swagger
@@ -145,6 +146,6 @@ router.put('/:id', authenticate, supplierController.updateSupplier);
  *       200:
  *         description: Supplier deleted successfully
  */
-router.delete('/:id', authenticate, supplierController.deleteSupplier);
+router.delete('/:id', authenticate, auditLogger.logActivity('SUPPLIER_DELETED', 'supplier'), supplierController.deleteSupplier);
 
 module.exports = router;

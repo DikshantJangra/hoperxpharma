@@ -13,18 +13,18 @@ interface Batch {
 }
 
 const BatchCardSkeleton = () => (
-    <div className="p-4 border-2 rounded-lg animate-pulse border-[#e2e8f0]">
-        <div className="flex items-center justify-between">
-            <div className="flex-1 space-y-2">
-                <div className="h-5 bg-gray-200 rounded w-1/3"></div>
-                <div className="h-4 bg-gray-100 rounded w-1/2"></div>
-            </div>
-            <div className="space-y-2 text-right ml-4">
-                <div className="h-4 bg-gray-200 rounded w-12"></div>
-                <div className="h-3 bg-gray-100 rounded w-8"></div>
-            </div>
-        </div>
+  <div className="p-4 border-2 rounded-lg animate-pulse border-[#e2e8f0]">
+    <div className="flex items-center justify-between">
+      <div className="flex-1 space-y-2">
+        <div className="h-5 bg-gray-200 rounded w-1/3"></div>
+        <div className="h-4 bg-gray-100 rounded w-1/2"></div>
+      </div>
+      <div className="space-y-2 text-right ml-4">
+        <div className="h-4 bg-gray-200 rounded w-12"></div>
+        <div className="h-3 bg-gray-100 rounded w-8"></div>
+      </div>
     </div>
+  </div>
 )
 
 export default function BatchModal({ product, onSelect, onClose }: any) {
@@ -32,12 +32,53 @@ export default function BatchModal({ product, onSelect, onClose }: any) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    setIsLoading(true);
-    const timer = setTimeout(() => {
-        setBatches([]);
+    const fetchBatches = async () => {
+      if (!product?.id) {
         setIsLoading(false);
-    }, 1500)
-    return () => clearTimeout(timer);
+        return;
+      }
+
+      setIsLoading(true);
+      try {
+        const { inventoryApi } = await import('@/lib/api/inventory');
+        const response = await inventoryApi.getBatches({ drugId: product.id, limit: 100 });
+
+        console.log('Batch API Response:', response);
+
+        // Handle paginated response - data is an array of batches
+        let batchesData: any[] = [];
+
+        if (response?.data) {
+          // Check if it's a paginated response or direct array
+          batchesData = Array.isArray(response.data) ? response.data : [];
+        }
+
+        console.log('Batches Data:', batchesData);
+
+        if (batchesData.length > 0) {
+          // Transform to match expected format
+          const formattedBatches: Batch[] = batchesData.map((batch: any, index: number) => ({
+            batchId: batch.id,
+            expiry: new Date(batch.expiryDate).toLocaleDateString(),
+            qty: batch.quantityInStock,
+            mrp: Number(batch.mrp),
+            location: batch.location || 'N/A',
+            recommended: index === 0, // First batch is FEFO
+          }));
+
+          setBatches(formattedBatches);
+        } else {
+          setBatches([]);
+        }
+      } catch (error) {
+        console.error('Failed to fetch batches:', error);
+        setBatches([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchBatches();
   }, [product]);
 
   return (
@@ -56,43 +97,42 @@ export default function BatchModal({ product, onSelect, onClose }: any) {
         <div className="p-4 max-h-[400px] overflow-y-auto">
           <div className="space-y-2">
             {isLoading ? (
-                <>
-                    <BatchCardSkeleton/>
-                    <BatchCardSkeleton/>
-                    <BatchCardSkeleton/>
-                </>
+              <>
+                <BatchCardSkeleton />
+                <BatchCardSkeleton />
+                <BatchCardSkeleton />
+              </>
             ) : batches.length > 0 ? (
-                batches.map((batch) => (
-                    <div
-                        key={batch.batchId}
-                        onClick={() => onSelect(batch)}
-                        className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                        batch.recommended
-                            ? 'border-[#0ea5a3] bg-[#f0fdfa]'
-                            : 'border-[#e2e8f0] hover:border-[#cbd5e1]'
-                        }`}
-                    >
-                        <div className="flex items-center justify-between">
-                        <div className="flex-1">
-                            <div className="flex items-center gap-2">
-                            <span className="font-semibold text-[#0f172a]">{batch.batchId}</span>
-                            {batch.recommended && (
-                                <span className="px-2 py-0.5 bg-[#0ea5a3] text-white text-xs rounded-full">FEFO</span>
-                            )}
-                            </div>
-                            <div className="text-sm text-[#64748b] mt-1">
-                            Expiry: {batch.expiry} • Location: {batch.location}
-                            </div>
-                        </div>
-                        <div className="text-right ml-4">
-                            <div className="font-semibold text-[#0f172a]">₹{batch.mrp}</div>
-                            <div className="text-sm text-[#64748b]">Qty: {batch.qty}</div>
-                        </div>
-                        </div>
+              batches.map((batch) => (
+                <div
+                  key={batch.batchId}
+                  onClick={() => onSelect(batch)}
+                  className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${batch.recommended
+                    ? 'border-[#0ea5a3] bg-[#f0fdfa]'
+                    : 'border-[#e2e8f0] hover:border-[#cbd5e1]'
+                    }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-[#0f172a]">{batch.batchId}</span>
+                        {batch.recommended && (
+                          <span className="px-2 py-0.5 bg-[#0ea5a3] text-white text-xs rounded-full">FEFO</span>
+                        )}
+                      </div>
+                      <div className="text-sm text-[#64748b] mt-1">
+                        Expiry: {batch.expiry} • Location: {batch.location}
+                      </div>
                     </div>
-                ))
+                    <div className="text-right ml-4">
+                      <div className="font-semibold text-[#0f172a]">₹{batch.mrp}</div>
+                      <div className="text-sm text-[#64748b]">Qty: {batch.qty}</div>
+                    </div>
+                  </div>
+                </div>
+              ))
             ) : (
-                <div className="text-center py-10 text-gray-500">No batches available for this product.</div>
+              <div className="text-center py-10 text-gray-500">No batches available for this product.</div>
             )}
           </div>
 

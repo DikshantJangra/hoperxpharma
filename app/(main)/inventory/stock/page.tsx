@@ -5,6 +5,7 @@ import { FiSearch, FiPlus, FiRefreshCw, FiUpload } from 'react-icons/fi';
 import StockFilters from '@/components/inventory/StockFilters';
 import StockTable from '@/components/inventory/StockTable';
 import StockDetailPanel from '@/components/inventory/StockDetailPanel';
+import AddDrugModal from '@/components/inventory/AddDrugModal';
 
 const StatCard = ({ label, value, loading, colorClass = 'bg-[#f1f5f9]' }: any) => (
   <div className={`px-3 py-1.5 rounded-lg text-sm ${colorClass}`}>
@@ -24,6 +25,22 @@ export default function StockPage() {
   const [stats, setStats] = useState<any>(null);
   const [isStatsLoading, setIsStatsLoading] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [showAddDrug, setShowAddDrug] = useState(false);
+
+  // Filter states
+  const [stockStatusFilters, setStockStatusFilters] = useState<string[]>([]);
+  const [expiryFilters, setExpiryFilters] = useState<string[]>([]);
+  const [storageFilters, setStorageFilters] = useState<string[]>([]);
+  const [activeView, setActiveView] = useState<string | null>(null);
+  const [sortConfig, setSortConfig] = useState<{ field: string, order: 'asc' | 'desc' } | null>(null);
+
+  // Saved view configurations
+  const savedViews = {
+    '1': { stockStatus: ['low_stock'], expiry: [], storage: [] },
+    '2': { stockStatus: [], expiry: ['<30days'], storage: [] },
+    '3': { stockStatus: [], expiry: [], storage: ['cold_chain'] },
+    '4': { stockStatus: [], expiry: [], storage: ['controlled'] },
+  };
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -76,6 +93,31 @@ export default function StockPage() {
     setRefreshKey(prev => prev + 1);
   };
 
+  const handleFilterChange = (type: 'stockStatus' | 'expiry' | 'storage', values: string[]) => {
+    if (type === 'stockStatus') setStockStatusFilters(values);
+    if (type === 'expiry') setExpiryFilters(values);
+    if (type === 'storage') setStorageFilters(values);
+    setActiveView(null); // Clear active view when manually changing filters
+  };
+
+  const handleViewChange = (viewId: string | null) => {
+    setActiveView(viewId);
+    if (viewId && savedViews[viewId as keyof typeof savedViews]) {
+      const view = savedViews[viewId as keyof typeof savedViews];
+      setStockStatusFilters(view.stockStatus);
+      setExpiryFilters(view.expiry);
+      setStorageFilters(view.storage);
+    }
+  };
+
+  const handleResetFilters = () => {
+    setStockStatusFilters([]);
+    setExpiryFilters([]);
+    setStorageFilters([]);
+    setActiveView(null);
+    setSortConfig(null);
+  };
+
   return (
     <div className="h-screen flex flex-col bg-[#f8fafc]">
       {/* Header */}
@@ -97,7 +139,7 @@ export default function StockPage() {
               <FiUpload className="w-4 h-4" />
               Import
             </button>
-            <button className="px-3 py-2 bg-[#0ea5a3] text-white rounded-lg hover:bg-[#0d9391] flex items-center gap-2 text-sm">
+            <button onClick={() => setShowAddDrug(true)} className="px-3 py-2 bg-[#0ea5a3] text-white rounded-lg hover:bg-[#0d9391] flex items-center gap-2 text-sm">
               <FiPlus className="w-4 h-4" />
               New SKU
             </button>
@@ -130,7 +172,15 @@ export default function StockPage() {
 
       {/* Content */}
       <div className="flex-1 flex overflow-hidden">
-        <StockFilters />
+        <StockFilters
+          stockStatusFilters={stockStatusFilters}
+          expiryFilters={expiryFilters}
+          storageFilters={storageFilters}
+          activeView={activeView}
+          onFilterChange={handleFilterChange}
+          onViewChange={handleViewChange}
+          onReset={handleResetFilters}
+        />
 
         <div className={`${selectedItem ? 'w-[45%]' : 'flex-1'} transition-all`}>
           <StockTable
@@ -138,6 +188,11 @@ export default function StockPage() {
             onSelectItem={setSelectedItem}
             selectedItem={selectedItem}
             refreshKey={refreshKey}
+            stockStatusFilters={stockStatusFilters}
+            expiryFilters={expiryFilters}
+            storageFilters={storageFilters}
+            sortConfig={sortConfig}
+            onSortChange={setSortConfig}
           />
         </div>
 
@@ -148,6 +203,16 @@ export default function StockPage() {
           />
         )}
       </div>
+
+      {/* Add Drug Modal */}
+      <AddDrugModal
+        isOpen={showAddDrug}
+        onClose={() => setShowAddDrug(false)}
+        onSuccess={() => {
+          setRefreshKey(prev => prev + 1);
+          setShowAddDrug(false);
+        }}
+      />
     </div>
   );
 }

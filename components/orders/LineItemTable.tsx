@@ -1,11 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { POLine, Supplier } from '@/types/po';
 import LineItemRow from './LineItemRow';
 import ProductSearchBar from './ProductSearchBar';
 import AddCustomItemInline from './AddCustomItemInline';
+import MedicineCommandPalette from '@/components/search/MedicineCommandPalette';
 import { MdAdd, MdSearch, MdShoppingCart, MdPostAdd } from 'react-icons/md';
+import type { Medicine } from '@/types/medicine';
 
 interface LineItemTableProps {
   lines: POLine[];
@@ -24,6 +26,19 @@ export default function LineItemTable({
 }: LineItemTableProps) {
   const [showSearch, setShowSearch] = useState(false);
   const [showCustomItemInline, setShowCustomItemInline] = useState(false);
+  const [showMedicinePalette, setShowMedicinePalette] = useState(false);
+
+  // Global keyboard shortcut for ⌘+K / Ctrl+K
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setShowMedicinePalette(true);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const handleAddProduct = (product: any) => {
     onAddLine({
@@ -46,6 +61,25 @@ export default function LineItemTable({
     setShowCustomItemInline(false);
   };
 
+  const handleMedicineSelect = (medicine: Medicine) => {
+    // Extract pack unit and size from packSize string (e.g., "strip of 10 tablets")
+    const packSizeMatch = medicine.packSize.match(/(\w+)\s+of\s+(\d+)/);
+    const packUnit = packSizeMatch ? packSizeMatch[1] : 'Strip';
+    const packSize = packSizeMatch ? parseInt(packSizeMatch[2]) : 10;
+
+    onAddLine({
+      // drugId is undefined for catalog medicines (they don't exist in Drug table)
+      description: `${medicine.name} - ${medicine.composition}`,
+      packUnit: packUnit,
+      packSize: packSize,
+      qty: 1,
+      unit: packUnit.toLowerCase(),
+      pricePerUnit: medicine.price || 0,
+      gstPercent: 12, // Default GST
+      discountPercent: 0
+    });
+  };
+
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
       <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
@@ -58,13 +92,23 @@ export default function LineItemTable({
         </h3>
         <div className="flex gap-2">
           <button
+            onClick={() => setShowMedicinePalette(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors shadow-sm"
+          >
+            <MdSearch className="h-4 w-4" />
+            Search Catalog
+            <kbd className="hidden sm:inline-flex ml-1 px-1.5 py-0.5 text-xs bg-emerald-700 rounded border border-emerald-500">
+              ⌘K
+            </kbd>
+          </button>
+          <button
             onClick={() => {
               setShowCustomItemInline(!showCustomItemInline);
               setShowSearch(false); // Close search if open
             }}
             className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium border rounded-lg transition-colors shadow-sm ${showCustomItemInline
-                ? 'text-emerald-700 bg-emerald-100 border-emerald-300'
-                : 'text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100'
+              ? 'text-emerald-700 bg-emerald-100 border-emerald-300'
+              : 'text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100'
               }`}
           >
             <MdPostAdd className="h-4 w-4" />
@@ -153,6 +197,13 @@ export default function LineItemTable({
           </table>
         </div>
       )}
+
+      {/* Medicine Command Palette */}
+      <MedicineCommandPalette
+        isOpen={showMedicinePalette}
+        onClose={() => setShowMedicinePalette(false)}
+        onSelect={handleMedicineSelect}
+      />
     </div>
   );
 }

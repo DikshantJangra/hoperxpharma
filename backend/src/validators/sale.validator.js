@@ -32,8 +32,8 @@ const paymentSplitSchema = z.object({
  * Sale creation schema
  */
 const saleCreateSchema = z.object({
-    storeId: z.string().cuid(),
-    patientId: z.string().cuid().optional(),
+    storeId: z.string().cuid().optional(), // Added by middleware
+    patientId: z.string().cuid().optional().nullable(),
     invoiceType: z.enum(['RECEIPT', 'GST_INVOICE', 'CREDIT_NOTE']).default('RECEIPT'),
     items: z.array(saleItemSchema).min(1, 'At least one item is required'),
     paymentSplits: z.array(paymentSplitSchema).min(1, 'At least one payment method is required'),
@@ -42,7 +42,7 @@ const saleCreateSchema = z.object({
     taxAmount: z.number().min(0),
     roundOff: z.number().default(0),
     total: z.number().positive(),
-    soldBy: z.string().cuid(),
+    soldBy: z.string().cuid().optional(), // Added by middleware
 });
 
 /**

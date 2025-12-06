@@ -61,6 +61,7 @@ export interface WhatsAppTemplate {
     headerType?: string;
     headerText?: string;
     footer?: string;
+    components: any[]; // Meta API component structure
     status: 'PENDING' | 'APPROVED' | 'REJECTED';
     rejectedReason?: string;
     usageCount: number;
@@ -78,7 +79,9 @@ export interface SendTemplateRequest {
     conversationId: string;
     patientId?: string; // Added for consent checking
     templateName: string;
+    language?: string;
     templateLanguage?: string;
+    components?: any[];
     parameters?: string[];
 }
 

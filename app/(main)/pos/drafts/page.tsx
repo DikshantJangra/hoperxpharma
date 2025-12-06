@@ -1,8 +1,11 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { toast } from 'sonner';
 import { FiClock, FiTrash2, FiEdit, FiSave } from "react-icons/fi";
 import { MdDrafts } from "react-icons/md";
+import { salesApi } from "@/lib/api/sales";
+import { useRouter } from "next/navigation";
 
 const DraftCardSkeleton = () => (
     <div className="bg-white border border-[#e2e8f0] rounded-xl p-6 animate-pulse">
@@ -31,17 +34,71 @@ const DraftCardSkeleton = () => (
 )
 
 export default function POSDraftsPage() {
+    const router = useRouter();
     const [drafts, setDrafts] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        setIsLoading(true);
-        const timer = setTimeout(() => {
+        fetchDrafts();
+    }, []);
+
+    const fetchDrafts = async () => {
+        try {
+            setIsLoading(true);
+            setError(null);
+            const response = await salesApi.getDrafts();
+            console.log('Drafts API response:', response);
+
+            // Handle both wrapped response {data: [...]} and direct array
+            const draftsData = response.data || response.drafts || response;
+            const draftsArray = Array.isArray(draftsData) ? draftsData : [];
+
+            console.log('Extracted drafts:', draftsArray);
+            setDrafts(draftsArray);
+        } catch (err: any) {
+            console.error('Error fetching drafts:', err);
+            setError(err.message || 'Failed to load drafts');
             setDrafts([]);
+        } finally {
             setIsLoading(false);
-        }, 1500)
-        return () => clearTimeout(timer);
-    }, [])
+        }
+    };
+
+    const handleDelete = async (id: string) => {
+        if (!confirm('Are you sure you want to delete this draft?')) return;
+
+        try {
+            await salesApi.deleteDraft(id);
+            setDrafts(drafts.filter(d => d.id !== id));
+            toast.success('Draft deleted successfully');
+        } catch (err: any) {
+            console.error('Failed to delete draft:', err);
+            toast.error('Failed to delete draft: ' + (err.message || 'Unknown error'));
+        }
+    };
+
+    const handleResume = (draft: any) => {
+        try {
+            // Parse items if they're stored as JSON string
+            const items = typeof draft.items === 'string' ? JSON.parse(draft.items) : draft.items;
+
+            // Store complete draft with parsed items in localStorage
+            const draftToResume = {
+                ...draft,
+                items: items || []
+            };
+
+            localStorage.setItem('resumeDraft', JSON.stringify(draftToResume));
+            console.log('Stored draft for resume:', draftToResume);
+
+            // Navigate to new sale
+            router.push('/pos/new-sale');
+        } catch (err) {
+            console.error('Error preparing draft for resume:', err);
+            toast.error('Failed to resume draft');
+        }
+    };
 
     const getTimeRemaining = (expiresAt: string) => {
         const now = new Date();
@@ -55,12 +112,8 @@ export default function POSDraftsPage() {
         return "Expiring soon";
     };
 
-    const handleDelete = (id: string) => {
-        setDrafts(drafts.filter(d => d.id !== id));
-    };
-
     const totalDrafts = drafts.length;
-    const totalValue = drafts.reduce((sum, d) => sum + d.subtotal, 0);
+    const totalValue = drafts.reduce((sum, d) => sum + Number(d.total), 0);
 
     return (
         <div className="min-h-screen bg-[#f8fafc] pb-20">
@@ -110,11 +163,19 @@ export default function POSDraftsPage() {
                     </div>
                 </div>
 
+                {/* Error State */}
+                {error && (
+                    <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
+                        <p className="text-red-700">{error}</p>
+                        <button onClick={fetchDrafts} className="mt-2 text-red-600 underline">Retry</button>
+                    </div>
+                )}
+
                 {/* Drafts List */}
                 {isLoading ? (
                     <div className="space-y-4">
-                        <DraftCardSkeleton/>
-                        <DraftCardSkeleton/>
+                        <DraftCardSkeleton />
+                        <DraftCardSkeleton />
                     </div>
                 ) : drafts.length > 0 ? (
                     <div className="space-y-4">
@@ -132,14 +193,17 @@ export default function POSDraftsPage() {
                                             </span>
                                         </div>
                                         <div className="flex items-center gap-4 text-sm text-[#64748b]">
-                                            <span>Draft ID: {draft.id}</span>
+                                            <span>Draft: {draft.draftNumber}</span>
                                             {draft.customerPhone && <span>Phone: {draft.customerPhone}</span>}
                                             <span>Created: {new Date(draft.createdAt).toLocaleString()}</span>
                                         </div>
                                     </div>
 
                                     <div className="flex gap-2">
-                                        <button className="px-4 py-2 bg-[#0ea5a3] text-white rounded-lg font-medium hover:bg-[#0d9391] transition-colors flex items-center gap-2">
+                                        <button
+                                            onClick={() => handleResume(draft)}
+                                            className="px-4 py-2 bg-[#0ea5a3] text-white rounded-lg font-medium hover:bg-[#0d9391] transition-colors flex items-center gap-2"
+                                        >
                                             <FiEdit className="w-4 h-4" />
                                             Resume
                                         </button>
@@ -155,30 +219,57 @@ export default function POSDraftsPage() {
 
                                 {/* Items Preview */}
                                 <div className="border-t border-[#e2e8f0] pt-4">
-                                    <h4 className="font-medium text-[#0f172a] mb-3 text-sm">Items ({draft.items.length})</h4>
+                                    <h4 className="font-medium text-[#0f172a] mb-3 text-sm">Items ({(() => {
+                                        try {
+                                            const items = typeof draft.items === 'string' ? JSON.parse(draft.items) : draft.items;
+                                            return items?.length || 0;
+                                        } catch {
+                                            return 0;
+                                        }
+                                    })()})</h4>
                                     <div className="space-y-2">
-                                        {draft.items.map((item: any, idx: number) => (
-                                            <div key={idx} className="flex items-center justify-between p-3 bg-[#f8fafc] rounded-lg">
-                                                <div className="flex-1">
-                                                    <div className="font-medium text-[#0f172a]">{item.name}</div>
-                                                </div>
-                                                <div className="flex items-center gap-6 text-sm">
-                                                    <div className="text-[#64748b]">Qty: <span className="font-medium text-[#0f172a]">{item.qty}</span></div>
-                                                    <div className="font-medium text-[#0f172a]">₹{item.price}</div>
-                                                </div>
-                                            </div>
-                                        ))}
+                                        {(() => {
+                                            try {
+                                                const items = typeof draft.items === 'string' ? JSON.parse(draft.items) : draft.items;
+                                                return items?.slice(0, 3).map((item: any, idx: number) => (
+                                                    <div key={idx} className="flex items-center justify-between p-3 bg-[#f8fafc] rounded-lg">
+                                                        <div className="flex-1">
+                                                            <div className="font-medium text-[#0f172a]">{item.name || 'Item'}</div>
+                                                        </div>
+                                                        <div className="flex items-center gap-6 text-sm">
+                                                            <div className="text-[#64748b]">Qty: <span className="font-medium text-[#0f172a]">{item.qty || item.quantity}</span></div>
+                                                            <div className="font-medium text-[#0f172a]">₹{item.mrp}</div>
+                                                        </div>
+                                                    </div>
+                                                ));
+                                            } catch (e) {
+                                                console.error('Error parsing draft items:', e);
+                                                return <div className="text-sm text-red-500">Error loading items</div>;
+                                            }
+                                        })()}
+                                        {(() => {
+                                            try {
+                                                const items = typeof draft.items === 'string' ? JSON.parse(draft.items) : draft.items;
+                                                return items?.length > 3 && (
+                                                    <div className="text-sm text-[#64748b] text-center py-2">
+                                                        +{items.length - 3} more items
+                                                    </div>
+                                                );
+                                            } catch {
+                                                return null;
+                                            }
+                                        })()}
                                     </div>
                                 </div>
 
                                 {/* Subtotal */}
                                 <div className="mt-4 pt-4 border-t border-[#e2e8f0] flex items-center justify-between">
                                     <div className="text-sm text-[#64748b]">
-                                        Last modified: {new Date(draft.lastModified).toLocaleString()}
+                                        Last modified: {new Date(draft.updatedAt).toLocaleString()}
                                     </div>
                                     <div className="text-right">
-                                        <div className="text-sm text-[#64748b] mb-1">Subtotal</div>
-                                        <div className="text-2xl font-bold text-[#0ea5a3]">₹{draft.subtotal.toLocaleString()}</div>
+                                        <div className="text-sm text-[#64748b] mb-1">Total</div>
+                                        <div className="text-2xl font-bold text-[#0ea5a3]">₹{Number(draft.total).toLocaleString()}</div>
                                     </div>
                                 </div>
                             </div>
@@ -189,7 +280,10 @@ export default function POSDraftsPage() {
                         <MdDrafts className="w-16 h-16 text-[#cbd5e1] mx-auto mb-4" />
                         <h3 className="text-lg font-semibold text-[#0f172a] mb-2">No Draft Invoices</h3>
                         <p className="text-[#64748b] mb-6">Start a new sale to create a draft</p>
-                        <button className="px-6 py-3 bg-[#0ea5a3] text-white rounded-lg font-medium hover:bg-[#0d9391] transition-colors">
+                        <button
+                            onClick={() => router.push('/pos/new-sale')}
+                            className="px-6 py-3 bg-[#0ea5a3] text-white rounded-lg font-medium hover:bg-[#0d9391] transition-colors"
+                        >
                             New Sale
                         </button>
                     </div>

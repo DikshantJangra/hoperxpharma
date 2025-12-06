@@ -53,14 +53,17 @@ export default function CustomerModal({ onSelect, onClose }: any) {
   const handleSelect = (customer: any) => {
     onSelect({
       id: customer.id,
-      name: `${customer.firstName} ${customer.lastName}`,
-      phone: customer.phoneNumber,
+      firstName: customer.firstName,
+      lastName: customer.lastName,
+      phoneNumber: customer.phoneNumber,
       email: customer.email,
     });
+    onClose();
   };
 
   const handleSkip = () => {
     onSelect(null); // Proceed without customer
+    onClose();
   };
 
   return (
@@ -131,9 +134,11 @@ export default function CustomerModal({ onSelect, onClose }: any) {
           <div className="mt-4 flex gap-2">
             <button
               onClick={handleSkip}
-              className="flex-1 py-2 border border-[#cbd5e1] rounded-lg text-sm text-[#64748b] hover:border-[#0ea5a3] hover:text-[#0ea5a3]"
+              disabled
+              className="flex-1 py-2 border border-[#cbd5e1] rounded-lg text-sm text-[#94a3b8] bg-[#f8fafc] cursor-not-allowed opacity-50"
+              title="Customer selection is required"
             >
-              Skip (No Customer)
+              Skip (Disabled)
             </button>
             <button
               onClick={() => {/* TODO: Open add customer form */ }}

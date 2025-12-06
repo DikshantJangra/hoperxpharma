@@ -1,4 +1,5 @@
 const saleService = require('../../services/sales/saleService');
+const pdfService = require('../../services/pdf/pdfService');
 const asyncHandler = require('../../middlewares/asyncHandler');
 const ApiResponse = require('../../utils/ApiResponse');
 
@@ -79,6 +80,25 @@ const getSaleByInvoiceNumber = asyncHandler(async (req, res) => {
     res.status(response.statusCode).json(response);
 });
 
+/**
+ * Download invoice PDF
+ */
+const downloadInvoicePDF = asyncHandler(async (req, res) => {
+    // Get sale with all related data
+    const sale = await saleService.getSaleById(req.params.id);
+
+    // Generate PDF
+    const pdfBuffer = await pdfService.generateSaleInvoicePdf(sale);
+
+    // Set headers for PDF download
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="Invoice-${sale.invoiceNumber}.pdf"`);
+    res.setHeader('Content-Length', pdfBuffer.length);
+
+    // Send PDF
+    res.send(pdfBuffer);
+});
+
 module.exports = {
     getSales,
     getSaleById,
@@ -86,4 +106,5 @@ module.exports = {
     getSalesStats,
     getTopSellingDrugs,
     getSaleByInvoiceNumber,
+    downloadInvoicePDF,
 };

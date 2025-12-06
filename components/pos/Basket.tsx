@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { toast } from 'sonner';
 import { FiMinus, FiPlus, FiX, FiTag, FiChevronDown, FiPercent } from 'react-icons/fi';
 
 export default function Basket({ items, onUpdateItem, onRemoveItem, onClear }: any) {
@@ -54,12 +55,29 @@ export default function Basket({ items, onUpdateItem, onRemoveItem, onClear }: a
                     <input
                       type="number"
                       value={item.qty}
-                      onChange={(e) => onUpdateItem(index, { qty: Math.max(1, parseInt(e.target.value) || 1) })}
+                      onChange={(e) => {
+                        const newQty = Math.max(1, parseInt(e.target.value) || 1);
+                        const maxQty = item.stock || item.totalStock || 999;
+                        if (newQty > maxQty) {
+                          toast.error(`Only ${maxQty} units available in stock!`);
+                          return;
+                        }
+                        onUpdateItem(index, { qty: newQty });
+                      }}
                       className="w-12 text-center border border-[#cbd5e1] rounded py-1 text-sm focus:outline-none focus:ring-2 focus:ring-[#0ea5a3]"
+                      max={item.stock || item.totalStock || 999}
                     />
                     <button
-                      onClick={() => onUpdateItem(index, { qty: item.qty + 1 })}
+                      onClick={() => {
+                        const maxQty = item.stock || item.totalStock || 999;
+                        if (item.qty + 1 > maxQty) {
+                          toast.error(`Only ${maxQty} units available in stock!`);
+                          return;
+                        }
+                        onUpdateItem(index, { qty: item.qty + 1 });
+                      }}
                       className="w-7 h-7 flex items-center justify-center border border-[#cbd5e1] rounded hover:bg-[#f8fafc]"
+                      disabled={item.qty >= (item.stock || item.totalStock || 999)}
                     >
                       <FiPlus className="w-3 h-3" />
                     </button>
@@ -87,19 +105,60 @@ export default function Basket({ items, onUpdateItem, onRemoveItem, onClear }: a
 
                 {expandedItem === index && (
                   <div className="mt-3 pt-3 border-t border-[#e2e8f0] space-y-2">
-                    <div className="flex items-center gap-2">
-                      <FiPercent className="w-3 h-3 text-[#64748b]" />
-                      <input
-                        type="number"
-                        placeholder="Discount"
-                        value={item.discount || ''}
-                        onChange={(e) => onUpdateItem(index, { discount: parseFloat(e.target.value) || 0 })}
-                        className="flex-1 px-2 py-1 text-xs border border-[#cbd5e1] rounded focus:outline-none focus:ring-1 focus:ring-[#0ea5a3]"
-                      />
+                    {/* Item Discount */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs text-[#64748b]">Item Discount</span>
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => onUpdateItem(index, { discountType: 'amount' })}
+                            className={`px-2 py-0.5 text-xs rounded ${(item.discountType || 'amount') === 'amount' ? 'bg-[#0ea5a3] text-white' : 'bg-[#f1f5f9] text-[#64748b]'}`}
+                          >
+                            ₹
+                          </button>
+                          <button
+                            onClick={() => onUpdateItem(index, { discountType: 'percentage' })}
+                            className={`px-2 py-0.5 text-xs rounded ${item.discountType === 'percentage' ? 'bg-[#0ea5a3] text-white' : 'bg-[#f1f5f9] text-[#64748b]'}`}
+                          >
+                            %
+                          </button>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="number"
+                          placeholder="0"
+                          value={item.discountValue || ''}
+                          onChange={(e) => {
+                            const value = parseFloat(e.target.value) || 0;
+                            const discountType = item.discountType || 'amount';
+                            const lineTotal = item.qty * item.mrp;
+                            const discountAmount = discountType === 'percentage'
+                              ? (lineTotal * value) / 100
+                              : value;
+                            onUpdateItem(index, {
+                              discountValue: value,
+                              discount: discountAmount
+                            });
+                          }}
+                          className="flex-1 px-2 py-1.5 text-sm border border-[#cbd5e1] rounded focus:outline-none focus:ring-1 focus:ring-[#0ea5a3]"
+                        />
+                        <span className="text-sm font-medium text-[#ef4444] min-w-[60px] text-right">
+                          -₹{(item.discount || 0).toFixed(2)}
+                        </span>
+                      </div>
                     </div>
+
+                    {/* Stock Info */}
                     <div className="text-xs text-[#64748b]">
-                      Stock: {item.stock} • Expiry: Dec 2025
+                      Stock: {item.stock || item.totalStock || 'N/A'} available
+                      {item.expiryDate && ` • Expiry: ${new Date(item.expiryDate).toLocaleDateString()}`}
                     </div>
+                    {item.qty > (item.stock || item.totalStock || 0) && (
+                      <div className="text-xs text-[#ef4444] mt-1">
+                        ⚠️ Quantity exceeds available stock!
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

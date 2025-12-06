@@ -11,7 +11,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-
 // ============================================================================
 // ENUMS
 // ============================================================================
@@ -91,6 +90,22 @@ enum InvoiceType {
   CREDIT_NOTE
 }
 
+enum SaleStatus {
+  DRAFT
+  COMPLETED
+  REFUNDED
+  PARTIALLY_REFUNDED
+  CANCELLED
+}
+
+enum RefundStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  COMPLETED
+  CANCELLED
+}
+
 enum ExpenseStatus {
   DRAFT
   PENDING_APPROVAL
@@ -148,24 +163,24 @@ model User {
   firstName    String
   lastName     String
   role         UserRole @default(PHARMACIST)
-  approvalPin  String?  // DEPRECATED - will migrate to AdminPin
+  approvalPin  String? // DEPRECATED - will migrate to AdminPin
   isActive     Boolean  @default(true)
 
   // POS PIN fields (for quick authorization at point-of-sale)
-  pinHash        String?   // Bcrypt hashed PIN for POS operations
+  pinHash        String? // Bcrypt hashed PIN for POS operations
   pinAttempts    Int       @default(0) // Failed PIN attempt counter
   pinLockedUntil DateTime? // PIN lockout timestamp
   lastLoginAt    DateTime? // Last login timestamp for activity tracking
 
   // HR fields
-  faceDataUrl          String?   // S3 URL for reference face photos (JSON array)
-  hourlyRate           Decimal?  @db.Decimal(10, 2) // For hourly employees
-  monthlyRate          Decimal?  @db.Decimal(10, 2) // For salaried employees
-  shiftId              String?   // Default shift assignment
-  joiningDate          DateTime? // Employment start date
-  emergencyContactName String?
+  faceDataUrl           String? // S3 URL for reference face photos (JSON array)
+  hourlyRate            Decimal?  @db.Decimal(10, 2) // For hourly employees
+  monthlyRate           Decimal?  @db.Decimal(10, 2) // For salaried employees
+  shiftId               String? // Default shift assignment
+  joiningDate           DateTime? // Employment start date
+  emergencyContactName  String?
   emergencyContactPhone String?
-  employeeId           String?   @unique // Internal employee ID
+  employeeId            String?   @unique // Internal employee ID
 
   storeUsers       StoreUser[]
   auditLogs        AuditLog[]
@@ -176,12 +191,13 @@ model User {
   userRoles        UserRoleAssignment[]
   adminPin         AdminPin?
   grns             GoodsReceivedNote[]
+  savedFilters     SavedFilter[]
 
   // HR Relations
   attendanceLogs     AttendanceLog[]
   documents          StaffDocument[]
   performanceMetrics PerformanceMetric[]
-  shift              Shift?               @relation(fields: [shiftId], references: [id])
+  shift              Shift?              @relation(fields: [shiftId], references: [id])
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -329,9 +345,9 @@ model Store {
   homeDelivery Boolean @default(false)
 
   // HR & Geofencing
-  latitude        Float?   // Store GPS latitude for geofencing
-  longitude       Float?   // Store GPS longitude for geofencing
-  geofenceRadius  Int?     @default(50) // Radius in meters for attendance check
+  latitude       Float? // Store GPS latitude for geofencing
+  longitude      Float? // Store GPS longitude for geofencing
+  geofenceRadius Int?   @default(50) // Radius in meters for attendance check
 
   users          StoreUser[]
   licenses       StoreLicense[]
@@ -348,6 +364,8 @@ model Store {
   suppliers       Supplier[]
   drugs           Drug[]
   sales           Sale[]
+  saleDrafts      SaleDraft[]
+  saleRefunds     SaleRefund[]
   purchaseOrders  PurchaseOrder[]
   expenses        Expense[]
   campaigns       Campaign[]
@@ -532,6 +550,22 @@ model Patient {
   @@index([storeId, email])
   @@index([storeId, lastName, firstName])
   @@index([storeId, deletedAt])
+}
+
+model SavedFilter {
+  id           String   @id @default(cuid())
+  name         String
+  userId       String
+  filters      Json
+  type         String   @default("filter") // "filter" or "watchlist"
+  alertEnabled Boolean  @default(false)
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, type])
 }
 
 model PatientConsent {
@@ -856,86 +890,84 @@ model DispenseItem {
   @@index([dispenseEventId])
 }
 
-
-
 // ============================================================================
 // CATEGORY 11: HR & TEAM MANAGEMENT
 // ============================================================================
 
 model Shift {
-  id          String   @id @default(cuid())
-  storeId     String
-  name        String   // "Morning Shift", "Evening Shift"
-  startTime   String   // "08:00" HH:MM format
-  endTime     String   // "16:00"
-  daysOfWeek  Int[]    // [1,2,3,4,5] = Mon-Fri (0=Sunday, 6=Saturday)
-  isActive    Boolean  @default(true)
-  
-  store       Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  users       User[]
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
+  id         String  @id @default(cuid())
+  storeId    String
+  name       String // "Morning Shift", "Evening Shift"
+  startTime  String // "08:00" HH:MM format
+  endTime    String // "16:00"
+  daysOfWeek Int[] // [1,2,3,4,5] = Mon-Fri (0=Sunday, 6=Saturday)
+  isActive   Boolean @default(true)
+
+  store Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  users User[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([storeId])
   @@index([storeId, isActive])
 }
 
 model AttendanceLog {
-  id                      String    @id @default(cuid())
-  userId                  String
-  storeId                 String
-  checkInTime             DateTime
-  checkOutTime            DateTime?
-  locationSnapshot        Json?     // {lat, lng, accuracy}
-  faceVerificationScore   Float?    // 0-100 confidence score
-  status                  String    // PRESENT, LATE, ABSENT, HALF_DAY
-  notes                   String?
-  
-  user                    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  store                   Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  
-  createdAt               DateTime  @default(now())
-  updatedAt               DateTime  @updatedAt
-  
+  id                    String    @id @default(cuid())
+  userId                String
+  storeId               String
+  checkInTime           DateTime
+  checkOutTime          DateTime?
+  locationSnapshot      Json? // {lat, lng, accuracy}
+  faceVerificationScore Float? // 0-100 confidence score
+  status                String // PRESENT, LATE, ABSENT, HALF_DAY
+  notes                 String?
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([userId, checkInTime])
   @@index([storeId, checkInTime])
   @@index([userId, storeId, checkInTime])
 }
 
 model StaffDocument {
-  id            String    @id @default(cuid())
-  userId        String
-  documentType  String    // AADHAAR, LICENSE, REGISTRATION, CERTIFICATE
-  fileUrl       String    // S3 URL
-  expiryDate    DateTime?
-  status        String    @default("ACTIVE") // ACTIVE, EXPIRED, EXPIRING_SOON
-  
-  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  
+  id           String    @id @default(cuid())
+  userId       String
+  documentType String // AADHAAR, LICENSE, REGISTRATION, CERTIFICATE
+  fileUrl      String // S3 URL
+  expiryDate   DateTime?
+  status       String    @default("ACTIVE") // ACTIVE, EXPIRED, EXPIRING_SOON
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   @@index([userId])
   @@index([userId, status])
 }
 
 model PerformanceMetric {
-  id                      String   @id @default(cuid())
-  userId                  String
-  storeId                 String
-  date                    DateTime
-  salesAmount             Decimal  @db.Decimal(10, 2)
-  hoursWorked             Float
-  prescriptionsProcessed  Int      @default(0)
-  prescriptionsVerified   Int      @default(0)
-  prescriptionsRejected   Int      @default(0)
-  
-  user                    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  store                   Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  
-  createdAt               DateTime @default(now())
-  
+  id                     String   @id @default(cuid())
+  userId                 String
+  storeId                String
+  date                   DateTime
+  salesAmount            Decimal  @db.Decimal(10, 2)
+  hoursWorked            Float
+  prescriptionsProcessed Int      @default(0)
+  prescriptionsVerified  Int      @default(0)
+  prescriptionsRejected  Int      @default(0)
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
   @@unique([userId, storeId, date])
   @@index([userId, date])
   @@index([storeId, date])
@@ -1292,6 +1324,7 @@ model Sale {
   storeId       String
   invoiceNumber String      @unique
   invoiceType   InvoiceType @default(RECEIPT)
+  status        SaleStatus  @default(COMPLETED)
   patientId     String?
 
   subtotal       Decimal @db.Decimal(10, 2)
@@ -1312,6 +1345,7 @@ model Sale {
   creditNotes   Sale[]         @relation("CreditNotes")
   items         SaleItem[]
   paymentSplits PaymentSplit[]
+  refunds       SaleRefund[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -1319,6 +1353,7 @@ model Sale {
 
   @@index([storeId, createdAt])
   @@index([storeId, patientId])
+  @@index([storeId, status])
   @@index([invoiceNumber])
   @@index([storeId, deletedAt])
 }
@@ -1365,6 +1400,78 @@ model PaymentSplit {
   createdAt DateTime @default(now())
 
   @@index([saleId])
+}
+
+model SaleDraft {
+  id            String  @id @default(cuid())
+  storeId       String
+  draftNumber   String  @unique
+  customerName  String?
+  customerPhone String?
+  customerId    String? // Patient ID if selected
+
+  // Serialized basket data
+  items     Json // Array of {drugId, batchId, quantity, mrp, discount, gstRate}
+  subtotal  Decimal @db.Decimal(10, 2)
+  taxAmount Decimal @db.Decimal(10, 2)
+  total     Decimal @db.Decimal(10, 2)
+
+  createdBy String
+  expiresAt DateTime // Auto-delete after 7 days
+
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([storeId, createdAt])
+  @@index([expiresAt])
+  @@index([storeId, expiresAt])
+}
+
+model SaleRefund {
+  id             String       @id @default(cuid())
+  refundNumber   String       @unique
+  originalSaleId String
+  storeId        String
+  refundAmount   Decimal      @db.Decimal(10, 2)
+  refundReason   String       @db.Text
+  status         RefundStatus @default(PENDING)
+
+  items SaleRefundItem[]
+
+  originalSale Sale  @relation(fields: [originalSaleId], references: [id])
+  store        Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  requestedBy String
+  approvedBy  String?
+  approvedAt  DateTime?
+  completedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([storeId, status])
+  @@index([originalSaleId])
+  @@index([storeId, createdAt])
+}
+
+model SaleRefundItem {
+  id           String  @id @default(cuid())
+  refundId     String
+  saleItemId   String
+  drugId       String
+  batchId      String
+  quantity     Int
+  refundAmount Decimal @db.Decimal(10, 2)
+  reason       String
+
+  refund SaleRefund @relation(fields: [refundId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([refundId])
+  @@index([saleItemId])
 }
 
 model Expense {
@@ -2231,14 +2338,14 @@ model PatientAudit {
   id        String   @id @default(cuid())
   patientId String
   userId    String
-  action    String   // CREATED, UPDATED, MERGED, DELETED
-  changes   Json     // { field: { old, new } }
+  action    String // CREATED, UPDATED, MERGED, DELETED
+  changes   Json // { field: { old, new } }
   ipAddress String?
   userAgent String?
   createdAt DateTime @default(now())
-  
+
   patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  
+
   @@index([patientId, createdAt])
 }
 
@@ -2247,11 +2354,11 @@ model PrescriptionFile {
   prescriptionId String
   fileUrl        String
   thumbnailUrl   String?
-  ocrData        Json?    // Extracted data
+  ocrData        Json? // Extracted data
   uploadedBy     String
   createdAt      DateTime @default(now())
-  
+
   prescription Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
-  
+
   @@index([prescriptionId])
 }

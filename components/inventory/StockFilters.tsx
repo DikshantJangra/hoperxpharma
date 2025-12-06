@@ -10,13 +10,41 @@ const SAVED_VIEWS = [
   { id: '4', name: 'Controlled substances', count: 18 },
 ];
 
-export default function StockFilters() {
-  const [activeView, setActiveView] = useState<string | null>(null);
+interface StockFiltersProps {
+  stockStatusFilters: string[];
+  expiryFilters: string[];
+  storageFilters: string[];
+  activeView: string | null;
+  onFilterChange: (type: 'stockStatus' | 'expiry' | 'storage', values: string[]) => void;
+  onViewChange: (viewId: string | null) => void;
+  onReset: () => void;
+}
+
+export default function StockFilters({
+  stockStatusFilters,
+  expiryFilters,
+  storageFilters,
+  activeView,
+  onFilterChange,
+  onViewChange,
+  onReset
+}: StockFiltersProps) {
   const [expanded, setExpanded] = useState({
     status: true,
     expiry: false,
     storage: false,
   });
+
+  const handleCheckboxChange = (type: 'stockStatus' | 'expiry' | 'storage', value: string, checked: boolean) => {
+    const currentFilters = type === 'stockStatus' ? stockStatusFilters :
+      type === 'expiry' ? expiryFilters : storageFilters;
+
+    const newFilters = checked
+      ? [...currentFilters, value]
+      : currentFilters.filter(f => f !== value);
+
+    onFilterChange(type, newFilters);
+  };
 
   return (
     <div className="w-64 bg-white border-r border-[#e2e8f0] overflow-y-auto">
@@ -26,12 +54,11 @@ export default function StockFilters() {
           {SAVED_VIEWS.map((view) => (
             <button
               key={view.id}
-              onClick={() => setActiveView(view.id)}
-              className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${
-                activeView === view.id
-                  ? 'bg-[#f0fdfa] text-[#0ea5a3] font-medium'
-                  : 'hover:bg-[#f8fafc] text-[#64748b]'
-              }`}
+              onClick={() => onViewChange(activeView === view.id ? null : view.id)}
+              className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors ${activeView === view.id
+                ? 'bg-[#f0fdfa] text-[#0ea5a3] font-medium'
+                : 'hover:bg-[#f8fafc] text-[#64748b]'
+                }`}
             >
               <div className="flex items-center justify-between">
                 <span>{view.name}</span>
@@ -49,7 +76,7 @@ export default function StockFilters() {
       <div className="p-4">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold text-[#0f172a]">Filters</h3>
-          <button className="text-xs text-[#ef4444] hover:underline">Reset</button>
+          <button onClick={onReset} className="text-xs text-[#ef4444] hover:underline">Reset</button>
         </div>
 
         {/* Stock Status */}
@@ -63,10 +90,20 @@ export default function StockFilters() {
           </button>
           {expanded.status && (
             <div className="space-y-2 pl-2">
-              {['In stock', 'Out of stock', 'Low stock', 'Overstocked'].map((status) => (
-                <label key={status} className="flex items-center gap-2 text-sm text-[#64748b] cursor-pointer">
-                  <input type="checkbox" className="w-4 h-4 rounded text-[#0ea5a3]" />
-                  {status}
+              {[
+                { value: 'in_stock', label: 'In stock' },
+                { value: 'out_of_stock', label: 'Out of stock' },
+                { value: 'low_stock', label: 'Low stock' },
+                { value: 'overstocked', label: 'Overstocked' }
+              ].map((status) => (
+                <label key={status.value} className="flex items-center gap-2 text-sm text-[#64748b] cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 rounded text-[#0ea5a3]"
+                    checked={stockStatusFilters.includes(status.value)}
+                    onChange={(e) => handleCheckboxChange('stockStatus', status.value, e.target.checked)}
+                  />
+                  {status.label}
                 </label>
               ))}
             </div>
@@ -84,10 +121,20 @@ export default function StockFilters() {
           </button>
           {expanded.expiry && (
             <div className="space-y-2 pl-2">
-              {['< 7 days', '< 30 days', '30-90 days', '> 90 days'].map((window) => (
-                <label key={window} className="flex items-center gap-2 text-sm text-[#64748b] cursor-pointer">
-                  <input type="checkbox" className="w-4 h-4 rounded text-[#0ea5a3]" />
-                  {window}
+              {[
+                { value: '<7days', label: '< 7 days' },
+                { value: '<30days', label: '< 30 days' },
+                { value: '30-90days', label: '30-90 days' },
+                { value: '>90days', label: '> 90 days' }
+              ].map((window) => (
+                <label key={window.value} className="flex items-center gap-2 text-sm text-[#64748b] cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 rounded text-[#0ea5a3]"
+                    checked={expiryFilters.includes(window.value)}
+                    onChange={(e) => handleCheckboxChange('expiry', window.value, e.target.checked)}
+                  />
+                  {window.label}
                 </label>
               ))}
             </div>
@@ -105,10 +152,20 @@ export default function StockFilters() {
           </button>
           {expanded.storage && (
             <div className="space-y-2 pl-2">
-              {['Ambient', 'Cold chain', 'Schedule H', 'Controlled'].map((storage) => (
-                <label key={storage} className="flex items-center gap-2 text-sm text-[#64748b] cursor-pointer">
-                  <input type="checkbox" className="w-4 h-4 rounded text-[#0ea5a3]" />
-                  {storage}
+              {[
+                { value: 'ambient', label: 'Ambient' },
+                { value: 'cold_chain', label: 'Cold chain' },
+                { value: 'schedule_h', label: 'Schedule H' },
+                { value: 'controlled', label: 'Controlled' }
+              ].map((storage) => (
+                <label key={storage.value} className="flex items-center gap-2 text-sm text-[#64748b] cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 rounded text-[#0ea5a3]"
+                    checked={storageFilters.includes(storage.value)}
+                    onChange={(e) => handleCheckboxChange('storage', storage.value, e.target.checked)}
+                  />
+                  {storage.label}
                 </label>
               ))}
             </div>

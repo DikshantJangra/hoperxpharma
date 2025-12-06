@@ -42,11 +42,25 @@ export const inventoryApi = {
     /**
      * Get all drugs with pagination and filtering
      */
-    async getDrugs(params: { page?: number; limit?: number; search?: string } = {}) {
+    async getDrugs(params: {
+        page?: number;
+        limit?: number;
+        search?: string;
+        stockStatus?: string[];
+        expiryWindow?: string[];
+        storage?: string[];
+        sortBy?: string;
+        sortOrder?: 'asc' | 'desc';
+    } = {}) {
         const query = new URLSearchParams();
         if (params.page) query.append('page', params.page.toString());
         if (params.limit) query.append('limit', params.limit.toString());
         if (params.search) query.append('search', params.search);
+        if (params.stockStatus) params.stockStatus.forEach(s => query.append('stockStatus', s));
+        if (params.expiryWindow) params.expiryWindow.forEach(e => query.append('expiryWindow', e));
+        if (params.storage) params.storage.forEach(s => query.append('storage', s));
+        if (params.sortBy) query.append('sortBy', params.sortBy);
+        if (params.sortOrder) query.append('sortOrder', params.sortOrder);
 
         const response = await apiClient.get(`/inventory/drugs?${query.toString()}`);
         return response.data;
@@ -87,7 +101,7 @@ export const inventoryApi = {
         if (params.drugId) query.append('drugId', params.drugId);
 
         const response = await apiClient.get(`/inventory/batches?${query.toString()}`);
-        return response.data;
+        return response; // Return full response with success, data, message
     },
 
     /**
@@ -138,6 +152,6 @@ export const inventoryApi = {
             return { success: true, data: [] };
         }
         const response = await apiClient.get(`/inventory/pos/search?search=${encodeURIComponent(searchTerm)}`);
-        return response.data;
+        return response; // Return full response with success, data, message
     }
 };

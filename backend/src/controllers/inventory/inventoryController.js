@@ -16,16 +16,27 @@ const getDrugs = asyncHandler(async (req, res) => {
     const page = parseInt(req.query.page) || 1;
     const limit = parseInt(req.query.limit) || 20;
 
+    // Extract filter parameters
+    const stockStatus = req.query.stockStatus ?
+        (Array.isArray(req.query.stockStatus) ? req.query.stockStatus : [req.query.stockStatus]) : [];
+    const expiryWindow = req.query.expiryWindow ?
+        (Array.isArray(req.query.expiryWindow) ? req.query.expiryWindow : [req.query.expiryWindow]) : [];
+    const storage = req.query.storage ?
+        (Array.isArray(req.query.storage) ? req.query.storage : [req.query.storage]) : [];
+
     const { drugs, total } = await inventoryService.getDrugs({
         ...req.query,
         page,
         limit,
         storeId: req.storeId,
+        stockStatus,
+        expiryWindow,
+        storage
     });
 
     const response = ApiResponse.paginated(drugs, {
-        page: parseInt(req.query.page) || 1,
-        limit: parseInt(req.query.limit) || 20,
+        page,
+        limit,
         total,
     });
 

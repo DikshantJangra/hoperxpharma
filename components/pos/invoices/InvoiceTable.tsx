@@ -1,35 +1,94 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FiPrinter, FiMessageSquare, FiRotateCcw, FiFileText } from 'react-icons/fi';
+import { FiPrinter, FiMessageSquare, FiRotateCcw, FiFileText, FiDownload } from 'react-icons/fi';
 import { BsReceipt } from 'react-icons/bs';
+import { salesApi } from '@/lib/api/sales';
 
 const TableRowSkeleton = () => (
-    <tr className="animate-pulse">
-        <td className="px-4 py-3"><div className="h-4 bg-gray-200 rounded w-32"></div></td>
-        <td className="px-4 py-3"><div className="h-4 bg-gray-200 rounded w-24"></div></td>
-        <td className="px-4 py-3"><div className="h-4 bg-gray-200 rounded w-32"></div></td>
-        <td className="px-4 py-3"><div className="h-4 bg-gray-200 rounded w-16"></div></td>
-        <td className="px-4 py-3"><div className="h-6 bg-gray-200 rounded-full w-24"></div></td>
-        <td className="px-4 py-3"><div className="h-6 bg-gray-200 rounded-full w-20"></div></td>
-        <td className="px-4 py-3"><div className="h-8 bg-gray-200 rounded-md w-24"></div></td>
-    </tr>
+  <tr className="animate-pulse">
+    <td className="px-4 py-3"><div className="h-4 bg-gray-200 rounded w-32"></div></td>
+    <td className="px-4 py-3"><div className="h-4 bg-gray-200 rounded w-24"></div></td>
+    <td className="px-4 py-3"><div className="h-4 bg-gray-200 rounded w-32"></div></td>
+    <td className="px-4 py-3"><div className="h-4 bg-gray-200 rounded w-16"></div></td>
+    <td className="px-4 py-3"><div className="h-6 bg-gray-200 rounded-full w-24"></div></td>
+    <td className="px-4 py-3"><div className="h-6 bg-gray-200 rounded-full w-20"></div></td>
+    <td className="px-4 py-3"><div className="h-8 bg-gray-200 rounded-md w-24"></div></td>
+  </tr>
 )
 
-export default function InvoiceTable({ searchQuery, onSelectInvoice, selectedInvoice, isLoading }: any) {
+export default function InvoiceTable({ searchQuery, onSelectInvoice, selectedInvoice, isLoading: parentLoading }: any) {
   const [invoices, setInvoices] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [downloadingPdf, setDownloadingPdf] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isLoading) {
-        setInvoices([]);
+    fetchInvoices();
+  }, []);
+
+  const fetchInvoices = async () => {
+    try {
+      setIsLoading(true);
+      const response = await salesApi.getSales({ limit: 100 });
+      console.log('Invoices API response:', response);
+
+      // Handle both wrapped response {data: [...]} and direct array response
+      const salesData = response.data || response.sales || response;
+      const invoicesArray = Array.isArray(salesData) ? salesData : [];
+
+      console.log('Extracted invoices:', invoicesArray);
+      setInvoices(invoicesArray);
+    } catch (error: any) {
+      console.error('Failed to fetch invoices:', error);
+      setInvoices([]);
+    } finally {
+      setIsLoading(false);
     }
-  }, [isLoading]);
+  };
+
+  const handleDownloadPDF = async (e: React.MouseEvent, saleId: string, invoiceNumber: string) => {
+    e.stopPropagation(); // Prevent row selection
+
+    try {
+      setDownloadingPdf(saleId);
+      const blob = await salesApi.downloadInvoicePDF(saleId);
+
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Invoice-${invoiceNumber}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      console.log('Invoice downloaded successfully');
+    } catch (error: any) {
+      console.error('Failed to download PDF:', error);
+    } finally {
+      setDownloadingPdf(null);
+    }
+  };
+
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+  };
+
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+  };
 
   const filtered = invoices.filter(inv =>
-    inv.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    inv.customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    inv.customer.phone.includes(searchQuery)
+    inv.invoiceNumber?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    inv.patient?.firstName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    inv.patient?.lastName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    inv.patient?.phoneNumber?.includes(searchQuery)
   );
+
+  const loading = isLoading || parentLoading;
 
   return (
     <div className="h-full overflow-y-auto bg-white">
@@ -46,94 +105,112 @@ export default function InvoiceTable({ searchQuery, onSelectInvoice, selectedInv
           </tr>
         </thead>
         <tbody>
-          {isLoading ? (
+          {loading ? (
             <>
-                <TableRowSkeleton/>
-                <TableRowSkeleton/>
-                <TableRowSkeleton/>
-                <TableRowSkeleton/>
+              <TableRowSkeleton />
+              <TableRowSkeleton />
+              <TableRowSkeleton />
+              <TableRowSkeleton />
             </>
           ) : filtered.length > 0 ? (
             filtered.map((invoice) => (
-                <tr
+              <tr
                 key={invoice.id}
                 onClick={() => onSelectInvoice(invoice)}
-                className={`border-b border-[#f1f5f9] hover:bg-[#f8fafc] cursor-pointer group ${
-                    selectedInvoice?.id === invoice.id ? 'bg-[#f0fdfa]' : ''
-                }`}
-                >
+                className={`border-b border-[#f1f5f9] hover:bg-[#f8fafc] cursor-pointer group ${selectedInvoice?.id === invoice.id ? 'bg-[#f0fdfa]' : ''
+                  }`}
+              >
                 <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                    <span className="font-semibold text-[#0f172a]">{invoice.id}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-[#0f172a]">{invoice.invoiceNumber}</span>
                     <div className="flex gap-1">
-                        {invoice.hasRx && (
-                        <span className="px-1.5 py-0.5 bg-[#dbeafe] text-[#1e40af] text-xs rounded">Rx</span>
-                        )}
-                        {invoice.type === 'GST' && (
+                      {invoice.invoiceType === 'GST_INVOICE' && (
                         <span className="px-1.5 py-0.5 bg-[#fef3c7] text-[#92400e] text-xs rounded">GST</span>
-                        )}
-                        {invoice.hasEInvoice && (
-                        <span className="px-1.5 py-0.5 bg-[#e9d5ff] text-[#6b21a8] text-xs rounded">E-INV</span>
-                        )}
+                      )}
+                      {invoice.invoiceType === 'CREDIT_NOTE' && (
+                        <span className="px-1.5 py-0.5 bg-[#fee2e2] text-[#991b1b] text-xs rounded">CN</span>
+                      )}
                     </div>
-                    </div>
+                  </div>
                 </td>
                 <td className="px-4 py-3">
-                    <div className="text-sm text-[#0f172a]">{invoice.date}</div>
-                    <div className="text-xs text-[#64748b]">{invoice.time}</div>
+                  <div className="text-sm text-[#0f172a]">{formatDate(invoice.createdAt)}</div>
+                  <div className="text-xs text-[#64748b]">{formatTime(invoice.createdAt)}</div>
                 </td>
                 <td className="px-4 py-3">
-                    <div className="text-sm font-medium text-[#0f172a]">{invoice.customer.name}</div>
-                    <div className="text-xs text-[#64748b]">{invoice.customer.phone}</div>
+                  <div className="text-sm font-medium text-[#0f172a]">
+                    {invoice.patient ? `${invoice.patient.firstName} ${invoice.patient.lastName}` : 'Walk-in Customer'}
+                  </div>
+                  <div className="text-xs text-[#64748b]">{invoice.patient?.phoneNumber || '-'}</div>
                 </td>
                 <td className="px-4 py-3">
-                    <span className="font-semibold text-[#0f172a]">₹{invoice.amount}</span>
+                  <span className="font-semibold text-[#0f172a]">₹{Number(invoice.total).toFixed(2)}</span>
                 </td>
                 <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-1">
-                    {invoice.paymentModes.map((mode: string) => (
-                        <span key={mode} className="px-2 py-0.5 bg-[#f1f5f9] text-[#64748b] text-xs rounded">
-                        {mode}
-                        </span>
-                    ))}
-                    </div>
+                  <div className="flex flex-wrap gap-1">
+                    {invoice.paymentSplits?.map((split: any, idx: number) => (
+                      <span key={idx} className="px-2 py-0.5 bg-[#f1f5f9] text-[#64748b] text-xs rounded">
+                        {split.paymentMethod}
+                      </span>
+                    )) || <span className="px-2 py-0.5 bg-[#f1f5f9] text-[#64748b] text-xs rounded">CASH</span>}
+                  </div>
                 </td>
                 <td className="px-4 py-3">
-                    <span
-                    className={`px-2 py-1 text-xs font-medium rounded-full ${
-                        invoice.status === 'Paid'
-                        ? 'bg-[#d1fae5] text-[#065f46]'
-                        : invoice.status === 'Partial Return'
+                  <span
+                    className={`px-2 py-1 text-xs font-medium rounded-full ${invoice.status === 'COMPLETED'
+                      ? 'bg-[#d1fae5] text-[#065f46]'
+                      : invoice.status === 'PARTIALLY_REFUNDED'
                         ? 'bg-[#fef3c7] text-[#92400e]'
-                        : 'bg-[#fee2e2] text-[#991b1b]'
-                    }`}
-                    >
+                        : invoice.status === 'REFUNDED'
+                          ? 'bg-[#fee2e2] text-[#991b1b]'
+                          : 'bg-[#e0e7ff] text-[#3730a3]'
+                      }`}
+                  >
                     {invoice.status}
-                    </span>
+                  </span>
                 </td>
                 <td className="px-4 py-3">
-                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button className="p-1.5 hover:bg-[#f1f5f9] rounded" title="Print">
-                        <FiPrinter className="w-4 h-4 text-[#64748b]" />
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={(e) => handleDownloadPDF(e, invoice.id, invoice.invoiceNumber)}
+                      disabled={downloadingPdf === invoice.id}
+                      className="p-1.5 hover:bg-[#f1f5f9] rounded text-[#64748b] hover:text-[#0ea5a3] transition-colors disabled:opacity-50"
+                      title="Download PDF"
+                    >
+                      {downloadingPdf === invoice.id ? (
+                        <div className="w-4 h-4 border-2 border-[#0ea5a3] border-t-transparent rounded-full animate-spin"></div>
+                      ) : (
+                        <FiDownload className="w-4 h-4" />
+                      )}
                     </button>
-                    <button className="p-1.5 hover:bg-[#f1f5f9] rounded" title="WhatsApp">
-                        <FiMessageSquare className="w-4 h-4 text-[#64748b]" />
+                    <button
+                      onClick={(e) => e.stopPropagation()}
+                      className="p-1.5 hover:bg-[#f1f5f9] rounded text-[#64748b] hover:text-[#0ea5a3] transition-colors opacity-50 cursor-not-allowed"
+                      title="Print (Coming Soon)"
+                      disabled
+                    >
+                      <FiPrinter className="w-4 h-4" />
                     </button>
-                    <button className="p-1.5 hover:bg-[#f1f5f9] rounded" title="Return">
-                        <FiRotateCcw className="w-4 h-4 text-[#64748b]" />
+                    <button
+                      onClick={(e) => e.stopPropagation()}
+                      className="p-1.5 hover:bg-[#f1f5f9] rounded text-[#64748b] hover:text-[#f59e0b] transition-colors opacity-50 cursor-not-allowed"
+                      title="Refund (Coming Soon)"
+                      disabled
+                    >
+                      <FiRotateCcw className="w-4 h-4" />
                     </button>
-                    </div>
+                  </div>
                 </td>
-                </tr>
+              </tr>
             ))
           ) : (
             <tr>
-                <td colSpan={7}>
-                    <div className="flex flex-col items-center justify-center h-64">
-                        <BsReceipt className="w-12 h-12 text-[#cbd5e1] mb-3" />
-                        <p className="text-[#64748b]">No invoices found</p>
-                    </div>
-                </td>
+              <td colSpan={7}>
+                <div className="flex flex-col items-center justify-center h-64">
+                  <BsReceipt className="w-12 h-12 text-[#cbd5e1] mb-3" />
+                  <p className="text-[#64748b]">No invoices found</p>
+                </div>
+              </td>
             </tr>
           )}
         </tbody>

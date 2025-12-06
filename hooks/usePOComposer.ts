@@ -118,13 +118,15 @@ export function usePOComposer(storeId: string) {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to load suggestions');
+        console.warn('Suggestions API not available, using catalog search instead');
+        setSuggestions([]);
+        return;
       }
 
       const result = await response.json();
       setSuggestions(result.data || result.results || []);
     } catch (error) {
-      console.error('Failed to load suggestions:', error);
+      console.warn('Failed to load suggestions, using catalog search instead');
       setSuggestions([]);
     }
   }, []);

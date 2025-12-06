@@ -42,8 +42,11 @@ export default function ProductSearch({ onAddProduct, searchFocus, setSearchFocu
   const [isLoading, setIsLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const isTypingRef = useRef(false);
+
   useEffect(() => {
-    if (searchFocus && inputRef.current) {
+    // Only focus if explicitly requested AND user is not currently typing
+    if (searchFocus && inputRef.current && document.activeElement !== inputRef.current && !isTypingRef.current) {
       inputRef.current.focus();
     }
   }, [searchFocus]);
@@ -112,14 +115,17 @@ export default function ProductSearch({ onAddProduct, searchFocus, setSearchFocu
           ref={inputRef}
           type="text"
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => {
+            isTypingRef.current = true;
+            setQuery(e.target.value);
+            setTimeout(() => { isTypingRef.current = false; }, 500);
+          }}
           onKeyDown={handleKeyDown}
           onFocus={() => setSearchFocus(true)}
-          onBlur={() => setTimeout(() => setSearchFocus(false), 200)}
           placeholder="Scan barcode or search product... (/)"
           className={`w-full pl-10 pr-4 py-3 border-2 rounded-lg text-[#0f172a] placeholder:text-[#94a3b8] focus:outline-none transition-all ${searchFocus && query.length === 0
-              ? 'border-[#0ea5a3] ring-2 ring-[#0ea5a3]/20'
-              : 'border-[#cbd5e1] focus:border-[#0ea5a3]'
+            ? 'border-[#0ea5a3] ring-2 ring-[#0ea5a3]/20'
+            : 'border-[#cbd5e1] focus:border-[#0ea5a3]'
             }`}
           disabled={isLoading}
         />

@@ -26,7 +26,17 @@ const TableRowSkeleton = () => (
   </tr>
 )
 
-export default function StockTable({ searchQuery, onSelectItem, selectedItem, refreshKey }: any) {
+export default function StockTable({
+  searchQuery,
+  onSelectItem,
+  selectedItem,
+  refreshKey,
+  stockStatusFilters,
+  expiryFilters,
+  storageFilters,
+  sortConfig,
+  onSortChange
+}: any) {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [drugs, setDrugs] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -42,13 +52,30 @@ export default function StockTable({ searchQuery, onSelectItem, selectedItem, re
           page,
           limit: 50,
           search: searchQuery,
+          stockStatus: stockStatusFilters,
+          expiryWindow: expiryFilters,
+          storage: storageFilters,
+          sortBy: sortConfig?.field,
+          sortOrder: sortConfig?.order
         });
 
         console.log('📦 Drugs API Response:', response);
 
+        // Safely handle response - check if response exists first
+        if (!response) {
+          console.warn('API returned undefined response');
+          setDrugs([]);
+          setTotal(0);
+          return;
+        }
+
         // Handle both response formats (array or object with data property)
-        const drugsData = Array.isArray(response) ? response : (response.data || []);
-        const totalCount = response.pagination?.total || (Array.isArray(response) ? response.length : (response.total || 0));
+        const drugsData = Array.isArray(response)
+          ? response
+          : (response?.data || []);
+
+        const totalCount = response?.pagination?.total
+          || (Array.isArray(response) ? response.length : (response?.total || 0));
 
         console.log('📦 Drugs Data:', drugsData);
         console.log('📦 Number of drugs:', drugsData.length);
@@ -58,6 +85,7 @@ export default function StockTable({ searchQuery, onSelectItem, selectedItem, re
       } catch (error) {
         console.error('Failed to fetch drugs:', error);
         setDrugs([]);
+        setTotal(0);
       } finally {
         setIsLoading(false);
       }
@@ -65,7 +93,7 @@ export default function StockTable({ searchQuery, onSelectItem, selectedItem, re
 
     const timer = setTimeout(fetchDrugs, searchQuery ? 300 : 0);
     return () => clearTimeout(timer);
-  }, [searchQuery, page, refreshKey]);
+  }, [searchQuery, page, refreshKey, stockStatusFilters, expiryFilters, storageFilters, sortConfig]);
 
   const toggleRow = (id: string) => {
     const newExpanded = new Set(expandedRows);

@@ -236,8 +236,14 @@ class InventoryService {
                 const totalStock = batches.reduce((sum, b) => sum + b.quantityInStock, 0);
                 const batchCount = batches.length;
 
-                // Get the batch with nearest expiry (FEFO)
-                const primaryBatch = batches[0];
+                // Get the batch with nearest expiry (FEFO) that has stock
+                const primaryBatch = batches.find(b => b.quantityInStock > 0);
+
+                // If no batch found or MRP is 0, skip this drug
+                if (!primaryBatch || !primaryBatch.mrp || Number(primaryBatch.mrp) === 0) {
+                    console.warn(`Drug ${drug.name} has no valid batch with MRP`);
+                    return null;
+                }
 
                 return {
                     id: drug.id,
@@ -247,17 +253,17 @@ class InventoryService {
                     manufacturer: drug.manufacturer,
                     totalStock,
                     batchCount,
-                    mrp: primaryBatch?.mrp || 0,
-                    batchId: primaryBatch?.id,
-                    batchNumber: primaryBatch?.batchNumber,
-                    expiryDate: primaryBatch?.expiryDate,
+                    mrp: Number(primaryBatch.mrp),
+                    batchId: primaryBatch.id,
+                    batchNumber: primaryBatch.batchNumber,
+                    expiryDate: primaryBatch.expiryDate,
                     gstRate: drug.gstRate,
                 };
             })
         );
 
-        // Filter out drugs with no stock
-        return drugsWithBatches.filter(d => d.totalStock > 0);
+        // Filter out drugs with no stock or null entries
+        return drugsWithBatches.filter(d => d !== null && d.totalStock > 0);
     }
 }
 

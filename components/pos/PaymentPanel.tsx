@@ -1,29 +1,75 @@
 'use client';
 
 import { useState } from 'react';
-import { FiUser, FiCreditCard, FiSmartphone, FiDollarSign, FiPrinter } from 'react-icons/fi';
+import { toast } from 'sonner';
+import { FiUser, FiCreditCard, FiSmartphone, FiDollarSign } from 'react-icons/fi';
 import { BsWallet2 } from 'react-icons/bs';
 
 export default function PaymentPanel({ basketItems, customer, onCustomerChange, onFinalize, onOpenCustomer, onSplitPayment }: any) {
   const [invoiceType, setInvoiceType] = useState<'receipt' | 'gst' | 'credit'>('receipt');
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'upi' | 'wallet'>('cash');
   const [showFinalizeModal, setShowFinalizeModal] = useState(false);
+  const [overallDiscount, setOverallDiscount] = useState(0);
+  const [discountType, setDiscountType] = useState<'amount' | 'percentage'>('amount');
 
   const subtotal = basketItems.reduce((sum: number, item: any) =>
     sum + (item.qty * item.mrp - (item.discount || 0)), 0
   );
+
+  // Calculate overall discount
+  const overallDiscountAmount = discountType === 'percentage'
+    ? (subtotal * overallDiscount) / 100
+    : overallDiscount;
 
   const taxAmount = basketItems.reduce((sum: number, item: any) => {
     const lineTotal = item.qty * item.mrp - (item.discount || 0);
     return sum + (lineTotal * item.gstRate / (100 + item.gstRate));
   }, 0);
 
-  const total = subtotal;
+  const total = subtotal - overallDiscountAmount;
   const roundOff = Math.round(total) - total;
   const finalTotal = Math.round(total);
 
   const handleFinalize = () => {
-    if (basketItems.length === 0) return;
+    // Validation 1: Empty basket
+    if (basketItems.length === 0) {
+      toast.error('Cannot complete sale with empty basket!');
+      return;
+    }
+
+    // Validation 2: Customer required for all sales
+    if (!customer) {
+      toast.error('Customer required! Please add customer details.');
+      onOpenCustomer();
+      return;
+    }
+
+    // Validation 3: Check for stock issues
+    const stockIssues = basketItems.filter((item: any) =>
+      item.qty > (item.stock || item.totalStock || 0)
+    );
+
+    if (stockIssues.length > 0) {
+      const itemNames = stockIssues.map((item: any) => item.name).join(', ');
+      toast.error(`Stock issue: ${itemNames}. Quantity exceeds available stock.`);
+      return;
+    }
+
+    // Validation 4: Customer required for GST invoice (additional check)
+    if (invoiceType === 'gst' && !customer) {
+      toast.error('Customer required for GST Invoice! Please add customer details.');
+      onOpenCustomer();
+      return;
+    }
+
+    // Validation 5: Check for items with zero price
+    const zeroPriceItems = basketItems.filter((item: any) => !item.mrp || item.mrp === 0);
+    if (zeroPriceItems.length > 0) {
+      const itemNames = zeroPriceItems.map((item: any) => item.name).join(', ');
+      toast.error(`Price issue: ${itemNames}. Some items have zero price.`);
+      return;
+    }
+
     setShowFinalizeModal(true);
   };
 
@@ -45,10 +91,12 @@ export default function PaymentPanel({ basketItems, customer, onCustomerChange, 
           {customer ? (
             <div className="flex items-center gap-2">
               <FiUser className="w-4 h-4 text-[#64748b]" />
-              <span className="text-sm text-[#0f172a]">{customer.name}</span>
+              <span className="text-sm text-[#0f172a]">
+                {customer.firstName} {customer.lastName}
+              </span>
             </div>
           ) : (
-            <div className="text-xs text-[#94a3b8]">Walk-in customer</div>
+            <div className="text-xs text-[#94a3b8]">No customer selected</div>
           )}
         </div>
 
@@ -72,6 +120,40 @@ export default function PaymentPanel({ basketItems, customer, onCustomerChange, 
             <span className="text-[#64748b]">Subtotal</span>
             <span className="text-[#0f172a]">₹{subtotal.toFixed(2)}</span>
           </div>
+
+          {/* Overall Discount */}
+          <div className="flex items-center gap-2">
+            <div className="flex-1">
+              <div className="flex items-center gap-1 mb-1">
+                <span className="text-xs text-[#64748b]">Overall Discount</span>
+                <div className="flex gap-1">
+                  <button
+                    onClick={() => setDiscountType('amount')}
+                    className={`px-2 py-0.5 text-xs rounded ${discountType === 'amount' ? 'bg-[#0ea5a3] text-white' : 'bg-[#f1f5f9] text-[#64748b]'}`}
+                  >
+                    ₹
+                  </button>
+                  <button
+                    onClick={() => setDiscountType('percentage')}
+                    className={`px-2 py-0.5 text-xs rounded ${discountType === 'percentage' ? 'bg-[#0ea5a3] text-white' : 'bg-[#f1f5f9] text-[#64748b]'}`}
+                  >
+                    %
+                  </button>
+                </div>
+              </div>
+              <input
+                type="number"
+                value={overallDiscount || ''}
+                onChange={(e) => setOverallDiscount(parseFloat(e.target.value) || 0)}
+                placeholder="0"
+                className="w-full px-2 py-1 text-sm border border-[#cbd5e1] rounded focus:outline-none focus:ring-1 focus:ring-[#0ea5a3]"
+              />
+            </div>
+            <div className="text-sm font-medium text-[#ef4444]">
+              -₹{overallDiscountAmount.toFixed(2)}
+            </div>
+          </div>
+
           <div className="flex justify-between text-sm">
             <span className="text-[#64748b]">Tax (GST)</span>
             <span className="text-[#0f172a]">₹{taxAmount.toFixed(2)}</span>
@@ -93,8 +175,8 @@ export default function PaymentPanel({ basketItems, customer, onCustomerChange, 
             <button
               onClick={() => setPaymentMethod('cash')}
               className={`p-3 rounded-lg border-2 flex flex-col items-center gap-1 ${paymentMethod === 'cash'
-                  ? 'border-[#0ea5a3] bg-[#f0fdfa]'
-                  : 'border-[#e2e8f0] hover:border-[#cbd5e1]'
+                ? 'border-[#0ea5a3] bg-[#f0fdfa]'
+                : 'border-[#e2e8f0] hover:border-[#cbd5e1]'
                 }`}
             >
               <FiDollarSign className="w-5 h-5" />
@@ -103,8 +185,8 @@ export default function PaymentPanel({ basketItems, customer, onCustomerChange, 
             <button
               onClick={() => setPaymentMethod('card')}
               className={`p-3 rounded-lg border-2 flex flex-col items-center gap-1 ${paymentMethod === 'card'
-                  ? 'border-[#0ea5a3] bg-[#f0fdfa]'
-                  : 'border-[#e2e8f0] hover:border-[#cbd5e1]'
+                ? 'border-[#0ea5a3] bg-[#f0fdfa]'
+                : 'border-[#e2e8f0] hover:border-[#cbd5e1]'
                 }`}
             >
               <FiCreditCard className="w-5 h-5" />
@@ -113,8 +195,8 @@ export default function PaymentPanel({ basketItems, customer, onCustomerChange, 
             <button
               onClick={() => setPaymentMethod('upi')}
               className={`p-3 rounded-lg border-2 flex flex-col items-center gap-1 ${paymentMethod === 'upi'
-                  ? 'border-[#0ea5a3] bg-[#f0fdfa]'
-                  : 'border-[#e2e8f0] hover:border-[#cbd5e1]'
+                ? 'border-[#0ea5a3] bg-[#f0fdfa]'
+                : 'border-[#e2e8f0] hover:border-[#cbd5e1]'
                 }`}
             >
               <FiSmartphone className="w-5 h-5" />
@@ -123,8 +205,8 @@ export default function PaymentPanel({ basketItems, customer, onCustomerChange, 
             <button
               onClick={() => setPaymentMethod('wallet')}
               className={`p-3 rounded-lg border-2 flex flex-col items-center gap-1 ${paymentMethod === 'wallet'
-                  ? 'border-[#0ea5a3] bg-[#f0fdfa]'
-                  : 'border-[#e2e8f0] hover:border-[#cbd5e1]'
+                ? 'border-[#0ea5a3] bg-[#f0fdfa]'
+                : 'border-[#e2e8f0] hover:border-[#cbd5e1]'
                 }`}
             >
               <BsWallet2 className="w-5 h-5" />
@@ -143,17 +225,20 @@ export default function PaymentPanel({ basketItems, customer, onCustomerChange, 
         >
           Collect ₹{finalTotal}
         </button>
-        <div className="flex gap-2">
+        <div className="grid grid-cols-2 gap-2">
           <button
             onClick={onSplitPayment}
             disabled={basketItems.length === 0}
-            className="flex-1 py-2 text-sm border border-[#cbd5e1] rounded-lg hover:bg-[#f8fafc] disabled:opacity-50"
+            className="py-2 text-sm border border-[#cbd5e1] rounded-lg hover:bg-[#f8fafc] disabled:opacity-50"
           >
-            Split (F9)
+            Split Payment (F9)
           </button>
-          <button className="flex-1 py-2 text-sm border border-[#cbd5e1] rounded-lg hover:bg-[#f8fafc] flex items-center justify-center gap-1">
-            <FiPrinter className="w-4 h-4" />
-            Print (F12)
+          <button
+            onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'F2' }))}
+            disabled={basketItems.length === 0}
+            className="py-2 text-sm border border-[#cbd5e1] rounded-lg hover:bg-[#f8fafc] disabled:opacity-50"
+          >
+            Save Draft (F2)
           </button>
         </div>
       </div>

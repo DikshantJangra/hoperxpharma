@@ -11,6 +11,7 @@ class SaleRepository {
      */
     async findSales({ storeId, page = 1, limit = 20, patientId, startDate, endDate }) {
         const skip = (page - 1) * limit;
+        const take = parseInt(limit, 10); // Convert to integer for Prisma
 
         const where = {
             storeId,
@@ -28,7 +29,7 @@ class SaleRepository {
             prisma.sale.findMany({
                 where,
                 skip,
-                take: limit,
+                take,
                 include: {
                     patient: {
                         select: {

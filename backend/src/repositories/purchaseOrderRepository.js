@@ -191,7 +191,7 @@ class PurchaseOrderRepository {
                     tx.purchaseOrderItem.create({
                         data: {
                             poId: po.id,
-                            drugId: item.drugId,
+                            ...(item.drugId && { drugId: item.drugId }), // Only include drugId if it exists
                             quantity: item.qty,  // Transform qty → quantity
                             unitPrice: item.pricePerUnit,  // Transform pricePerUnit → unitPrice
                             discountPercent: item.discountPercent || 0,
@@ -228,7 +228,7 @@ class PurchaseOrderRepository {
                     tx.purchaseOrderItem.create({
                         data: {
                             poId: po.id,
-                            drugId: item.drugId,
+                            ...(item.drugId && { drugId: item.drugId }), // Only include drugId if it exists
                             quantity: item.qty,
                             unitPrice: item.pricePerUnit,
                             discountPercent: item.discountPercent || 0,

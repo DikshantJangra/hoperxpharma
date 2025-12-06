@@ -1,6 +1,7 @@
 const express = require('express');
 const userController = require('../../controllers/users/userController');
 const { authenticate } = require('../../middlewares/auth');
+const auditLogger = require('../../middlewares/auditLogger');
 
 const { requirePermission } = require('../../middlewares/rbac');
 const { PERMISSIONS } = require('../../constants/permissions');
@@ -22,28 +23,28 @@ router.get('/', requirePermission(PERMISSIONS.SYSTEM_USER_MANAGE), userControlle
  * @desc    Create new user
  * @access  Private (Requires permission)
  */
-router.post('/', requirePermission(PERMISSIONS.SYSTEM_USER_MANAGE), userController.createUser);
+router.post('/', requirePermission(PERMISSIONS.SYSTEM_USER_MANAGE), auditLogger.logActivity('USER_CREATED', 'user'), userController.createUser);
 
 /**
  * @route   PATCH /api/v1/users/:id
  * @desc    Update user details
  * @access  Private (Requires permission)
  */
-router.patch('/:id', requirePermission(PERMISSIONS.SYSTEM_USER_MANAGE), userController.updateUser);
+router.patch('/:id', requirePermission(PERMISSIONS.SYSTEM_USER_MANAGE), auditLogger.logActivity('USER_UPDATED', 'user'), userController.updateUser);
 
 /**
  * @route   PATCH /api/v1/users/:id/status
  * @desc    Toggle user status
  * @access  Private (Requires permission)
  */
-router.patch('/:id/status', requirePermission(PERMISSIONS.SYSTEM_USER_MANAGE), userController.toggleUserStatus);
+router.patch('/:id/status', requirePermission(PERMISSIONS.SYSTEM_USER_MANAGE), auditLogger.logActivity('USER_STATUS_CHANGED', 'user'), userController.toggleUserStatus);
 
 /**
  * @route   DELETE /api/v1/users/:id
  * @desc    Delete user
  * @access  Private (Requires permission)
  */
-router.delete('/:id', requirePermission(PERMISSIONS.SYSTEM_USER_MANAGE), userController.deleteUser);
+router.delete('/:id', requirePermission(PERMISSIONS.SYSTEM_USER_MANAGE), auditLogger.logActivity('USER_DELETED', 'user'), userController.deleteUser);
 
 /**
  * @route   POST /api/v1/users/:id/reset-pin

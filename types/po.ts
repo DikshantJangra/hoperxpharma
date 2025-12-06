@@ -13,7 +13,7 @@ export interface Supplier {
 
 export interface POLine {
   lineId: string;
-  drugId: string;
+  drugId?: string; // Optional for catalog medicines
   description: string;
   packUnit: string;
   packSize: number;

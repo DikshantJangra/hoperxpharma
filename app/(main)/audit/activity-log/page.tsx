@@ -9,15 +9,17 @@ import EventDetailDrawer from "@/components/audit/activity-log/EventDetailDrawer
 import ExportModal from "@/components/audit/activity-log/ExportModal";
 import AnnotateModal from "@/components/audit/activity-log/AnnotateModal";
 import RevertModal from "@/components/audit/activity-log/RevertModal";
+import { auditApi } from "@/lib/api/audit";
+import { toast } from "react-hot-toast";
 
 const StatCardSkeleton = () => (
-    <div className="bg-gray-50 border border-gray-100 rounded-lg p-3 animate-pulse">
-        <div className="flex items-center gap-2 text-gray-400 text-xs font-medium">
-            <div className="h-4 w-4 bg-gray-200 rounded"></div>
-            <div className="h-3 w-20 bg-gray-200 rounded"></div>
-        </div>
-        <div className="text-2xl h-7 w-12 bg-gray-300 rounded mt-1"></div>
+  <div className="bg-gray-50 border border-gray-100 rounded-lg p-3 animate-pulse">
+    <div className="flex items-center gap-2 text-gray-400 text-xs font-medium">
+      <div className="h-4 w-4 bg-gray-200 rounded"></div>
+      <div className="h-3 w-20 bg-gray-200 rounded"></div>
     </div>
+    <div className="text-2xl h-7 w-12 bg-gray-300 rounded mt-1"></div>
+  </div>
 )
 
 export default function ActivityLogPage() {
@@ -32,20 +34,30 @@ export default function ActivityLogPage() {
   const [selectedEvents, setSelectedEvents] = useState<string[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [filters, setFilters] = useState<any>({});
 
   useEffect(() => {
-    setIsLoading(true);
-    const timer = setTimeout(() => {
-        setStats({
-            events: 0,
-            users: 0,
-            highSeverity: 0,
-            pending: 0
-        });
-        setIsLoading(false);
-    }, 1500)
-    return () => clearTimeout(timer);
+    fetchStats();
   }, [dateRange]);
+
+  const fetchStats = async () => {
+    try {
+      setIsLoading(true);
+      const response = await auditApi.getActivityStats();
+      setStats({
+        events: response.data.totalEvents || 0,
+        users: response.data.uniqueUsers || 0,
+        highSeverity: 0, // Can be calculated from actionBreakdown
+        pending: 0,
+      });
+    } catch (error: any) {
+      console.error('Failed to fetch stats:', error);
+      toast.error('Failed to load statistics');
+      setStats({ events: 0, users: 0, highSeverity: 0, pending: 0 });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
 
   return (
@@ -62,11 +74,10 @@ export default function ActivityLogPage() {
           <div className="flex items-center gap-3">
             <button
               onClick={() => setIsLive(!isLive)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg border ${
-                isLive
-                  ? "bg-red-50 border-red-200 text-red-700"
-                  : "bg-gray-50 border-gray-200 text-gray-700"
-              }`}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg border ${isLive
+                ? "bg-red-50 border-red-200 text-red-700"
+                : "bg-gray-50 border-gray-200 text-gray-700"
+                }`}
             >
               {isLive ? <MdPause size={18} /> : <MdPlayArrow size={18} />}
               {isLive ? "Live" : "Replay"}
@@ -108,40 +119,40 @@ export default function ActivityLogPage() {
 
         {/* Quick Stats */}
         <div className="grid grid-cols-4 gap-4 mt-4">
-            {isLoading ? (
-                <><StatCardSkeleton/><StatCardSkeleton/><StatCardSkeleton/><StatCardSkeleton/></>
-            ) : (
-                <>
-                    <div className="bg-blue-50 border border-blue-100 rounded-lg p-3">
-                        <div className="flex items-center gap-2 text-blue-700 text-sm font-medium">
-                        <FiActivity size={16} />
-                        Events (24h)
-                        </div>
-                        <div className="text-2xl font-bold text-blue-900 mt-1">{stats.events}</div>
-                    </div>
-                    <div className="bg-purple-50 border border-purple-100 rounded-lg p-3">
-                        <div className="flex items-center gap-2 text-purple-700 text-sm font-medium">
-                        <FiUsers size={16} />
-                        Unique Users
-                        </div>
-                        <div className="text-2xl font-bold text-purple-900 mt-1">{stats.users}</div>
-                    </div>
-                    <div className="bg-orange-50 border border-orange-100 rounded-lg p-3">
-                        <div className="flex items-center gap-2 text-orange-700 text-sm font-medium">
-                        <FiAlertTriangle size={16} />
-                        High Severity
-                        </div>
-                        <div className="text-2xl font-bold text-orange-900 mt-1">{stats.highSeverity}</div>
-                    </div>
-                    <div className="bg-red-50 border border-red-100 rounded-lg p-3">
-                        <div className="flex items-center gap-2 text-red-700 text-sm font-medium">
-                        <FiEye size={16} />
-                        Pending Investigations
-                        </div>
-                        <div className="text-2xl font-bold text-red-900 mt-1">{stats.pending}</div>
-                    </div>
-                </>
-            )}
+          {isLoading ? (
+            <><StatCardSkeleton /><StatCardSkeleton /><StatCardSkeleton /><StatCardSkeleton /></>
+          ) : (
+            <>
+              <div className="bg-blue-50 border border-blue-100 rounded-lg p-3">
+                <div className="flex items-center gap-2 text-blue-700 text-sm font-medium">
+                  <FiActivity size={16} />
+                  Events (24h)
+                </div>
+                <div className="text-2xl font-bold text-blue-900 mt-1">{stats.events}</div>
+              </div>
+              <div className="bg-purple-50 border border-purple-100 rounded-lg p-3">
+                <div className="flex items-center gap-2 text-purple-700 text-sm font-medium">
+                  <FiUsers size={16} />
+                  Unique Users
+                </div>
+                <div className="text-2xl font-bold text-purple-900 mt-1">{stats.users}</div>
+              </div>
+              <div className="bg-orange-50 border border-orange-100 rounded-lg p-3">
+                <div className="flex items-center gap-2 text-orange-700 text-sm font-medium">
+                  <FiAlertTriangle size={16} />
+                  High Severity
+                </div>
+                <div className="text-2xl font-bold text-orange-900 mt-1">{stats.highSeverity}</div>
+              </div>
+              <div className="bg-red-50 border border-red-100 rounded-lg p-3">
+                <div className="flex items-center gap-2 text-red-700 text-sm font-medium">
+                  <FiEye size={16} />
+                  Pending Investigations
+                </div>
+                <div className="text-2xl font-bold text-red-900 mt-1">{stats.pending}</div>
+              </div>
+            </>
+          )}
         </div>
 
         {/* Ingestion Status */}
@@ -154,7 +165,10 @@ export default function ActivityLogPage() {
       {/* Main Content - 3 Column Layout */}
       <div className="flex-1 flex min-h-0">
         {/* Left: Saved Filters */}
-        <SavedFilters />
+        <SavedFilters
+          currentFilters={filters}
+          onApplyFilter={setFilters}
+        />
 
         {/* Center: Activity Table/Timeline */}
         <div className="flex-1 flex flex-col min-h-0 bg-white border-r border-gray-200">
@@ -162,21 +176,19 @@ export default function ActivityLogPage() {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setViewMode("table")}
-                className={`px-3 py-1.5 rounded text-sm font-medium ${
-                  viewMode === "table"
-                    ? "bg-teal-100 text-teal-700"
-                    : "text-gray-600 hover:bg-gray-100"
-                }`}
+                className={`px-3 py-1.5 rounded text-sm font-medium ${viewMode === "table"
+                  ? "bg-teal-100 text-teal-700"
+                  : "text-gray-600 hover:bg-gray-100"
+                  }`}
               >
                 Table
               </button>
               <button
                 onClick={() => setViewMode("timeline")}
-                className={`px-3 py-1.5 rounded text-sm font-medium ${
-                  viewMode === "timeline"
-                    ? "bg-teal-100 text-teal-700"
-                    : "text-gray-600 hover:bg-gray-100"
-                }`}
+                className={`px-3 py-1.5 rounded text-sm font-medium ${viewMode === "timeline"
+                  ? "bg-teal-100 text-teal-700"
+                  : "text-gray-600 hover:bg-gray-100"
+                  }`}
               >
                 Timeline
               </button>
@@ -204,6 +216,7 @@ export default function ActivityLogPage() {
             {viewMode === "table" ? (
               <ActivityTable
                 searchQuery={searchQuery}
+                filters={filters}
                 isLive={isLive}
                 onEventClick={setSelectedEvent}
                 selectedEvents={selectedEvents}

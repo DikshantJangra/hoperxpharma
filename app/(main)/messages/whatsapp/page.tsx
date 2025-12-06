@@ -1,21 +1,100 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { FaWhatsapp, FaSearch, FaPaperPlane, FaCheckCircle, FaCheck, FaCheckDouble } from 'react-icons/fa';
+import {
+  FaWhatsapp, FaSearch, FaPaperPlane, FaCheck, FaCheckDouble,
+  FaEllipsisV, FaPlus, FaFilter, FaBolt, FaPaperclip, FaSmile, FaPlug
+} from 'react-icons/fa';
 import { whatsappApi, Conversation, Message } from '@/lib/api/whatsapp';
 import { useCurrentStore } from '@/hooks/useCurrentStore';
+import TemplateSelector from '@/components/integrations/whatsapp/TemplateSelector';
 
 export default function WhatsAppMessagesPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [filteredConversations, setFilteredConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [messageInput, setMessageInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [showTemplateSelector, setShowTemplateSelector] = useState(false);
+  const [filter, setFilter] = useState<'all' | 'unread'>('all');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const { storeId, loading: storeLoading } = useCurrentStore();
+  const [connectionStatus, setConnectionStatus] = useState<'checking' | 'connected' | 'disconnected'>('checking');
+
+  // Check WhatsApp connection status
+  useEffect(() => {
+    const checkConnection = async () => {
+      if (!storeId) return;
+
+      try {
+        const status = await whatsappApi.getStatus(storeId);
+        if (status.status === 'ACTIVE') {
+          setConnectionStatus('connected');
+        } else {
+          setConnectionStatus('disconnected');
+        }
+      } catch (error) {
+        console.error('Failed to check WhatsApp status:', error);
+        setConnectionStatus('disconnected');
+      }
+    };
+
+    if (storeId) {
+      checkConnection();
+    }
+  }, [storeId]);
+
+  useEffect(() => {
+    if (connectionStatus !== 'connected') return;
+
+    loadConversations();
+    // Poll for new messages every 5 seconds
+    const interval = setInterval(() => {
+      loadConversations();
+      if (selectedConversation) {
+        loadMessages(selectedConversation.id);
+      }
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, [connectionStatus, selectedConversation]);
+
+  const handleTemplateSend = async (template: any) => {
+    if (!selectedConversation || !storeId) return;
+
+    try {
+      setShowTemplateSelector(false);
+
+      // Optimistic update
+      const tempMessage: Message = {
+        id: 'temp-' + Date.now(),
+        conversationId: selectedConversation.id,
+        direction: 'outbound',
+        type: 'template',
+        body: `[Template: ${template.name}]`,
+        createdAt: new Date().toISOString(),
+        status: 'sent',
+      };
+      setMessages(prev => [...prev, tempMessage]);
+
+      await whatsappApi.sendTemplate({
+        conversationId: selectedConversation.id,
+        templateName: template.name,
+        language: template.language,
+        components: [] // TODO: Handle variables if needed
+      });
+
+      await loadMessages(selectedConversation.id);
+      // Refresh conversation list to update status
+      await loadConversations();
+    } catch (error: any) {
+      alert(`Failed to send template: ${error.message}`);
+    }
+  };
 
   useEffect(() => {
     loadConversations();
@@ -39,6 +118,27 @@ export default function WhatsAppMessagesPage() {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    // Filter conversations locally
+    let result = conversations;
+
+    // 1. Search filter (already handled by API but good for local updates)
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(c =>
+        (c.displayName?.toLowerCase().includes(q)) ||
+        (c.phoneNumber.includes(q))
+      );
+    }
+
+    // 2. Status filter
+    if (filter === 'unread') {
+      result = result.filter(c => c.unreadCount > 0);
+    }
+
+    setFilteredConversations(result);
+  }, [conversations, filter, searchQuery]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -132,25 +232,69 @@ export default function WhatsAppMessagesPage() {
     }
   };
 
-  if (loading || storeLoading || !storeId) {
+  if (loading || storeLoading || !storeId || connectionStatus === 'checking') {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <div className="flex items-center justify-center min-h-screen bg-[#f7fafc]">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
       </div>
     );
   }
 
+  // Show "Not Connected" state
+  if (connectionStatus === 'disconnected') {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-[#f7fafc]">
+        <div className="max-w-md text-center p-8">
+          <div className="w-20 h-20 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <FaWhatsapp className="w-10 h-10 text-yellow-600" />
+          </div>
+          <h1 className="text-2xl font-bold text-[#0f172a] mb-3">
+            WhatsApp Not Connected
+          </h1>
+          <p className="text-gray-600 mb-6">
+            You need to connect your WhatsApp Business Account before you can send or receive messages.
+          </p>
+          <a
+            href="/integrations/whatsapp"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-600 text-white text-sm font-medium rounded-md hover:bg-emerald-700 transition-colors"
+          >
+            <FaPlug className="w-4 h-4" />
+            Connect WhatsApp
+          </a>
+          <p className="text-xs text-gray-500 mt-4">
+            Go to Integrations → WhatsApp to set up your connection
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex h-[calc(100vh-4rem)] bg-gray-50 dark:bg-gray-900">
+    <div className="flex h-[calc(100vh-4rem)] bg-white dark:bg-gray-900 overflow-hidden">
       {/* Conversations Sidebar */}
-      <div className="w-96 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col">
+      <div className="w-96 border-r border-gray-200 dark:border-gray-800 flex flex-col bg-white dark:bg-gray-900">
         {/* Header */}
-        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center">
-              <FaWhatsapp className="w-5 h-5 text-green-600 dark:text-green-400" />
+        <div className="p-4 bg-gray-50/50 dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800">
+          <div className="flex items-center justify-between mb-4">
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+              Chats
+              {filter === 'unread' && <span className="text-xs font-normal text-green-600 bg-green-50 px-2 py-0.5 rounded-full">Unread Only</span>}
+            </h1>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setFilter(filter === 'all' ? 'unread' : 'all')}
+                className={`p-2 rounded-full transition-colors ${filter === 'unread' ? 'bg-green-100 text-green-600' : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-600 dark:text-gray-400'}`}
+                title="Filter Unread"
+              >
+                <FaFilter className="w-4 h-4" />
+              </button>
+              <button
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full text-gray-600 dark:text-gray-400 transition-colors"
+                title="New Chat"
+              >
+                <FaPlus className="w-4 h-4" />
+              </button>
             </div>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white">WhatsApp</h1>
           </div>
 
           {/* Search */}
@@ -160,59 +304,66 @@ export default function WhatsAppMessagesPage() {
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && loadConversations()}
-              placeholder="Search conversations..."
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-900 text-gray-900 dark:text-white text-sm"
+              placeholder="Search or start new chat"
+              className="w-full pl-10 pr-4 py-2.5 bg-gray-100 dark:bg-gray-800 border-none rounded-lg focus:ring-2 focus:ring-green-500/50 text-sm text-gray-900 dark:text-white placeholder-gray-500"
             />
           </div>
         </div>
 
         {/* Conversation List */}
-        <div className="flex-1 overflow-y-auto">
-          {conversations.length === 0 ? (
-            <div className="p-8 text-center">
-              <p className="text-gray-500 dark:text-gray-400 text-sm">
-                No conversations yet. Incoming messages will appear here.
+        <div className="flex-1 overflow-y-auto custom-scrollbar">
+          {filteredConversations.length === 0 ? (
+            <div className="p-8 text-center flex flex-col items-center justify-center h-full">
+              <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
+                <FaSearch className="w-6 h-6 text-gray-400" />
+              </div>
+              <p className="text-gray-500 dark:text-gray-400 text-sm font-medium">
+                No conversations found
               </p>
+              {filter === 'unread' && (
+                <button
+                  onClick={() => setFilter('all')}
+                  className="mt-2 text-green-600 hover:underline text-sm"
+                >
+                  Show all chats
+                </button>
+              )}
             </div>
           ) : (
-            conversations.map((conv) => (
+            filteredConversations.map((conv) => (
               <button
                 key={conv.id}
                 onClick={() => setSelectedConversation(conv)}
-                className={`w-full p-4 border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors text-left ${selectedConversation?.id === conv.id ? 'bg-green-50 dark:bg-green-900/20' : ''
+                className={`w-full p-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-all text-left group border-b border-gray-50 dark:border-gray-800/50 ${selectedConversation?.id === conv.id ? 'bg-green-50/50 dark:bg-green-900/10 border-l-4 border-l-green-500' : 'border-l-4 border-l-transparent'
                   }`}
               >
                 <div className="flex items-start gap-3">
-                  <div className="w-12 h-12 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center flex-shrink-0">
-                    <span className="text-lg font-semibold text-gray-600 dark:text-gray-300">
+                  <div className="relative">
+                    <div className="w-12 h-12 bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800 rounded-full flex items-center justify-center flex-shrink-0 text-gray-600 dark:text-gray-300 font-semibold text-lg shadow-sm">
                       {conv.displayName?.[0] || conv.phoneNumber[0]}
-                    </span>
+                    </div>
+                    {conv.unreadCount > 0 && (
+                      <span className="absolute -top-1 -right-1 w-5 h-5 bg-green-500 text-white text-xs font-bold flex items-center justify-center rounded-full shadow-sm ring-2 ring-white dark:ring-gray-900">
+                        {conv.unreadCount}
+                      </span>
+                    )}
                   </div>
 
-                  <div className="flex-1 min-w-0">
+                  <div className="flex-1 min-w-0 py-0.5">
                     <div className="flex items-center justify-between mb-1">
-                      <p className="font-semibold text-gray-900 dark:text-white truncate">
+                      <p className={`font-medium truncate ${conv.unreadCount > 0 ? 'text-gray-900 dark:text-white font-bold' : 'text-gray-800 dark:text-gray-200'}`}>
                         {conv.displayName || conv.phoneNumber}
                       </p>
                       {conv.lastMessageAt && (
-                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                        <span className={`text-xs ${conv.unreadCount > 0 ? 'text-green-600 font-medium' : 'text-gray-400'}`}>
                           {formatTime(conv.lastMessageAt)}
                         </span>
                       )}
                     </div>
 
-                    <p className="text-sm text-gray-600 dark:text-gray-400 truncate">
+                    <p className={`text-sm truncate ${conv.unreadCount > 0 ? 'text-gray-900 dark:text-gray-300 font-medium' : 'text-gray-500 dark:text-gray-400'}`}>
                       {conv.lastMessageBody || 'No messages yet'}
                     </p>
-
-                    {conv.unreadCount > 0 && (
-                      <div className="mt-1">
-                        <span className="inline-block px-2 py-0.5 bg-green-600 text-white text-xs font-medium rounded-full">
-                          {conv.unreadCount}
-                        </span>
-                      </div>
-                    )}
                   </div>
                 </div>
               </button>
@@ -223,17 +374,20 @@ export default function WhatsAppMessagesPage() {
 
       {/* Message Thread */}
       {selectedConversation ? (
-        <div className="flex-1 flex flex-col bg-white dark:bg-gray-800">
+        <div className="flex-1 flex flex-col bg-[#efeae2] dark:bg-[#0b141a] relative">
+          {/* Chat Background Pattern */}
+          <div className="absolute inset-0 opacity-[0.06] pointer-events-none" style={{ backgroundImage: 'url("https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png")' }}></div>
+
           {/* Thread Header */}
-          <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+          <div className="px-4 py-3 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between z-10 shadow-sm">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center">
+              <div className="w-10 h-10 bg-gray-200 dark:bg-gray-700 rounded-full flex items-center justify-center cursor-pointer">
                 <span className="text-lg font-semibold text-gray-600 dark:text-gray-300">
                   {selectedConversation.displayName?.[0] || selectedConversation.phoneNumber[0]}
                 </span>
               </div>
               <div>
-                <h2 className="font-semibold text-gray-900 dark:text-white">
+                <h2 className="font-semibold text-gray-900 dark:text-white cursor-pointer hover:underline decoration-gray-400">
                   {selectedConversation.displayName || selectedConversation.phoneNumber}
                 </h2>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
@@ -242,78 +396,147 @@ export default function WhatsAppMessagesPage() {
               </div>
             </div>
 
-            {!selectedConversation.sessionActive && (
-              <div className="text-xs text-yellow-600 dark:text-yellow-400 bg-yellow-50 dark:bg-yellow-900/20 px-3 py-1 rounded-full">
-                Session expired - Use template
-              </div>
-            )}
-          </div>
-
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50 dark:bg-gray-900/50">
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={`flex ${message.direction === 'outbound' ? 'justify-end' : 'justify-start'}`}
-              >
-                <div
-                  className={`max-w-md px-4 py-2 rounded-2xl ${message.direction === 'outbound'
-                    ? 'bg-green-600 text-white'
-                    : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white'
-                    }`}
-                >
-                  <p className="text-sm whitespace-pre-wrap break-words">{message.body}</p>
-                  <div className="flex items-center gap-1 justify-end mt-1">
-                    <span className="text-xs opacity-70">
-                      {formatTime(message.createdAt)}
-                    </span>
-                    {getStatusIcon(message)}
-                  </div>
+            <div className="flex items-center gap-4">
+              {!selectedConversation.sessionActive && (
+                <div className="flex items-center gap-2 text-xs font-medium text-amber-700 bg-amber-50 dark:bg-amber-900/30 dark:text-amber-400 px-3 py-1.5 rounded-full border border-amber-200 dark:border-amber-800">
+                  <FaBolt className="w-3 h-3" />
+                  Session Expired
                 </div>
-              </div>
-            ))}
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* Message Input */}
-          <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={messageInput}
-                onChange={(e) => setMessageInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
-                placeholder={
-                  selectedConversation.sessionActive
-                    ? 'Type a message...'
-                    : 'Session expired. Use a template to restart the conversation.'
-                }
-                disabled={!selectedConversation.sessionActive || sending}
-                className="flex-1 px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent bg-white dark:bg-gray-900 text-gray-900 dark:text-white disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:cursor-not-allowed"
-              />
-              <button
-                onClick={handleSend}
-                disabled={!messageInput.trim() || !selectedConversation.sessionActive || sending}
-                className="px-6 py-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors font-medium flex items-center gap-2"
-              >
-                <FaPaperPlane className="w-4 h-4" />
-                Send
+              )}
+              <button className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                <FaSearch className="w-5 h-5" />
+              </button>
+              <button className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+                <FaEllipsisV className="w-5 h-5" />
               </button>
             </div>
           </div>
-        </div>
-      ) : (
-        <div className="flex-1 flex items-center justify-center bg-white dark:bg-gray-800">
-          <div className="text-center">
-            <FaWhatsapp className="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-              Select a conversation
-            </h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Choose a conversation from the list to start messaging
-            </p>
+
+          {/* Messages */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-2 z-10 custom-scrollbar">
+            {messages.map((message, index) => {
+              const isOutbound = message.direction === 'outbound';
+              const showTail = index === messages.length - 1 || messages[index + 1]?.direction !== message.direction;
+
+              return (
+                <div
+                  key={message.id}
+                  className={`flex ${isOutbound ? 'justify-end' : 'justify-start'} group`}
+                >
+                  <div
+                    className={`relative max-w-[65%] px-4 py-2 rounded-lg shadow-sm text-sm ${isOutbound
+                      ? 'bg-[#d9fdd3] dark:bg-[#005c4b] text-gray-900 dark:text-white rounded-tr-none'
+                      : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white rounded-tl-none'
+                      }`}
+                  >
+                    {/* Message Tail */}
+                    {showTail && (
+                      <span className={`absolute top-0 w-3 h-3 ${isOutbound
+                        ? '-right-2 bg-[#d9fdd3] dark:bg-[#005c4b] [clip-path:polygon(0_0,0%_100%,100%_0)]'
+                        : '-left-2 bg-white dark:bg-gray-800 [clip-path:polygon(0_0,100%_0,100%_100%)]'
+                        }`} />
+                    )}
+
+                    <p className="whitespace-pre-wrap break-words leading-relaxed">{message.body}</p>
+                    <div className={`flex items-center gap-1 justify-end mt-1 select-none ${isOutbound ? 'text-gray-500 dark:text-green-100/70' : 'text-gray-400'}`}>
+                      <span className="text-[10px]">
+                        {formatTime(message.createdAt)}
+                      </span>
+                      {getStatusIcon(message)}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Message Input Area */}
+          <div className="p-3 bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 z-10">
+            {selectedConversation.sessionActive ? (
+              <div className="flex items-end gap-2 max-w-4xl mx-auto">
+                <div className="flex gap-2 mb-2">
+                  <button className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
+                    <FaSmile className="w-6 h-6" />
+                  </button>
+                  <button className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors rounded-full hover:bg-gray-200 dark:hover:bg-gray-700">
+                    <FaPaperclip className="w-5 h-5" />
+                  </button>
+                </div>
+
+                <div className="flex-1 bg-white dark:bg-gray-700 rounded-xl border border-gray-200 dark:border-gray-600 focus-within:ring-2 focus-within:ring-green-500/50 focus-within:border-green-500 transition-all shadow-sm">
+                  <input
+                    type="text"
+                    value={messageInput}
+                    onChange={(e) => setMessageInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
+                    placeholder="Type a message"
+                    className="w-full px-4 py-3 bg-transparent border-none focus:ring-0 text-gray-900 dark:text-white placeholder-gray-500"
+                  />
+                </div>
+
+                <button
+                  onClick={handleSend}
+                  disabled={!messageInput.trim() || sending}
+                  className="p-3 bg-green-600 hover:bg-green-700 disabled:bg-gray-300 dark:disabled:bg-gray-700 disabled:cursor-not-allowed text-white rounded-full transition-all shadow-md mb-0.5"
+                >
+                  <FaPaperPlane className="w-5 h-5 pl-0.5" />
+                </button>
+              </div>
+            ) : (
+              <div className="max-w-3xl mx-auto bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 flex items-center justify-between shadow-sm">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-amber-100 dark:bg-amber-900/50 rounded-full">
+                    <FaBolt className="w-5 h-5 text-amber-600 dark:text-amber-400" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-amber-900 dark:text-amber-200">Session Expired</h3>
+                    <p className="text-sm text-amber-700 dark:text-amber-400">
+                      More than 24 hours have passed. Use a template to restart the chat.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-medium text-sm transition-colors shadow-sm flex items-center gap-2"
+                  onClick={() => setShowTemplateSelector(true)}
+                >
+                  <FaBolt className="w-3 h-3" />
+                  Start Conversation
+                </button>
+              </div>
+            )}
           </div>
         </div>
+      ) : (
+        <div className="flex-1 flex flex-col items-center justify-center bg-gray-50 dark:bg-gray-900 border-b-8 border-green-500">
+          <div className="text-center max-w-md p-8">
+            <div className="w-24 h-24 bg-green-100 dark:bg-green-900/30 rounded-full flex items-center justify-center mx-auto mb-6">
+              <FaWhatsapp className="w-12 h-12 text-green-600 dark:text-green-400" />
+            </div>
+            <h1 className="text-3xl font-light text-gray-800 dark:text-gray-200 mb-4">
+              WhatsApp for HopeRx
+            </h1>
+            <p className="text-gray-500 dark:text-gray-400 leading-relaxed">
+              Send and receive messages without keeping your phone online.
+              <br />
+              Use HopeRx on up to 4 linked devices and 1 phone.
+            </p>
+            <div className="mt-8 flex items-center justify-center gap-2 text-sm text-gray-400">
+              <FaCheckDouble className="w-4 h-4" />
+              <span>End-to-end encrypted</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Template Selector Modal */}
+      {showTemplateSelector && storeId && (
+        <TemplateSelector
+          storeId={storeId}
+          isOpen={showTemplateSelector}
+          onClose={() => setShowTemplateSelector(false)}
+          onSelect={handleTemplateSend}
+        />
       )}
     </div>
   );
