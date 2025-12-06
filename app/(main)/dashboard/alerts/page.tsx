@@ -1,215 +1,231 @@
 "use client"
 import { useState, useEffect } from "react"
-import { FiSearch, FiRefreshCw, FiDownload, FiAlertCircle, FiCheckCircle, FiClock } from "react-icons/fi"
-import AlertCard from "@/components/dashboard/alerts/AlertCard"
-import AlertDetailDrawer from "@/components/dashboard/alerts/AlertDetailDrawer"
-import { Alert } from "@/components/dashboard/alerts/types"
-
-const AlertCardSkeleton = () => (
-    <div className="bg-white p-4 rounded-xl border border-gray-200 animate-pulse">
-        <div className="flex items-start justify-between">
-            <div className="flex items-start gap-4">
-                <div className="w-5 h-5 bg-gray-200 rounded-full mt-1"></div>
-                <div>
-                    <div className="h-5 bg-gray-200 rounded-md w-48 mb-2"></div>
-                    <div className="h-4 bg-gray-200 rounded-md w-64"></div>
-                </div>
-            </div>
-            <div className="h-4 bg-gray-200 rounded-md w-24"></div>
-        </div>
-    </div>
-)
+import { FiAlertTriangle, FiPackage, FiClock, FiShield, FiInfo, FiCheck, FiX, FiFilter } from "react-icons/fi"
+import { alertsApi, Alert } from "@/lib/api/alerts"
+import { formatDistanceToNow } from "date-fns"
 
 export default function AlertsPage() {
-    const [activeTab, setActiveTab] = useState("all")
-    const [searchQuery, setSearchQuery] = useState("")
-    const [selectedAlert, setSelectedAlert] = useState<Alert | null>(null)
-    const [autoRefresh, setAutoRefresh] = useState(true)
     const [alerts, setAlerts] = useState<Alert[]>([])
-    const [isLoading, setIsLoading] = useState(true)
-    const [lastChecked, setLastChecked] = useState<string | null>(null)
+    const [loading, setLoading] = useState(true)
+    const [filter, setFilter] = useState<'all' | 'unread'>('all')
+    const [severityFilter, setSeverityFilter] = useState<string>('all')
+
+    const fetchAlerts = async () => {
+        try {
+            setLoading(true)
+            const data = await alertsApi.getAlerts({ limit: 100 })
+            setAlerts(data)
+        } catch (error) {
+            console.error("Failed to fetch alerts:", error)
+        } finally {
+            setLoading(false)
+        }
+    }
 
     useEffect(() => {
-        setIsLoading(true)
-        const timer = setTimeout(() => {
-            setAlerts([]) // Start with no data
-            setIsLoading(false)
-            setLastChecked(new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }))
-        }, 1500) // Simulate network delay
+        fetchAlerts()
+        // Poll for new alerts every 30 seconds
+        const interval = setInterval(fetchAlerts, 30000)
+        return () => clearInterval(interval)
+    }, [])
 
-        return () => clearTimeout(timer)
-    }, [autoRefresh])
+    const markAsRead = async (alertId: string) => {
+        try {
+            await alertsApi.acknowledgeAlert(alertId)
+            fetchAlerts()
+        } catch (error) {
+            console.error("Failed to mark alert as read:", error)
+        }
+    }
 
-    const criticalCount = alerts.filter(a => a.severity === "critical").length
-    const warningCount = alerts.filter(a => a.severity === "warning").length
-    const infoCount = alerts.filter(a => a.severity === "info").length
-    const newToday = alerts.filter(a => a.status === "new").length
+    const markAllAsRead = async () => {
+        try {
+            const newAlerts = alerts.filter(a => a.status === 'NEW')
+            await Promise.all(newAlerts.map(a => alertsApi.acknowledgeAlert(a.id)))
+            fetchAlerts()
+        } catch (error) {
+            console.error("Failed to mark all as read:", error)
+        }
+    }
+
+    const dismissAlert = async (alertId: string) => {
+        try {
+            await alertsApi.dismissAlert(alertId)
+            fetchAlerts()
+        } catch (error) {
+            console.error("Failed to dismiss alert:", error)
+        }
+    }
+
+    const getIconForType = (type: string) => {
+        const icons: Record<string, any> = {
+            'inventory': FiPackage,
+            'compliance': FiShield,
+            'workflow': FiClock,
+            'system': FiAlertTriangle
+        }
+        return icons[type] || FiInfo
+    }
+
+    const getSeverityColor = (severity: string) => {
+        const colors: Record<string, { bg: string, text: string, border: string }> = {
+            'CRITICAL': { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-200' },
+            'HIGH': { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200' },
+            'MEDIUM': { bg: 'bg-yellow-50', text: 'text-yellow-700', border: 'border-yellow-200' },
+            'LOW': { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200' },
+            'INFO': { bg: 'bg-gray-50', text: 'text-gray-700', border: 'border-gray-200' }
+        }
+        return colors[severity] || colors['INFO']
+    }
 
     const filteredAlerts = alerts.filter(alert => {
-        if (activeTab !== "all" && alert.type !== activeTab && activeTab !== "resolved") return false
-        if (searchQuery && !alert.title.toLowerCase().includes(searchQuery.toLowerCase()) &&
-            !alert.medicine?.toLowerCase().includes(searchQuery.toLowerCase())) return false
+        if (filter === 'unread' && alert.status !== 'NEW') return false
+        if (severityFilter !== 'all' && alert.severity !== severityFilter) return false
         return true
     })
 
+    const unreadCount = alerts.filter(a => a.status === 'NEW').length
+
     return (
-        <>
-            <div className="min-h-screen bg-[#f8fafc]">
-                {/* Header */}
-                <div className="bg-white border-b border-[#e2e8f0] px-6 py-4">
-                    <div className="max-w-7xl mx-auto">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <h1 className="text-xl font-bold text-[#0f172a]">Alerts & Notifications</h1>
-                            </div>
-                            <div className="flex items-center gap-3">
-                                <button
-                                    onClick={() => setAutoRefresh(!autoRefresh)}
-                                    className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${autoRefresh
-                                        ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                                        : 'bg-white text-[#64748b] border border-[#e2e8f0]'
-                                        }`}
-                                >
-                                    <FiRefreshCw size={16} className={autoRefresh && isLoading ? 'animate-spin' : ''} />
-                                    <span className="text-sm font-medium">Auto-refresh {autoRefresh ? 'ON' : 'OFF'}</span>
-                                </button>
-                                <button className="px-4 py-2 bg-white border border-[#e2e8f0] text-[#475569] rounded-lg font-medium hover:bg-[#f8fafc] transition-colors flex items-center gap-2 text-sm">
-                                    <FiDownload size={16} />
-                                    Export Log
-                                </button>
-                            </div>
+        <div className="p-6 max-w-6xl mx-auto">
+            <div className="mb-6">
+                <h1 className="text-2xl font-bold text-gray-900">Notifications & Alerts</h1>
+                <p className="text-sm text-gray-500 mt-1">Stay updated with important alerts and notifications</p>
+            </div>
+
+            {/* Filters */}
+            <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
+                <div className="flex items-center justify-between flex-wrap gap-4">
+                    <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                            <FiFilter size={16} className="text-gray-400" />
+                            <span className="text-sm font-medium text-gray-700">Filter:</span>
                         </div>
-
-                        {/* Stats Cards */}
-                        <div className="grid grid-cols-4 gap-3 mt-4">
-                            <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                                <div className="flex items-center justify-between mb-2">
-                                    <span className="text-sm font-medium text-red-900">Critical</span>
-                                    <FiAlertCircle className="w-5 h-5 text-red-600" />
-                                </div>
-                                <div className="text-3xl font-bold text-red-700">{isLoading ? '...' : criticalCount}</div>
-                                <div className="text-xs text-red-600 mt-1">{isLoading ? 'fetching...' : 'Requires immediate action'}</div>
-                            </div>
-
-                            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
-                                <div className="flex items-center justify-between mb-2">
-                                    <span className="text-sm font-medium text-amber-900">Warning</span>
-                                    <FiAlertCircle className="w-5 h-5 text-amber-600" />
-                                </div>
-                                <div className="text-3xl font-bold text-amber-700">{isLoading ? '...' : warningCount}</div>
-                                <div className="text-xs text-amber-600 mt-1">{isLoading ? 'fetching...' : 'Needs attention soon'}</div>
-                            </div>
-
-                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                                <div className="flex items-center justify-between mb-2">
-                                    <span className="text-sm font-medium text-blue-900">Info</span>
-                                    <FiCheckCircle className="w-5 h-5 text-blue-600" />
-                                </div>
-                                <div className="text-3xl font-bold text-blue-700">{isLoading ? '...' : infoCount}</div>
-                                <div className="text-xs text-blue-600 mt-1">{isLoading ? 'fetching...' : 'Informational only'}</div>
-                            </div>
-
-                            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
-                                <div className="flex items-center justify-between mb-2">
-                                    <span className="text-sm font-medium text-emerald-900">New Today</span>
-                                    <FiClock className="w-5 h-5 text-emerald-600" />
-                                </div>
-                                <div className="text-3xl font-bold text-emerald-700">{isLoading ? '...' : newToday}</div>
-                                <div className="text-xs text-emerald-600 mt-1">{isLoading ? 'fetching...' : 'New alerts today'}</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Main Content */}
-                <div className="max-w-7xl mx-auto p-6 space-y-6">
-                    {/* Search & Actions */}
-                    <div className="flex items-center gap-3">
-                        <div className="flex-1 relative">
-                            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-[#64748b]" size={18} />
-                            <input
-                                type="text"
-                                placeholder="Search by medicine name, patient, or keyword..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-10 pr-4 py-2.5 bg-white border border-[#cbd5e1] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0ea5a3] focus:border-transparent"
-                                disabled={isLoading}
-                            />
-                        </div>
-                        <button className="px-4 py-2.5 bg-white border border-[#cbd5e1] rounded-lg text-sm font-medium text-[#475569] hover:bg-[#f8fafc] transition-colors" disabled={isLoading}>
-                            Mark All Read
-                        </button>
-                        <button className="px-4 py-2.5 bg-white border border-[#cbd5e1] rounded-lg text-sm font-medium text-[#475569] hover:bg-[#f8fafc] transition-colors" disabled={isLoading}>
-                            Snooze 1 hr
-                        </button>
-                    </div>
-
-                    {/* Filter Tabs */}
-                    <div className="bg-white rounded-xl border border-[#e2e8f0] p-1.5 flex items-center gap-1.5 overflow-x-auto">
-                        {[
-                            { id: "all", label: "All Alerts" },
-                            { id: "critical", label: "Critical" },
-                            { id: "inventory", label: "Inventory" },
-                            { id: "compliance", label: "Compliance" },
-                            { id: "workflow", label: "Workflow" },
-                            { id: "system", label: "System" },
-                            { id: "resolved", label: "Resolved" }
-                        ].map(tab => (
+                        <div className="flex gap-2">
                             <button
-                                key={tab.id}
-                                onClick={() => setActiveTab(tab.id)}
-                                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${activeTab === tab.id
-                                    ? 'bg-[#0ea5a3] text-white shadow-sm'
-                                    : 'text-[#64748b] hover:bg-[#f8fafc]'
+                                onClick={() => setFilter('all')}
+                                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${filter === 'all'
+                                        ? 'bg-emerald-100 text-emerald-700'
+                                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                                     }`}
-                                disabled={isLoading}
                             >
-                                {tab.label}
+                                All ({alerts.length})
                             </button>
-                        ))}
+                            <button
+                                onClick={() => setFilter('unread')}
+                                className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${filter === 'unread'
+                                        ? 'bg-emerald-100 text-emerald-700'
+                                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                    }`}
+                            >
+                                Unread ({unreadCount})
+                            </button>
+                        </div>
+                        <div className="flex gap-2">
+                            <select
+                                value={severityFilter}
+                                onChange={(e) => setSeverityFilter(e.target.value)}
+                                className="px-3 py-1.5 rounded-lg text-sm font-medium bg-gray-100 text-gray-600 border-none focus:ring-2 focus:ring-emerald-500"
+                            >
+                                <option value="all">All Severities</option>
+                                <option value="CRITICAL">Critical</option>
+                                <option value="HIGH">High</option>
+                                <option value="MEDIUM">Medium</option>
+                                <option value="LOW">Low</option>
+                                <option value="INFO">Info</option>
+                            </select>
+                        </div>
                     </div>
-
-                    {/* Alerts List */}
-                    <div className="space-y-3">
-                        {isLoading ? (
-                            <>
-                                <AlertCardSkeleton />
-                                <AlertCardSkeleton />
-                                <AlertCardSkeleton />
-                            </>
-                        ) : filteredAlerts.length === 0 ? (
-                            <div className="bg-white rounded-xl border border-[#e2e8f0] p-12 text-center">
-                                <div className="w-16 h-16 bg-[#f8fafc] rounded-full flex items-center justify-center mx-auto mb-4">
-                                    <FiCheckCircle className="w-8 h-8 text-[#64748b]" />
-                                </div>
-                                <p className="text-[#64748b] font-medium">No alerts found</p>
-                                <p className="text-sm text-[#94a3b8] mt-1">All clear! No alerts match your current filter.</p>
-                            </div>
-                        ) : (
-                            filteredAlerts.map(alert => (
-                                <AlertCard
-                                    key={alert.id}
-                                    alert={alert}
-                                    onClick={() => setSelectedAlert(alert)}
-                                />
-                            ))
-                        )}
-                    </div>
-
-                    {/* Last Updated */}
-                    <div className="text-center text-sm text-[#94a3b8]">
-                        {isLoading ? 'Checking for alerts...' : `Last checked at ${lastChecked} • Auto-refresh ${autoRefresh ? 'enabled' : 'disabled'}`}
-                    </div>
+                    {unreadCount > 0 && (
+                        <button
+                            onClick={markAllAsRead}
+                            className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors"
+                        >
+                            Mark all as read
+                        </button>
+                    )}
                 </div>
             </div>
 
-            {/* Alert Detail Drawer */}
-            {selectedAlert && (
-                <AlertDetailDrawer
-                    alert={selectedAlert}
-                    onClose={() => setSelectedAlert(null)}
-                />
-            )}
-        </>
+            {/* Alerts List */}
+            <div className="space-y-3">
+                {loading ? (
+                    <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
+                        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-emerald-500 mx-auto"></div>
+                        <p className="text-sm text-gray-500 mt-4">Loading alerts...</p>
+                    </div>
+                ) : filteredAlerts.length > 0 ? (
+                    filteredAlerts.map((alert) => {
+                        const IconComponent = getIconForType(alert.type)
+                        const colors = getSeverityColor(alert.severity)
+                        const isUnread = alert.status === 'NEW'
+
+                        return (
+                            <div
+                                key={alert.id}
+                                className={`bg-white rounded-lg border ${colors.border} p-4 transition-all hover:shadow-md ${isUnread ? colors.bg : ''
+                                    }`}
+                            >
+                                <div className="flex items-start gap-4">
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${colors.bg}`}>
+                                        <IconComponent className={colors.text} size={20} />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-start justify-between gap-4">
+                                            <div className="flex-1">
+                                                <div className="flex items-center gap-2">
+                                                    <h3 className="text-base font-semibold text-gray-900">{alert.title}</h3>
+                                                    {isUnread && (
+                                                        <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+                                                    )}
+                                                </div>
+                                                <p className="text-sm text-gray-600 mt-1">{alert.description}</p>
+                                                <div className="flex items-center gap-4 mt-2">
+                                                    <span className={`text-xs font-medium px-2 py-1 rounded ${colors.bg} ${colors.text}`}>
+                                                        {alert.severity}
+                                                    </span>
+                                                    <span className="text-xs text-gray-500">
+                                                        {formatDistanceToNow(new Date(alert.createdAt), { addSuffix: true })}
+                                                    </span>
+                                                    <span className="text-xs text-gray-400 capitalize">
+                                                        {alert.type.replace('_', ' ')}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center gap-2">
+                                                {isUnread && (
+                                                    <button
+                                                        onClick={() => markAsRead(alert.id)}
+                                                        className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+                                                        title="Mark as read"
+                                                    >
+                                                        <FiCheck size={18} />
+                                                    </button>
+                                                )}
+                                                <button
+                                                    onClick={() => dismissAlert(alert.id)}
+                                                    className="p-2 text-gray-400 hover:bg-gray-100 rounded-lg transition-colors"
+                                                    title="Dismiss"
+                                                >
+                                                    <FiX size={18} />
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )
+                    })
+                ) : (
+                    <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
+                        <FiCheck size={48} className="text-gray-300 mx-auto mb-4" />
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">All caught up!</h3>
+                        <p className="text-sm text-gray-500">
+                            {filter === 'unread' ? 'No unread notifications' : 'No notifications to display'}
+                        </p>
+                    </div>
+                )}
+            </div>
+        </div>
     )
 }

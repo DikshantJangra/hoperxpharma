@@ -3,12 +3,13 @@ import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
 import {
-    FiMenu, FiSearch, FiChevronDown, FiChevronRight, FiMessageSquare, FiBell,
+    FiMenu, FiSearch, FiChevronDown, FiChevronRight, FiMessageSquare,
     FiUser, FiSettings, FiHelpCircle, FiLogOut, FiCheck, FiX
 } from "react-icons/fi"
 import { MdStore, MdShoppingCart } from "react-icons/md"
 import { TbPrescription } from "react-icons/tb"
 import { useAuthStore } from "@/lib/store/auth-store"
+import NotificationButton from "./NotificationButton"
 
 interface NavbarProps {
     onToggleSidebar: () => void
@@ -289,72 +290,6 @@ function RightSection({ showNotifications, setShowNotifications, showUserMenu, s
     )
 }
 
-function NotificationButton({ show, setShow }: any) {
-    const notifRef = useRef<HTMLDivElement>(null)
-
-    useEffect(() => {
-        function handleClickOutside(event: MouseEvent) {
-            if (notifRef.current && !notifRef.current.contains(event.target as Node)) {
-                setShow(false)
-            }
-        }
-
-        if (show) {
-            document.addEventListener('mousedown', handleClickOutside)
-            return () => document.removeEventListener('mousedown', handleClickOutside)
-        }
-    }, [show, setShow])
-
-    return (
-        <div className="relative" ref={notifRef}>
-            <button
-                onClick={() => setShow(!show)}
-                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors relative"
-            >
-                <FiBell size={20} />
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full text-xs text-white flex items-center justify-center font-semibold border-2 border-white">3</span>
-            </button>
-            {show && (
-                <div className="absolute right-0 top-12 w-80 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50">
-                    <div className="px-4 py-2 border-b border-gray-100 flex items-center justify-between">
-                        <h3 className="text-sm font-semibold text-gray-800">Notifications</h3>
-                        <button className="text-xs text-emerald-600 hover:text-emerald-700 font-medium">
-                            Mark all read
-                        </button>
-                    </div>
-                    <NotificationItem type="critical" title="Critical Stock Alert" desc="Atorvastatin 10mg - 4 units left" time="2m ago" />
-                    <NotificationItem type="warning" title="Near Expiry" desc="2 items expiring in 5 days" time="1h ago" />
-                    <NotificationItem type="info" title="New e-Prescription" desc="3 new prescriptions received" time="2h ago" />
-                    <div className="border-t border-gray-100 mt-2 pt-2 px-4">
-                        <Link
-                            href="/notifications"
-                            className="text-sm text-emerald-600 hover:text-emerald-700 font-medium"
-                            onClick={() => setShow(false)}
-                        >
-                            View all notifications →
-                        </Link>
-                    </div>
-                </div>
-            )}
-        </div>
-    )
-}
-
-function NotificationItem({ type, title, desc, time }: any) {
-    const bgColor = type === 'critical' ? 'bg-red-500' : type === 'warning' ? 'bg-amber-500' : 'bg-blue-500'
-    return (
-        <button className="w-full px-4 py-3 hover:bg-gray-50 transition-colors text-left">
-            <div className="flex items-start gap-3">
-                <div className={`w-2 h-2 rounded-full mt-1.5 ${bgColor}`}></div>
-                <div className="flex-1">
-                    <p className="text-sm font-semibold text-gray-800">{title}</p>
-                    <p className="text-xs text-gray-600 mt-0.5">{desc}</p>
-                    <p className="text-xs text-gray-400 mt-1">{time}</p>
-                </div>
-            </div>
-        </button>
-    )
-}
 
 function UserMenu({ show, setShow }: any) {
     const userMenuRef = useRef<HTMLDivElement>(null);
