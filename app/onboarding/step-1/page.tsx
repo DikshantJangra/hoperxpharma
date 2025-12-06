@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useOnboarding } from "@/contexts/OnboardingContext";
 import { useRouter } from "next/navigation";
-import { FiUpload, FiInfo, FiArrowRight, FiHome, FiMapPin, FiType, FiImage, FiPhone } from "react-icons/fi";
+import { FiUpload, FiInfo, FiArrowRight, FiHome, FiMapPin, FiType, FiImage, FiPhone, FiMail } from "react-icons/fi";
 import OnboardingCard from "@/components/onboarding/OnboardingCard";
 
 const INDIAN_STATES = [
@@ -37,7 +37,8 @@ export default function Step1Page() {
         landmark: state.data.storeIdentity.landmark || "",
         storeLogo: state.data.storeIdentity.storeLogo || "",
         displayName: state.data.storeIdentity.displayName || "",
-        phoneNumber: state.data.storeIdentity.phoneNumber || ""
+        phoneNumber: state.data.storeIdentity.phoneNumber || "",
+        email: state.data.storeIdentity.email || ""
     });
 
     const [errors, setErrors] = useState<Record<string, string>>({});
@@ -121,6 +122,12 @@ export default function Step1Page() {
             newErrors.phoneNumber = "Phone number must be exactly 10 digits";
         } else if (!/^[6-9]\d{9}$/.test(formData.phoneNumber)) {
             newErrors.phoneNumber = "Phone number must start with 6, 7, 8, or 9";
+        }
+
+        if (!formData.email) {
+            newErrors.email = "Store email is required";
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+            newErrors.email = "Please enter a valid email address";
         }
 
         setErrors(newErrors);
@@ -226,6 +233,27 @@ export default function Step1Page() {
                     {!errors.phoneNumber && formData.phoneNumber.length > 0 && formData.phoneNumber.length < 10 && (
                         <p className="mt-1 ml-1 text-xs text-amber-600">Enter {10 - formData.phoneNumber.length} more digit{10 - formData.phoneNumber.length !== 1 ? 's' : ''}</p>
                     )}
+                </div>
+
+                {/* Store Email */}
+                <div className="group">
+                    <label className="block text-gray-700 text-xs font-semibold mb-1.5 ml-1">
+                        Store Email <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative transition-all duration-200 focus-within:ring-2 focus-within:ring-emerald-500/20 rounded-xl">
+                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-500 transition-colors">
+                            <FiMail size={18} />
+                        </div>
+                        <input
+                            type="email"
+                            value={formData.email}
+                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                            placeholder="pharmacy@example.com"
+                            className={`w-full pl-11 pr-4 py-3 bg-gray-50 border rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-all text-sm text-gray-900 placeholder:text-gray-400 ${errors.email ? "border-red-500" : "border-gray-200"}`}
+                        />
+                    </div>
+                    {errors.email && <p className="mt-1 ml-1 text-xs text-red-500">{errors.email}</p>}
+                    <p className="mt-1 ml-1 text-xs text-gray-500">This will be used for store communications and invoices</p>
                 </div>
 
                 {/* Address */}
