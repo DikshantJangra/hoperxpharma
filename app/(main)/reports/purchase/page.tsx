@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { FiPackage, FiTrendingUp, FiCalendar, FiDownload } from "react-icons/fi";
 import { MdShowChart } from "react-icons/md";
+import { getPurchaseReport, PurchaseReportData } from "@/lib/api/reports";
 
 const StatCardSkeleton = () => (
     <div className="bg-white border border-[#e2e8f0] rounded-xl p-6 animate-pulse">
@@ -26,23 +27,30 @@ const TableRowSkeleton = () => (
 
 export default function PurchaseReportPage() {
     const [dateRange, setDateRange] = useState("thisMonth");
-    const [purchaseData, setPurchaseData] = useState<any[]>([]);
-    const [topPurchasedItems, setTopPurchasedItems] = useState<any[]>([]);
+    const [reportData, setReportData] = useState<PurchaseReportData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        setIsLoading(true);
-        const timer = setTimeout(() => {
-            setPurchaseData([]);
-            setTopPurchasedItems([]);
-            setIsLoading(false);
-        }, 1500)
-        return () => clearTimeout(timer);
+        const fetchData = async () => {
+            setIsLoading(true);
+            setError(null);
+            try {
+                const data = await getPurchaseReport({ dateRange: dateRange as any });
+                setReportData(data);
+            } catch (err) {
+                console.error('Failed to fetch purchase report:', err);
+                setError('Failed to load purchase report');
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchData();
     }, [dateRange]);
 
-    const totalPurchase = purchaseData.reduce((sum, item) => sum + item.amount, 0);
-    const totalOrders = purchaseData.reduce((sum, item) => sum + item.orders, 0);
-    const avgOrderValue = totalOrders > 0 ? Math.round(totalPurchase / totalOrders) : 0;
+    const totalPurchase = reportData?.summary.totalPurchase || 0;
+    const totalOrders = reportData?.summary.totalOrders || 0;
+    const avgOrderValue = reportData?.summary.avgOrderValue || 0;
 
     return (
         <div className="min-h-screen bg-[#f8fafc] pb-20">
@@ -78,9 +86,9 @@ export default function PurchaseReportPage() {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                     {isLoading ? (
                         <>
-                            <StatCardSkeleton/>
-                            <StatCardSkeleton/>
-                            <StatCardSkeleton/>
+                            <StatCardSkeleton />
+                            <StatCardSkeleton />
+                            <StatCardSkeleton />
                         </>
                     ) : (
                         <>
@@ -127,12 +135,12 @@ export default function PurchaseReportPage() {
                             <tbody>
                                 {isLoading ? (
                                     <>
-                                        <TableRowSkeleton/>
-                                        <TableRowSkeleton/>
-                                        <TableRowSkeleton/>
+                                        <TableRowSkeleton />
+                                        <TableRowSkeleton />
+                                        <TableRowSkeleton />
                                     </>
-                                ) : purchaseData.length > 0 ? (
-                                    purchaseData.map((item, idx) => (
+                                ) : reportData?.bySupplier && reportData.bySupplier.length > 0 ? (
+                                    reportData.bySupplier.map((item, idx) => (
                                         <tr key={idx} className="border-b border-[#e2e8f0] hover:bg-[#f8fafc]">
                                             <td className="py-4 px-4 font-medium text-[#0f172a]">{item.supplier}</td>
                                             <td className="py-4 px-4 text-[#64748b]">{item.category}</td>
@@ -158,8 +166,8 @@ export default function PurchaseReportPage() {
                                 <div className="h-20 bg-gray-100 rounded-lg animate-pulse"></div>
                                 <div className="h-20 bg-gray-100 rounded-lg animate-pulse"></div>
                             </>
-                        ) : topPurchasedItems.length > 0 ? (
-                            topPurchasedItems.map((item, idx) => (
+                        ) : reportData?.topItems && reportData.topItems.length > 0 ? (
+                            reportData.topItems.map((item, idx) => (
                                 <div key={idx} className="flex items-center justify-between p-4 border border-[#e2e8f0] rounded-lg hover:shadow-sm transition-shadow">
                                     <div className="flex-1">
                                         <div className="font-medium text-[#0f172a] mb-1">{item.name}</div>

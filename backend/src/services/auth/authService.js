@@ -28,8 +28,11 @@ class AuthService {
         // Hash password
         const passwordHash = await bcrypt.hash(password, 10);
 
-        // Determine user role: first user is always ADMIN, others default to PHARMACIST
-        const userRole = role || (isFirstUser ? 'ADMIN' : 'PHARMACIST');
+        // Determine user role:
+        // - If role is explicitly provided (e.g., when admin adds staff), use that
+        // - Otherwise, default to ADMIN (new signups from /signup should be store owners)
+        // - PHARMACIST, TECHNICIAN, CASHIER roles are only assigned when admin adds staff members
+        const userRole = role || 'ADMIN';
 
         // Create user
         const user = await userRepository.create({

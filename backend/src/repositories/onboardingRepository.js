@@ -124,10 +124,10 @@ class OnboardingRepository {
             if (hours && hours.length > 0) {
                 await Promise.all(
                     hours.map((hour) => {
-                        const dayOfWeek = typeof hour.dayOfWeek === 'string' 
-                            ? DAY_MAP[hour.dayOfWeek] 
+                        const dayOfWeek = typeof hour.dayOfWeek === 'string'
+                            ? DAY_MAP[hour.dayOfWeek]
                             : hour.dayOfWeek;
-                        
+
                         return tx.storeOperatingHours.create({
                             data: {
                                 ...hour,
@@ -145,6 +145,7 @@ class OnboardingRepository {
                     suppliers.map((supplier) =>
                         tx.supplier.create({
                             data: {
+                                storeId: store.id,
                                 name: supplier.name,
                                 category: supplier.category || 'Distributor',
                                 status: 'Active',
@@ -170,7 +171,7 @@ class OnboardingRepository {
             if (users && users.length > 0) {
                 const bcrypt = require('bcrypt');
                 const defaultPassword = await bcrypt.hash('Change@123', 10);
-                
+
                 await Promise.all(
                     users.map(async (user) => {
                         // Map role to schema enum
@@ -182,7 +183,7 @@ class OnboardingRepository {
                             'TECHNICIAN': 'TECHNICIAN',
                         };
                         const mappedRole = roleMap[user.role.toUpperCase()] || 'PHARMACIST';
-                        
+
                         // Create user account
                         const newUser = await tx.user.create({
                             data: {

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { FiPackage, FiAlertCircle, FiTrendingUp, FiDownload } from "react-icons/fi";
+import { getInventoryReport, InventoryReportData } from "@/lib/api/reports";
 
 const StatCardSkeleton = () => (
     <div className="bg-white border border-[#e2e8f0] rounded-xl p-6 animate-pulse">
@@ -23,25 +24,26 @@ const TableRowSkeleton = () => (
 )
 
 export default function InventoryReportPage() {
-    const [inventoryMetrics, setInventoryMetrics] = useState<any>(null);
-    const [categoryData, setCategoryData] = useState<any[]>([]);
+    const [reportData, setReportData] = useState<InventoryReportData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        setIsLoading(true);
-        const timer = setTimeout(() => {
-            setInventoryMetrics({
-                totalValue: 0,
-                totalItems: 0,
-                lowStock: 0,
-                deadStock: 0,
-                turnoverRatio: 0
-            });
-            setCategoryData([]);
-            setIsLoading(false);
-        }, 1500);
-        return () => clearTimeout(timer);
-    }, [])
+        const fetchData = async () => {
+            setIsLoading(true);
+            setError(null);
+            try {
+                const data = await getInventoryReport();
+                setReportData(data);
+            } catch (err) {
+                console.error('Failed to fetch inventory report:', err);
+                setError('Failed to load inventory report');
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchData();
+    }, []);
 
     return (
         <div className="min-h-screen bg-[#f8fafc] pb-20">
@@ -64,10 +66,10 @@ export default function InventoryReportPage() {
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
                     {isLoading ? (
                         <>
-                            <StatCardSkeleton/>
-                            <StatCardSkeleton/>
-                            <StatCardSkeleton/>
-                            <StatCardSkeleton/>
+                            <StatCardSkeleton />
+                            <StatCardSkeleton />
+                            <StatCardSkeleton />
+                            <StatCardSkeleton />
                         </>
                     ) : (
                         <>
@@ -76,7 +78,7 @@ export default function InventoryReportPage() {
                                     <span className="text-sm text-[#64748b]">Total Value</span>
                                     <FiPackage className="w-5 h-5 text-blue-500" />
                                 </div>
-                                <div className="text-3xl font-bold text-blue-600">₹{(inventoryMetrics.totalValue / 1000).toFixed(0)}K</div>
+                                <div className="text-3xl font-bold text-blue-600">₹{((reportData?.metrics.totalValue || 0) / 1000).toFixed(0)}K</div>
                             </div>
 
                             <div className="bg-white border border-[#e2e8f0] rounded-xl p-6">
@@ -84,7 +86,7 @@ export default function InventoryReportPage() {
                                     <span className="text-sm text-[#64748b]">Total Items</span>
                                     <FiPackage className="w-5 h-5 text-green-500" />
                                 </div>
-                                <div className="text-3xl font-bold text-green-600">{inventoryMetrics.totalItems}</div>
+                                <div className="text-3xl font-bold text-green-600">{reportData?.metrics.totalItems || 0}</div>
                             </div>
 
                             <div className="bg-white border border-[#e2e8f0] rounded-xl p-6">
@@ -92,7 +94,7 @@ export default function InventoryReportPage() {
                                     <span className="text-sm text-[#64748b]">Low Stock</span>
                                     <FiAlertCircle className="w-5 h-5 text-amber-500" />
                                 </div>
-                                <div className="text-3xl font-bold text-amber-600">{inventoryMetrics.lowStock}</div>
+                                <div className="text-3xl font-bold text-amber-600">{reportData?.metrics.lowStock || 0}</div>
                             </div>
 
                             <div className="bg-white border border-[#e2e8f0] rounded-xl p-6">
@@ -100,7 +102,7 @@ export default function InventoryReportPage() {
                                     <span className="text-sm text-[#64748b]">Turnover Ratio</span>
                                     <FiTrendingUp className="w-5 h-5 text-[#0ea5a3]" />
                                 </div>
-                                <div className="text-3xl font-bold text-[#0ea5a3]">{inventoryMetrics.turnoverRatio}x</div>
+                                <div className="text-3xl font-bold text-[#0ea5a3]">{reportData?.metrics.turnoverRatio || 0}x</div>
                             </div>
                         </>
                     )}
@@ -121,13 +123,13 @@ export default function InventoryReportPage() {
                             <tbody>
                                 {isLoading ? (
                                     <>
-                                        <TableRowSkeleton/>
-                                        <TableRowSkeleton/>
-                                        <TableRowSkeleton/>
-                                        <TableRowSkeleton/>
+                                        <TableRowSkeleton />
+                                        <TableRowSkeleton />
+                                        <TableRowSkeleton />
+                                        <TableRowSkeleton />
                                     </>
-                                ) : categoryData.length > 0 ? (
-                                    categoryData.map((cat, idx) => (
+                                ) : reportData?.categoryData && reportData.categoryData.length > 0 ? (
+                                    reportData.categoryData.map((cat, idx) => (
                                         <tr key={idx} className="border-b border-[#e2e8f0] hover:bg-[#f8fafc]">
                                             <td className="py-4 px-4 font-medium text-[#0f172a]">{cat.category}</td>
                                             <td className="py-4 px-4 text-right font-semibold text-blue-600">₹{cat.value.toLocaleString()}</td>

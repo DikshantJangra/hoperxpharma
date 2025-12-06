@@ -10,8 +10,8 @@ export default function QuickActions() {
             <div className="space-y-2">
                 <ActionButton icon={<HiOutlineDocumentText size={20} />} label="Scan Script (OCR)" shortcut="N" color="emerald" href="/prescriptions/new" />
                 <ActionButton icon={<MdShoppingCart size={20} />} label="New Sale (POS)" shortcut="P" color="blue" href="/pos" />
-                <ActionButton icon={<MdLocalPharmacy size={20} />} label="Check Interaction" shortcut="I" color="purple" />
-                <ActionButton icon={<FiPackage size={20} />} label="Create PO" shortcut="O" color="orange" />
+                <ActionButton icon={<MdLocalPharmacy size={20} />} label="Check Interaction" shortcut="I" color="purple" href="/knowledge/interactions" />
+                <ActionButton icon={<FiPackage size={20} />} label="Create PO" shortcut="O" color="orange" href="/orders/new-po" />
             </div>
         </div>
     )
@@ -34,7 +34,7 @@ function ActionButton({ icon, label, shortcut, color, href }: { icon: React.Reac
             </div>
         </>
     )
-    
+
     if (href) {
         return (
             <Link href={href} className="w-full flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors border border-gray-200 group">
@@ -42,7 +42,7 @@ function ActionButton({ icon, label, shortcut, color, href }: { icon: React.Reac
             </Link>
         )
     }
-    
+
     return (
         <button className="w-full flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors border border-gray-200 group">
             {content}

@@ -331,6 +331,7 @@ model Store {
   // Regulatory/License Information
   gstin    String? // GST Identification Number
   dlNumber String? // Drug License Number
+  pan      String? // PAN Card Number
 
   // Address
   addressLine1 String
@@ -378,6 +379,9 @@ model Store {
   attendanceLogs     AttendanceLog[]
   shifts             Shift[]
   performanceMetrics PerformanceMetric[]
+  
+  // Store Settings
+  settings StoreSettings?
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -419,6 +423,41 @@ model StoreOperatingHours {
   store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
   @@unique([storeId, dayOfWeek])
+}
+
+model StoreSettings {
+  id        String   @id @default(cuid())
+  storeId   String   @unique
+  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  
+  // Inventory Thresholds
+  lowStockThreshold    Int     @default(10)
+  nearExpiryThreshold  Int     @default(90)
+  
+  // Inventory Defaults
+  defaultUoM           String  @default("Units")
+  defaultGSTSlab       String  @default("12")
+  
+  // Inventory Features
+  batchTracking        Boolean @default(true)
+  autoGenerateCodes    Boolean @default(true)
+  purchaseRounding     Boolean @default(false)
+  allowNegativeStock   Boolean @default(false)
+  
+  // POS & Billing Settings
+  invoiceFormat        String  @default("INV/0001")
+  paymentMethods       String  @default("Cash") // Comma-separated values
+  billingType          String  @default("MRP-based")
+  printFormat          String  @default("Thermal")
+  footerText           String  @default("Thank you for your business!")
+  autoRounding         Boolean @default(true)
+  defaultCustomerType  String  @default("Walk-in")
+  enableGSTBilling     Boolean @default(true)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([storeId])
 }
 
 model HardwareDevice {

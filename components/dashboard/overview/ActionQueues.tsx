@@ -7,6 +7,15 @@ export default function ActionQueues() {
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
+        // Simulate data fetch - in production, this would fetch actual queue data
+        const timer = setTimeout(() => {
+            setLoading(false);
+        }, 500);
+
+        return () => clearTimeout(timer);
+    }, []);
+
+    useEffect(() => {
         const handleKeyPress = (e: KeyboardEvent) => {
             if (e.key === 'j') {
                 e.preventDefault()

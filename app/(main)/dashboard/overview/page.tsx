@@ -23,7 +23,7 @@ const formatCurrency = (amount: number) => {
 }
 
 export default function OverviewPage() {
-    const { user, primaryStore } = useAuthStore()
+    const { user, primaryStore, hasStore } = useAuthStore()
     const [loading, setLoading] = useState(true)
     const [stats, setStats] = useState({
         revenue: 0,
@@ -35,6 +35,12 @@ export default function OverviewPage() {
 
     useEffect(() => {
         const fetchDashboardData = async () => {
+            // Don't fetch if user has no store
+            if (!hasStore) {
+                setLoading(false);
+                return;
+            }
+
             try {
                 setLoading(true)
 
@@ -60,7 +66,7 @@ export default function OverviewPage() {
         }
 
         fetchDashboardData()
-    }, [])
+    }, [hasStore])
 
     return (
         <>

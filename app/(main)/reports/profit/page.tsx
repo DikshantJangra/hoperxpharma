@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { FiTrendingUp, FiTrendingDown, FiDollarSign, FiCalendar, FiDownload } from "react-icons/fi";
 import { MdShowChart } from "react-icons/md";
+import { getProfitReport, ProfitReportData } from "@/lib/api/reports";
 
 const StatCardSkeleton = () => (
     <div className="bg-white border border-[#e2e8f0] rounded-xl p-6 animate-pulse">
@@ -27,32 +28,41 @@ const TableRowSkeleton = () => (
 
 export default function ProfitReportPage() {
     const [dateRange, setDateRange] = useState("thisMonth");
-    const [profitData, setProfitData] = useState<any>(null);
-    const [categoryBreakdown, setCategoryBreakdown] = useState<any[]>([]);
-    const [monthlyTrend, setMonthlyTrend] = useState<any[]>([]);
+    const [reportData, setReportData] = useState<ProfitReportData | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        setIsLoading(true);
-        const timer = setTimeout(() => {
-            setProfitData({
-                revenue: 0,
-                cogs: 0,
-                grossProfit: 0,
-                expenses: 0,
-                netProfit: 0,
-                grossMargin: 0,
-                netMargin: 0,
-                revenueGrowth: 0,
-                profitGrowth: 0
-            });
-            setCategoryBreakdown([]);
-            setMonthlyTrend([]);
-            setIsLoading(false);
-        }, 1500);
-
-        return () => clearTimeout(timer);
+        const fetchData = async () => {
+            setIsLoading(true);
+            setError(null);
+            try {
+                const data = await getProfitReport({ dateRange: dateRange as any });
+                setReportData(data);
+            } catch (err) {
+                console.error('Failed to fetch profit report:', err);
+                setError('Failed to load profit report');
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchData();
     }, [dateRange]);
+
+    const profitData = reportData?.profitData || {
+        revenue: 0,
+        cogs: 0,
+        grossProfit: 0,
+        expenses: 0,
+        netProfit: 0,
+        grossMargin: 0,
+        netMargin: 0,
+        revenueGrowth: 0,
+        profitGrowth: 0
+    };
+
+    const categoryBreakdown = reportData?.categoryBreakdown || [];
+    const monthlyTrend = reportData?.monthlyTrend || [];
 
     return (
         <div className="min-h-screen bg-[#f8fafc] pb-20">
@@ -93,10 +103,10 @@ export default function ProfitReportPage() {
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
                     {isLoading ? (
                         <>
-                            <StatCardSkeleton/>
-                            <StatCardSkeleton/>
-                            <StatCardSkeleton/>
-                            <StatCardSkeleton/>
+                            <StatCardSkeleton />
+                            <StatCardSkeleton />
+                            <StatCardSkeleton />
+                            <StatCardSkeleton />
                         </>
                     ) : (
                         <>
@@ -203,12 +213,12 @@ export default function ProfitReportPage() {
                             <tbody>
                                 {isLoading ? (
                                     <>
-                                        <TableRowSkeleton/>
-                                        <TableRowSkeleton/>
-                                        <TableRowSkeleton/>
+                                        <TableRowSkeleton />
+                                        <TableRowSkeleton />
+                                        <TableRowSkeleton />
                                     </>
-                                ) : categoryBreakdown.length > 0 ? (
-                                    categoryBreakdown.map((cat) => (
+                                ) : reportData?.categoryBreakdown && reportData.categoryBreakdown.length > 0 ? (
+                                    reportData.categoryBreakdown.map((cat) => (
                                         <tr key={cat.category} className="border-b border-[#e2e8f0] hover:bg-[#f8fafc]">
                                             <td className="py-4 px-4 font-medium text-[#0f172a]">{cat.category}</td>
                                             <td className="py-4 px-4 text-right text-[#0f172a]">₹{cat.revenue.toLocaleString()}</td>

@@ -17,25 +17,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Check onboarding completion status
     useEffect(() => {
-        const checkOnboardingStatus = async () => {
+        const checkOnboardingStatus = () => {
             if (isAuthenticated && !isLoading) {
-                // Staff members (non-ADMIN) don't need onboarding - they work at admin's store
+                console.log('Checking onboarding status:', {
+                    userRole: user?.role,
+                    hasStore,
+                    isAuthenticated,
+                    isLoading
+                });
+
+                // Staff members (non-ADMIN) don't need onboarding - they're added to existing stores by admins
                 // Check this BEFORE making any API calls
                 if (user && user.role !== 'ADMIN') {
+                    console.log('User is staff (non-ADMIN), setting onboarding complete');
                     setOnboardingComplete(true);
                     return;
                 }
 
-                // Only ADMIN users need to check onboarding progress
-                try {
-                    const progress = await onboardingApi.getProgress();
-                    const isComplete = progress?.isComplete || false;
-                    // If user has a store, consider onboarding complete regardless of progress flag
-                    setOnboardingComplete(hasStore || isComplete);
-                } catch (error) {
-                    console.error('Failed to check onboarding status:', error);
-                    // If user has a store, consider onboarding complete
-                    setOnboardingComplete(hasStore);
+                // For ADMIN users (store owners), onboarding is complete ONLY if they have a store
+                if (hasStore) {
+                    console.log('ADMIN has store, setting onboarding complete');
+                    setOnboardingComplete(true);
+                } else {
+                    // ADMIN without store = onboarding NOT complete
+                    console.log('ADMIN has NO store, setting onboarding INCOMPLETE');
+                    setOnboardingComplete(false);
                 }
             }
         };
@@ -65,7 +71,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             hasStore,
             onboardingComplete,
             isLoading,
-            pathname
+            pathname,
+            userRole: user?.role
         });
 
         if (!isLoading && onboardingComplete !== null) {
@@ -73,6 +80,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 const isPublicRoute = ['/login', '/signup', '/'].includes(pathname);
                 const isOnboardingRoute = pathname.startsWith('/onboarding');
                 const isDashboardRoute = pathname.startsWith('/dashboard') || pathname.startsWith('/(main)');
+                const isAdmin = user?.role === 'ADMIN';
+
+                // CRITICAL: For ADMIN users (store owners), if they don't have a store, they MUST go to onboarding
+                // Staff members (PHARMACIST, TECHNICIAN, etc.) can access dashboard even without hasStore
+                // because they're added to existing stores by admins
+                if (isAdmin && !hasStore && isDashboardRoute) {
+                    console.log('ADMIN without store on dashboard -> Forcing redirect to onboarding');
+                    router.replace('/onboarding');
+                    return;
+                }
 
                 if (isPublicRoute) {
                     // Redirect authenticated users from public routes
@@ -92,7 +109,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 }
             }
         }
-    }, [isAuthenticated, hasStore, onboardingComplete, isLoading, pathname, router]);
+    }, [isAuthenticated, hasStore, onboardingComplete, isLoading, pathname, router, user]);
 
     if (isLoading || (isAuthenticated && onboardingComplete === null)) {
         return (

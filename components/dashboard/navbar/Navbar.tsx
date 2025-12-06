@@ -97,9 +97,8 @@ function LeftSection({ onToggleSidebar, showStoreMenu, setShowStoreMenu, sidebar
                             <div className="px-4 py-8 text-center text-sm text-gray-500">Loading stores...</div>
                         ) : stores.length > 0 ? (
                             stores.map((s: any) => {
-                                // Get GSTIN from licenses
-                                const gstLicense = s.licenses?.find((l: any) => l.type === 'GSTIN');
-                                const gstin = gstLicense?.number || '-';
+                                // Get GSTIN directly from store
+                                const gstin = s.gstin || '-';
 
                                 return (
                                     <StoreMenuItem
@@ -385,9 +384,16 @@ function UserMenu({ show, setShow }: any) {
         try {
             const { logout } = useAuthStore.getState();
             await logout();
-            router.push('/login');
+
+            // Use window.location.href instead of router.push to ensure:
+            // 1. Complete page reload
+            // 2. Middleware runs and checks cookies
+            // 3. All client-side state is cleared
+            window.location.href = '/login';
         } catch (e) {
             console.error('Logout failed:', e);
+            // Force redirect even if logout API fails
+            window.location.href = '/login';
         }
     };
 

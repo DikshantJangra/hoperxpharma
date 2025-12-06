@@ -3,8 +3,8 @@
 import { useState, useEffect } from "react";
 import { useOnboarding } from "@/contexts/OnboardingContext";
 import { useRouter } from "next/navigation";
-import { FiArrowRight, FiArrowLeft, FiPrinter, FiCreditCard, FiSettings, FiFileText, FiCheck } from "react-icons/fi";
-import { MdReceipt } from "react-icons/md";
+import { FiArrowRight, FiArrowLeft, FiPrinter, FiCreditCard, FiSettings, FiFileText, FiCheck, FiDollarSign, FiSmartphone } from "react-icons/fi";
+import { MdReceipt, MdAccountBalanceWallet } from "react-icons/md";
 import OnboardingCard from "@/components/onboarding/OnboardingCard";
 
 export default function Step6Page() {
@@ -124,10 +124,10 @@ export default function Step6Page() {
                                         </div>
                                     )}
                                     <div className="flex flex-col items-center gap-2">
-                                        {method === "Cash" && <span className="text-lg">💵</span>}
-                                        {method === "UPI" && <span className="text-lg">📱</span>}
-                                        {method === "Card" && <span className="text-lg">💳</span>}
-                                        {method === "Wallet" && <span className="text-lg">👛</span>}
+                                        {method === "Cash" && <FiDollarSign size={20} className={isSelected ? "text-white" : "text-emerald-500"} />}
+                                        {method === "UPI" && <FiSmartphone size={20} className={isSelected ? "text-white" : "text-emerald-500"} />}
+                                        {method === "Card" && <FiCreditCard size={20} className={isSelected ? "text-white" : "text-emerald-500"} />}
+                                        {method === "Wallet" && <MdAccountBalanceWallet size={20} className={isSelected ? "text-white" : "text-emerald-500"} />}
                                         {method}
                                     </div>
                                 </button>

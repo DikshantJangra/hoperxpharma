@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SalesReportData, SalesFilters, DatePreset } from '@/types/reports';
+import { getSalesReport } from '@/lib/api/reports';
 import SalesHeader from './SalesHeader';
 import KPIBar from './KPIBar';
 import FiltersPanel from './FiltersPanel';
@@ -21,8 +22,9 @@ export default function SalesReportPage() {
 
   const [showExportModal, setShowExportModal] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const [reportData] = useState<SalesReportData>({
+  const [reportData, setReportData] = useState<SalesReportData>({
     meta: { from: weekAgo, to: today },
     kpis: {
       revenue: 0,
@@ -45,6 +47,25 @@ export default function SalesReportPage() {
     }
   });
 
+  // Fetch report data when filters change
+  useEffect(() => {
+    const fetchReportData = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const data = await getSalesReport(filters);
+        setReportData(data);
+      } catch (err) {
+        console.error('Failed to fetch sales report:', err);
+        setError('Failed to load sales report. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchReportData();
+  }, [filters]);
+
   const handleDateChange = (from: string, to: string) => {
     setFilters({ ...filters, from, to });
   };
@@ -52,7 +73,7 @@ export default function SalesReportPage() {
   const handlePresetClick = (preset: DatePreset) => {
     const today = new Date();
     let from = new Date();
-    
+
     switch (preset) {
       case 'today':
         from = today;
@@ -70,7 +91,7 @@ export default function SalesReportPage() {
         from = new Date(today.getFullYear(), today.getMonth() - 1, 1);
         break;
     }
-    
+
     setFilters({ ...filters, from: from.toISOString().split('T')[0], to: today.toISOString().split('T')[0] });
   };
 
@@ -105,26 +126,43 @@ export default function SalesReportPage() {
         onScheduleClick={() => alert('Schedule modal would open')}
       />
 
-      <KPIBar kpis={reportData.kpis} onKPIClick={handleKPIClick} />
-
-      <div className="grid grid-cols-12">
-        <div className="col-span-3">
-          <FiltersPanel filters={filters} onChange={setFilters} />
+      {error && (
+        <div className="mx-6 mt-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+          {error}
         </div>
+      )}
 
-        <div className="col-span-6 p-6 space-y-6">
-          <TrendChart series={reportData.series} />
-          <TopTable items={reportData.breakdown.bySKU} title="Top SKUs" />
-          <TopTable items={reportData.breakdown.byStore} title="Top Stores" />
+      {isLoading ? (
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading report data...</p>
+          </div>
         </div>
+      ) : (
+        <>
+          <KPIBar kpis={reportData.kpis} onKPIClick={handleKPIClick} />
 
-        <div className="col-span-3">
-          <InsightPanel
-            onDrillClick={() => alert('Drill drawer would open')}
-            onExportClick={() => setShowExportModal(true)}
-          />
-        </div>
-      </div>
+          <div className="grid grid-cols-12">
+            <div className="col-span-3">
+              <FiltersPanel filters={filters} onChange={setFilters} />
+            </div>
+
+            <div className="col-span-6 p-6 space-y-6">
+              <TrendChart series={reportData.series} />
+              <TopTable items={reportData.breakdown.bySKU} title="Top SKUs" />
+              <TopTable items={reportData.breakdown.byStore} title="Top Stores" />
+            </div>
+
+            <div className="col-span-3">
+              <InsightPanel
+                onDrillClick={() => alert('Drill drawer would open')}
+                onExportClick={() => setShowExportModal(true)}
+              />
+            </div>
+          </div>
+        </>
+      )}
 
       <ExportModal
         isOpen={showExportModal}

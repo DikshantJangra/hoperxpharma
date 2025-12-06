@@ -25,7 +25,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                     onToggleItem={toggleItem}
                 />
                 <div className="flex-1 flex flex-col overflow-hidden">
-                    <Navbar onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
+                    <Navbar onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} sidebarOpen={sidebarOpen} />
                     <main className="flex-1 overflow-auto">
                         {children}
                     </main>

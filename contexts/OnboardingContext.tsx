@@ -72,8 +72,10 @@ export interface POSData {
 
 export interface UserData {
     name: string;
+    email?: string;
     phone: string;
     role: string;
+    password?: string;
     pin: string;
 }
 

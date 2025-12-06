@@ -49,29 +49,10 @@ export default function Step8Page() {
                     </div>
                 </div>
 
-                {/* Email Integration */}
-                <div className="p-5 border border-emerald-100 bg-emerald-50/30 rounded-xl transition-all duration-300">
-                    <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center">
-                                <MdEmail className="w-7 h-7 text-blue-600" />
-                            </div>
-                            <div>
-                                <h3 className="font-semibold text-gray-900">Email Service</h3>
-                                <p className="text-sm text-gray-500 mt-0.5">Auto-configured via Resend</p>
-                            </div>
-                        </div>
-                        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 text-emerald-700 rounded-lg font-medium text-xs">
-                            <FiCheckCircle size={14} />
-                            Active
-                        </div>
-                    </div>
-                </div>
-
                 {/* Note */}
                 <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 mt-4">
                     <p className="text-sm text-blue-700 leading-relaxed">
-                        <span className="font-semibold">Note:</span> You can configure SMS providers and payment gateways later from the Integrations settings dashboard.
+                        <span className="font-semibold">Note:</span> You can configure WhatsApp, email services, SMS providers, and payment gateways later from the Integrations settings dashboard.
                     </p>
                 </div>
 

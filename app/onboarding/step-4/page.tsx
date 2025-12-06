@@ -61,10 +61,22 @@ export default function Step4Page() {
                                 <FiAlertCircle size={18} />
                             </div>
                             <input
-                                type="number"
+                                type="text"
                                 value={formData.lowStockThreshold}
-                                onChange={(e) => setFormData({ ...formData, lowStockThreshold: parseInt(e.target.value) || 0 })}
+                                onChange={(e) => {
+                                    const value = e.target.value;
+                                    // Allow empty or valid positive integers only
+                                    if (value === '') {
+                                        setFormData({ ...formData, lowStockThreshold: 0 });
+                                    } else if (/^\d+$/.test(value)) {
+                                        // Remove leading zeros and convert to number
+                                        const num = parseInt(value, 10);
+                                        setFormData({ ...formData, lowStockThreshold: num });
+                                    }
+                                }}
+                                onFocus={(e) => e.target.select()}
                                 className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-all text-sm text-gray-900"
+                                placeholder="10"
                             />
                         </div>
                         <p className="mt-1.5 ml-1 text-xs text-gray-400">Alert when stock falls below this number</p>
@@ -79,10 +91,22 @@ export default function Step4Page() {
                                 <FiAlertCircle size={18} />
                             </div>
                             <input
-                                type="number"
+                                type="text"
                                 value={formData.nearExpiryThreshold}
-                                onChange={(e) => setFormData({ ...formData, nearExpiryThreshold: parseInt(e.target.value) || 0 })}
+                                onChange={(e) => {
+                                    const value = e.target.value;
+                                    // Allow empty or valid positive integers only
+                                    if (value === '') {
+                                        setFormData({ ...formData, nearExpiryThreshold: 0 });
+                                    } else if (/^\d+$/.test(value)) {
+                                        // Remove leading zeros and convert to number
+                                        const num = parseInt(value, 10);
+                                        setFormData({ ...formData, nearExpiryThreshold: num });
+                                    }
+                                }}
+                                onFocus={(e) => e.target.select()}
                                 className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-all text-sm text-gray-900"
+                                placeholder="90"
                             />
                         </div>
                         <p className="mt-1.5 ml-1 text-xs text-gray-400">Alert when expiry is within this many days</p>

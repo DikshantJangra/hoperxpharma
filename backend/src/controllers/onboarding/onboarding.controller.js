@@ -90,7 +90,7 @@ const saveProgress = asyncHandler(async (req, res) => {
  */
 const completeOnboarding = asyncHandler(async (req, res) => {
     const { store, licenses = [], operatingHours = [], suppliers = [], users = [] } = req.body;
-    
+
     if (!store || !store.name) {
         throw new ApiError(400, 'Store data is required');
     }
@@ -103,16 +103,20 @@ const completeOnboarding = asyncHandler(async (req, res) => {
         const result = await prisma.$transaction(async (tx) => {
             // Generate unique email if not provided
             const storeEmail = store.email || `store-${Date.now()}-${req.user.id}@hoperx.temp`;
-            
-            // Create Store with all required fields
+
+            // Create Store with all required and optional fields
             const createdStore = await tx.store.create({
                 data: {
                     name: store.name,
                     displayName: store.displayName || store.name,
                     email: storeEmail,
                     phoneNumber: store.phoneNumber || '+919999999999',
+                    whatsapp: store.whatsapp || null, // WhatsApp number
                     businessType: store.businessType || 'Retail Pharmacy',
                     logoUrl: store.storeLogo || null,
+                    gstin: store.gstin || null, // GST number
+                    dlNumber: store.dlNumber || null, // Drug License number
+                    pan: store.pan || null, // PAN Card number
                     addressLine1: store.addressLine1 || store.address || 'Not provided',
                     addressLine2: store.addressLine2 || null,
                     city: store.city || 'Not provided',
@@ -121,6 +125,9 @@ const completeOnboarding = asyncHandler(async (req, res) => {
                     landmark: store.landmark || null,
                     is24x7: store.is24x7 || false,
                     homeDelivery: store.homeDelivery || false,
+                    latitude: store.latitude || null,
+                    longitude: store.longitude || null,
+                    geofenceRadius: store.geofenceRadius || 50,
                 },
             });
 
@@ -130,6 +137,33 @@ const completeOnboarding = asyncHandler(async (req, res) => {
                     userId: req.user.id,
                     storeId: createdStore.id,
                     isPrimary: true,
+                },
+            });
+
+            // Create Store Settings with inventory and POS configuration
+            const inventory = req.body.inventory || {};
+            const pos = req.body.pos || {};
+            await tx.storeSettings.create({
+                data: {
+                    storeId: createdStore.id,
+                    // Inventory settings
+                    lowStockThreshold: inventory.lowStockThreshold || 10,
+                    nearExpiryThreshold: inventory.nearExpiryThreshold || 90,
+                    defaultUoM: inventory.defaultUoM || 'Units',
+                    defaultGSTSlab: inventory.defaultGSTSlab || '12',
+                    batchTracking: inventory.batchTracking !== undefined ? inventory.batchTracking : true,
+                    autoGenerateCodes: inventory.autoGenerateCodes !== undefined ? inventory.autoGenerateCodes : true,
+                    purchaseRounding: inventory.purchaseRounding || false,
+                    allowNegativeStock: inventory.allowNegativeStock || false,
+                    // POS settings
+                    invoiceFormat: pos.invoiceFormat || 'INV/0001',
+                    paymentMethods: Array.isArray(pos.paymentMethods) ? pos.paymentMethods.join(',') : 'Cash',
+                    billingType: pos.billingType || 'MRP-based',
+                    printFormat: pos.printFormat || 'Thermal',
+                    footerText: pos.footerText || 'Thank you for your business!',
+                    autoRounding: pos.autoRounding !== undefined ? pos.autoRounding : true,
+                    defaultCustomerType: pos.defaultCustomerType || 'Walk-in',
+                    enableGSTBilling: pos.enableGSTBilling !== undefined ? pos.enableGSTBilling : true,
                 },
             });
 
@@ -155,10 +189,10 @@ const completeOnboarding = asyncHandler(async (req, res) => {
             if (operatingHours.length > 0) {
                 const hoursCreates = operatingHours.map((h) => {
                     // Convert day name to number if it's a string
-                    const dayOfWeek = typeof h.dayOfWeek === 'string' 
-                        ? DAY_MAP[h.dayOfWeek] 
+                    const dayOfWeek = typeof h.dayOfWeek === 'string'
+                        ? DAY_MAP[h.dayOfWeek]
                         : h.dayOfWeek;
-                    
+
                     return tx.storeOperatingHours.create({
                         data: {
                             storeId: createdStore.id,
@@ -179,6 +213,7 @@ const completeOnboarding = asyncHandler(async (req, res) => {
                 const supplierCreates = suppliers.map((sup) =>
                     tx.supplier.create({
                         data: {
+                            storeId: createdStore.id, // CRITICAL: Link supplier to store
                             name: sup.name,
                             category: sup.category || 'Distributor',
                             status: 'Active',
@@ -204,27 +239,34 @@ const completeOnboarding = asyncHandler(async (req, res) => {
 
             // Create Users/Staff if any
             if (users.length > 0) {
-                const userCreates = users.map((user) =>
-                    tx.user.create({
+                const bcrypt = require('bcrypt');
+                const userCreates = users.map(async (user) => {
+                    // Hash password if provided
+                    const passwordHash = user.password ? await bcrypt.hash(user.password, 10) : null;
+
+                    const createdUser = await tx.user.create({
                         data: {
+                            email: user.email || `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}@temp.local`,
                             name: user.name,
                             phoneNumber: user.phone,
+                            passwordHash: passwordHash,
                             role: user.role.toUpperCase(),
                             pin: user.pin,
                             isActive: true,
                         },
-                    }).then(async (createdUser) => {
-                        // Associate user with store
-                        await tx.storeUser.create({
-                            data: {
-                                userId: createdUser.id,
-                                storeId: createdStore.id,
-                                isPrimary: false,
-                            },
-                        });
-                        return createdUser;
-                    })
-                );
+                    });
+
+                    // Associate user with store
+                    await tx.storeUser.create({
+                        data: {
+                            userId: createdUser.id,
+                            storeId: createdStore.id,
+                            isPrimary: false,
+                        },
+                    });
+
+                    return createdUser;
+                });
                 await Promise.all(userCreates);
             }
 

@@ -16,16 +16,31 @@ export default function Step7Page() {
     const [editIndex, setEditIndex] = useState<number | null>(null);
     const [formData, setFormData] = useState({
         name: "",
+        email: "",
         phone: "",
         role: "Pharmacist",
+        password: "",
+        confirmPassword: "",
         pin: ""
     });
     const [phoneError, setPhoneError] = useState("");
+    const [passwordError, setPasswordError] = useState("");
 
     const validatePhone = (phone: string) => {
         if (!phone) return "";
         if (!/^\d{10}$/.test(phone)) {
             return "Phone number must be exactly 10 digits";
+        }
+        return "";
+    };
+
+    const validatePassword = (password: string, confirmPassword: string) => {
+        if (!password) return "";
+        if (password.length < 6) {
+            return "Password must be at least 6 characters";
+        }
+        if (password !== confirmPassword) {
+            return "Passwords do not match";
         }
         return "";
     };
@@ -51,8 +66,14 @@ export default function Step7Page() {
             setPhoneError(phoneValidation);
             return;
         }
-        
-        if (formData.name && formData.phone && formData.pin) {
+
+        const passwordValidation = validatePassword(formData.password, formData.confirmPassword);
+        if (passwordValidation) {
+            setPasswordError(passwordValidation);
+            return;
+        }
+
+        if (formData.name && formData.phone && formData.password && formData.pin) {
             if (editIndex !== null) {
                 removeUser(editIndex);
                 addUser(formData);
@@ -60,8 +81,9 @@ export default function Step7Page() {
             } else {
                 addUser(formData);
             }
-            setFormData({ name: "", phone: "", role: "Pharmacist", pin: "" });
+            setFormData({ name: "", email: "", phone: "", role: "Pharmacist", password: "", confirmPassword: "", pin: "" });
             setPhoneError("");
+            setPasswordError("");
             setShowForm(false);
         }
     };
@@ -70,8 +92,11 @@ export default function Step7Page() {
         const user = state.data.users[index];
         setFormData({
             name: user.name,
+            email: user.email || "",
             phone: user.phone,
             role: user.role,
+            password: user.password || "",
+            confirmPassword: user.password || "",
             pin: user.pin
         });
         setPhoneError("");
@@ -188,9 +213,8 @@ export default function Step7Page() {
                                             type="tel"
                                             value={formData.phone}
                                             onChange={(e) => handlePhoneChange(e.target.value)}
-                                            className={`w-full pl-11 pr-4 py-3 bg-white border rounded-xl focus:outline-none transition-all text-sm text-gray-900 ${
-                                                phoneError ? 'border-red-500 focus:border-red-500' : 'border-gray-200 focus:border-emerald-500'
-                                            }`}
+                                            className={`w-full pl-11 pr-4 py-3 bg-white border rounded-xl focus:outline-none transition-all text-sm text-gray-900 ${phoneError ? 'border-red-500 focus:border-red-500' : 'border-gray-200 focus:border-emerald-500'
+                                                }`}
                                             placeholder="Enter 10-digit phone number"
                                             maxLength={10}
                                         />
@@ -199,6 +223,69 @@ export default function Step7Page() {
                                         <p className="text-xs text-red-500 mt-1 ml-1">{phoneError}</p>
                                     )}
                                 </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="group">
+                                    <label className="block text-gray-700 text-xs font-semibold mb-1.5 ml-1">Email</label>
+                                    <div className="relative transition-all duration-200 focus-within:ring-2 focus-within:ring-emerald-500/20 rounded-xl">
+                                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-500 transition-colors">
+                                            <FiUser size={18} />
+                                        </div>
+                                        <input
+                                            type="email"
+                                            value={formData.email}
+                                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                            className="w-full pl-11 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:border-emerald-500 transition-all text-sm text-gray-900"
+                                            placeholder="user@example.com (optional)"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="group">
+                                    <label className="block text-gray-700 text-xs font-semibold mb-1.5 ml-1">Password <span className="text-red-500">*</span></label>
+                                    <div className="relative transition-all duration-200 focus-within:ring-2 focus-within:ring-emerald-500/20 rounded-xl">
+                                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-500 transition-colors">
+                                            <FiLock size={18} />
+                                        </div>
+                                        <input
+                                            type="password"
+                                            value={formData.password}
+                                            onChange={(e) => {
+                                                setFormData({ ...formData, password: e.target.value });
+                                                setPasswordError(validatePassword(e.target.value, formData.confirmPassword));
+                                            }}
+                                            className={`w-full pl-11 pr-4 py-3 bg-white border rounded-xl focus:outline-none transition-all text-sm text-gray-900 ${passwordError ? 'border-red-500 focus:border-red-500' : 'border-gray-200 focus:border-emerald-500'
+                                                }`}
+                                            placeholder="Enter password"
+                                        />
+                                    </div>
+                                    {passwordError && (
+                                        <p className="text-xs text-red-500 mt-1 ml-1">{passwordError}</p>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="group">
+                                    <label className="block text-gray-700 text-xs font-semibold mb-1.5 ml-1">Confirm Password <span className="text-red-500">*</span></label>
+                                    <div className="relative transition-all duration-200 focus-within:ring-2 focus-within:ring-emerald-500/20 rounded-xl">
+                                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-500 transition-colors">
+                                            <FiLock size={18} />
+                                        </div>
+                                        <input
+                                            type="password"
+                                            value={formData.confirmPassword}
+                                            onChange={(e) => {
+                                                setFormData({ ...formData, confirmPassword: e.target.value });
+                                                setPasswordError(validatePassword(formData.password, e.target.value));
+                                            }}
+                                            className={`w-full pl-11 pr-4 py-3 bg-white border rounded-xl focus:outline-none transition-all text-sm text-gray-900 ${passwordError ? 'border-red-500 focus:border-red-500' : 'border-gray-200 focus:border-emerald-500'
+                                                }`}
+                                            placeholder="Confirm password"
+                                        />
+                                    </div>
+                                </div>
+                                <div>{/* Empty div to balance the grid layout */}</div>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
