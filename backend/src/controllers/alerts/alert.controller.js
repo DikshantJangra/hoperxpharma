@@ -11,8 +11,9 @@ const ApiResponse = require('../../utils/ApiResponse');
 const getAlerts = asyncHandler(async (req, res) => {
     const storeId = req.user.primaryStoreId;
 
+    // If user has no store (hasn't completed onboarding), return empty array
     if (!storeId) {
-        throw new ApiError(400, 'User has no associated store');
+        return res.status(200).json(new ApiResponse(200, []));
     }
 
     const filters = {
@@ -36,8 +37,16 @@ const getAlerts = asyncHandler(async (req, res) => {
 const getAlertCounts = asyncHandler(async (req, res) => {
     const storeId = req.user.primaryStoreId;
 
+    // If user has no store, return zero counts
     if (!storeId) {
-        throw new ApiError(400, 'User has no associated store');
+        return res.status(200).json(new ApiResponse(200, {
+            total: 0,
+            new: 0,
+            acknowledged: 0,
+            resolved: 0,
+            bySeverity: { CRITICAL: 0, HIGH: 0, MEDIUM: 0, LOW: 0, INFO: 0 },
+            byType: { inventory: 0, compliance: 0, workflow: 0, system: 0 }
+        }));
     }
 
     const counts = await alertService.getAlertCounts(storeId);
