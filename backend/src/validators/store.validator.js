@@ -9,6 +9,7 @@ const storeCreateSchema = z.object({
     businessType: z.string().optional(),
     gstin: z.string().optional().nullable(),
     dlNumber: z.string().optional().nullable(),
+    pan: z.string().optional().nullable(),
     addressLine1: z.string().min(1, 'Address is required'),
     addressLine2: z.string().optional().nullable(),
     city: z.string().min(1, 'City is required'),

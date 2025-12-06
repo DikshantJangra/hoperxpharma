@@ -116,8 +116,48 @@ export default function InvoiceTable({ searchQuery, onSelectInvoice, selectedInv
             filtered.map((invoice) => (
               <tr
                 key={invoice.id}
-                onClick={() => onSelectInvoice(invoice)}
-                className={`border-b border-[#f1f5f9] hover:bg-[#f8fafc] cursor-pointer group ${selectedInvoice?.id === invoice.id ? 'bg-[#f0fdfa]' : ''
+                onClick={() => {
+                  // Map API response to InvoiceDrawer format
+                  const mappedInvoice = {
+                    id: invoice.invoiceNumber,
+                    date: formatDate(invoice.createdAt),
+                    time: formatTime(invoice.createdAt),
+                    status: invoice.status,
+                    type: invoice.invoiceType === 'GST_INVOICE' ? 'GST' : 'Regular',
+                    hasEInvoice: false, // TODO: Add e-invoice support
+                    hasRx: false, // TODO: Add prescription linking
+                    customer: {
+                      name: invoice.patient ? `${invoice.patient.firstName} ${invoice.patient.lastName || ''}`.trim() : 'Walk-in Customer',
+                      phone: invoice.patient?.phoneNumber || '-',
+                      gstin: invoice.patient?.gstin
+                    },
+                    paymentModes: invoice.paymentSplits?.map((split: any) => ({
+                      mode: split.paymentMethod,
+                      amount: split.amount
+                    })) || [],
+                    items: invoice.items?.map((item: any) => ({
+                      name: item.drug?.name || 'Unknown Item',
+                      strength: item.drug?.strength || '',
+                      pack: item.drug?.packSize || '1s',
+                      batch: item.batchId, // We might need to fetch batch number
+                      expiry: '-', // We need to fetch expiry
+                      gst: item.gstRate,
+                      qty: item.quantity,
+                      price: item.mrp,
+                      total: item.lineTotal
+                    })) || [],
+                    summary: {
+                      subtotal: invoice.subtotal,
+                      discount: invoice.discountAmount,
+                      gst: invoice.taxAmount,
+                      roundOff: invoice.roundOff
+                    },
+                    amount: invoice.total,
+                    auditLog: [] // TODO: Add audit logs
+                  };
+                  onSelectInvoice(mappedInvoice);
+                }}
+                className={`border-b border-[#f1f5f9] hover:bg-[#f8fafc] cursor-pointer group ${selectedInvoice?.id === invoice.invoiceNumber ? 'bg-[#f0fdfa]' : ''
                   }`}
               >
                 <td className="px-4 py-3">

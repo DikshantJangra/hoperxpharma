@@ -31,7 +31,21 @@ export default function NewSalePage() {
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [showDraftRestore, setShowDraftRestore] = useState(false);
   const [pendingDraft, setPendingDraft] = useState<any>(null);
+  const [storeId, setStoreId] = useState<string>('');
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Get storeId from localStorage
+  useEffect(() => {
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        setStoreId(user.storeId || '');
+      } catch (error) {
+        console.error('Failed to parse user data:', error);
+      }
+    }
+  }, []);
 
   // Restore draft on page load
   useEffect(() => {
@@ -103,6 +117,7 @@ export default function NewSalePage() {
       const items = typeof pendingDraft.items === 'string' ? JSON.parse(pendingDraft.items) : pendingDraft.items;
 
       setCurrentDraftId(pendingDraft.id);
+      localStorage.setItem('currentDraftId', pendingDraft.id);
       setBasketItems(items || []);
 
       if (pendingDraft.customerId) {
@@ -186,6 +201,7 @@ export default function NewSalePage() {
         response = await salesApi.saveDraft(draftData);
         if (response.data?.id) {
           setCurrentDraftId(response.data.id);
+          localStorage.setItem('currentDraftId', response.data.id);
         }
       }
 
@@ -306,6 +322,7 @@ export default function NewSalePage() {
     setBasketItems([]);
     setCustomer(null);
     setCurrentDraftId(null); // Clear draft ID when clearing basket
+    localStorage.removeItem('currentDraftId'); // Remove from localStorage
   };
 
   const subtotal = basketItems.reduce((sum: number, item: any) =>
@@ -397,6 +414,19 @@ export default function NewSalePage() {
       if (response && (response.id || response.invoiceNumber)) {
         const invoiceNumber = response.invoiceNumber || 'Invoice';
 
+        // If this sale was created from a draft, delete the draft
+        if (currentDraftId) {
+          try {
+            await salesApi.deleteDraft(currentDraftId);
+            console.log('Draft deleted successfully:', currentDraftId);
+            setCurrentDraftId(null);
+            localStorage.removeItem('currentDraftId');
+          } catch (draftError) {
+            console.error('Failed to delete draft:', draftError);
+            // Don't show error to user since sale was successful
+          }
+        }
+
         // Show success toast with invoice number
         toast.success(`${invoiceNumber} created successfully!`, {
           description: `Total: ₹${totals.total.toFixed(2)}`,
@@ -464,7 +494,7 @@ export default function NewSalePage() {
             searchFocus={searchFocus}
             setSearchFocus={setSearchFocus}
           />
-          <QuickAddGrid onAddProduct={addToBasket} />
+          <QuickAddGrid onAddProduct={addToBasket} storeId={storeId} />
 
           <Basket
             items={basketItems}

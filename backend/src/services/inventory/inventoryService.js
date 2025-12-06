@@ -265,6 +265,26 @@ class InventoryService {
         // Filter out drugs with no stock or null entries
         return drugsWithBatches.filter(d => d !== null && d.totalStock > 0);
     }
+
+    /**
+     * Update batch location
+     */
+    async updateBatchLocation(batchId, location) {
+        const batch = await inventoryRepository.findBatchById(batchId);
+
+        if (!batch) {
+            throw ApiError.notFound('Batch not found');
+        }
+
+        return await inventoryRepository.updateBatchLocation(batchId, location);
+    }
+
+    /**
+     * Get batches with suppliers for a drug
+     */
+    async getBatchesWithSuppliers(drugId) {
+        return await inventoryRepository.getBatchesWithSuppliers(drugId);
+    }
 }
 
 module.exports = new InventoryService();

@@ -52,12 +52,23 @@ export interface InventoryData {
 
 export interface SupplierData {
     name: string;
+    contactName: string;
     phone: string;
+    email?: string;
+    whatsapp?: string;
     category: string;
-    gstin: string;
-    deliveryArea: string;
+    gstin?: string;
+    dlNumber?: string;
+    pan?: string;
+    addressLine1?: string;
+    addressLine2?: string;
+    city?: string;
+    state?: string;
+    pinCode?: string;
+    deliveryArea?: string;
     creditTerms: string;
-    dlDocument: string;
+    creditLimit?: string;
+    dlDocument?: string;
 }
 
 export interface POSData {

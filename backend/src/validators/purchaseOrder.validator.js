@@ -33,7 +33,7 @@ const poCreateSchema = Joi.object({
     taxAmount: Joi.number().min(0).required(),
     total: Joi.number().min(0).required(),
     currency: Joi.string().default('INR'),
-    notes: Joi.string().optional()
+    notes: Joi.string().allow('', null).optional()
 });
 
 const poUpdateSchema = Joi.object({
@@ -45,7 +45,7 @@ const poUpdateSchema = Joi.object({
     taxAmount: Joi.number().min(0).optional(),
     total: Joi.number().min(0).optional(),
     status: Joi.string().valid('DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'SENT', 'PARTIALLY_RECEIVED', 'RECEIVED', 'CLOSED', 'CANCELLED').optional(),
-    notes: Joi.string().optional()
+    notes: Joi.string().allow('', null).optional()
 });
 
 const poValidateSchema = Joi.object({

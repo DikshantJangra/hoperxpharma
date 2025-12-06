@@ -32,6 +32,12 @@ router.get('/batches', requireStoreAccess, validate(inventoryQuerySchema, 'query
 router.get('/batches/:id', inventoryController.getBatchById);
 router.post('/batches', requireStoreAccess, validate(batchCreateSchema), auditLogger.logActivity('BATCH_CREATED', 'batch'), inventoryController.createBatch);
 router.put('/batches/:id', requirePharmacist, validate(batchUpdateSchema), auditLogger.logActivity('BATCH_UPDATED', 'batch'), inventoryController.updateBatch);
+router.patch('/batches/:id/location', requirePharmacist, auditLogger.logActivity('BATCH_LOCATION_UPDATED', 'batch'), inventoryController.updateBatchLocation);
+
+/**
+ * Drug-specific batch routes
+ */
+router.get('/drugs/:drugId/batches-with-suppliers', inventoryController.getBatchesWithSuppliers);
 
 /**
  * Stock management

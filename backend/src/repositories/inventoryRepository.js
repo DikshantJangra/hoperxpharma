@@ -22,6 +22,7 @@ class InventoryRepository {
         const skip = (pageNum - 1) * limitNum;
 
         const where = {
+            storeId, // ← CRITICAL: Filter drugs by store
             ...(search && {
                 OR: [
                     { name: { contains: search, mode: 'insensitive' } },
@@ -142,6 +143,12 @@ class InventoryRepository {
                 inventory: {
                     where: { deletedAt: null },
                     orderBy: { expiryDate: 'asc' },
+                    include: {
+                        movements: {
+                            orderBy: { createdAt: 'desc' },
+                            take: 10, // Last 10 movements per batch
+                        },
+                    },
                 },
             },
         });
@@ -194,13 +201,36 @@ class InventoryRepository {
                 take: limitNum,
                 include: {
                     drug: true,
+                    movements: {
+                        orderBy: { createdAt: 'desc' },
+                        take: 10, // Last 10 movements
+                    },
                 },
                 orderBy: { expiryDate: 'asc' },
             }),
             prisma.inventoryBatch.count({ where }),
         ]);
 
-        return { batches, total };
+        // Fetch suppliers for batches
+        const batchesWithSuppliers = await Promise.all(
+            batches.map(async (batch) => {
+                if (batch.supplierId) {
+                    const supplier = await prisma.supplier.findUnique({
+                        where: { id: batch.supplierId },
+                        select: {
+                            id: true,
+                            name: true,
+                            contactName: true,
+                            phoneNumber: true,
+                        },
+                    });
+                    return { ...batch, supplier };
+                }
+                return { ...batch, supplier: null };
+            })
+        );
+
+        return { batches: batchesWithSuppliers, total };
     }
 
     /**
@@ -238,6 +268,16 @@ class InventoryRepository {
         return await prisma.inventoryBatch.update({
             where: { id },
             data: { quantityInStock: quantity },
+        });
+    }
+
+    /**
+     * Update batch location
+     */
+    async updateBatchLocation(id, location) {
+        return await prisma.inventoryBatch.update({
+            where: { id },
+            data: { location },
         });
     }
 
@@ -348,7 +388,7 @@ class InventoryRepository {
         // Search drugs that belong to this store and have inventory
         const drugs = await prisma.drug.findMany({
             where: {
-                storeId, // Drug must belong to this store
+                storeId,
                 AND: [
                     {
                         OR: [
@@ -359,6 +399,7 @@ class InventoryRepository {
                     {
                         inventory: {
                             some: {
+                                storeId,
                                 deletedAt: null,
                                 quantityInStock: { gt: 0 },
                             },
@@ -366,12 +407,55 @@ class InventoryRepository {
                     },
                 ],
             },
-            take: 20, // Limit results for performance
+            take: 20,
             orderBy: { name: 'asc' },
         });
 
         console.log('🔍 POS Search - Found drugs:', drugs.length);
+        if (drugs.length > 0) {
+            console.log('🔍 First result:', drugs[0].name);
+        }
         return drugs;
+    }
+
+    /**
+     * Get batches with supplier information for a drug
+     */
+    async getBatchesWithSuppliers(drugId) {
+        const batches = await prisma.inventoryBatch.findMany({
+            where: {
+                drugId,
+                deletedAt: null,
+            },
+            include: {
+                movements: {
+                    orderBy: { createdAt: 'desc' },
+                    take: 5,
+                },
+            },
+            orderBy: { expiryDate: 'asc' },
+        });
+
+        // Fetch suppliers for batches that have supplierId
+        const batchesWithSuppliers = await Promise.all(
+            batches.map(async (batch) => {
+                if (batch.supplierId) {
+                    const supplier = await prisma.supplier.findUnique({
+                        where: { id: batch.supplierId },
+                        select: {
+                            id: true,
+                            name: true,
+                            contactName: true,
+                            phoneNumber: true,
+                        },
+                    });
+                    return { ...batch, supplier };
+                }
+                return { ...batch, supplier: null };
+            })
+        );
+
+        return batchesWithSuppliers;
     }
 }
 

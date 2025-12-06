@@ -108,13 +108,15 @@ export default function BatchTable({ batches, isLoading, searchQuery, onSelectBa
                   </td>
                   <td className="px-4 py-3 text-right font-semibold text-[#0f172a]">{batch.quantityInStock}</td>
                   <td className="px-4 py-3 text-right font-semibold text-[#0ea5a3]">₹{Number(batch.mrp).toFixed(2)}</td>
-                  <td className="px-4 py-3 text-sm text-[#64748b]">{batch.rackLocation || 'N/A'}</td>
+                  <td className="px-4 py-3 text-sm text-[#64748b]">{batch.location || batch.rackLocation || 'N/A'}</td>
                   <td className="px-4 py-3">
                     <span className={`inline-block px-2 py-1 text-xs font-medium rounded border ${getStatusColor(status)}`}>
                       {status}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-sm text-[#64748b]">-</td>
+                  <td className="px-4 py-3 text-sm text-[#64748b]">
+                    {batch.supplier?.name || (batch.supplierId ? 'Loading...' : 'N/A')}
+                  </td>
                 </tr>
               );
             })

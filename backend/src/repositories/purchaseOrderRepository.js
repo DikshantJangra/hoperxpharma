@@ -146,34 +146,59 @@ class PurchaseOrderRepository {
                 },
                 receipts: true,
                 store: true,
+                attachments: {
+                    orderBy: {
+                        uploadedAt: 'desc'
+                    }
+                },
             },
         });
     }
 
     /**
-     * Generate PO number
+     * Generate PO number with race condition handling
      */
     async generatePONumber(storeId) {
         const today = new Date();
         const prefix = `PO${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}`;
 
-        const lastPO = await prisma.purchaseOrder.findFirst({
-            where: {
-                storeId,
-                poNumber: {
-                    startsWith: prefix,
+        // Try up to 5 times to generate a unique PO number
+        for (let attempt = 0; attempt < 5; attempt++) {
+            const lastPO = await prisma.purchaseOrder.findFirst({
+                where: {
+                    storeId,
+                    poNumber: {
+                        startsWith: prefix,
+                    },
                 },
-            },
-            orderBy: { createdAt: 'desc' },
-        });
+                orderBy: { createdAt: 'desc' },
+            });
 
-        let sequence = 1;
-        if (lastPO) {
-            const lastSequence = parseInt(lastPO.poNumber.slice(-4));
-            sequence = lastSequence + 1;
+            let sequence = 1;
+            if (lastPO) {
+                const lastSequence = parseInt(lastPO.poNumber.slice(-4));
+                sequence = lastSequence + 1;
+            }
+
+            const poNumber = `${prefix}${String(sequence).padStart(4, '0')}`;
+
+            // Check if this number already exists
+            const existing = await prisma.purchaseOrder.findUnique({
+                where: { poNumber },
+                select: { id: true }
+            });
+
+            if (!existing) {
+                return poNumber;
+            }
+
+            // If it exists, add a small delay and retry
+            await new Promise(resolve => setTimeout(resolve, 50 * (attempt + 1)));
         }
 
-        return `${prefix}${String(sequence).padStart(4, '0')}`;
+        // Fallback: use timestamp-based unique number
+        const timestamp = Date.now().toString().slice(-6);
+        return `${prefix}${timestamp}`;
     }
 
     /**
@@ -262,13 +287,53 @@ class PurchaseOrderRepository {
                 where: { poId: id },
             });
 
-            // Create new items
+            // For each item, ensure the drug exists in the Drug table
+            // If drugId doesn't exist, create it from the item description
+            const itemsWithValidDrugs = await Promise.all(
+                items.map(async (item) => {
+                    let drugId = item.drugId;
+
+                    // Check if drug exists
+                    const drugExists = await tx.drug.findUnique({
+                        where: { id: drugId }
+                    });
+
+                    // If drug doesn't exist, create it
+                    if (!drugExists) {
+                        // Extract drug info from description
+                        const description = item.description || '';
+                        const parts = description.split(' - ');
+                        const name = parts[0] || 'Unknown Medicine';
+                        const composition = parts[1] || '';
+
+                        const newDrug = await tx.drug.create({
+                            data: {
+                                id: drugId, // Use the catalog medicine ID
+                                name: name,
+                                genericName: composition || name,
+                                strength: '', // Will be updated later
+                                form: 'Tablet', // Default
+                                manufacturer: '', // Will be updated later
+                                schedule: 'OTC', // Default
+                                gstRate: item.gstPercent || 12,
+                                storeId: poData.storeId || po.storeId,
+                            }
+                        });
+
+                        drugId = newDrug.id;
+                    }
+
+                    return { ...item, drugId };
+                })
+            );
+
+            // Create new items with validated drugIds
             const poItems = await Promise.all(
-                items.map((item) =>
+                itemsWithValidDrugs.map((item) =>
                     tx.purchaseOrderItem.create({
                         data: {
                             poId: po.id,
-                            ...(item.drugId && { drugId: item.drugId }), // Only include drugId if it exists
+                            drugId: item.drugId,
                             quantity: item.qty,
                             unitPrice: item.pricePerUnit,
                             discountPercent: item.discountPercent || 0,

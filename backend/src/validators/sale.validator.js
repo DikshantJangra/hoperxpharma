@@ -4,8 +4,8 @@ const { z } = require('zod');
  * Sale item schema
  */
 const saleItemSchema = z.object({
-    drugId: z.string().cuid(),
-    batchId: z.string().cuid(),
+    drugId: z.string().min(1), // Allow non-CUID strings for legacy data
+    batchId: z.string().min(1), // Allow non-CUID strings for legacy data
     quantity: z.number().int().positive(),
     mrp: z.number().positive(),
     discount: z.number().min(0).default(0),

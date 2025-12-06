@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { tokenManager } from '@/lib/api/client';
 import ReceivingTable from '@/components/grn/ReceivingTable';
 import CompletionSummary from '@/components/grn/CompletionSummary';
+import AttachmentUploader from '@/components/orders/AttachmentUploader';
 import { HiOutlineArrowLeft, HiOutlineCheck, HiOutlineXMark } from 'react-icons/hi2';
 
 export default function ReceiveShipmentPage() {
@@ -31,6 +32,20 @@ export default function ReceiveShipmentPage() {
     useEffect(() => {
         initializeGRN();
     }, [poId]);
+
+    // Populate invoice details from GRN when it loads
+    useEffect(() => {
+        if (grn) {
+            if (grn.supplierInvoiceNo) setInvoiceNo(grn.supplierInvoiceNo);
+            if (grn.supplierInvoiceDate) {
+                // Convert ISO date to YYYY-MM-DD format for input
+                const date = new Date(grn.supplierInvoiceDate);
+                const formattedDate = date.toISOString().split('T')[0];
+                setInvoiceDate(formattedDate);
+            }
+            if (grn.notes) setNotes(grn.notes);
+        }
+    }, [grn]);
 
     // Auto-save every 30 seconds if there are changes
     useEffect(() => {
@@ -84,11 +99,14 @@ export default function ReceiveShipmentPage() {
 
                 setLastSaved(new Date());
             } else {
-                console.error('Failed to initialize GRN');
+                const errorData = await response.json();
+                console.error('Failed to initialize GRN:', errorData);
+                alert(`Failed to initialize GRN: ${errorData.message || errorData.error || 'Unknown error'}`);
                 router.push('/orders/pending');
             }
         } catch (error) {
             console.error('Error initializing GRN:', error);
+            alert(`Error initializing GRN: ${error instanceof Error ? error.message : 'Unknown error'}`);
             router.push('/orders/pending');
         } finally {
             setLoading(false);
@@ -423,6 +441,30 @@ export default function ReceiveShipmentPage() {
                         placeholder="Any additional notes about this shipment..."
                     />
                 </div>
+            </div>
+
+            {/* Invoice Attachments */}
+            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mb-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">Invoice & Documents</h2>
+                <AttachmentUploader
+                    poId={grn?.id}
+                    attachments={grn?.attachments || []}
+                    apiEndpoint="grn-attachments"
+                    onUpload={(attachment) => {
+                        // Update GRN with new attachment
+                        setGrn((prev: any) => ({
+                            ...prev,
+                            attachments: [...(prev.attachments || []), attachment]
+                        }));
+                    }}
+                    onRemove={(attachmentId) => {
+                        // Remove attachment from GRN
+                        setGrn((prev: any) => ({
+                            ...prev,
+                            attachments: (prev.attachments || []).filter((att: any) => att.id !== attachmentId)
+                        }));
+                    }}
+                />
             </div>
 
             {/* Receiving Table */}

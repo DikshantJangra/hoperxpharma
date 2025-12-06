@@ -2,17 +2,75 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { FiX, FiShoppingCart, FiEdit, FiSend, FiClock, FiPackage, FiAlertCircle } from 'react-icons/fi';
+import { FiX, FiShoppingCart, FiEdit, FiSend, FiClock, FiPackage, FiAlertCircle, FiCheck } from 'react-icons/fi';
 import { BsSnow, BsQrCode } from 'react-icons/bs';
+import { toast } from 'sonner';
 import AdjustStockModal from './AdjustStockModal';
 import { mapDrugToDetailPanel } from '@/lib/utils/drugMapper';
 
 export default function StockDetailPanel({ item, onClose }: any) {
   const [showAdjustModal, setShowAdjustModal] = useState(false);
+  const [batchesWithSuppliers, setBatchesWithSuppliers] = useState<any[]>([]);
+  const [isLoadingBatches, setIsLoadingBatches] = useState(true);
+  const [editingLocation, setEditingLocation] = useState<string | null>(null);
+  const [locationValue, setLocationValue] = useState('');
   const router = useRouter();
 
   // Map the drug data to expected format
   const mappedItem = mapDrugToDetailPanel(item);
+
+  useEffect(() => {
+    if (mappedItem && mappedItem.id) {
+      fetchBatchesWithSuppliers();
+    }
+  }, [mappedItem?.id]);
+
+  const fetchBatchesWithSuppliers = async () => {
+    if (!mappedItem) return;
+
+    try {
+      setIsLoadingBatches(true);
+      const { inventoryApi } = await import('@/lib/api/inventory');
+      const response = await inventoryApi.getBatchesWithSuppliers(mappedItem.id);
+
+      if (response.success) {
+        setBatchesWithSuppliers(response.data || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch batches with suppliers:', error);
+      toast.error('Failed to load batch details');
+    } finally {
+      setIsLoadingBatches(false);
+    }
+  };
+
+  const handleLocationEdit = (batchId: string, currentLocation: string) => {
+    setEditingLocation(batchId);
+    setLocationValue(currentLocation || '');
+  };
+
+  const handleLocationSave = async (batchId: string) => {
+    try {
+      const { inventoryApi } = await import('@/lib/api/inventory');
+      await inventoryApi.updateBatchLocation(batchId, locationValue);
+      toast.success('Location updated successfully');
+      setEditingLocation(null);
+      fetchBatchesWithSuppliers(); // Refresh data
+    } catch (error) {
+      console.error('Failed to update location:', error);
+      toast.error('Failed to update location');
+    }
+  };
+
+  const formatMovementType = (type: string) => {
+    const types: any = {
+      'IN': { label: 'Received', color: 'text-green-600' },
+      'OUT': { label: 'Sold', color: 'text-blue-600' },
+      'ADJUSTMENT': { label: 'Adjusted', color: 'text-orange-600' },
+      'RETURN': { label: 'Returned', color: 'text-purple-600' },
+    };
+    return types[type] || { label: type, color: 'text-gray-600' };
+  };
 
   if (!mappedItem) {
     return null;
@@ -24,8 +82,11 @@ export default function StockDetailPanel({ item, onClose }: any) {
       drugName: mappedItem.name,
       suggestedQty: String(mappedItem.reorderPoint * 2)
     });
-    router.push(`/orders/new?${queryParams.toString()}`);
+    router.push(`/orders/new-po?${queryParams.toString()}`);
   };
+
+  // Get primary supplier from first batch with supplier
+  const primarySupplier = batchesWithSuppliers.find(b => b.supplier)?.supplier;
 
   return (
     <>
@@ -93,72 +154,130 @@ export default function StockDetailPanel({ item, onClose }: any) {
           <div>
             <h3 className="text-sm font-semibold text-[#64748b] mb-2">Primary Supplier</h3>
             <div className="bg-white border border-[#e2e8f0] rounded-lg p-3">
-              <p className="text-sm font-medium text-[#0f172a]">{mappedItem.supplier}</p>
-              <p className="text-xs text-[#64748b] mt-1">Lead time: 5 days • MOQ: 100</p>
+              {primarySupplier ? (
+                <>
+                  <p className="text-sm font-medium text-[#0f172a]">{primarySupplier.name}</p>
+                  <p className="text-xs text-[#64748b] mt-1">
+                    Contact: {primarySupplier.contactName} • {primarySupplier.phoneNumber}
+                  </p>
+                </>
+              ) : (
+                <p className="text-sm text-[#94a3b8]">No supplier assigned</p>
+              )}
             </div>
           </div>
 
           {/* Batches */}
           <div>
-            <h3 className="text-sm font-semibold text-[#64748b] mb-2">Batches ({mappedItem.batchCount})</h3>
+            <h3 className="text-sm font-semibold text-[#64748b] mb-2">
+              Batches ({isLoadingBatches ? '...' : batchesWithSuppliers.length})
+            </h3>
             <div className="space-y-2">
-              {mappedItem.batches.map((batch: any) => (
-                <div key={batch.id} className="bg-white border border-[#e2e8f0] rounded-lg p-3">
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-[#0f172a]">{batch.id}</span>
-                        {batch.daysToExpiry < 30 && (
-                          <span className="px-2 py-0.5 bg-[#fee2e2] text-[#991b1b] text-xs rounded">
-                            {batch.daysToExpiry}d
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-[#64748b] mt-1">
-                        Expiry: {batch.expiry} • Location: {batch.location}
-                      </p>
-                    </div>
-                    <BsQrCode className="w-5 h-5 text-[#64748b] cursor-pointer hover:text-[#0f172a]" />
-                  </div>
-                  <div className="flex items-center justify-between text-sm">
-                    <span className="text-[#64748b]">Qty: {batch.qty}</span>
-                    <span className="text-[#64748b]">Cost: ₹{batch.cost} • MRP: ₹{batch.mrp}</span>
-                  </div>
-                  <div className="flex gap-2 mt-2">
-                    <button className="flex-1 px-2 py-1 text-xs border border-[#cbd5e1] rounded hover:bg-[#f8fafc]">
-                      Pick
-                    </button>
-                    <button
-                      onClick={() => setShowAdjustModal(true)}
-                      className="flex-1 px-2 py-1 text-xs border border-[#cbd5e1] rounded hover:bg-[#f8fafc]"
-                    >
-                      Adjust
-                    </button>
-                  </div>
+              {isLoadingBatches ? (
+                <div className="bg-white border border-[#e2e8f0] rounded-lg p-3 animate-pulse">
+                  <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                  <div className="h-3 bg-gray-100 rounded w-1/2"></div>
                 </div>
-              ))}
-            </div>
-          </div>
+              ) : batchesWithSuppliers.length > 0 ? (
+                batchesWithSuppliers.map((batch: any) => {
+                  const daysToExpiry = Math.floor(
+                    (new Date(batch.expiryDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
+                  );
 
-          {/* Recent Activity */}
-          <div className="mt-6">
-            <h3 className="text-sm font-semibold text-[#64748b] mb-2">Recent Activity</h3>
-            <div className="space-y-3">
-              {/* Loading State */}
-              <div className="flex items-start gap-3">
-                <div className="w-2 h-2 mt-1.5 rounded-full bg-gray-300 animate-pulse"></div>
-                <div className="space-y-1 w-full">
-                  <div className="h-3 w-3/4 bg-gray-200 rounded animate-pulse"></div>
-                  <div className="h-2 w-1/2 bg-gray-100 rounded animate-pulse"></div>
-                </div>
-              </div>
-              <div className="flex items-start gap-3">
-                <div className="w-2 h-2 mt-1.5 rounded-full bg-gray-300 animate-pulse"></div>
-                <div className="space-y-1 w-full">
-                  <div className="h-3 w-2/3 bg-gray-200 rounded animate-pulse"></div>
-                  <div className="h-2 w-1/2 bg-gray-100 rounded animate-pulse"></div>
-                </div>
-              </div>
+                  return (
+                    <div key={batch.id} className="bg-white border border-[#e2e8f0] rounded-lg p-3">
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-[#0f172a]">{batch.batchNumber}</span>
+                            {daysToExpiry < 30 && (
+                              <span className="px-2 py-0.5 bg-[#fee2e2] text-[#991b1b] text-xs rounded">
+                                {daysToExpiry}d
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs text-[#64748b] mt-1">
+                            Expiry: {new Date(batch.expiryDate).toLocaleDateString()}
+                          </p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-xs text-[#64748b]">Location:</span>
+                            {editingLocation === batch.id ? (
+                              <div className="flex items-center gap-1">
+                                <input
+                                  type="text"
+                                  value={locationValue}
+                                  onChange={(e) => setLocationValue(e.target.value)}
+                                  className="px-2 py-0.5 text-xs border border-[#cbd5e1] rounded w-24"
+                                  autoFocus
+                                />
+                                <button
+                                  onClick={() => handleLocationSave(batch.id)}
+                                  className="p-1 text-green-600 hover:bg-green-50 rounded"
+                                >
+                                  <FiCheck className="w-3 h-3" />
+                                </button>
+                                <button
+                                  onClick={() => setEditingLocation(null)}
+                                  className="p-1 text-red-600 hover:bg-red-50 rounded"
+                                >
+                                  <FiX className="w-3 h-3" />
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => handleLocationEdit(batch.id, batch.location)}
+                                className="text-xs text-[#0ea5a3] hover:underline"
+                              >
+                                {batch.location || 'Set location'}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        <BsQrCode className="w-5 h-5 text-[#64748b] cursor-pointer hover:text-[#0f172a]" />
+                      </div>
+                      <div className="flex items-center justify-between text-sm mb-2">
+                        <span className="text-[#64748b]">Qty: {batch.quantityInStock}</span>
+                        <span className="text-[#64748b]">Cost: ₹{Number(batch.purchasePrice).toFixed(2)} • MRP: ₹{Number(batch.mrp).toFixed(2)}</span>
+                      </div>
+                      {batch.supplier && (
+                        <p className="text-xs text-[#64748b] mb-2">
+                          Supplier: {batch.supplier.name}
+                        </p>
+                      )}
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setShowAdjustModal(true)}
+                          className="flex-1 px-2 py-1 text-xs border border-[#cbd5e1] rounded hover:bg-[#f8fafc]"
+                        >
+                          Adjust
+                        </button>
+                      </div>
+
+                      {/* Stock Movements */}
+                      {batch.movements && batch.movements.length > 0 && (
+                        <div className="mt-3 pt-3 border-t border-[#e2e8f0]">
+                          <p className="text-xs font-semibold text-[#64748b] mb-2">Recent Movements</p>
+                          <div className="space-y-1">
+                            {batch.movements.slice(0, 3).map((movement: any) => {
+                              const typeInfo = formatMovementType(movement.movementType);
+                              return (
+                                <div key={movement.id} className="flex items-center justify-between text-xs">
+                                  <span className={typeInfo.color}>{typeInfo.label}</span>
+                                  <span className="text-[#64748b]">
+                                    {movement.quantity > 0 ? '+' : ''}{movement.quantity} • {new Date(movement.createdAt).toLocaleDateString()}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })
+              ) : (
+                <p className="text-sm text-[#94a3b8] text-center py-4">No batches available</p>
+              )}
             </div>
           </div>
         </div>

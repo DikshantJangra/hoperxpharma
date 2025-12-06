@@ -69,6 +69,15 @@ class PurchaseOrderService {
             throw ApiError.notFound('Purchase order not found');
         }
 
+        // Transform attachments to convert BigInt to Number for JSON serialization
+        if (po.attachments && po.attachments.length > 0) {
+            po.attachments = po.attachments.map(att => ({
+                ...att,
+                originalSize: Number(att.originalSize),
+                compressedSize: Number(att.compressedSize),
+            }));
+        }
+
         return po;
     }
 

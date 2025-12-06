@@ -43,6 +43,7 @@ export default function OrderDetailsPage() {
     const params = useParams();
     const router = useRouter();
     const [order, setOrder] = useState<PurchaseOrder | null>(null);
+    const [grns, setGrns] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState('');
 
@@ -55,9 +56,12 @@ export default function OrderDetailsPage() {
     const fetchOrderDetails = async (id: string) => {
         try {
             const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+            const token = localStorage.getItem('accessToken');
+
+            // Fetch PO details
             const response = await fetch(`${apiBaseUrl}/purchase-orders/${id}`, {
                 headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+                    'Authorization': `Bearer ${token}`
                 }
             });
 
@@ -67,6 +71,20 @@ export default function OrderDetailsPage() {
 
             const data = await response.json();
             setOrder(data.data);
+
+            // Fetch GRN data if order is received or partially received
+            if (data.data.status === 'RECEIVED' || data.data.status === 'PARTIALLY_RECEIVED') {
+                const grnResponse = await fetch(`${apiBaseUrl}/grn/po/${id}`, {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (grnResponse.ok) {
+                    const grnData = await grnResponse.json();
+                    setGrns(grnData.data || []);
+                }
+            }
         } catch (err: any) {
             setError(err.message || 'Failed to load order');
         } finally {
@@ -137,6 +155,14 @@ export default function OrderDetailsPage() {
                 </div>
                 <div className="flex items-center gap-3">
                     {/* Action Buttons */}
+                    {order.status === 'DRAFT' && (
+                        <Link
+                            href={`/orders/new-po?id=${order.id}`}
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition-colors"
+                        >
+                            Edit Draft
+                        </Link>
+                    )}
                     {(order.status === 'SENT' || order.status === 'PARTIALLY_RECEIVED') && (
                         <Link
                             href={`/orders/pending/${order.id}/receive`}
@@ -181,7 +207,12 @@ export default function OrderDetailsPage() {
                                             </td>
                                             <td className="px-6 py-4 text-right text-sm text-gray-900">{item.quantity}</td>
                                             <td className="px-6 py-4 text-right text-sm text-gray-900">{formatCurrency(item.unitPrice)}</td>
-                                            <td className="px-6 py-4 text-right text-sm font-medium text-gray-900">{formatCurrency(item.total)}</td>
+                                            <td className="px-6 py-4 text-right text-sm font-medium text-gray-900">
+                                                {formatCurrency(
+                                                    item.total ||
+                                                    (item.quantity * item.unitPrice * (1 - (item.discountPercent || 0) / 100) * (1 + (item.gstPercent || 0) / 100))
+                                                )}
+                                            </td>
                                         </tr>
                                     ))}
                                 </tbody>
@@ -194,6 +225,91 @@ export default function OrderDetailsPage() {
                         <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
                             <h3 className="text-sm font-medium text-gray-900 mb-2">Notes</h3>
                             <p className="text-gray-600 text-sm">{order.notes}</p>
+                        </div>
+                    )}
+
+                    {/* Attachments */}
+                    {(order as any).attachments && (order as any).attachments.length > 0 && (
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                            <h3 className="text-lg font-semibold text-gray-900 mb-4">PO Attachments</h3>
+                            <div className="space-y-2">
+                                {(order as any).attachments.map((attachment: any) => (
+                                    <div
+                                        key={attachment.id}
+                                        className="flex items-center justify-between p-3 bg-gray-50 rounded-md hover:bg-gray-100 transition-colors"
+                                    >
+                                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                                            <div className="flex-1 min-w-0">
+                                                <div className="text-sm font-medium text-gray-900 truncate">
+                                                    {attachment.fileName}
+                                                </div>
+                                                <div className="text-xs text-gray-500">
+                                                    {(attachment.compressedSize / 1024).toFixed(0)} KB
+                                                    {attachment.compressedSize < attachment.originalSize && (
+                                                        <span className="text-green-600 ml-2">
+                                                            (saved {Math.round((1 - attachment.compressedSize / attachment.originalSize) * 100)}%)
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <a
+                                            href={attachment.url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                                        >
+                                            View
+                                        </a>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* GRN Invoice Attachments */}
+                    {grns.length > 0 && grns.some((grn: any) => grn.attachments && grn.attachments.length > 0) && (
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                            <h3 className="text-lg font-semibold text-gray-900 mb-4">Invoice Attachments</h3>
+                            {grns.map((grn: any) => (
+                                grn.attachments && grn.attachments.length > 0 && (
+                                    <div key={grn.id} className="mb-4 last:mb-0">
+                                        <div className="text-xs text-gray-500 mb-2">GRN: {grn.grnNumber}</div>
+                                        <div className="space-y-2">
+                                            {grn.attachments.map((attachment: any) => (
+                                                <div
+                                                    key={attachment.id}
+                                                    className="flex items-center justify-between p-3 bg-gray-50 rounded-md hover:bg-gray-100 transition-colors"
+                                                >
+                                                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="text-sm font-medium text-gray-900 truncate">
+                                                                {attachment.fileName}
+                                                            </div>
+                                                            <div className="text-xs text-gray-500">
+                                                                {(attachment.compressedSize / 1024).toFixed(0)} KB
+                                                                {attachment.compressedSize < attachment.originalSize && (
+                                                                    <span className="text-green-600 ml-2">
+                                                                        (saved {Math.round((1 - attachment.compressedSize / attachment.originalSize) * 100)}%)
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <a
+                                                        href={attachment.url}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        className="text-sm text-blue-600 hover:text-blue-800 font-medium"
+                                                    >
+                                                        View
+                                                    </a>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )
+                            ))}
                         </div>
                     )}
                 </div>

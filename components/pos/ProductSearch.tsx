@@ -53,23 +53,33 @@ export default function ProductSearch({ onAddProduct, searchFocus, setSearchFocu
 
   // Search drugs from API with debounce
   useEffect(() => {
+    console.log('🔍 ProductSearch - Query changed:', query, 'Length:', query.length);
+
     const searchDrugs = async () => {
       if (query.length < 2) {
+        console.log('🔍 Query too short, clearing results');
         setResults([]);
         return;
       }
 
+      console.log('🔍 Starting search for:', query);
       setIsLoading(true);
       try {
         const { inventoryApi } = await import('@/lib/api/inventory');
+        console.log('🔍 Calling API...');
         const response = await inventoryApi.searchForPOS(query);
+        console.log('🔍 API Response:', response);
 
         if (response.success) {
+          console.log('🔍 Setting results:', response.data?.length || 0, 'items');
           setResults(response.data || []);
           setSelectedIndex(0);
+        } else {
+          console.log('🔍 Response not successful:', response);
+          setResults([]);
         }
       } catch (error) {
-        console.error('Failed to search drugs:', error);
+        console.error('🔍 Failed to search drugs:', error);
         setResults([]);
       } finally {
         setIsLoading(false);

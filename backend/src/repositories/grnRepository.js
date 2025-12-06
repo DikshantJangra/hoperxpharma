@@ -51,6 +51,11 @@ class GRNRepository {
                             firstName: true,
                             lastName: true
                         }
+                    },
+                    attachments: {
+                        orderBy: {
+                            uploadedAt: 'desc'
+                        }
                     }
                 }
             });
@@ -61,7 +66,7 @@ class GRNRepository {
      * Get GRN by ID
      */
     async getGRNById(id) {
-        return await prisma.goodsReceivedNote.findUnique({
+        const grn = await prisma.goodsReceivedNote.findUnique({
             where: { id },
             include: {
                 items: true,
@@ -81,9 +86,25 @@ class GRNRepository {
                         firstName: true,
                         lastName: true
                     }
+                },
+                attachments: {
+                    orderBy: {
+                        uploadedAt: 'desc'
+                    }
                 }
             }
         });
+
+        // Convert BigInt to Number for attachments
+        if (grn && grn.attachments && grn.attachments.length > 0) {
+            grn.attachments = grn.attachments.map(att => ({
+                ...att,
+                originalSize: Number(att.originalSize),
+                compressedSize: Number(att.compressedSize),
+            }));
+        }
+
+        return grn;
     }
 
     /**
@@ -289,7 +310,7 @@ class GRNRepository {
      * Get GRNs by PO ID
      */
     async getGRNsByPOId(poId) {
-        return await prisma.goodsReceivedNote.findMany({
+        const grns = await prisma.goodsReceivedNote.findMany({
             where: { poId },
             include: {
                 items: true,
@@ -309,12 +330,27 @@ class GRNRepository {
                         firstName: true,
                         lastName: true
                     }
+                },
+                attachments: {
+                    orderBy: {
+                        uploadedAt: 'desc'
+                    }
                 }
             },
             orderBy: {
                 createdAt: 'desc'
             }
         });
+
+        // Convert BigInt to Number for attachments
+        return grns.map(grn => ({
+            ...grn,
+            attachments: grn.attachments?.map(att => ({
+                ...att,
+                originalSize: Number(att.originalSize),
+                compressedSize: Number(att.compressedSize),
+            })) || []
+        }));
     }
 
     /**
@@ -345,29 +381,49 @@ class GRNRepository {
         });
     }
     /**
-     * Generate GRN number
+     * Generate GRN number with race condition handling
      */
     async generateGRNNumber(storeId) {
         const today = new Date();
         const prefix = `GRN${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}`;
 
-        const lastGRN = await prisma.goodsReceivedNote.findFirst({
-            where: {
-                storeId,
-                grnNumber: {
-                    startsWith: prefix,
+        // Try up to 5 times to generate a unique GRN number
+        for (let attempt = 0; attempt < 5; attempt++) {
+            const lastGRN = await prisma.goodsReceivedNote.findFirst({
+                where: {
+                    storeId,
+                    grnNumber: {
+                        startsWith: prefix,
+                    },
                 },
-            },
-            orderBy: { createdAt: 'desc' },
-        });
+                orderBy: { createdAt: 'desc' },
+            });
 
-        let sequence = 1;
-        if (lastGRN) {
-            const lastSequence = parseInt(lastGRN.grnNumber.slice(-4));
-            sequence = lastSequence + 1;
+            let sequence = 1;
+            if (lastGRN) {
+                const lastSequence = parseInt(lastGRN.grnNumber.slice(-4));
+                sequence = lastSequence + 1;
+            }
+
+            const grnNumber = `${prefix}${String(sequence).padStart(4, '0')}`;
+
+            // Check if this number already exists
+            const existing = await prisma.goodsReceivedNote.findUnique({
+                where: { grnNumber },
+                select: { id: true }
+            });
+
+            if (!existing) {
+                return grnNumber;
+            }
+
+            // If it exists, add a small delay and retry
+            await new Promise(resolve => setTimeout(resolve, 50 * (attempt + 1)));
         }
 
-        return `${prefix}${String(sequence).padStart(4, '0')}`;
+        // Fallback: use timestamp-based unique number
+        const timestamp = Date.now().toString().slice(-6);
+        return `${prefix}${timestamp}`;
     }
 }
 

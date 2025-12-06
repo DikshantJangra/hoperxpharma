@@ -36,7 +36,7 @@ export default function PendingOrdersPage() {
         try {
             const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
             const token = tokenManager.getAccessToken();
-            const response = await fetch(`${apiBaseUrl}/purchase-orders?status=SENT,PARTIALLY_RECEIVED&limit=100`, {
+            const response = await fetch(`${apiBaseUrl}/purchase-orders?status=DRAFT,SENT,PARTIALLY_RECEIVED&limit=100`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
@@ -80,7 +80,7 @@ export default function PendingOrdersPage() {
     };
 
     const handleEdit = (order: Order) => {
-        router.push(`/orders/pending/${order.id}/edit`);
+        router.push(`/orders/new-po?id=${order.id}`);
     };
 
     // Calculate stats from the fetched orders

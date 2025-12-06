@@ -4,10 +4,10 @@ const { z } = require('zod');
  * Patient creation schema
  */
 const patientCreateSchema = z.object({
-    storeId: z.string().cuid(),
+    storeId: z.string().cuid().optional(), // Optional - added by controller from req.storeId
     firstName: z.string().min(1, 'First name is required'),
     middleName: z.string().optional(),
-    lastName: z.string().min(1, 'Last name is required'),
+    lastName: z.string().optional(), // Made optional for quick add
     dateOfBirth: z.string()
         .optional()
         .transform((val) => {
@@ -24,12 +24,12 @@ const patientCreateSchema = z.object({
             if (!val) return undefined;
             // Normalize to proper case
             const normalized = val.toLowerCase();
-            if (normalized === 'male') return 'Male';
-            if (normalized === 'female') return 'Female';
-            if (normalized === 'other') return 'Other';
+            if (normalized === 'male') return 'MALE';
+            if (normalized === 'female') return 'FEMALE';
+            if (normalized === 'other') return 'OTHER';
             return val; // Return original if doesn't match
         })
-        .pipe(z.enum(['Male', 'Female', 'Other']).optional()),
+        .pipe(z.enum(['MALE', 'FEMALE', 'OTHER']).optional()),
     phoneNumber: z.string().regex(/^[6-9]\d{9}$/, 'Invalid Indian phone number'),
     email: z.string().email().optional(),
     addressLine1: z.string().optional(),

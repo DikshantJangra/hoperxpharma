@@ -61,30 +61,51 @@ export function usePOComposer(storeId: string) {
   }, []);
 
   const addLine = useCallback((item: Partial<POLine>) => {
-    const newLine: POLine = {
-      lineId: `L${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      drugId: item.drugId || '',
-      description: item.description || '',
-      packUnit: item.packUnit || 'Strip',
-      packSize: item.packSize || 10,
-      qty: item.qty || item.suggestedQty || 1,
-      unit: item.unit || 'strip',
-      pricePerUnit: item.pricePerUnit || item.lastPurchasePrice || 0,
-      discountPercent: item.discountPercent || 0,
-      gstPercent: item.gstPercent || 12,
-      lineNet: 0,
-      lastPurchasePrice: item.lastPurchasePrice,
-      suggestedQty: item.suggestedQty,
-      reorderReason: item.reorderReason,
-      ...item
-    };
+    setPO(prev => {
+      // Check if this item already exists (same drugId and pricePerUnit)
+      const existingLineIndex = prev.lines.findIndex(
+        line => line.drugId === item.drugId &&
+          line.pricePerUnit === (item.pricePerUnit || item.lastPurchasePrice || 0)
+      );
 
-    newLine.lineNet = newLine.qty * newLine.pricePerUnit * (1 - newLine.discountPercent / 100);
+      if (existingLineIndex !== -1) {
+        // Item exists - increment quantity
+        const updatedLines = [...prev.lines];
+        const existingLine = updatedLines[existingLineIndex];
+        const newQty = existingLine.qty + (item.qty || 1);
 
-    setPO(prev => ({
-      ...prev,
-      lines: [...prev.lines, newLine]
-    }));
+        updatedLines[existingLineIndex] = {
+          ...existingLine,
+          qty: newQty,
+          lineNet: newQty * existingLine.pricePerUnit * (1 - existingLine.discountPercent / 100)
+        };
+
+        return { ...prev, lines: updatedLines };
+      }
+
+      // Item doesn't exist - add new line
+      const newLine: POLine = {
+        lineId: `L${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        drugId: item.drugId || '',
+        description: item.description || '',
+        packUnit: item.packUnit || 'Strip',
+        packSize: item.packSize || 10,
+        qty: item.qty || item.suggestedQty || 1,
+        unit: item.unit || 'strip',
+        pricePerUnit: item.pricePerUnit || item.lastPurchasePrice || 0,
+        discountPercent: item.discountPercent || 0,
+        gstPercent: item.gstPercent || 12,
+        lineNet: 0,
+        lastPurchasePrice: item.lastPurchasePrice,
+        suggestedQty: item.suggestedQty,
+        reorderReason: item.reorderReason,
+        ...item
+      };
+
+      newLine.lineNet = newLine.qty * newLine.pricePerUnit * (1 - newLine.discountPercent / 100);
+
+      return { ...prev, lines: [...prev.lines, newLine] };
+    });
   }, []);
 
   const updateLine = useCallback((lineId: string, updates: Partial<POLine>) => {

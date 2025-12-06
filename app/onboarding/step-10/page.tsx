@@ -23,8 +23,8 @@ export default function Step10Page() {
         setIsSubmitting(true);
         try {
             // Validate required fields
-            if (!state.data.storeIdentity.pharmacyName || !state.data.storeIdentity.address || 
-                !state.data.storeIdentity.city || !state.data.storeIdentity.state || 
+            if (!state.data.storeIdentity.pharmacyName || !state.data.storeIdentity.address ||
+                !state.data.storeIdentity.city || !state.data.storeIdentity.state ||
                 !state.data.storeIdentity.pinCode || !state.data.storeIdentity.phoneNumber) {
                 toast.error("Please complete Step 1 - Store Identity with all required fields");
                 setIsSubmitting(false);
@@ -67,7 +67,7 @@ export default function Step10Page() {
             }
 
             // Prepare operating hours
-            const operatingHours: any[] = state.data.timings?.is24x7 ? [] : 
+            const operatingHours: any[] = state.data.timings?.is24x7 ? [] :
                 (state.data.timings?.operatingDays || []).map(day => ({
                     dayOfWeek: day as any,
                     openTime: state.data.timings?.openTime || "09:00",
@@ -107,6 +107,10 @@ export default function Step10Page() {
                     state: state.data.storeIdentity.state,
                     pinCode: state.data.storeIdentity.pinCode,
                     phoneNumber: state.data.storeIdentity.phoneNumber,
+                    email: state.data.storeIdentity.email,
+                    gstin: state.data.licensing.gstin,
+                    dlNumber: state.data.licensing.dlNumber,
+                    pan: state.data.licensing.pan,
                     is24x7: state.data.timings?.is24x7 || false,
                     homeDelivery: state.data.timings?.deliveryAvailable || false,
                 },
@@ -114,6 +118,8 @@ export default function Step10Page() {
                 operatingHours,
                 suppliers,
                 users,
+                pos: state.data.pos, // Add POS configuration
+                inventory: state.data.inventory, // Add inventory settings
             });
 
             // Mark onboarding as complete in the context

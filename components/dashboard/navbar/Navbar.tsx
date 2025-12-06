@@ -75,18 +75,18 @@ function LeftSection({ onToggleSidebar, showStoreMenu, setShowStoreMenu, sidebar
             <div className="relative" ref={storeMenuRef}>
                 <button
                     onClick={() => setShowStoreMenu(!showStoreMenu)}
-                    className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 rounded-lg transition-colors"
+                    className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 rounded-lg transition-colors max-w-xs"
                 >
-                    <MdStore size={18} className="text-emerald-600" />
-                    <div className="text-left">
-                        <p className="text-sm font-medium text-gray-800">
+                    <MdStore size={18} className="text-emerald-600 shrink-0" />
+                    <div className="text-left min-w-0 flex-1">
+                        <p className="text-sm font-medium text-gray-800 truncate">
                             {isLoading ? 'Loading...' : (primaryStore?.displayName || primaryStore?.name || 'My Store')}
                         </p>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs text-gray-500 truncate">
                             {isLoading ? '-' : (primaryStore?.city ? `${primaryStore.city}, ${primaryStore.state}` : '-')}
                         </p>
                     </div>
-                    <FiChevronDown size={16} className={`text-gray-400 transition-transform ${showStoreMenu ? 'rotate-180' : ''}`} />
+                    <FiChevronDown size={16} className={`text-gray-400 transition-transform shrink-0 ${showStoreMenu ? 'rotate-180' : ''}`} />
                 </button>
 
                 {showStoreMenu && (
@@ -295,6 +295,7 @@ function UserMenu({ show, setShow }: any) {
     const userMenuRef = useRef<HTMLDivElement>(null);
     const { user, isLoading } = useAuthStore();
     const router = useRouter();
+    const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
     // Helper to get user initials
     const getInitials = () => {
@@ -312,6 +313,33 @@ function UserMenu({ show, setShow }: any) {
 
         return '?';
     };
+
+    // Fetch user's avatar
+    useEffect(() => {
+        const fetchAvatar = async () => {
+            if (!user) return;
+
+            try {
+                const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+                const response = await fetch(`${apiBaseUrl}/avatar/me`, {
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+                    }
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success && data.avatarUrl) {
+                        setAvatarUrl(data.avatarUrl);
+                    }
+                }
+            } catch (error) {
+                // Silently fail - will show initials
+            }
+        };
+
+        fetchAvatar();
+    }, [user]);
 
     // Logout handler
     const handleLogout = async () => {
@@ -351,9 +379,17 @@ function UserMenu({ show, setShow }: any) {
                 onClick={() => setShow(!show)}
                 className="flex items-center gap-2 p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
             >
-                <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-semibold text-sm">
-                    {isLoading ? '-' : getInitials()}
-                </div>
+                {avatarUrl ? (
+                    <img
+                        src={avatarUrl}
+                        alt="User avatar"
+                        className="w-9 h-9 rounded-full object-cover border-2 border-emerald-200"
+                    />
+                ) : (
+                    <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-semibold text-sm">
+                        {isLoading ? '-' : getInitials()}
+                    </div>
+                )}
                 <FiChevronDown size={16} className={`text-gray-400 transition-transform ${show ? 'rotate-180' : ''}`} />
             </button>
             {show && (

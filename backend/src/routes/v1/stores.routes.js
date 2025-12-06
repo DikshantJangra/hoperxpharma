@@ -16,6 +16,7 @@ router.get('/me', storeController.getMyStore); // Get current user's primary sto
 router.get('/', storeController.getUserStores);
 router.get('/:id', storeController.getStoreById);
 router.put('/:id', validate(storeUpdateSchema), storeController.updateStore);
+router.patch('/:id', validate(storeUpdateSchema), storeController.updateStore); // PATCH for partial updates
 router.get('/:id/stats', storeController.getStoreStats);
 
 /**

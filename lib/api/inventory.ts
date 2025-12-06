@@ -153,5 +153,21 @@ export const inventoryApi = {
         }
         const response = await apiClient.get(`/inventory/pos/search?search=${encodeURIComponent(searchTerm)}`);
         return response; // Return full response with success, data, message
+    },
+
+    /**
+     * Update batch location
+     */
+    async updateBatchLocation(batchId: string, location: string) {
+        const response = await apiClient.patch(`/inventory/batches/${batchId}/location`, { location });
+        return response.data;
+    },
+
+    /**
+     * Get batches with suppliers for a drug
+     */
+    async getBatchesWithSuppliers(drugId: string) {
+        const response = await apiClient.get(`/inventory/drugs/${drugId}/batches-with-suppliers`);
+        return response.data;
     }
 };

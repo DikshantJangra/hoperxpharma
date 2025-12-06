@@ -18,6 +18,7 @@ export interface StoreData {
     businessType?: string;
     gstin?: string;
     dlNumber?: string;
+    pan?: string;
     addressLine1: string;
     addressLine2?: string;
     city: string;
@@ -109,6 +110,8 @@ export const onboardingApi = {
         operatingHours?: OperatingHoursData[];
         suppliers?: any[];
         users?: any[];
+        pos?: any;
+        inventory?: any;
     }) {
         const response = await apiClient.post('/onboarding/complete', data);
         return response.data;

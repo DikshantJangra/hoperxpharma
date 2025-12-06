@@ -54,30 +54,30 @@ export interface Insight {
 
 export const dashboardApi = {
     /**
-     * Get all dashboard stats
+     * Get dashboard statistics
      */
     async getStats(): Promise<DashboardStats> {
-        return baseFetch<DashboardStats>('/dashboard/stats');
+        return baseFetch('/dashboard/stats') as any;
     },
 
     /**
      * Get sales chart data
      */
-    async getSalesChart(period: 'daily' | 'weekly' | 'monthly' = 'daily'): Promise<SalesChartData> {
-        return baseFetch<SalesChartData>(`/dashboard/sales-chart?period=${period}`);
+    async getSalesChart(period: 'week' | 'month' | 'year'): Promise<SalesChartData> {
+        return baseFetch(`/dashboard/sales-chart?period=${period}`) as any;
     },
 
     /**
      * Get action queues
      */
     async getActionQueues(): Promise<ActionQueues> {
-        return baseFetch<ActionQueues>('/dashboard/action-queues');
+        return baseFetch('/dashboard/action-queues') as any;
     },
 
     /**
-     * Get AI insights (real alerts)
+     * Get insights
      */
     async getInsights(): Promise<Insight[]> {
-        return baseFetch<Insight[]>('/dashboard/insights');
+        return baseFetch('/dashboard/insights') as any;
     },
 };

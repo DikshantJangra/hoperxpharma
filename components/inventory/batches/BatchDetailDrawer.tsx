@@ -1,8 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { FiX, FiShoppingCart, FiEdit, FiSend, FiAlertTriangle, FiAlertOctagon, FiPrinter, FiClock } from 'react-icons/fi';
+import { FiX, FiShoppingCart, FiEdit, FiSend, FiAlertTriangle, FiAlertOctagon, FiPrinter, FiClock, FiCheck } from 'react-icons/fi';
 import { BsQrCode, BsThermometer } from 'react-icons/bs';
+import { toast } from 'sonner';
 import QuarantineModal from './QuarantineModal';
 import AdjustBatchModal from './AdjustBatchModal';
 
@@ -10,6 +11,22 @@ export default function BatchDetailDrawer({ batch, onClose }: any) {
   const [activeTab, setActiveTab] = useState<'summary' | 'movement' | 'temp'>('summary');
   const [showQuarantine, setShowQuarantine] = useState(false);
   const [showAdjust, setShowAdjust] = useState(false);
+  const [isEditingLocation, setIsEditingLocation] = useState(false);
+  const [locationValue, setLocationValue] = useState(batch.location || '');
+
+  const handleLocationSave = async () => {
+    try {
+      const { inventoryApi } = await import('@/lib/api/inventory');
+      await inventoryApi.updateBatchLocation(batch.id, locationValue);
+      toast.success('Location updated successfully');
+      setIsEditingLocation(false);
+      // Update the batch object
+      batch.location = locationValue;
+    } catch (error) {
+      console.error('Failed to update location:', error);
+      toast.error('Failed to update location');
+    }
+  };
 
   return (
     <>
@@ -92,19 +109,56 @@ export default function BatchDetailDrawer({ batch, onClose }: any) {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <p className="text-xs text-[#64748b] mb-1">On-hand</p>
-                    <p className="text-2xl font-bold text-[#0f172a]">{batch.qtyOnHand}</p>
+                    <p className="text-2xl font-bold text-[#0f172a]">{batch.qtyOnHand || batch.quantityInStock || 0}</p>
                   </div>
                   <div>
                     <p className="text-xs text-[#64748b] mb-1">Available</p>
-                    <p className="text-2xl font-bold text-[#0ea5a3]">{batch.qtyAvailable}</p>
+                    <p className="text-2xl font-bold text-[#0ea5a3]">{batch.qtyAvailable || batch.quantityInStock || 0}</p>
                   </div>
                   <div>
                     <p className="text-xs text-[#64748b] mb-1">Reserved</p>
-                    <p className="text-lg font-semibold text-[#0f172a]">{batch.qtyOnHand - batch.qtyAvailable}</p>
+                    <p className="text-lg font-semibold text-[#0f172a]">
+                      {((batch.qtyOnHand || batch.quantityInStock || 0) - (batch.qtyAvailable || batch.quantityInStock || 0)) || 0}
+                    </p>
                   </div>
                   <div>
                     <p className="text-xs text-[#64748b] mb-1">Location</p>
-                    <p className="text-lg font-semibold text-[#0f172a]">{batch.location}</p>
+                    {isEditingLocation ? (
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="text"
+                          value={locationValue}
+                          onChange={(e) => setLocationValue(e.target.value)}
+                          className="px-2 py-1 text-sm border border-[#cbd5e1] rounded w-full"
+                          placeholder="e.g., Shelf A-12"
+                          autoFocus
+                        />
+                        <button
+                          onClick={handleLocationSave}
+                          className="p-1.5 text-green-600 hover:bg-green-50 rounded"
+                          title="Save"
+                        >
+                          <FiCheck className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            setIsEditingLocation(false);
+                            setLocationValue(batch.location || '');
+                          }}
+                          className="p-1.5 text-red-600 hover:bg-red-50 rounded"
+                          title="Cancel"
+                        >
+                          <FiX className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setIsEditingLocation(true)}
+                        className="text-lg font-semibold text-[#0ea5a3] hover:underline text-left"
+                      >
+                        {batch.location || 'Set location'}
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -113,23 +167,33 @@ export default function BatchDetailDrawer({ batch, onClose }: any) {
               <div className="bg-white border border-[#e2e8f0] rounded-lg p-4 space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-[#64748b]">Expiry Date</span>
-                  <span className="font-medium text-[#0f172a]">{batch.expiry}</span>
+                  <span className="font-medium text-[#0f172a]">
+                    {batch.expiryDate ? new Date(batch.expiryDate).toLocaleDateString() : (batch.expiry || 'N/A')}
+                  </span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-[#64748b]">Last Received</span>
-                  <span className="font-medium text-[#0f172a]">{batch.lastReceived}</span>
+                  <span className="font-medium text-[#0f172a]">
+                    {batch.createdAt ? new Date(batch.createdAt).toLocaleDateString() : (batch.lastReceived || 'N/A')}
+                  </span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-[#64748b]">Supplier</span>
-                  <span className="font-medium text-[#0f172a]">{batch.supplier}</span>
+                  <span className="font-medium text-[#0f172a]">
+                    {batch.supplier?.name || batch.supplier || 'N/A'}
+                  </span>
                 </div>
-                <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                <div className="flex justify-between text-sm">
                   <span className="text-[#64748b]">Unit Cost</span>
-                  <span className="inline-block w-12 h-4 bg-gray-200 rounded animate-pulse"></span>
+                  <span className="font-medium text-[#0f172a]">
+                    ₹{batch.purchasePrice ? Number(batch.purchasePrice).toFixed(2) : '0.00'}
+                  </span>
                 </div>
-                <div className="flex justify-between items-center py-2 border-b border-gray-100">
+                <div className="flex justify-between text-sm">
                   <span className="text-[#64748b]">MRP</span>
-                  <span className="inline-block w-12 h-4 bg-gray-200 rounded animate-pulse"></span>
+                  <span className="font-medium text-[#0f172a]">
+                    ₹{batch.mrp ? Number(batch.mrp).toFixed(2) : '0.00'}
+                  </span>
                 </div>
               </div>
 
@@ -145,19 +209,38 @@ export default function BatchDetailDrawer({ batch, onClose }: any) {
 
           {activeTab === 'movement' && (
             <div className="space-y-3">
-              {[
-                { action: 'Received 100 units', time: '2024-12-01 10:30 AM', user: 'Aman', type: 'receive' },
-                { action: 'Sold 5 units', time: '2024-12-15 02:15 PM', user: 'POS', type: 'sale' },
-                { action: 'Reserved 5 units', time: '2025-01-10 11:20 AM', user: 'Meera', type: 'reserve' },
-              ].map((event, idx) => (
-                <div key={idx} className="flex items-start gap-3 p-3 bg-[#f8fafc] rounded-lg">
-                  <FiClock className="w-4 h-4 text-[#64748b] mt-0.5 shrink-0" />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-[#0f172a]">{event.action}</p>
-                    <p className="text-xs text-[#64748b] mt-1">{event.time} • {event.user}</p>
-                  </div>
+              {batch.movements && batch.movements.length > 0 ? (
+                batch.movements.map((movement: any, idx: number) => {
+                  const typeLabels: any = {
+                    'IN': { label: 'Received', color: 'text-green-600' },
+                    'OUT': { label: 'Sold', color: 'text-blue-600' },
+                    'ADJUSTMENT': { label: 'Adjusted', color: 'text-orange-600' },
+                    'RETURN': { label: 'Returned', color: 'text-purple-600' },
+                  };
+                  const typeInfo = typeLabels[movement.movementType] || { label: movement.movementType, color: 'text-gray-600' };
+
+                  return (
+                    <div key={idx} className="flex items-start gap-3 p-3 bg-[#f8fafc] rounded-lg">
+                      <FiClock className="w-4 h-4 text-[#64748b] mt-0.5 shrink-0" />
+                      <div className="flex-1">
+                        <p className={`text-sm font-medium ${typeInfo.color}`}>
+                          {typeInfo.label} {movement.quantity > 0 ? '+' : ''}{movement.quantity} units
+                        </p>
+                        <p className="text-xs text-[#64748b] mt-1">
+                          {new Date(movement.createdAt).toLocaleString()}
+                          {movement.reason && ` • ${movement.reason}`}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })
+              ) : (
+                <div className="text-center py-8">
+                  <FiClock className="w-12 h-12 text-[#cbd5e1] mx-auto mb-3" />
+                  <p className="text-[#64748b]">No movements recorded</p>
+                  <p className="text-sm text-[#94a3b8] mt-1">Stock movements will appear here</p>
                 </div>
-              ))}
+              )}
             </div>
           )}
 

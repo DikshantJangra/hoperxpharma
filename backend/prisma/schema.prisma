@@ -192,6 +192,7 @@ model User {
   adminPin         AdminPin?
   grns             GoodsReceivedNote[]
   savedFilters     SavedFilter[]
+  avatars          UserAvatar[]
 
   // HR Relations
   attendanceLogs     AttendanceLog[]
@@ -1101,6 +1102,7 @@ model PurchaseOrder {
 
   currency     String  @default("INR")
   paymentTerms String?
+  notes        String? // Additional notes or instructions
 
   createdBy  String
   approvedBy String?
@@ -1112,6 +1114,7 @@ model PurchaseOrder {
   receipts POReceipt[]
   grns     GoodsReceivedNote[]
   returns  SupplierReturn[]
+  attachments POAttachment[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -1121,6 +1124,27 @@ model PurchaseOrder {
   @@index([supplierId])
   @@index([storeId, deletedAt])
 }
+
+model POAttachment {
+  id              String   @id @default(cuid())
+  purchaseOrderId String
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  
+  fileName        String
+  fileType        String   // pdf, image, document
+  mimeType        String
+  originalSize    BigInt   // Original file size in bytes
+  compressedSize  BigInt   // Compressed file size in bytes
+  r2Key           String   // R2 storage key
+  url             String   // Public URL
+  
+  uploadedAt      DateTime @default(now())
+  uploadedBy      String
+  
+  @@index([purchaseOrderId])
+  @@map("po_attachments")
+}
+
 
 model PurchaseOrderItem {
   id          String @id @default(cuid())
@@ -1225,6 +1249,7 @@ model GoodsReceivedNote {
   po            PurchaseOrder    @relation(fields: [poId], references: [id], onDelete: Cascade)
   items         GRNItem[]
   discrepancies GRNDiscrepancy[]
+  attachments   GRNAttachment[]
 
   completedAt DateTime?
   createdAt   DateTime  @default(now())
@@ -1233,6 +1258,26 @@ model GoodsReceivedNote {
   @@index([poId])
   @@index([storeId])
   @@index([status])
+}
+
+model GRNAttachment {
+  id       String @id @default(cuid())
+  grnId    String
+  grn      GoodsReceivedNote @relation(fields: [grnId], references: [id], onDelete: Cascade)
+  
+  fileName        String
+  fileType        String   // pdf, image, document
+  mimeType        String
+  originalSize    BigInt
+  compressedSize  BigInt
+  r2Key           String
+  url             String
+  
+  uploadedAt      DateTime @default(now())
+  uploadedBy      String
+  
+  @@index([grnId])
+  @@map("grn_attachments")
 }
 
 model GRNItem {
@@ -2400,4 +2445,34 @@ model PrescriptionFile {
   prescription Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
 
   @@index([prescriptionId])
+}
+
+// ============================================================================
+// CATEGORY 11: AVATAR STORAGE (R2)
+// ============================================================================
+
+model UserAvatar {
+  id         String   @id @default(cuid())
+  userId     String
+  sha        String   // Content hash for deduplication
+  key        String   // R2 object key: objects/avatars/<sha>.webp
+  version    Int      @default(1)
+  isActive   Boolean  @default(true)
+  uploadedAt DateTime @default(now())
+  
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId, isActive])
+  @@index([sha])
+}
+
+model AvatarObject {
+  sha          String   @id // SHA256 hash as primary key
+  key          String   // R2 object key: objects/avatars/<sha>.webp
+  sizeBytes    BigInt
+  refCount     Int      @default(0)
+  createdAt    DateTime @default(now())
+  lastAccessed DateTime @updatedAt
+  
+  @@index([refCount])
 }

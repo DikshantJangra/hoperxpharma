@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FiX, FiSearch, FiUser, FiPhone } from 'react-icons/fi';
+import { FiX, FiSearch, FiUser, FiPhone, FiArrowLeft } from 'react-icons/fi';
+import { toast } from 'sonner';
 
 const CustomerCardSkeleton = () => (
   <div className="p-3 border border-[#e2e8f0] rounded-lg animate-pulse">
@@ -18,6 +19,16 @@ export default function CustomerModal({ onSelect, onClose }: any) {
   const [search, setSearch] = useState('');
   const [customers, setCustomers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Form state
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    phoneNumber: '',
+    gender: 'MALE',
+  });
 
   // Search patients from API with debounce
   useEffect(() => {
@@ -65,6 +76,143 @@ export default function CustomerModal({ onSelect, onClose }: any) {
     onSelect(null); // Proceed without customer
     onClose();
   };
+
+  const handleAddCustomer = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Validation
+    if (!formData.firstName.trim()) {
+      toast.error('First name is required');
+      return;
+    }
+    if (!formData.phoneNumber.trim()) {
+      toast.error('Phone number is required');
+      return;
+    }
+    if (formData.phoneNumber.length !== 10 || !/^\d+$/.test(formData.phoneNumber)) {
+      toast.error('Phone number must be 10 digits');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const { patientsApi } = await import('@/lib/api/patients');
+      const response = await patientsApi.createPatient({
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim() || undefined,
+        phoneNumber: formData.phoneNumber,
+        gender: formData.gender,
+      });
+
+      if (response.success || response.data) {
+        const newCustomer = response.data || response;
+        toast.success('Customer added successfully!');
+        handleSelect(newCustomer);
+      } else {
+        toast.error('Failed to add customer');
+      }
+    } catch (error: any) {
+      console.error('Failed to add customer:', error);
+      toast.error(error.response?.data?.message || 'Failed to add customer');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (showAddForm) {
+    return (
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
+        <div className="bg-white rounded-lg w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center justify-between p-4 border-b border-[#e2e8f0]">
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowAddForm(false)}
+                className="text-[#64748b] hover:text-[#0f172a] p-1 rounded hover:bg-[#f8fafc]"
+              >
+                <FiArrowLeft className="w-5 h-5" />
+              </button>
+              <h3 className="text-lg font-bold text-[#0f172a]">Add New Customer</h3>
+            </div>
+            <button onClick={onClose} className="text-[#64748b] hover:text-[#0f172a] p-1 rounded hover:bg-[#f8fafc]">
+              <FiX className="w-5 h-5" />
+            </button>
+          </div>
+
+          <form onSubmit={handleAddCustomer} className="p-4 space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  First Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={formData.firstName}
+                  onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0ea5a3]"
+                  placeholder="John"
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                <input
+                  type="text"
+                  value={formData.lastName}
+                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0ea5a3]"
+                  placeholder="Doe"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Phone Number <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="tel"
+                value={formData.phoneNumber}
+                onChange={(e) => setFormData({ ...formData, phoneNumber: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0ea5a3]"
+                placeholder="9876543210"
+                maxLength={10}
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+              <select
+                value={formData.gender}
+                onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0ea5a3]"
+              >
+                <option value="MALE">Male</option>
+                <option value="FEMALE">Female</option>
+                <option value="OTHER">Other</option>
+              </select>
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowAddForm(false)}
+                className="flex-1 py-2 border border-gray-300 rounded-lg text-sm text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="flex-1 py-2 bg-[#0ea5a3] text-white rounded-lg text-sm hover:bg-[#0d9391] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSubmitting ? 'Adding...' : 'Add Customer'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
@@ -141,7 +289,7 @@ export default function CustomerModal({ onSelect, onClose }: any) {
               Skip (Disabled)
             </button>
             <button
-              onClick={() => {/* TODO: Open add customer form */ }}
+              onClick={() => setShowAddForm(true)}
               className="flex-1 py-2 bg-[#0ea5a3] text-white rounded-lg text-sm hover:bg-[#0d9391]"
             >
               + Add New Customer

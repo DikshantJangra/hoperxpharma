@@ -179,12 +179,36 @@ const getInventorySummary = asyncHandler(async (req, res) => {
 const searchDrugsForPOS = asyncHandler(async (req, res) => {
     const { search } = req.query;
 
+    console.log('🔍 POS Search Controller - storeId:', req.storeId, 'search:', search);
+
     if (!search || search.length < 2) {
         return res.status(200).json(ApiResponse.success([]));
     }
 
     const drugs = await inventoryService.searchDrugsForPOS(req.storeId, search);
+    console.log('🔍 POS Search Controller - Results:', drugs.length);
     const response = ApiResponse.success(drugs);
+    res.status(response.statusCode).json(response);
+});
+
+/**
+ * Update batch location
+ */
+const updateBatchLocation = asyncHandler(async (req, res) => {
+    const { location } = req.body;
+    const batch = await inventoryService.updateBatchLocation(req.params.id, location);
+
+    const response = ApiResponse.success(batch, 'Batch location updated successfully');
+    res.status(response.statusCode).json(response);
+});
+
+/**
+ * Get batches with suppliers for a drug
+ */
+const getBatchesWithSuppliers = asyncHandler(async (req, res) => {
+    const batches = await inventoryService.getBatchesWithSuppliers(req.params.drugId);
+
+    const response = ApiResponse.success(batches);
     res.status(response.statusCode).json(response);
 });
 
@@ -202,4 +226,6 @@ module.exports = {
     getExpiringItems,
     getInventorySummary,
     searchDrugsForPOS,
+    updateBatchLocation,
+    getBatchesWithSuppliers,
 };

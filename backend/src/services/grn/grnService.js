@@ -31,43 +31,58 @@ class GRNService {
             return draftGrn;
         }
 
-        // Generate GRN number
-        const grnNumber = await grnRepository.generateGRNNumber(po.storeId);
+        // Retry logic for GRN creation (handle unique constraint failures)
+        let grn;
+        for (let attempt = 0; attempt < 3; attempt++) {
+            try {
+                // Generate GRN number
+                const grnNumber = await grnRepository.generateGRNNumber(po.storeId);
 
-        // Prepare GRN items from PO items
-        const defaultExpiry = new Date();
-        defaultExpiry.setFullYear(defaultExpiry.getFullYear() + 2); // Default 2 years from now
-        
-        const grnItems = po.items.map(poItem => ({
-            poItemId: poItem.id,
-            drugId: poItem.drugId,
-            orderedQty: poItem.quantity,
-            receivedQty: poItem.quantity - (poItem.receivedQty || 0), // Default to remaining qty
-            freeQty: 0,
-            rejectedQty: 0,
-            batchNumber: 'TBD', // To be filled by user
-            expiryDate: defaultExpiry, // Default expiry, to be updated by user
-            mrp: poItem.drug?.mrp || 0, // Get from drug master or to be filled by user
-            unitPrice: poItem.unitPrice,
-            discountPercent: poItem.discountPercent,
-            gstPercent: poItem.gstPercent,
-            lineTotal: 0 // Will be calculated
-        }));
+                // Prepare GRN items from PO items
+                const defaultExpiry = new Date();
+                defaultExpiry.setFullYear(defaultExpiry.getFullYear() + 2); // Default 2 years from now
 
-        // Create GRN
-        const grn = await grnRepository.createGRN({
-            grnNumber,
-            poId: po.id,
-            storeId: po.storeId,
-            supplierId: po.supplierId,
-            receivedBy: receivedBy || userId,
-            subtotal: 0,
-            taxAmount: 0,
-            total: 0,
-            items: grnItems
-        });
+                const grnItems = po.items.map(poItem => ({
+                    poItemId: poItem.id,
+                    drugId: poItem.drugId,
+                    orderedQty: poItem.quantity,
+                    receivedQty: poItem.quantity - (poItem.receivedQty || 0), // Default to remaining qty
+                    freeQty: 0,
+                    rejectedQty: 0,
+                    batchNumber: 'TBD', // To be filled by user
+                    expiryDate: defaultExpiry, // Default expiry, to be updated by user
+                    mrp: poItem.drug?.mrp || 0, // Get from drug master or to be filled by user
+                    unitPrice: poItem.unitPrice,
+                    discountPercent: poItem.discountPercent,
+                    gstPercent: poItem.gstPercent,
+                    lineTotal: 0 // Will be calculated
+                }));
 
-        logger.info(`GRN initialized: ${grnNumber} for PO ${po.poNumber}`);
+                // Create GRN
+                grn = await grnRepository.createGRN({
+                    grnNumber,
+                    poId: po.id,
+                    storeId: po.storeId,
+                    supplierId: po.supplierId,
+                    receivedBy: receivedBy || userId,
+                    subtotal: 0,
+                    taxAmount: 0,
+                    total: 0,
+                    items: grnItems
+                });
+
+                logger.info(`GRN initialized: ${grnNumber} for PO ${po.poNumber}`);
+                break; // Success, exit retry loop
+            } catch (error) {
+                if (error.code === 'P2002' && attempt < 2) {
+                    // Unique constraint violation, retry
+                    logger.warn(`GRN number collision, retrying... (attempt ${attempt + 1})`);
+                    await new Promise(resolve => setTimeout(resolve, 100 * (attempt + 1)));
+                    continue;
+                }
+                throw error; // Re-throw if not a unique constraint error or max retries reached
+            }
+        }
 
         return grn;
     }
@@ -238,12 +253,12 @@ class GRNService {
 
         // Refresh GRN to get latest data
         const latestGrn = await grnRepository.getGRNById(grnId);
-        
+
         // Validate all items have batch and expiry
         for (const item of latestGrn.items) {
             const poItem = latestGrn.po.items.find(pi => pi.id === item.poItemId);
             const drugName = poItem?.drug ? `${poItem.drug.name}${poItem.drug.strength ? ` ${poItem.drug.strength}` : ''}` : 'Unknown Drug';
-            
+
             if (!item.batchNumber || !item.batchNumber.trim()) {
                 throw ApiError.badRequest(`${drugName}: Batch number is required`);
             }
@@ -388,7 +403,7 @@ class GRNService {
         // Check if discrepancy already exists for this item
         const grn = await grnRepository.getGRNById(grnId);
         const existingDiscrepancy = grn.discrepancies?.find(d => d.grnItemId === itemId);
-        
+
         if (existingDiscrepancy) {
             return null; // Don't create duplicate
         }

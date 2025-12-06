@@ -53,7 +53,7 @@ export const alertsApi = {
         const queryString = params.toString();
         const url = `/alerts${queryString ? `?${queryString}` : ''}`;
 
-        const response = await baseFetch<{ data: Alert[] }>(url);
+        const response: any = await baseFetch(url);
         return response.data || [];
     },
 
@@ -61,7 +61,7 @@ export const alertsApi = {
      * Get alert counts
      */
     async getAlertCounts(): Promise<AlertCounts> {
-        const response = await baseFetch<{ data: AlertCounts }>('/alerts/count');
+        const response: any = await baseFetch('/alerts/count');
         return response.data;
     },
 
@@ -69,7 +69,7 @@ export const alertsApi = {
      * Get alert by ID
      */
     async getAlertById(id: string): Promise<Alert> {
-        const response = await baseFetch<{ data: Alert }>(`/alerts/${id}`);
+        const response: any = await baseFetch(`/alerts/${id}`);
         return response.data;
     },
 
@@ -77,7 +77,7 @@ export const alertsApi = {
      * Create a new alert
      */
     async createAlert(data: CreateAlertData): Promise<Alert> {
-        const response = await baseFetch<{ data: Alert }>('/alerts', {
+        const response: any = await baseFetch('/alerts', {
             method: 'POST',
             body: JSON.stringify(data),
         });
@@ -88,7 +88,7 @@ export const alertsApi = {
      * Acknowledge an alert
      */
     async acknowledgeAlert(id: string): Promise<Alert> {
-        const response = await baseFetch<{ data: Alert }>(`/alerts/${id}/acknowledge`, {
+        const response: any = await baseFetch(`/alerts/${id}/acknowledge`, {
             method: 'PATCH',
         });
         return response.data;
@@ -98,7 +98,7 @@ export const alertsApi = {
      * Resolve an alert
      */
     async resolveAlert(id: string, resolution?: string): Promise<Alert> {
-        const response = await baseFetch<{ data: Alert }>(`/alerts/${id}/resolve`, {
+        const response: any = await baseFetch(`/alerts/${id}/resolve`, {
             method: 'PATCH',
             body: JSON.stringify({ resolution }),
         });
@@ -109,7 +109,7 @@ export const alertsApi = {
      * Snooze an alert
      */
     async snoozeAlert(id: string, snoozeUntil: Date): Promise<Alert> {
-        const response = await baseFetch<{ data: Alert }>(`/alerts/${id}/snooze`, {
+        const response: any = await baseFetch(`/alerts/${id}/snooze`, {
             method: 'PATCH',
             body: JSON.stringify({ snoozeUntil: snoozeUntil.toISOString() }),
         });
@@ -120,7 +120,7 @@ export const alertsApi = {
      * Dismiss an alert
      */
     async dismissAlert(id: string): Promise<Alert> {
-        const response = await baseFetch<{ data: Alert }>(`/alerts/${id}/dismiss`, {
+        const response: any = await baseFetch(`/alerts/${id}/dismiss`, {
             method: 'PATCH',
         });
         return response.data;
@@ -130,7 +130,7 @@ export const alertsApi = {
      * Delete an alert (admin only)
      */
     async deleteAlert(id: string): Promise<void> {
-        await baseFetch<{ data: null }>(`/alerts/${id}`, {
+        await baseFetch(`/alerts/${id}`, {
             method: 'DELETE',
         });
     },

@@ -213,6 +213,39 @@ class OnboardingRepository {
             return store;
         });
     }
+
+    /**
+     * Create store settings from onboarding data
+     */
+    async createStoreSettings(storeId, posData, inventoryData) {
+        const settingsData = {
+            storeId,
+            // Inventory settings
+            lowStockThreshold: inventoryData?.lowStockThreshold || 10,
+            nearExpiryThreshold: inventoryData?.nearExpiryThreshold || 90,
+            defaultUoM: inventoryData?.defaultUoM || 'Units',
+            defaultGSTSlab: inventoryData?.defaultGSTSlab || '12',
+            batchTracking: inventoryData?.batchTracking !== false,
+            autoGenerateCodes: inventoryData?.autoGenerateCodes !== false,
+            purchaseRounding: inventoryData?.purchaseRounding || false,
+            allowNegativeStock: inventoryData?.allowNegativeStock || false,
+            // POS settings
+            invoiceFormat: posData?.invoiceFormat || 'INV/0001',
+            paymentMethods: Array.isArray(posData?.paymentMethods)
+                ? posData.paymentMethods.join(',')
+                : 'Cash',
+            billingType: posData?.billingType || 'MRP-based',
+            printFormat: posData?.printFormat || 'Thermal (80mm)',
+            footerText: posData?.footerText || 'Thank you for your business!',
+            autoRounding: posData?.autoRounding !== false,
+            defaultCustomerType: posData?.defaultCustomerType || 'Walk-in',
+            enableGSTBilling: posData?.enableGSTBilling !== false,
+        };
+
+        return await prisma.storeSettings.create({
+            data: settingsData,
+        });
+    }
 }
 
 module.exports = new OnboardingRepository();

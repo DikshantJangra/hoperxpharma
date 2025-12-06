@@ -127,6 +127,11 @@ export default function NewPOPage({ storeId, poId }: NewPOPageProps) {
     try {
       const result = await saveDraft();
       toast.success(`Draft saved successfully! PO #${result.poNumber || 'Draft'}`);
+
+      // Update URL to include poId for persistence (prevents duplicate PO creation on subsequent saves)
+      if (result.id && !poId) {
+        router.push(`/orders/new-po?id=${result.id}`, { scroll: false });
+      }
     } catch (error: any) {
       toast.error(error.message || 'Failed to save draft');
     }
@@ -256,12 +261,18 @@ export default function NewPOPage({ storeId, poId }: NewPOPageProps) {
                 />
                 <AttachmentUploader
                   poId={po.poId}
-                  attachments={po.attachments || []}
+                  attachments={(po.attachments || []) as any}
                   onUpload={(attachment) => {
                     setPO(prev => ({
                       ...prev,
-                      attachments: [...(prev.attachments || []), attachment]
-                    }));
+                      attachments: [...(prev.attachments || []), attachment as any]
+                    } as any));
+                  }}
+                  onRemove={(attachmentId) => {
+                    setPO(prev => ({
+                      ...prev,
+                      attachments: (prev.attachments || []).filter((att: any) => att.id !== attachmentId)
+                    } as any));
                   }}
                 />
               </div>

@@ -53,16 +53,15 @@ class OnboardingService {
      * Complete onboarding (all steps at once)
      */
     async completeOnboarding(data, userId) {
-        const { store, licenses, operatingHours, suppliers, users } = data;
+        const { store, licenses, operatingHours, suppliers, users, pos, inventory } = data;
 
-        // Ensure all required fields are set and remove invalid fields
-        const { gstin, dlNumber, ...validStoreFields } = store; // Remove fields that belong to StoreLicense
-
+        // Ensure all required fields are set
         const storeData = {
-            ...validStoreFields,
+            ...store,
             displayName: store.displayName || store.name || 'My Pharmacy',
             email: store.email || `store-${Date.now()}@temp.hoperx.com`, // Generate unique temp email if not provided
             phoneNumber: store.phoneNumber || '', // Empty string is allowed
+            // gstin, dlNumber, and pan are now kept as they belong to Store table
         };
 
         // Create store with all data atomically
@@ -74,6 +73,11 @@ class OnboardingService {
             users,
             userId
         );
+
+        // Create store settings with POS and inventory configuration
+        if (pos || inventory) {
+            await onboardingRepository.createStoreSettings(createdStore.id, pos, inventory);
+        }
 
         // Auto-create trial subscription
         const trialPlan = await subscriptionService.getPlans().then((plans) =>
