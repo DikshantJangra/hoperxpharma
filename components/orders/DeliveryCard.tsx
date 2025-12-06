@@ -38,8 +38,9 @@ export default function DeliveryCard({
           <div className="w-full px-3 py-2 text-sm border border-gray-200 rounded-md bg-gray-50 text-gray-700 min-h-[60px] flex items-center">
             {storeAddress || 'Loading store address...'}
           </div>
-          <p className="text-xs text-gray-500 mt-1">
-            📍 Medicines will be delivered to your registered store address.
+          <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
+            <MdLocationOn className="h-3 w-3" />
+            Medicines will be delivered to your registered store address.
           </p>
         </div>
 

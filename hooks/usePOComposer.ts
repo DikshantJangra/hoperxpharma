@@ -168,9 +168,16 @@ export function usePOComposer(storeId: string) {
       // Transform frontend PO structure to backend API structure
       const taxAmount = po.taxBreakdown?.reduce((sum, tax) => sum + tax.tax, 0) || 0;
 
+      // Filter out lines with empty drugId
+      const validLines = po.lines.filter(line => line.drugId && line.drugId.trim() !== '');
+
+      if (validLines.length === 0) {
+        throw new Error('Please add at least one item with a selected drug');
+      }
+
       const payload = {
         supplierId: po.supplier?.id,
-        items: po.lines.map(line => ({
+        items: validLines.map(line => ({
           drugId: line.drugId,
           description: line.description || `${line.drugId}`,  // Add required description
           qty: line.qty,
