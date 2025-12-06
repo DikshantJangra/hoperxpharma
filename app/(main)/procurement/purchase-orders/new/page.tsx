@@ -3,9 +3,11 @@
 import { useState, useEffect } from 'react';
 import { FiPlus, FiTrash2, FiSave, FiX } from 'react-icons/fi';
 import { useRouter } from 'next/navigation';
+import { useAuthStore } from '@/lib/store/auth-store';
 
 export default function NewPurchaseOrderPage() {
     const router = useRouter();
+    const { primaryStore } = useAuthStore();
     const [suppliers, setSuppliers] = useState<any[]>([]);
     const [drugs, setDrugs] = useState<any[]>([]);
     const [isLoadingSuppliers, setIsLoadingSuppliers] = useState(true);
@@ -15,11 +17,27 @@ export default function NewPurchaseOrderPage() {
         supplierId: '',
         expectedDeliveryDate: '',
         notes: '',
+        deliveryAddress: '',
     });
 
     const [items, setItems] = useState<any[]>([
         { drugId: '', quantity: 1, unitPrice: 0, gstRate: 12, discount: 0 }
     ]);
+
+    // Auto-fill delivery address with store address
+    useEffect(() => {
+        if (primaryStore) {
+            const address = [
+                primaryStore.addressLine1,
+                primaryStore.addressLine2,
+                primaryStore.city,
+                primaryStore.state,
+                primaryStore.pinCode
+            ].filter(Boolean).join(', ');
+
+            setFormData(prev => ({ ...prev, deliveryAddress: address }));
+        }
+    }, [primaryStore]);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -212,6 +230,22 @@ export default function NewPurchaseOrderPage() {
                                 className="w-full px-3 py-2 border border-[#cbd5e1] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0ea5a3]"
                                 placeholder="Add any notes or special instructions..."
                             />
+                        </div>
+                        <div className="mt-4">
+                            <label className="block text-sm font-medium text-[#64748b] mb-2">
+                                Delivery Address <span className="text-xs text-[#94a3b8]">(Auto-filled from store)</span>
+                            </label>
+                            <textarea
+                                value={formData.deliveryAddress}
+                                onChange={(e) => setFormData({ ...formData, deliveryAddress: e.target.value })}
+                                rows={2}
+                                className="w-full px-3 py-2 border border-[#cbd5e1] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0ea5a3] bg-gray-50"
+                                placeholder="Delivery address..."
+                                readOnly
+                            />
+                            <p className="text-xs text-[#94a3b8] mt-1">
+                                This is your store's registered address. Contact support to change it.
+                            </p>
                         </div>
                     </div>
 
