@@ -21,6 +21,9 @@ const dashboardRoutes = require('./dashboard.routes');
 const avatarRoutes = require('../avatarRoutes');
 const attachmentRoutes = require('../attachmentRoutes');
 const grnAttachmentRoutes = require('../grnAttachmentRoutes');
+const businessTypeRoutes = require('./businessType.routes');
+const prescriptionRoutes = require('./prescriptions.routes');
+const dispenseRoutes = require('./dispense.routes');
 
 const router = express.Router();
 
@@ -49,6 +52,10 @@ router.use('/dashboard', dashboardRoutes);
 router.use('/avatar', avatarRoutes);
 router.use('/po-attachments', attachmentRoutes);
 router.use('/grn-attachments', grnAttachmentRoutes);
+router.use('/business-types', businessTypeRoutes);
+router.use('/prescriptions', prescriptionRoutes);
+router.use('/dispense', dispenseRoutes);
+
 
 
 

@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import { FiSearch, FiClock, FiAlertCircle, FiUser, FiArrowRight } from "react-icons/fi";
 import { MdLocalPharmacy } from "react-icons/md";
+import { dispenseApi } from "@/lib/api/prescriptions";
+import { useRouter } from "next/navigation";
 
 const PrescriptionCardSkeleton = () => (
     <div className="p-4 rounded-xl border-2 border-[#e2e8f0] animate-pulse">
@@ -20,35 +22,77 @@ const PrescriptionCardSkeleton = () => (
 );
 
 export default function QueuePage() {
-    const [prescriptions, setPrescriptions] = useState<any[]>([]);
+    const router = useRouter();
+    const [queueItems, setQueueItems] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState("");
     const [filterStatus, setFilterStatus] = useState("all");
+    const [stats, setStats] = useState({
+        total: 0,
+        urgent: 0,
+        controlled: 0,
+        avgWaitTime: "-"
+    });
 
+    // Fetch queue data from API
     useEffect(() => {
-        setIsLoading(true);
-        const timer = setTimeout(() => {
-            setPrescriptions([]);
-            setIsLoading(false);
-        }, 1500);
-        return () => clearTimeout(timer);
+        fetchQueue();
+        // Refresh every 30 seconds
+        const interval = setInterval(fetchQueue, 30000);
+        return () => clearInterval(interval);
     }, []);
 
-    const filteredPrescriptions = prescriptions.filter(rx => {
-        const matchesSearch = rx.patientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-            rx.rxId.toLowerCase().includes(searchTerm.toLowerCase());
-        const matchesFilter = filterStatus === "all" || rx.status === filterStatus;
+    const fetchQueue = async () => {
+        try {
+            setIsLoading(true);
+            const response = await dispenseApi.getQueue();
+
+            if (response.success) {
+                setQueueItems(response.data || []);
+                setStats({
+                    total: response.stats?.total || 0,
+                    urgent: response.stats?.urgent || 0,
+                    controlled: response.data?.filter((item: any) =>
+                        item.prescription?.items?.some((i: any) => i.isControlled)
+                    ).length || 0,
+                    avgWaitTime: response.stats?.avgWaitTime ? `${response.stats.avgWaitTime} min` : "-"
+                });
+            }
+        } catch (error) {
+            console.error('[Queue] Failed to fetch:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    const filteredQueue = queueItems.filter(item => {
+        const prescription = item.prescription;
+        const patient = prescription?.patient;
+        const patientName = `${patient?.firstName || ''} ${patient?.lastName || ''}`.toLowerCase();
+
+        const matchesSearch = patientName.includes(searchTerm.toLowerCase()) ||
+            prescription?.id?.toLowerCase().includes(searchTerm.toLowerCase());
+
+        const matchesFilter = filterStatus === "all" || item.workflowStatus?.toLowerCase() === filterStatus;
+
         return matchesSearch && matchesFilter;
     });
 
-    const selectedRx = prescriptions.find(rx => rx.id === selectedId);
+    const selectedItem = queueItems.find(item => item.id === selectedId);
+    const selectedRx = selectedItem?.prescription;
 
-    const stats = {
-        total: prescriptions.length,
-        urgent: prescriptions.filter(rx => rx.priority === "urgent").length,
-        controlled: prescriptions.filter(rx => rx.isControlled).length,
-        avgWaitTime: prescriptions.length > 0 ? "Calculating..." : "-"
+    const handleStartFill = async (prescriptionId: string) => {
+        try {
+            const response = await dispenseApi.startFill(prescriptionId);
+            if (response.success) {
+                // Navigate to fill page
+                router.push(`/dispense/fill?prescriptionId=${prescriptionId}`);
+            }
+        } catch (error: any) {
+            console.error('[Queue] Start fill error:', error);
+            alert(error.response?.data?.message || 'Failed to start fill');
+        }
     };
 
     return (
@@ -120,14 +164,14 @@ export default function QueuePage() {
                             />
                         </div>
                         <div className="flex gap-2">
-                            {["all", "new", "in-progress", "ready"].map((status) => (
+                            {["all", "intake", "verify", "fill", "check"].map((status) => (
                                 <button
                                     key={status}
                                     onClick={() => setFilterStatus(status)}
                                     className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${filterStatus === status ? "bg-[#0ea5a3] text-white" : "bg-[#f1f5f9] text-[#64748b] hover:bg-[#e2e8f0]"
                                         }`}
                                 >
-                                    {status === "all" ? "All" : status.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")}
+                                    {status === "all" ? "All" : status.charAt(0).toUpperCase() + status.slice(1)}
                                 </button>
                             ))}
                         </div>
@@ -140,47 +184,50 @@ export default function QueuePage() {
                                 <PrescriptionCardSkeleton />
                                 <PrescriptionCardSkeleton />
                             </>
-                        ) : filteredPrescriptions.length > 0 ? (
-                            filteredPrescriptions.map((rx) => (
-                            <div
-                                key={rx.id}
-                                onClick={() => setSelectedId(rx.id)}
-                                className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${selectedId === rx.id ? "border-[#0ea5a3] bg-emerald-50" :
-                                        rx.priority === "urgent" ? "border-red-200 bg-red-50 hover:border-red-300" :
-                                            rx.isControlled ? "border-amber-200 bg-amber-50 hover:border-amber-300" :
-                                                rx.status === "ready" ? "border-green-200 bg-green-50 hover:border-green-300" :
-                                                    "border-[#e2e8f0] hover:border-[#cbd5e1]"
-                                    }`}
-                            >
-                                <div className="flex items-start justify-between mb-2">
-                                    <div>
-                                        <h3 className="font-semibold text-[#0f172a]">{rx.patientName}</h3>
-                                        <p className="text-sm text-[#64748b]">{rx.rxId}</p>
+                        ) : filteredQueue.length > 0 ? (
+                            filteredQueue.map((item) => {
+                                const rx = item.prescription;
+                                const patient = rx?.patient;
+                                const patientName = `${patient?.firstName || ''} ${patient?.lastName || ''}`;
+                                const drugCount = rx?.items?.length || 0;
+                                const isControlled = rx?.items?.some((i: any) => i.isControlled);
+                                const priority = rx?.priority || 'Normal';
+
+                                return (
+                                    <div
+                                        key={item.id}
+                                        onClick={() => setSelectedId(item.id)}
+                                        className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${selectedId === item.id ? "border-[#0ea5a3] bg-emerald-50" :
+                                            priority === "Urgent" ? "border-red-200 bg-red-50 hover:border-red-300" :
+                                                isControlled ? "border-amber-200 bg-amber-50 hover:border-amber-300" :
+                                                    item.slaStatus === 'green' ? "border-green-200 bg-green-50 hover:border-green-300" :
+                                                        "border-[#e2e8f0] hover:border-[#cbd5e1]"
+                                            }`}
+                                    >
+                                        <div className="flex items-start justify-between mb-2">
+                                            <div>
+                                                <h3 className="font-semibold text-[#0f172a]">{patientName}</h3>
+                                                <p className="text-sm text-[#64748b]">{rx?.id?.slice(0, 12)}...</p>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                {priority === "Urgent" && (
+                                                    <span className="px-2 py-1 bg-red-100 text-red-700 text-xs font-medium rounded">URGENT</span>
+                                                )}
+                                                {isControlled && (
+                                                    <span className="px-2 py-1 bg-amber-100 text-amber-700 text-xs font-medium rounded">C-II</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center justify-between text-sm text-[#64748b]">
+                                            <span className="flex items-center gap-1">
+                                                <FiClock className="w-4 h-4" />
+                                                {item.timeInQueue || '0 min'}
+                                            </span>
+                                            <span>{drugCount} drug{drugCount > 1 ? "s" : ""}</span>
+                                        </div>
                                     </div>
-                                    <div className="flex gap-2">
-                                        {rx.priority === "urgent" && (
-                                            <span className="px-2 py-1 bg-red-100 text-red-700 text-xs font-medium rounded">URGENT</span>
-                                        )}
-                                        {rx.isControlled && (
-                                            <span className="px-2 py-1 bg-amber-100 text-amber-700 text-xs font-medium rounded">C-II</span>
-                                        )}
-                                    </div>
-                                </div>
-                                <div className="flex items-center justify-between text-sm text-[#64748b]">
-                                    <span className="flex items-center gap-1">
-                                        <FiClock className="w-4 h-4" />
-                                        {rx.timeInQueue}
-                                    </span>
-                                    <span>{rx.drugCount} drug{rx.drugCount > 1 ? "s" : ""}</span>
-                                </div>
-                                {rx.assignedTo && (
-                                    <div className="mt-2 flex items-center gap-1 text-xs text-[#0ea5a3]">
-                                        <FiUser className="w-3 h-3" />
-                                        Assigned to {rx.assignedTo}
-                                    </div>
-                                )}
-                            </div>
-                        ))
+                                );
+                            })
                         ) : (
                             <div className="text-center py-10 text-gray-500">No prescriptions in queue</div>
                         )}
@@ -197,34 +244,25 @@ export default function QueuePage() {
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <div className="text-sm text-[#64748b]">Name</div>
-                                        <div className="font-medium text-[#0f172a]">{selectedRx.patientName}</div>
+                                        <div className="font-medium text-[#0f172a]">
+                                            {selectedRx.patient?.firstName} {selectedRx.patient?.lastName}
+                                        </div>
                                     </div>
                                     <div>
                                         <div className="text-sm text-[#64748b]">DOB</div>
-                                        <div className="font-medium text-[#0f172a]">-</div>
+                                        <div className="font-medium text-[#0f172a]">
+                                            {selectedRx.patient?.dateOfBirth ? new Date(selectedRx.patient.dateOfBirth).toLocaleDateString() : '-'}
+                                        </div>
                                     </div>
                                     <div>
                                         <div className="text-sm text-[#64748b]">Phone</div>
-                                        <div className="font-medium text-[#0f172a]">-</div>
+                                        <div className="font-medium text-[#0f172a]">{selectedRx.patient?.phoneNumber || '-'}</div>
                                     </div>
                                     <div>
                                         <div className="text-sm text-[#64748b]">Allergies</div>
-                                        <div className="font-medium text-[#0f172a]">-</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Doctor Info */}
-                            <div className="bg-white border border-[#e2e8f0] rounded-xl p-6">
-                                <h2 className="text-lg font-semibold text-[#0f172a] mb-4">Prescriber Information</h2>
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <div className="text-sm text-[#64748b]">Doctor</div>
-                                        <div className="font-medium text-[#0f172a]">{selectedRx.doctor}</div>
-                                    </div>
-                                    <div>
-                                        <div className="text-sm text-[#64748b]">License</div>
-                                        <div className="font-medium text-[#0f172a]">-</div>
+                                        <div className="font-medium text-[#0f172a]">
+                                            {selectedRx.patient?.allergies?.join(', ') || '-'}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -232,22 +270,30 @@ export default function QueuePage() {
                             {/* Prescription Details */}
                             <div className="bg-white border border-[#e2e8f0] rounded-xl p-6">
                                 <h2 className="text-lg font-semibold text-[#0f172a] mb-4">Prescription Details</h2>
-                                <div className="text-center py-6 text-gray-500">
-                                    No prescription details available
-                                </div>
+                                {selectedRx.items && selectedRx.items.length > 0 ? (
+                                    <div className="space-y-3">
+                                        {selectedRx.items.map((item: any, idx: number) => (
+                                            <div key={idx} className="p-3 bg-gray-50 rounded-lg">
+                                                <div className="font-medium text-[#0f172a]">{item.drug?.name}</div>
+                                                <div className="text-sm text-[#64748b] mt-1">
+                                                    Qty: {item.quantityPrescribed} | {item.sig || 'No instructions'}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="text-center py-6 text-gray-500">No items</div>
+                                )}
                             </div>
 
                             {/* Actions */}
                             <div className="flex gap-3">
-                                <button className="flex-1 px-6 py-3 bg-[#0ea5a3] text-white rounded-lg font-semibold hover:bg-[#0d9391] transition-colors flex items-center justify-center gap-2">
-                                    {selectedRx.assignedTo ? "Continue Verification" : "Assign to Me & Start"}
+                                <button
+                                    onClick={() => handleStartFill(selectedRx.id)}
+                                    className="flex-1 px-6 py-3 bg-[#0ea5a3] text-white rounded-lg font-semibold hover:bg-[#0d9391] transition-colors flex items-center justify-center gap-2"
+                                >
+                                    Start Fill
                                     <FiArrowRight className="w-5 h-5" />
-                                </button>
-                                <button className="px-6 py-3 border border-[#cbd5e1] text-[#475569] rounded-lg font-semibold hover:bg-[#f8fafc] transition-colors">
-                                    Print
-                                </button>
-                                <button className="px-6 py-3 border border-amber-300 text-amber-700 rounded-lg font-semibold hover:bg-amber-50 transition-colors">
-                                    Hold
                                 </button>
                             </div>
                         </div>

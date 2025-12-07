@@ -6,7 +6,9 @@ import { tokenManager } from '@/lib/api/client';
 import ReceivingTable from '@/components/grn/ReceivingTable';
 import CompletionSummary from '@/components/grn/CompletionSummary';
 import AttachmentUploader from '@/components/orders/AttachmentUploader';
+import ValidationModal from '@/components/grn/ValidationModal';
 import { HiOutlineArrowLeft, HiOutlineCheck, HiOutlineXMark } from 'react-icons/hi2';
+import { toast } from 'sonner';
 
 export default function ReceiveShipmentPage() {
     const params = useParams();
@@ -20,7 +22,8 @@ export default function ReceiveShipmentPage() {
     const [po, setPO] = useState<any>(null);
     const [showSummary, setShowSummary] = useState(false);
     const [lastSaved, setLastSaved] = useState<Date | null>(null);
-    const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+    const [validationErrors, setValidationErrors] = useState<any[]>([]);
+    const [showValidationModal, setShowValidationModal] = useState(false);
 
     // Invoice details
     const [invoiceNo, setInvoiceNo] = useState('');
@@ -140,21 +143,18 @@ export default function ReceiveShipmentPage() {
             if (response.ok) {
                 setLastSaved(new Date());
                 if (!isAutoSave) {
-                    setToast({ message: 'Draft saved successfully!', type: 'success' });
-                    setTimeout(() => setToast(null), 3000);
+                    toast.success('Draft saved successfully!');
                 }
             } else {
                 const error = await response.json();
                 if (!isAutoSave) {
-                    setToast({ message: error.error || error.message || 'Failed to save', type: 'error' });
-                    setTimeout(() => setToast(null), 3000);
+                    toast.error(error.error || error.message || 'Failed to save');
                 }
             }
         } catch (error) {
             console.error('Error saving draft:', error);
             if (!isAutoSave) {
-                setToast({ message: 'Failed to save draft', type: 'error' });
-                setTimeout(() => setToast(null), 3000);
+                toast.error('Failed to save draft');
             }
         } finally {
             if (isAutoSave) {
@@ -267,6 +267,91 @@ export default function ReceiveShipmentPage() {
         }
     };
 
+    const validateGRN = () => {
+        const errors: any[] = [];
+
+        // Invoice validation
+        if (!invoiceNo || invoiceNo.trim() === '') {
+            errors.push({ field: 'invoiceNo', message: 'Supplier invoice number is required' });
+        }
+        if (!invoiceDate) {
+            errors.push({ field: 'invoiceDate', message: 'Invoice date is required' });
+        }
+
+        // Item validation
+        if (grn && grn.items) {
+            grn.items.forEach((item: any) => {
+                const drugName = getDrugName(item.drugId);
+
+                if (!item.batchNumber || item.batchNumber.trim() === '') {
+                    errors.push({
+                        field: 'batchNumber',
+                        message: 'Batch number is required',
+                        itemId: item.id,
+                        drugName
+                    });
+                }
+
+                if (!item.expiryDate) {
+                    errors.push({
+                        field: 'expiryDate',
+                        message: 'Expiry date is required',
+                        itemId: item.id,
+                        drugName
+                    });
+                } else {
+                    const expiryDate = new Date(item.expiryDate);
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0);
+                    if (expiryDate < today) {
+                        errors.push({
+                            field: 'expiryDate',
+                            message: 'Expiry date must be in the future',
+                            itemId: item.id,
+                            drugName
+                        });
+                    }
+                }
+
+                if (!item.mrp || item.mrp <= 0) {
+                    errors.push({
+                        field: 'mrp',
+                        message: 'MRP must be greater than 0',
+                        itemId: item.id,
+                        drugName
+                    });
+                }
+            });
+
+            // At least one item must be received
+            const totalReceived = grn.items.reduce((sum: number, item: any) => sum + (item.receivedQty || 0), 0);
+            if (totalReceived === 0) {
+                errors.push({ field: 'receivedQty', message: 'At least one item must be received (Received Qty > 0)' });
+            }
+        }
+
+        return errors;
+    };
+
+    const getDrugName = (drugId: string) => {
+        if (!po || !po.items) return 'Unknown';
+        const poItem = po.items.find((pi: any) => pi.drugId === drugId);
+        if (!poItem || !poItem.drug) return 'Unknown';
+        return `${poItem.drug.name}${poItem.drug.strength ? ` ${poItem.drug.strength}` : ''}`;
+    };
+
+    const handleCompleteClick = () => {
+        // Validate before showing summary
+        const errors = validateGRN();
+        if (errors.length > 0) {
+            setValidationErrors(errors);
+            setShowValidationModal(true);
+            return;
+        }
+        // If validation passes, show summary
+        setShowSummary(true);
+    };
+
     const handleComplete = async () => {
         setSaving(true);
         try {
@@ -286,14 +371,15 @@ export default function ReceiveShipmentPage() {
             });
 
             if (response.ok) {
-                router.push('/orders/received');
+                toast.success('Order received successfully!');
+                setTimeout(() => router.push('/orders/received'), 1000);
             } else {
                 const error = await response.json();
-                alert(error.error || error.message || 'Failed to complete GRN');
+                toast.error(error.error || error.message || 'Failed to complete GRN');
             }
         } catch (error) {
             console.error('Error completing GRN:', error);
-            alert('Failed to complete GRN');
+            toast.error('Failed to complete GRN');
         } finally {
             setSaving(false);
         }
@@ -379,7 +465,7 @@ export default function ReceiveShipmentPage() {
                             {saving ? 'Saving...' : 'Save Draft'}
                         </button>
                         <button
-                            onClick={() => setShowSummary(true)}
+                            onClick={handleCompleteClick}
                             disabled={saving}
                             className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center gap-2 disabled:opacity-50"
                         >
@@ -402,8 +488,14 @@ export default function ReceiveShipmentPage() {
                             type="text"
                             value={invoiceNo}
                             onChange={(e) => setInvoiceNo(e.target.value)}
+                            onKeyDown={(e) => {
+                                // Prevent slash from triggering search hotkey
+                                if (e.key === '/') {
+                                    e.stopPropagation();
+                                }
+                            }}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                            placeholder="INV-2024-001"
+                            placeholder="INV/2024/001"
                         />
                     </div>
                     <div>
@@ -511,11 +603,23 @@ export default function ReceiveShipmentPage() {
                 />
             )}
 
-            {/* Toast Notification */}
-            {toast && (
-                <div className={`fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-lg ${toast.type === 'success' ? 'bg-emerald-600' : 'bg-red-600'} text-white`}>
-                    {toast.message}
-                </div>
+            {/* Validation Modal */}
+            {showValidationModal && (
+                <ValidationModal
+                    errors={validationErrors}
+                    onClose={() => setShowValidationModal(false)}
+                />
+            )}
+
+            {/* Completion Summary */}
+            {showSummary && (
+                <CompletionSummary
+                    grn={grn}
+                    po={po}
+                    onConfirm={handleComplete}
+                    onCancel={() => setShowSummary(false)}
+                    saving={saving}
+                />
             )}
         </div>
     );

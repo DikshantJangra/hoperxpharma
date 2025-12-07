@@ -32,6 +32,9 @@ export interface MenuItem {
     path?: string
     subItems?: SubMenuItem[]
     requiredPermission?: string | null // Permission code required to view this item (null = public)
+    businessTypes?: string[] // Which business types can see this (undefined = all types)
+    availability?: 'essential' | 'optional' | 'hidden' // Availability level for business type
+    featureCode?: string // Feature code for business type filtering (e.g., 'prescriptions', 'pos')
 }
 
 export interface SidebarSection {
@@ -57,6 +60,8 @@ export const sidebarConfig: SidebarSection[] = [
                 icon: <TbPrescription size={18} />,
                 label: "Prescriptions",
                 requiredPermission: "prescription.read",
+                featureCode: "prescriptions",
+                businessTypes: ["Retail Pharmacy", "Hospital-based Pharmacy", "Multi-store Chain"],
                 subItems: [
                     { label: "New", path: "/prescriptions/new" },
                     { label: "Verified", path: "/prescriptions/verified" },
@@ -70,6 +75,8 @@ export const sidebarConfig: SidebarSection[] = [
                 icon: <RiCapsuleLine size={18} />,
                 label: "Dispense",
                 requiredPermission: "prescription.fulfill",
+                featureCode: "dispense",
+                businessTypes: ["Retail Pharmacy", "Hospital-based Pharmacy", "Multi-store Chain"],
                 subItems: [
                     { label: "Queue", path: "/dispense/queue" },
                     { label: "Verify", path: "/dispense/verify" },
@@ -83,6 +90,8 @@ export const sidebarConfig: SidebarSection[] = [
                 icon: <MdPeople size={18} />,
                 label: "Patients",
                 requiredPermission: "patient.read",
+                featureCode: "patients",
+                businessTypes: ["Retail Pharmacy", "Hospital-based Pharmacy", "Multi-store Chain"],
                 subItems: [
                     { label: "List", path: "/patients/list", requiredPermission: "patient.read" },
                     { label: "Refills", path: "/patients/refills", requiredPermission: "prescription.refill" },
@@ -148,6 +157,8 @@ export const sidebarConfig: SidebarSection[] = [
                 icon: <MdShoppingCart size={18} />,
                 label: "POS",
                 requiredPermission: "sales.create",
+                featureCode: "pos",
+                businessTypes: ["Retail Pharmacy", "Multi-store Chain"],
                 subItems: [
                     { label: "New Sale", path: "/pos/new-sale", requiredPermission: "sales.create" },
                     { label: "Invoices", path: "/pos/invoices", requiredPermission: "sales.read" },
@@ -226,6 +237,8 @@ export const sidebarConfig: SidebarSection[] = [
                 icon: <BsGift size={18} />,
                 label: "Engage",
                 requiredPermission: "marketing.loyalty",
+                featureCode: "engage",
+                businessTypes: ["Retail Pharmacy", "Multi-store Chain"],
                 subItems: [
                     { label: "Loyalty", path: "/engage/loyalty", requiredPermission: "marketing.loyalty" },
                     { label: "Coupons", path: "/engage/coupons", requiredPermission: "marketing.loyalty" },
@@ -298,6 +311,8 @@ export const sidebarConfig: SidebarSection[] = [
                 icon: <MdStore size={18} />,
                 label: "Multi-Store",
                 requiredPermission: "system.store.manage",
+                featureCode: "multiStore",
+                businessTypes: ["Multi-store Chain"],
                 subItems: [
                     { label: "Switch", path: "/multi-store/switch" },
                     { label: "Transfer", path: "/multi-store/transfer" },

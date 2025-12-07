@@ -111,6 +111,12 @@ export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSp
                                             type="number"
                                             value={(item.receivedQty ?? 0).toString()}
                                             onChange={(e) => handleFieldUpdate(item.id, 'receivedQty', e.target.value)}
+                                            onFocus={(e) => {
+                                                // Select all on focus if value is 0
+                                                if (e.target.value === '0') {
+                                                    e.target.select();
+                                                }
+                                            }}
                                             className="w-20 px-2 py-1 text-center border border-gray-300 rounded focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                                             min="0"
                                         />
@@ -120,6 +126,12 @@ export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSp
                                             type="number"
                                             value={(item.freeQty ?? 0).toString()}
                                             onChange={(e) => handleFieldUpdate(item.id, 'freeQty', e.target.value)}
+                                            onFocus={(e) => {
+                                                // Select all on focus if value is 0
+                                                if (e.target.value === '0') {
+                                                    e.target.select();
+                                                }
+                                            }}
                                             className="w-20 px-2 py-1 text-center border border-gray-300 rounded focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                                             min="0"
                                         />
@@ -129,8 +141,17 @@ export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSp
                                             type="text"
                                             value={item.batchNumber || ''}
                                             onChange={(e) => handleFieldUpdate(item.id, 'batchNumber', e.target.value)}
+                                            onBlur={(e) => {
+                                                // Add red border if empty
+                                                if (!e.target.value || e.target.value.trim() === '') {
+                                                    e.target.classList.add('border-red-500');
+                                                } else {
+                                                    e.target.classList.remove('border-red-500');
+                                                }
+                                            }}
                                             className="w-32 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                                            placeholder="Batch No"
+                                            placeholder="Required"
+                                            required
                                         />
                                     </td>
                                     <td className="px-4 py-3">
@@ -138,18 +159,56 @@ export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSp
                                             type="date"
                                             value={item.expiryDate ? new Date(item.expiryDate).toISOString().split('T')[0] : ''}
                                             onChange={(e) => handleFieldUpdate(item.id, 'expiryDate', e.target.value)}
+                                            onBlur={(e) => {
+                                                // Validate expiry date
+                                                if (!e.target.value) {
+                                                    e.target.classList.add('border-red-500');
+                                                } else {
+                                                    const expiryDate = new Date(e.target.value);
+                                                    const today = new Date();
+                                                    today.setHours(0, 0, 0, 0);
+                                                    if (expiryDate < today) {
+                                                        e.target.classList.add('border-red-500');
+                                                    } else {
+                                                        e.target.classList.remove('border-red-500');
+                                                    }
+                                                }
+                                            }}
                                             className="w-36 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                                            required
                                         />
                                     </td>
                                     <td className="px-4 py-3">
                                         <input
                                             type="number"
                                             value={item.mrp || ''}
-                                            onChange={(e) => handleFieldUpdate(item.id, 'mrp', e.target.value)}
+                                            onChange={(e) => {
+                                                const value = e.target.value;
+                                                // Prevent setting MRP to 0
+                                                if (value === '0' || value === '0.00' || value === '0.0') {
+                                                    return;
+                                                }
+                                                handleFieldUpdate(item.id, 'mrp', value);
+                                            }}
+                                            onFocus={(e) => {
+                                                // Select all on focus if value is 0
+                                                if (e.target.value === '0' || e.target.value === '0.00') {
+                                                    e.target.select();
+                                                }
+                                            }}
+                                            onBlur={(e) => {
+                                                // If MRP is empty or 0 on blur, show warning
+                                                if (!e.target.value || parseFloat(e.target.value) === 0) {
+                                                    e.target.classList.add('border-red-500');
+                                                } else {
+                                                    e.target.classList.remove('border-red-500');
+                                                }
+                                            }}
                                             className="w-24 px-2 py-1 text-right border border-gray-300 rounded focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                                             step="0.01"
-                                            min="0"
+                                            min="0.01"
                                             placeholder="0.00"
+                                            required
                                         />
                                     </td>
                                     <td className="px-4 py-3">

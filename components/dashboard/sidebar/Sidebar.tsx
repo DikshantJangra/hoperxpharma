@@ -7,6 +7,7 @@ import { sidebarConfig } from "./sidebarConfig"
 import Logo from "@/components/ui/Logo"
 import { usePermissions } from "@/contexts/PermissionContext"
 import { useAuthStore } from "@/lib/store/auth-store"
+import { useBusinessType } from "@/contexts/BusinessTypeContext"
 
 interface SidebarProps {
     isOpen: boolean
@@ -48,15 +49,28 @@ function SidebarHeader({ isOpen }: { isOpen: boolean }) {
 function SidebarSection({ section, isOpen, expandedItems, onToggleItem }: any) {
     const { permissions } = usePermissions();
     const { user } = useAuthStore();
+    const { businessType } = useBusinessType();
 
     if (!section || !Array.isArray(section.items)) return null;
 
     // ADMIN users see everything - bypass permission checks
     const isAdmin = user?.role === 'ADMIN';
 
-    // Filter items based on permissions
+    console.log('[Sidebar] Section:', section.title, 'BusinessType:', businessType, 'IsAdmin:', isAdmin);
+
+    // Filter items based on permissions AND business type
     const visibleItems = section.items.filter((item: any) => {
-        // If user is ADMIN, show all items
+        // Business type filtering (if businessTypes array is defined)
+        if (item.businessTypes && Array.isArray(item.businessTypes) && businessType) {
+            // If item has businessTypes restriction and user's business type is not in the list, hide it
+            const isAllowed = item.businessTypes.includes(businessType);
+            console.log('[Sidebar] Item:', item.label, 'AllowedTypes:', item.businessTypes, 'UserType:', businessType, 'Allowed:', isAllowed);
+            if (!isAllowed) {
+                return false;
+            }
+        }
+
+        // If user is ADMIN, show all items (that passed business type filter)
         if (isAdmin) return true;
 
         // If no permission required, show the item

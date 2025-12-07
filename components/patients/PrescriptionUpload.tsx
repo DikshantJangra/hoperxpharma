@@ -2,7 +2,6 @@
 
 import React, { useState, useRef } from "react";
 import { FiUpload, FiCamera, FiX, FiCheck, FiFileText, FiRefreshCw } from "react-icons/fi";
-import { uploadPrescriptionFile } from "@/lib/api/prescriptions";
 import { toast } from "react-hot-toast";
 
 interface PrescriptionUploadProps {

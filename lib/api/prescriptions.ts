@@ -1,86 +1,59 @@
-import { Prescription, Batch } from "@/types/prescription"
+import { apiClient } from '@/lib/api/client';
 
-export async function getPrescription(id: string): Promise<Prescription> {
-  const res = await fetch(`/api/prescriptions/${id}`)
-  return res.json()
-}
+export const prescriptionApi = {
+  // Get all prescriptions with optional filters
+  async getPrescriptions(params?: { status?: string; search?: string }) {
+    const queryParams = new URLSearchParams();
+    if (params?.status) queryParams.append('status', params.status);
+    if (params?.search) queryParams.append('search', params.search);
+    const queryString = queryParams.toString();
+    return apiClient.get(`/prescriptions${queryString ? `?${queryString}` : ''}`);
+  },
 
-export async function createPrescription(data: Partial<Prescription>): Promise<Prescription> {
-  const res = await fetch("/api/prescriptions", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data)
-  })
-  return res.json()
-}
+  // Get single prescription by ID
+  async getPrescriptionById(id: string) {
+    return apiClient.get(`/prescriptions/${id}`);
+  },
 
-export async function updatePrescription(id: string, data: Partial<Prescription>): Promise<Prescription> {
-  const res = await fetch(`/api/prescriptions/${id}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(data)
-  })
-  return res.json()
-}
+  // Create new prescription
+  async createPrescription(data: any) {
+    return apiClient.post('/prescriptions', data);
+  },
 
-export async function pickBatch(prescriptionId: string, items: Array<{ drugId: string; batchId: string; qty: number }>) {
-  const res = await fetch(`/api/prescriptions/${prescriptionId}/pick`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ items, userId: "current-user", device: "terminal-1" })
-  })
-  return res.json()
-}
+  // Verify prescription (Clinical Check)
+  async verifyPrescription(id: string, data?: { override?: boolean; reason?: string }) {
+    return apiClient.post(`/prescriptions/${id}/verify`, data || {});
+  },
 
-export async function finalizePrescription(prescriptionId: string, userId: string, pin?: string, notes?: string) {
-  const res = await fetch(`/api/prescriptions/${prescriptionId}/finalize`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ userId, pin, notes })
-  })
-  return res.json()
-}
+  // Place prescription on hold
+  async holdPrescription(id: string, data: { reason: string; expectedResolutionDate?: string; assignTo?: string }) {
+    return apiClient.post(`/prescriptions/${id}/hold`, data);
+  }
+};
 
-export async function printLabel(prescriptionId: string, options: { template: string; copies: number; language: string }) {
-  const res = await fetch("/api/label/print", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prescriptionId, ...options })
-  })
-  return res.json()
-}
+export const dispenseApi = {
+  // Get dispense queue
+  async getQueue() {
+    return apiClient.get('/dispense/queue');
+  },
 
-export async function sendNotification(prescriptionId: string, type: "sms" | "whatsapp" | "email") {
-  const res = await fetch("/api/notifications/send", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prescriptionId, type })
-  })
-  return res.json()
-}
+  // Start fill workflow
+  async startFill(prescriptionId: string) {
+    return apiClient.post(`/dispense/${prescriptionId}/start`);
+  },
 
-export async function adjudicateInsurance(prescriptionId: string) {
-  const res = await fetch("/api/insurance/adjudicate", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ prescriptionId })
-  })
-  return res.json()
-}
+  // Scan barcode (safety-critical)
+  async scanBarcode(dispenseEventId: string, data: {
+    barcode?: string;
+    drugId: string;
+    batchNumber: string;
+    quantity: number;
+  }) {
+    return apiClient.post(`/dispense/${dispenseEventId}/scan`, data);
+  },
 
-export async function searchInventory(query: string): Promise<Batch[]> {
-  const res = await fetch(`/api/inventory/search?q=${encodeURIComponent(query)}`)
-  return res.json()
-}
-
-export async function uploadPrescriptionFile(patientId: string, file: File): Promise<{ id: string; url: string; ocrData?: any }> {
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('patientId', patientId);
-
-  const res = await fetch("/api/prescriptions/upload", {
-    method: "POST",
-    body: formData
-  });
-  return res.json();
-}
+  // Release prescription (pharmacist only)
+  async release(dispenseEventId: string, data: { visualCheckConfirmed: boolean }) {
+    return apiClient.post(`/dispense/${dispenseEventId}/release`, data);
+  }
+};

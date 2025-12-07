@@ -319,6 +319,30 @@ model AdminPin {
   @@index([userId])
 }
 
+model BusinessTypeConfig {
+  id           String @id @default(cuid())
+  businessType String @unique // "Retail Pharmacy", "Wholesale Pharmacy", "Hospital-based Pharmacy", "Multi-store Chain"
+  
+  // Feature visibility configuration (JSON)
+  // Example: { "prescriptions": "essential", "pos": "essential", "engage": "optional" }
+  featureConfig Json
+  
+  // Sidebar sections to show/hide
+  enabledSections String[] // ["Operations", "Inventory & Supply", ...]
+  
+  // Default permissions for this business type
+  defaultPermissions String[] // Permission codes
+  
+  // Description and metadata
+  description String?
+  icon        String? // Icon identifier for UI
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([businessType])
+}
+
 model Store {
   id           String  @id @default(cuid())
   name         String
@@ -328,6 +352,11 @@ model Store {
   whatsapp     String? // WhatsApp number for business communication
   businessType String?
   logoUrl      String?
+  
+  // Store-specific feature overrides (optional)
+  // Allows customization beyond business type defaults
+  // Example: { "engage": "hidden" } to hide loyalty features even for retail
+  featureOverrides Json?
 
   // Regulatory/License Information
   gstin    String? // GST Identification Number
