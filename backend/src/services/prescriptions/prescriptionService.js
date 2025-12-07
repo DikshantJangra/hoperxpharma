@@ -2,31 +2,35 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
 class PrescriptionService {
-    /**
-     * Create a new prescription
-     */
     async createPrescription(data, userId) {
         const { storeId, patientId, prescriberId, source, priority, items } = data;
 
-        // Create prescription with items in a transaction
+        // Build the data object conditionally
+        const prescriptionData = {
+            store: { connect: { id: storeId } },
+            patient: { connect: { id: patientId } },
+            source: source || 'manual',
+            priority: priority || 'Normal',
+            status: 'DRAFT',
+            items: {
+                create: items.map(item => ({
+                    drug: { connect: { id: item.drugId } },
+                    quantityPrescribed: item.quantity,
+                    sig: item.sig,
+                    daysSupply: item.daysSupply,
+                    isControlled: item.isControlled || false
+                }))
+            }
+        };
+
+        // Only add prescriber if provided
+        if (prescriberId) {
+            prescriptionData.prescriber = { connect: { id: prescriberId } };
+        }
+
+        // Create prescription with items
         const prescription = await prisma.prescription.create({
-            data: {
-                store: { connect: { id: storeId } },
-                patient: { connect: { id: patientId } },
-                ...(prescriberId && { prescriber: { connect: { id: prescriberId } } }),
-                source: source || 'manual',
-                priority: priority || 'Normal',
-                status: 'DRAFT',
-                items: {
-                    create: items.map(item => ({
-                        drug: { connect: { id: item.drugId } },
-                        quantityPrescribed: item.quantity,
-                        sig: item.sig,
-                        daysSupply: item.daysSupply,
-                        isControlled: item.isControlled || false
-                    }))
-                }
-            },
+            data: prescriptionData,
             include: {
                 items: {
                     include: {
@@ -44,9 +48,9 @@ class PrescriptionService {
                 storeId: storeId,
                 userId: userId,
                 action: 'PRESCRIPTION_CREATED',
-                resource: 'Prescription',
-                resourceId: prescription.id,
-                details: { itemCount: items.length, priority, source }
+                entityType: 'Prescription',
+                entityId: prescription.id,
+                changes: { itemCount: items.length, priority, source }
             }
         });
 
@@ -104,9 +108,9 @@ class PrescriptionService {
                     storeId: prescription.storeId,
                     userId: userId,
                     action: 'PRESCRIPTION_VERIFIED',
-                    resource: 'Prescription',
-                    resourceId: id,
-                    details: { notes, dispenseEventId: dispenseEvent.id }
+                    entityType: 'Prescription',
+                    entityId: id,
+                    changes: { notes, dispenseEventId: dispenseEvent.id }
                 }
             });
 

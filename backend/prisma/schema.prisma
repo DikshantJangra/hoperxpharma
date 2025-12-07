@@ -193,6 +193,7 @@ model User {
   grns             GoodsReceivedNote[]
   savedFilters     SavedFilter[]
   avatars          UserAvatar[]
+  assignedPrescriptions Prescription[] @relation("AssignedPrescriptions")
 
   // HR Relations
   attendanceLogs     AttendanceLog[]
@@ -867,27 +868,68 @@ model Prescription {
   id           String             @id @default(cuid())
   storeId      String
   patientId    String
-  prescriberId String
-  source       String // ocr, e-rx, manual
-  status       PrescriptionStatus @default(DRAFT)
+  prescriberId String?            // Made optional
+  source       String             @default("manual") // manual, e-rx, fax, phone
   priority     String             @default("Normal") // Normal, Urgent
-  refillNumber Int                @default(0)
-  totalRefills Int                @default(0)
-
-  store          Store              @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  patient        Patient            @relation(fields: [patientId], references: [id])
-  prescriber     Prescriber         @relation(fields: [prescriberId], references: [id])
-  items          PrescriptionItem[]
+  status       String             @default("DRAFT") // DRAFT, IN_PROGRESS, ON_HOLD, COMPLETED, CANCELLED
+  
+  // Queue Management
+  stage        String             @default("NEW") // NEW, UNVERIFIED, VERIFIED, READY, DELIVERED, ON_HOLD
+  assignedTo   String?            // User ID who's working on it
+  
+  // Refill Tracking
+  refillNumber     Int            @default(0) // 0 = original, 1+ = refill
+  refillsRemaining Int            @default(0)
+  originalRxId     String?        // Link to original if refill
+  
+  // Controlled Substance
+  controlledFlag   Boolean        @default(false)
+  
+  // E-Rx Integration
+  eRxId            String?        // External e-Rx system ID
+  eRxMetadata      Json?          // e-Rx provider data
+  
+  // OCR & Digital
+  uploadedImages   String[]       // OCR image URLs
+  ocrText          String?        // Extracted text
+  ocrConfidence    Float?         // OCR accuracy score
+  
+  // Workflow Timing
+  processingStarted   DateTime?
+  processingCompleted DateTime?
+  
+  // Reminders
+  reminderSent     DateTime?
+  nextRefillDue    DateTime?
+  
+  notes        String?
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  deletedAt    DateTime?
+  
+  store        Store              @relation(fields: [storeId], references: [id])
+  patient      Patient            @relation(fields: [patientId], references: [id])
+  prescriber   Prescriber?        @relation(fields: [prescriberId], references: [id]) // Made optional
+  assignedUser User?              @relation("AssignedPrescriptions", fields: [assignedTo], references: [id])
+  
+  items        PrescriptionItem[]
   dispenseEvents DispenseEvent[]
-  files          PrescriptionFile[]
+  files        PrescriptionFile[]
+  
+  // Refill chain
+  originalPrescription Prescription?  @relation("RefillChain", fields: [originalRxId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  refills              Prescription[] @relation("RefillChain")
 
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
-
-  @@index([storeId, patientId])
-  @@index([storeId, status, createdAt])
-  @@index([storeId, deletedAt])
+  @@index([storeId])
+  @@index([patientId])
+  @@index([prescriberId])
+  @@index([status])
+  @@index([stage])
+  @@index([assignedTo])
+  @@index([controlledFlag])
+  @@index([createdAt])
+  @@index([deletedAt])
+  @@index([originalRxId])
 }
 
 model PrescriptionItem {

@@ -28,6 +28,40 @@ export const prescriptionApi = {
   // Place prescription on hold
   async holdPrescription(id: string, data: { reason: string; expectedResolutionDate?: string; assignTo?: string }) {
     return apiClient.post(`/prescriptions/${id}/hold`, data);
+  },
+
+  // Delete prescription (DRAFT only)
+  async deletePrescription(id: string) {
+    return apiClient.delete(`/prescriptions/${id}`);
+  },
+
+  // Queue Management
+  async getQueue(params?: any) {
+    const queryParams = new URLSearchParams();
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value) queryParams.append(key, value as string);
+      });
+    }
+    const queryString = queryParams.toString();
+    return apiClient.get(`/prescriptions/queue${queryString ? `?${queryString}` : ''}`);
+  },
+
+  async updateStage(id: string, stage: string) {
+    return apiClient.patch(`/prescriptions/${id}/stage`, { stage });
+  },
+
+  async bulkUpdate(ids: string[], action: string, data?: any) {
+    return apiClient.post('/prescriptions/queue/bulk', { ids, action, data });
+  },
+
+  // E-Prescription Methods
+  async getPendingERx() {
+    return apiClient.get('/prescriptions/erx/pending');
+  },
+
+  async importERx(eRxData: any) {
+    return apiClient.post('/prescriptions/erx/import', { eRxData });
   }
 };
 

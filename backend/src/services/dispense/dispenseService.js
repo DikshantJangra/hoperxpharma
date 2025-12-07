@@ -135,7 +135,12 @@ class DispenseService {
                             }
                         }
                     },
-                    prescription: { include: { patient: true } }
+                    prescription: {
+                        include: {
+                            patient: true,
+                            items: true // Need items for daysSupply calculation
+                        }
+                    }
                 }
             });
 
@@ -173,13 +178,35 @@ class DispenseService {
                 }
             });
 
-            // 3. Update Prescription to COMPLETED (or PARTIAL_FILLED if logic allows)
+            // Calculate Next Refill Date (Min of maintenance meds, default 30 days)
+            const daysSupplyList = event.prescription.items.map(i => i.daysSupply).filter(d => d);
+            const daysSupply = daysSupplyList.length > 0 ? Math.min(...daysSupplyList) : 30; // Default to 30 if null
+
+            const nextRefillDue = new Date();
+            nextRefillDue.setDate(nextRefillDue.getDate() + daysSupply);
+
+            // 3. Update Prescription to COMPLETED and set Next Due Date
             await tx.prescription.update({
                 where: { id: event.prescriptionId },
-                data: { status: 'COMPLETED' }
+                data: {
+                    status: 'COMPLETED',
+                    nextRefillDue: nextRefillDue
+                }
             });
 
-            // 4. Create Sale Draft in POS (The Handshake 🤝)
+            // 4. Create PENDING Adherence Record for the NEXT refill
+            // This allows the system to track when the patient is "due" again
+            await tx.patientAdherence.create({
+                data: {
+                    patientId: event.prescription.patientId,
+                    prescriptionId: event.prescriptionId,
+                    expectedRefillDate: nextRefillDue,
+                    actualRefillDate: null, // Pending status
+                    adherenceRate: 1.0 // Default starting score
+                }
+            });
+
+            // 5. Create Sale Draft in POS (The Handshake 🤝)
             // This makes it appear instantly at the checkout counter
             const saleDraft = await tx.saleDraft.create({
                 data: {

@@ -14,8 +14,9 @@ import { useAuthStore } from "@/lib/store/auth-store";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import PrescriptionUploadModal from "@/components/patients/PrescriptionUploadModal";
 import PatientMergeModal from "@/components/patients/PatientMergeModal";
-import PatientAuditLog from "@/components/patients/PatientAuditLog";
 import PatientConsentsTab from "@/components/patients/PatientConsentsTab";
+import PatientHistoryTimeline from "@/components/patients/PatientHistoryTimeline";
+import AdherenceChart from "@/components/patients/AdherenceChart";
 
 interface TabProps {
     id: string;
@@ -26,6 +27,7 @@ interface TabProps {
 const tabs: TabProps[] = [
     { id: "summary", label: "Summary", icon: <FiUser className="w-4 h-4" /> },
     { id: "prescriptions", label: "Prescriptions", icon: <FiFileText className="w-4 h-4" /> },
+    { id: "adherence", label: "Adherence", icon: <FiActivity className="w-4 h-4" /> },
     { id: "sales", label: "Sales History", icon: <FiShoppingCart className="w-4 h-4" /> },
     { id: "consents", label: "Consents", icon: <FiShield className="w-4 h-4" /> },
     { id: "history", label: "History", icon: <FiClock className="w-4 h-4" /> },
@@ -265,9 +267,10 @@ export default function PatientProfilePage() {
             <div className="max-w-7xl mx-auto px-6 py-6">
                 {activeTab === "summary" && <SummaryTab patient={patient} />}
                 {activeTab === "prescriptions" && <PrescriptionsTab patient={patient} />}
+                {activeTab === "adherence" && <AdherenceTab patientId={patientId} />}
                 {activeTab === "sales" && <SalesTab patient={patient} />}
                 {activeTab === "consents" && <PatientConsentsTab patient={patient} onUpdate={loadPatient} />}
-                {activeTab === "history" && <PatientAuditLog patientId={patientId} />}
+                {activeTab === "history" && <PatientHistoryTimeline patientId={patientId} />}
             </div>
 
             {/* Modals */}
@@ -292,10 +295,37 @@ export default function PatientProfilePage() {
     );
 }
 
+// Adherence Tab Component
+function AdherenceTab({ patientId }: { patientId: string }) {
+    return (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="md:col-span-2">
+                <AdherenceChart patientId={patientId} />
+            </div>
+            <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+                <h3 className="font-bold text-gray-900 mb-4 whitespace-nowrap">Why it matters</h3>
+                <div className="space-y-4 text-sm text-gray-600">
+                    <p>
+                        High adherence (80%+) ensures medication effectiveness and reduces hospital visits.
+                    </p>
+                    <div className="p-3 bg-blue-50 text-blue-800 rounded-lg">
+                        <strong>Tip:</strong> Suggest auto-refills if adherence is consistently high.
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 // Summary Tab Component
 function SummaryTab({ patient }: { patient: any }) {
     return (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Adherence Snapshot */}
+            <div className="md:col-span-2">
+                <AdherenceChart patientId={patient.id} />
+            </div>
+
             {/* Personal Information */}
             <div className="bg-white rounded-lg shadow-sm p-6">
                 <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
@@ -377,30 +407,27 @@ function SummaryTab({ patient }: { patient: any }) {
                 </div>
             </div>
 
-            {/* Recent Activity */}
-            <div className="bg-white rounded-lg shadow-sm p-6 md:col-span-2">
+            {/* Insurance Information */}
+            <div className="bg-white rounded-lg shadow-sm p-6">
                 <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-                    <FiClock className="w-5 h-5 text-teal-600" />
-                    Recent Activity
+                    <FiShield className="w-5 h-5 text-teal-600" />
+                    Insurance Information
                 </h3>
-                <div className="space-y-3">
-                    {patient.sales && patient.sales.length > 0 ? (
-                        patient.sales.slice(0, 5).map((sale: any) => (
-                            <div key={sale.id} className="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
-                                <div className="flex items-center gap-3">
-                                    <FiShoppingCart className="w-4 h-4 text-gray-400" />
-                                    <div>
-                                        <p className="text-sm font-medium text-gray-900">Purchase</p>
-                                        <p className="text-xs text-gray-500">{new Date(sale.createdAt).toLocaleDateString()}</p>
-                                    </div>
-                                </div>
-                                <span className="text-sm font-medium text-gray-900">₹{sale.totalAmount}</span>
+                {patient.insurance && patient.insurance.length > 0 ? (
+                    <div className="space-y-3">
+                        {patient.insurance.map((ins: any, idx: number) => (
+                            <div key={idx} className="pb-3 border-b border-gray-100 last:border-0 last:pb-0">
+                                <p className="font-medium text-gray-900">{ins.provider}</p>
+                                <p className="text-sm text-gray-600">Policy: {ins.policyNumber}</p>
+                                <p className="text-xs text-gray-500">
+                                    Valid until: {new Date(ins.validUntil).toLocaleDateString()}
+                                </p>
                             </div>
-                        ))
-                    ) : (
-                        <p className="text-sm text-gray-500">No recent activity</p>
-                    )}
-                </div>
+                        ))}
+                    </div>
+                ) : (
+                    <p className="text-sm text-gray-500">No insurance on file</p>
+                )}
             </div>
         </div>
     );

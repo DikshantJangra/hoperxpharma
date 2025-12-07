@@ -59,16 +59,11 @@ export const sidebarConfig: SidebarSection[] = [
             {
                 icon: <TbPrescription size={18} />,
                 label: "Prescriptions",
+                path: "/prescriptions",
                 requiredPermission: "prescription.read",
-                featureCode: "prescriptions",
-                businessTypes: ["Retail Pharmacy", "Hospital-based Pharmacy", "Multi-store Chain"],
                 subItems: [
-                    { label: "New", path: "/prescriptions/new" },
-                    { label: "Verified", path: "/prescriptions/verified" },
-                    { label: "Ready", path: "/prescriptions/ready" },
-                    { label: "Completed", path: "/prescriptions/completed" },
-                    { label: "On Hold", path: "/prescriptions/on-hold" },
-                    { label: "e-Rx", path: "/prescriptions/e-rx" }
+                    { label: "All Prescriptions", path: "/prescriptions" },
+                    { label: "Workbench", path: "/prescriptions/queue" }
                 ]
             },
             {

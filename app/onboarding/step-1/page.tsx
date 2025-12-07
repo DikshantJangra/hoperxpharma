@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { useOnboarding } from "@/contexts/OnboardingContext";
 import { useRouter } from "next/navigation";
 import { FiUpload, FiInfo, FiArrowRight, FiHome, FiMapPin, FiType, FiImage, FiPhone, FiMail } from "react-icons/fi";
+import { MdStorefront, MdWarehouse, MdLocalHospital, MdDomain } from "react-icons/md";
+import { ReactNode } from "react";
 import OnboardingCard from "@/components/onboarding/OnboardingCard";
 
 const INDIAN_STATES = [
@@ -23,57 +25,57 @@ const BUSINESS_TYPES = [
     "Multi-store Chain"
 ];
 
-const BUSINESS_TYPE_INFO: Record<string, { description: string; icon: string; features: string[]; color: string }> = {
+const BUSINESS_TYPE_INFO: Record<string, { description: string; icon: ReactNode; features: string[]; color: string }> = {
     "Retail Pharmacy": {
-        description: "Direct patient care, prescription dispensing, walk-in customers",
-        icon: "🏪",
+        description: "A comprehensive solution for independent and community pharmacies focused on patient care and retail efficiency.",
+        icon: <MdStorefront className="text-emerald-500" size={24} />,
         color: "emerald",
         features: [
-            "Patient Management",
-            "Prescription Workflow",
-            "Point of Sale (POS)",
-            "Loyalty Programs",
-            "Refill Reminders",
-            "WhatsApp Integration"
+            "Smart Point of Sale (POS)",
+            "Prescription Management",
+            "Inventory & Expiry Tracking",
+            "Customer Loyalty Programs",
+            "WhatsApp Order Integration",
+            "Automated Refill Reminders"
         ]
     },
     "Wholesale Pharmacy": {
-        description: "Bulk distribution to retailers, hospitals, and clinics",
-        icon: "📦",
+        description: "Optimized for B2B distributors supplying medicines and equipment to retailers, hospitals, and clinics.",
+        icon: <MdWarehouse className="text-blue-500" size={24} />,
         color: "blue",
         features: [
-            "B2B Sales Management",
-            "Warehouse Operations",
-            "Bulk Order Processing",
-            "Credit Management",
-            "Distributor Analytics",
-            "Volume-based Pricing"
+            "B2B Sales & Credit Management",
+            "Bulk Inventory Operations",
+            "Route & Delivery Tracking",
+            "Purchase Order Automation",
+            "Salesman App Integration",
+            "Volume-based Pricing Rules"
         ]
     },
     "Hospital-based Pharmacy": {
-        description: "Inpatient medication management with clinical integration",
-        icon: "🏥",
+        description: "Specialized workflow for in-house pharmacies serving inpatients (IPD) and outpatients (OPD) within medical centers.",
+        icon: <MdLocalHospital className="text-purple-500" size={24} />,
         color: "purple",
         features: [
-            "EHR Integration",
-            "Ward Stock Management",
-            "Formulary Management",
-            "Clinical Decision Support",
-            "IV Admixture Tracking",
-            "Insurance Claims"
+            "IPD/OPD Billing Workflows",
+            "Ward & OT Stock Management",
+            "Doctor & Department Mapping",
+            "Narcotics & Restricted Drug Control",
+            "Insurance & TPA Processing",
+            "Clinical Safety Checks"
         ]
     },
     "Multi-store Chain": {
-        description: "Centralized management of multiple retail locations",
-        icon: "🏬",
+        description: "Centralized management system for pharmacy chains to monitor and control operations across all branches.",
+        icon: <MdDomain className="text-orange-500" size={24} />,
         color: "orange",
         features: [
-            "Chain-wide Dashboard",
-            "Inter-store Transfers",
-            "Consolidated Analytics",
+            "Central 360° Dashboard",
+            "Inter-branch Stock Transfers",
             "Centralized Procurement",
-            "Multi-location Staff",
-            "Cross-store Loyalty"
+            "Consolidated Financial Reports",
+            "Role-based Access Control",
+            "Chain-wide Loyalty System"
         ]
     }
 };
@@ -229,25 +231,38 @@ export default function Step1Page() {
                     <label className="block text-gray-700 text-xs font-semibold mb-1.5 ml-1">
                         Business Type <span className="text-red-500">*</span>
                     </label>
-                    <div className="relative transition-all duration-200 focus-within:ring-2 focus-within:ring-emerald-500/20 rounded-xl">
-                        <div className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-emerald-500 transition-colors">
-                            <FiType size={18} />
-                        </div>
-                        <select
-                            value={formData.businessType}
-                            onChange={(e) => setFormData({ ...formData, businessType: e.target.value })}
-                            className={`w-full pl-11 pr-4 py-3 bg-gray-50 border rounded-xl focus:outline-none focus:border-emerald-500 focus:bg-white transition-all text-sm text-gray-900 appearance-none ${errors.businessType ? "border-red-500" : "border-gray-200"}`}
-                        >
-                            <option value="">Select business type</option>
-                            {BUSINESS_TYPES.map((type) => (
-                                <option key={type} value={type}>
-                                    {BUSINESS_TYPE_INFO[type]?.icon} {type}
-                                </option>
-                            ))}
-                        </select>
-                        <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
-                        </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-2">
+                        {BUSINESS_TYPES.map((type) => (
+                            <div
+                                key={type}
+                                onClick={() => setFormData({ ...formData, businessType: type })}
+                                className={`
+                                        cursor-pointer relative p-4 rounded-xl border-2 transition-all duration-200 flex items-center gap-3
+                                        ${formData.businessType === type
+                                        ? "border-emerald-500 bg-emerald-50/50 ring-1 ring-emerald-500/20"
+                                        : "border-gray-100 hover:border-emerald-200 hover:bg-gray-50"
+                                    }
+                                    `}
+                            >
+                                <div className={`
+                                        p-2 rounded-lg transition-colors
+                                        ${formData.businessType === type ? "bg-white text-emerald-600 shadow-sm" : "bg-gray-100 text-gray-500"}
+                                    `}>
+                                    {BUSINESS_TYPE_INFO[type]?.icon}
+                                </div>
+                                <span className={`text-sm font-medium ${formData.businessType === type ? "text-emerald-900" : "text-gray-700"}`}>
+                                    {type}
+                                </span>
+
+                                {formData.businessType === type && (
+                                    <div className="absolute top-1/2 right-3 -translate-y-1/2 text-emerald-500">
+                                        <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                        </svg>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
                     </div>
                     {errors.businessType && <p className="mt-1 ml-1 text-xs text-red-500">{errors.businessType}</p>}
 

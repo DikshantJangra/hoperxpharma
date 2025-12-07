@@ -255,7 +255,7 @@ function RightSection({ showNotifications, setShowNotifications, showUserMenu, s
         <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 mr-3 pr-3 border-r border-gray-200">
                 <Link
-                    href="/prescriptions/new"
+                    href="/prescriptions"
                     className="px-3 py-1.5 bg-emerald-500 text-white text-sm font-medium rounded-lg hover:bg-emerald-600 transition-colors flex items-center gap-1.5"
                 >
                     <TbPrescription size={16} />

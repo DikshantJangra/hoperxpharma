@@ -19,8 +19,21 @@ class PrescriptionController {
                 });
             }
 
+            // Handle uploaded files
+            const uploadedImages = req.files ? req.files.map(file => `/uploads/prescriptions/${file.filename}`) : [];
+
+            // Allow manual override of images if needed, otherwise use uploaded
+            const prescriptionData = {
+                ...req.body,
+                storeId
+            };
+
+            if (uploadedImages.length > 0) {
+                prescriptionData.uploadedImages = uploadedImages;
+            }
+
             const prescription = await prescriptionService.createPrescription(
-                { ...req.body, storeId },
+                prescriptionData,
                 userId
             );
 
@@ -225,6 +238,68 @@ class PrescriptionController {
             return res.status(500).json({
                 success: false,
                 message: error.message || 'Failed to hold prescription'
+            });
+        }
+    }
+
+    /**
+     * Delete prescription (DRAFT only)
+     * DELETE /api/v1/prescriptions/:id
+     */
+    async deletePrescription(req, res) {
+        try {
+            const { id } = req.params;
+            const userId = req.user.id;
+
+            // Check if prescription exists and is in DRAFT
+            const prescription = await prisma.prescription.findUnique({
+                where: { id }
+            });
+
+            if (!prescription) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Prescription not found'
+                });
+            }
+
+            if (prescription.status !== 'DRAFT') {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Only DRAFT prescriptions can be deleted'
+                });
+            }
+
+            // Soft delete
+            await prisma.prescription.update({
+                where: { id },
+                data: {
+                    deletedAt: new Date(),
+                    status: 'CANCELLED'
+                }
+            });
+
+            // Log action
+            await prisma.auditLog.create({
+                data: {
+                    storeId: prescription.storeId,
+                    userId: userId,
+                    action: 'PRESCRIPTION_DELETE',
+                    resource: 'Prescription',
+                    resourceId: id,
+                    details: { reason: 'User requested delete' }
+                }
+            });
+
+            return res.json({
+                success: true,
+                message: 'Prescription deleted successfully'
+            });
+        } catch (error) {
+            console.error('[PrescriptionController] Delete error:', error);
+            return res.status(500).json({
+                success: false,
+                message: error.message || 'Failed to delete prescription'
             });
         }
     }

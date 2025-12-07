@@ -71,7 +71,8 @@ class DrugRepository {
                         quantityInStock: true,
                         mrp: true,
                         purchasePrice: true,
-                        expiryDate: true
+                        expiryDate: true,
+                        location: true
                     }
                 }
             }
