@@ -59,8 +59,8 @@ class DispenseService {
         if (!dispenseEvent) throw new Error('Dispense event not found');
 
         // 2. Validate Drug Match (Barcode Check)
-        const prescrpitionItem = dispenseEvent.prescription.items.find(i => i.drugId === drugId);
-        if (!prescrpitionItem) {
+        const prescriptionItem = dispenseEvent.prescription.items.find(i => i.drugId === drugId);
+        if (!prescriptionItem) {
             throw new Error('SECURITY ALERT: Scanned drug is NOT on this prescription!');
         }
 
@@ -70,6 +70,9 @@ class DispenseService {
                 storeId: dispenseEvent.prescription.storeId,
                 drugId: drugId,
                 batchNumber: batchNumber
+            },
+            include: {
+                drug: true
             }
         });
 
@@ -92,6 +95,13 @@ class DispenseService {
                     dispenseEventId: dispenseEventId,
                     batchId: batch.id,
                     quantityDispensed: quantity
+                },
+                include: {
+                    batch: {
+                        include: {
+                            drug: true
+                        }
+                    }
                 }
             });
 
@@ -118,7 +128,13 @@ class DispenseService {
             const event = await tx.dispenseEvent.findUnique({
                 where: { id: dispenseEventId },
                 include: {
-                    items: { include: { batch: true, batch: { include: { drug: true } } } },
+                    items: {
+                        include: {
+                            batch: {
+                                include: { drug: true }
+                            }
+                        }
+                    },
                     prescription: { include: { patient: true } }
                 }
             });

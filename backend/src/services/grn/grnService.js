@@ -54,6 +54,7 @@ class GRNService {
                     mrp: poItem.drug?.mrp || 0, // Get from drug master or to be filled by user
                     unitPrice: poItem.unitPrice,
                     discountPercent: poItem.discountPercent,
+                    discountType: 'BEFORE_GST', // Default discount type
                     gstPercent: poItem.gstPercent,
                     lineTotal: 0 // Will be calculated
                 }));

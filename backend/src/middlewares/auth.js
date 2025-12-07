@@ -21,24 +21,39 @@ const authenticate = async (req, res, next) => {
         // Verify token
         const decoded = verifyAccessToken(token);
 
-        // Get user from database
+        // Get user from database with store information
         const user = await userRepository.findById(decoded.userId);
 
         if (!user || !user.isActive) {
             throw ApiError.unauthorized('User not found or inactive');
         }
 
-        // Attach user to request
+        // Find primary store
+        const primaryStoreUser = user.storeUsers?.find(su => su.isPrimary);
+
+        // Attach user to request with complete store information
         req.user = {
             id: user.id,
             email: user.email,
             role: user.role,
+            primaryStore: primaryStoreUser ? {
+                id: primaryStoreUser.store.id,
+                name: primaryStoreUser.store.name
+            } : null,
+            storeUsers: user.storeUsers?.map(su => ({
+                storeId: su.store.id,
+                storeName: su.store.name,
+                isPrimary: su.isPrimary,
+            })) || [],
             stores: user.storeUsers?.map(su => ({
                 id: su.store.id,
                 name: su.store.name,
                 isPrimary: su.isPrimary,
             })) || [],
         };
+
+        // Also set storeId directly for convenience (from primary store or first store)
+        req.storeId = primaryStoreUser?.store.id || user.storeUsers?.[0]?.store.id;
 
         next();
     } catch (error) {

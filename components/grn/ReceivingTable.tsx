@@ -39,8 +39,8 @@ export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSp
 
         // For numeric fields, parse the value
         if (['receivedQty', 'freeQty', 'unitPrice', 'discountPercent', 'gstPercent', 'mrp'].includes(field)) {
-            if (value === '' || value === null) {
-                updates[field] = field === 'mrp' ? null : 0;
+            if (value === '' || value === null || value === undefined) {
+                updates[field] = 0; // Always set to 0, never null
             } else {
                 const parsedValue = field.includes('Qty') ? parseInt(value) : parseFloat(value);
                 updates[field] = isNaN(parsedValue) ? 0 : parsedValue;
@@ -197,28 +197,8 @@ export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSp
                                         <input
                                             type="number"
                                             value={item.mrp || ''}
-                                            onChange={(e) => {
-                                                const value = e.target.value;
-                                                // Prevent setting MRP to 0
-                                                if (value === '0' || value === '0.00' || value === '0.0') {
-                                                    return;
-                                                }
-                                                handleFieldUpdate(item.id, 'mrp', value);
-                                            }}
-                                            onFocus={(e) => {
-                                                // Select all on focus if value is 0
-                                                if (e.target.value === '0' || e.target.value === '0.00') {
-                                                    e.target.select();
-                                                }
-                                            }}
-                                            onBlur={(e) => {
-                                                // If MRP is empty or 0 on blur, show warning
-                                                if (!e.target.value || parseFloat(e.target.value) === 0) {
-                                                    e.target.classList.add('border-red-500');
-                                                } else {
-                                                    e.target.classList.remove('border-red-500');
-                                                }
-                                            }}
+                                            onChange={(e) => handleFieldUpdate(item.id, 'mrp', e.target.value)}
+                                            onFocus={(e) => e.target.select()}
                                             className="w-24 px-2 py-1 text-right border border-gray-300 rounded focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                                             step="0.01"
                                             min="0.01"
@@ -244,7 +224,7 @@ export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSp
                                     <td className="px-4 py-3">
                                         <input
                                             type="number"
-                                            value={item.discountPercent || ''}
+                                            value={item.discountPercent !== undefined && item.discountPercent !== null ? item.discountPercent : 0}
                                             onChange={(e) => handleFieldUpdate(item.id, 'discountPercent', e.target.value)}
                                             onFocus={(e) => {
                                                 e.target.select();

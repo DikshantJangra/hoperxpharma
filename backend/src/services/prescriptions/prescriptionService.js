@@ -11,15 +11,15 @@ class PrescriptionService {
         // Create prescription with items in a transaction
         const prescription = await prisma.prescription.create({
             data: {
-                storeId,
-                patientId,
-                prescriberId,
+                store: { connect: { id: storeId } },
+                patient: { connect: { id: patientId } },
+                ...(prescriberId && { prescriber: { connect: { id: prescriberId } } }),
                 source: source || 'manual',
                 priority: priority || 'Normal',
                 status: 'DRAFT',
                 items: {
                     create: items.map(item => ({
-                        drugId: item.drugId,
+                        drug: { connect: { id: item.drugId } },
                         quantityPrescribed: item.quantity,
                         sig: item.sig,
                         daysSupply: item.daysSupply,
@@ -35,6 +35,18 @@ class PrescriptionService {
                 },
                 patient: true,
                 prescriber: true
+            }
+        });
+
+        // Log creation
+        await prisma.auditLog.create({
+            data: {
+                storeId: storeId,
+                userId: userId,
+                action: 'PRESCRIPTION_CREATED',
+                resource: 'Prescription',
+                resourceId: prescription.id,
+                details: { itemCount: items.length, priority, source }
             }
         });
 
