@@ -24,6 +24,21 @@ const getPatients = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Search patients (for autocomplete)
+ */
+const searchPatients = asyncHandler(async (req, res) => {
+    const query = req.query.q || '';
+
+    if (query.length < 2) {
+        return res.json(ApiResponse.success([]));
+    }
+
+    const patients = await patientService.searchPatients(req.storeId, query);
+    const response = ApiResponse.success(patients);
+    res.status(response.statusCode).json(response);
+});
+
+/**
  * Get patient by ID
  */
 const getPatientById = asyncHandler(async (req, res) => {
@@ -205,6 +220,7 @@ const getAllConsents = asyncHandler(async (req, res) => {
 
 module.exports = {
     getPatients,
+    searchPatients,
     getPatientById,
     createPatient,
     updatePatient,

@@ -34,6 +34,14 @@ class PatientService {
     }
 
     /**
+     * Search patients (for autocomplete)
+     */
+    async searchPatients(storeId, query) {
+        const patients = await patientRepository.searchPatients(storeId, query);
+        return patients;
+    }
+
+    /**
      * Create new patient
      */
     async createPatient(patientData) {

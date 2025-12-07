@@ -88,6 +88,34 @@ class PatientRepository {
     }
 
     /**
+     * Search patients (for autocomplete) - returns limited results
+     */
+    async searchPatients(storeId, query) {
+        return await prisma.patient.findMany({
+            where: {
+                storeId,
+                deletedAt: null,
+                OR: [
+                    { firstName: { contains: query, mode: 'insensitive' } },
+                    { lastName: { contains: query, mode: 'insensitive' } },
+                    { phoneNumber: { contains: query } },
+                ],
+            },
+            select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                phoneNumber: true,
+                dateOfBirth: true,
+                allergies: true,
+                chronicConditions: true,
+            },
+            take: 10, // Limit to 10 results for autocomplete
+            orderBy: { createdAt: 'desc' },
+        });
+    }
+
+    /**
      * Create patient
      */
     async create(patientData) {

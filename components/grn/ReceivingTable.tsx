@@ -46,7 +46,7 @@ export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSp
                 updates[field] = isNaN(parsedValue) ? 0 : parsedValue;
             }
         } else {
-            // For text fields like batchNumber, expiryDate - just pass the value
+            // For text fields like batchNumber, expiryDate, discountType - just pass the value
             updates[field] = value;
         }
 
@@ -75,13 +75,19 @@ export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSp
                                 Batch No
                             </th>
                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
-                                Expiry
+                                Expiry (MM/YYYY)
                             </th>
                             <th className="px-4 py-3 text-right text-xs font-medium text-gray-700 uppercase tracking-wider">
                                 MRP
                             </th>
                             <th className="px-4 py-3 text-right text-xs font-medium text-gray-700 uppercase tracking-wider">
                                 Purchase Rate
+                            </th>
+                            <th className="px-4 py-3 text-right text-xs font-medium text-gray-700 uppercase tracking-wider">
+                                Disc %
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                                Disc Type
                             </th>
                             <th className="px-4 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider">
                                 Status
@@ -156,15 +162,24 @@ export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSp
                                     </td>
                                     <td className="px-4 py-3">
                                         <input
-                                            type="date"
-                                            value={item.expiryDate ? new Date(item.expiryDate).toISOString().split('T')[0] : ''}
-                                            onChange={(e) => handleFieldUpdate(item.id, 'expiryDate', e.target.value)}
+                                            type="month"
+                                            value={item.expiryDate ? new Date(item.expiryDate).toISOString().substring(0, 7) : ''}
+                                            onChange={(e) => {
+                                                // Convert YYYY-MM to last day of month
+                                                if (e.target.value) {
+                                                    const [year, month] = e.target.value.split('-');
+                                                    const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
+                                                    const fullDate = `${year}-${month}-${String(lastDay).padStart(2, '0')}`;
+                                                    handleFieldUpdate(item.id, 'expiryDate', fullDate);
+                                                }
+                                            }}
                                             onBlur={(e) => {
                                                 // Validate expiry date
                                                 if (!e.target.value) {
                                                     e.target.classList.add('border-red-500');
                                                 } else {
-                                                    const expiryDate = new Date(e.target.value);
+                                                    const [year, month] = e.target.value.split('-');
+                                                    const expiryDate = new Date(parseInt(year), parseInt(month) - 1);
                                                     const today = new Date();
                                                     today.setHours(0, 0, 0, 0);
                                                     if (expiryDate < today) {
@@ -225,6 +240,31 @@ export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSp
                                             min="0"
                                             placeholder="0.00"
                                         />
+                                    </td>
+                                    <td className="px-4 py-3">
+                                        <input
+                                            type="number"
+                                            value={item.discountPercent || ''}
+                                            onChange={(e) => handleFieldUpdate(item.id, 'discountPercent', e.target.value)}
+                                            onFocus={(e) => {
+                                                e.target.select();
+                                            }}
+                                            className="w-20 px-2 py-1 text-right border border-gray-300 rounded focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                                            step="0.01"
+                                            min="0"
+                                            max="100"
+                                            placeholder="0"
+                                        />
+                                    </td>
+                                    <td className="px-4 py-3">
+                                        <select
+                                            value={item.discountType || 'BEFORE_GST'}
+                                            onChange={(e) => handleFieldUpdate(item.id, 'discountType', e.target.value)}
+                                            className="w-32 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm"
+                                        >
+                                            <option value="BEFORE_GST">Before GST</option>
+                                            <option value="AFTER_GST">After GST</option>
+                                        </select>
                                     </td>
                                     <td className="px-4 py-3">
                                         <div className={`flex items-center justify-center gap-1 ${status.color}`}>

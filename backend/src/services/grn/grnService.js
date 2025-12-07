@@ -110,12 +110,25 @@ class GRNService {
         const receivedQty = details.receivedQty !== undefined ? details.receivedQty : item.receivedQty;
         const unitPrice = details.unitPrice !== undefined ? details.unitPrice : item.unitPrice;
         const discountPercent = details.discountPercent !== undefined ? details.discountPercent : item.discountPercent;
+        const discountType = details.discountType !== undefined ? details.discountType : (item.discountType || 'BEFORE_GST');
         const gstPercent = details.gstPercent !== undefined ? details.gstPercent : item.gstPercent;
 
-        // Calculate line total only if numeric fields are present
-        const netAmount = receivedQty * unitPrice * (1 - (discountPercent || 0) / 100);
-        const taxAmount = netAmount * (gstPercent / 100);
-        const lineTotal = netAmount + taxAmount;
+        // Calculate line total based on discount type
+        let lineTotal;
+
+        if (discountType === 'AFTER_GST') {
+            // After GST: Apply discount on (amount + GST)
+            const grossAmount = receivedQty * unitPrice;
+            const taxAmount = grossAmount * (gstPercent / 100);
+            const subtotalWithTax = grossAmount + taxAmount;
+            const discountAmount = subtotalWithTax * ((discountPercent || 0) / 100);
+            lineTotal = subtotalWithTax - discountAmount;
+        } else {
+            // Before GST (default): Apply discount first, then GST
+            const netAmount = receivedQty * unitPrice * (1 - (discountPercent || 0) / 100);
+            const taxAmount = netAmount * (gstPercent / 100);
+            lineTotal = netAmount + taxAmount;
+        }
 
         // Update item
         const updatedItem = await grnRepository.updateGRNItem(grnId, itemId, {
@@ -374,11 +387,29 @@ class GRNService {
         let taxAmount = 0;
 
         for (const item of grn.items) {
-            const netAmount = item.receivedQty * item.unitPrice * (1 - (item.discountPercent || 0) / 100);
-            const tax = netAmount * (item.gstPercent / 100);
+            const discountType = item.discountType || 'BEFORE_GST';
 
-            subtotal += netAmount;
-            taxAmount += tax;
+            if (discountType === 'AFTER_GST') {
+                // After GST: Calculate gross + tax, then apply discount
+                const grossAmount = item.receivedQty * item.unitPrice;
+                const tax = grossAmount * (item.gstPercent / 100);
+                const subtotalWithTax = grossAmount + tax;
+                const discountAmount = subtotalWithTax * ((item.discountPercent || 0) / 100);
+                const itemTotal = subtotalWithTax - discountAmount;
+
+                // For totals, we need to separate base and tax
+                // Approximate: distribute discount proportionally
+                const discountRatio = 1 - ((item.discountPercent || 0) / 100);
+                subtotal += grossAmount * discountRatio;
+                taxAmount += tax * discountRatio;
+            } else {
+                // Before GST: Apply discount first, then GST
+                const netAmount = item.receivedQty * item.unitPrice * (1 - (item.discountPercent || 0) / 100);
+                const tax = netAmount * (item.gstPercent / 100);
+
+                subtotal += netAmount;
+                taxAmount += tax;
+            }
         }
 
         const total = subtotal + taxAmount;

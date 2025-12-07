@@ -1329,6 +1329,7 @@ model GRNItem {
   mrp             Decimal @db.Decimal(10, 2)
   unitPrice       Decimal @db.Decimal(10, 2)
   discountPercent Decimal @default(0) @db.Decimal(5, 2)
+  discountType    String  @default("BEFORE_GST") // BEFORE_GST or AFTER_GST
   gstPercent      Decimal @db.Decimal(5, 2)
 
   // Calculated

@@ -21,6 +21,7 @@ router.use(authenticate);
  * Patient routes (require store access)
  * IMPORTANT: Specific routes must come BEFORE parameterized routes (:id)
  */
+router.get('/search', requireStoreAccess, patientController.searchPatients);
 router.get('/', requireStoreAccess, validate(patientQuerySchema, 'query'), patientController.getPatients);
 router.get('/stats', requireStoreAccess, patientController.getPatientStats);
 
