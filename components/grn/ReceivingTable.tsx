@@ -81,7 +81,7 @@ export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSp
                                 MRP
                             </th>
                             <th className="px-4 py-3 text-right text-xs font-medium text-gray-700 uppercase tracking-wider">
-                                Rate
+                                Purchase Rate
                             </th>
                             <th className="px-4 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider">
                                 Status
@@ -214,11 +214,16 @@ export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSp
                                     <td className="px-4 py-3">
                                         <input
                                             type="number"
-                                            value={item.unitPrice}
-                                            disabled
-                                            className="w-24 px-2 py-1 text-right border border-gray-200 bg-gray-50 rounded text-gray-500 cursor-not-allowed"
+                                            value={item.unitPrice || ''}
+                                            onChange={(e) => handleFieldUpdate(item.id, 'unitPrice', e.target.value)}
+                                            onFocus={(e) => {
+                                                // Select all on focus
+                                                e.target.select();
+                                            }}
+                                            className="w-24 px-2 py-1 text-right border border-gray-300 rounded focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                                             step="0.01"
                                             min="0"
+                                            placeholder="0.00"
                                         />
                                     </td>
                                     <td className="px-4 py-3">
