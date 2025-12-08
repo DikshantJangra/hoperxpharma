@@ -142,7 +142,15 @@ async function baseFetch(
         Object.assign(headers, customHeaders);
     }
 
-    const token = tokenManager.getAccessToken();
+    // Always try to load token from localStorage if not in memory
+    let token = tokenManager.getAccessToken();
+    if (!token && typeof window !== 'undefined') {
+        token = localStorage.getItem('accessToken');
+        if (token) {
+            tokenManager.setAccessToken(token);
+        }
+    }
+
     if (token) {
         headers['Authorization'] = `Bearer ${token}`;
     }

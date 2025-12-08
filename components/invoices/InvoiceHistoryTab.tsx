@@ -28,9 +28,15 @@ export default function InvoiceHistoryTab() {
             if (response.success) {
                 setInvoices(response.data || []);
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Failed to fetch invoices:', error);
-            toast.error('Failed to load invoices');
+
+            if (error.status === 401) {
+                toast.error('Session expired. Please log in again.');
+                router.push('/login');
+            } else {
+                toast.error(error.message || 'Failed to load invoices');
+            }
         } finally {
             setLoading(false);
         }
@@ -50,6 +56,20 @@ export default function InvoiceHistoryTab() {
         } catch (error: any) {
             toast.error(error.message || 'Failed to delete invoice');
         }
+    };
+
+    const handleDownload = async (invoice: ConsolidatedInvoice) => {
+        try {
+            // Navigate to detail page which has PDF download
+            router.push(`/orders/invoices/${invoice.id}`);
+        } catch (error: any) {
+            toast.error('Failed to download invoice');
+        }
+    };
+
+    const handlePrint = (invoice: ConsolidatedInvoice) => {
+        // Navigate to detail page and trigger print
+        router.push(`/orders/invoices/${invoice.id}?print=true`);
     };
 
     const getStatusColor = (status: string) => {
@@ -105,9 +125,15 @@ export default function InvoiceHistoryTab() {
                     </div>
                 ) : invoices.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-64">
-                        <FiSearch className="w-12 h-12 text-gray-300 mb-3" />
-                        <p className="text-gray-500">No invoices found</p>
-                        <p className="text-sm text-gray-400">Create your first invoice from the Create tab</p>
+                        <FiSearch className="w-16 h-16 text-gray-300 mb-4" />
+                        <h3 className="text-lg font-semibold text-gray-700 mb-2">
+                            No Invoices Found
+                        </h3>
+                        <p className="text-sm text-gray-500 text-center max-w-md mb-4">
+                            {search || statusFilter
+                                ? "No invoices match your search criteria."
+                                : "Create your first invoice from the Create Invoice tab."}
+                        </p>
                     </div>
                 ) : (
                     <table className="w-full">
@@ -159,12 +185,14 @@ export default function InvoiceHistoryTab() {
                                                 <FiEye className="w-4 h-4" />
                                             </button>
                                             <button
+                                                onClick={() => handleDownload(invoice)}
                                                 className="p-1.5 text-gray-600 hover:bg-gray-100 rounded"
                                                 title="Download PDF"
                                             >
                                                 <FiDownload className="w-4 h-4" />
                                             </button>
                                             <button
+                                                onClick={() => handlePrint(invoice)}
                                                 className="p-1.5 text-gray-600 hover:bg-gray-100 rounded"
                                                 title="Print"
                                             >

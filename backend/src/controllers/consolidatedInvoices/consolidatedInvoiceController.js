@@ -6,6 +6,17 @@ const consolidatedInvoiceService = require('../../services/consolidatedInvoices/
  * GET /api/v1/consolidated-invoices/grns
  */
 const getGRNsForInvoicing = asyncHandler(async (req, res) => {
+    // Debug logging
+    console.log('[Invoice] User ID:', req.user?.id, 'StoreId:', req.user?.storeId);
+
+    // Validate authentication
+    if (!req.user || !req.user.storeId) {
+        return res.status(401).json({
+            success: false,
+            message: 'Authentication required. Please log in again.'
+        });
+    }
+
     const { startDate, endDate, supplierId, status } = req.query;
     const storeId = req.user.storeId;
 
@@ -19,7 +30,8 @@ const getGRNsForInvoicing = asyncHandler(async (req, res) => {
     res.json({
         success: true,
         data: grns,
-        message: 'GRNs fetched successfully'
+        count: grns.length,
+        message: grns.length === 0 ? 'No GRNs found for the selected criteria' : 'GRNs fetched successfully'
     });
 });
 
@@ -67,6 +79,14 @@ const getInvoiceById = asyncHandler(async (req, res) => {
  * GET /api/v1/consolidated-invoices
  */
 const listInvoices = asyncHandler(async (req, res) => {
+    // Validate authentication
+    if (!req.user || !req.user.storeId) {
+        return res.status(401).json({
+            success: false,
+            message: 'Authentication required'
+        });
+    }
+
     const { page, limit, status, supplierId, startDate, endDate, search } = req.query;
     const storeId = req.user.storeId;
 
