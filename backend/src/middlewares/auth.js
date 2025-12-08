@@ -50,6 +50,7 @@ const authenticate = async (req, res, next) => {
                 name: su.store.name,
                 isPrimary: su.isPrimary,
             })) || [],
+            storeId: primaryStoreUser?.store.id || user.storeUsers?.[0]?.store.id,
         };
 
         // Also set storeId directly for convenience (from primary store or first store)
