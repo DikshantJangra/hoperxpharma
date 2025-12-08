@@ -116,7 +116,10 @@ export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSp
                                             <input
                                                 type="number"
                                                 value={(item.receivedQty ?? 0).toString()}
-                                                onChange={(e) => handleFieldUpdate(item.id, 'receivedQty', e.target.value)}
+                                                onChange={(e) => {
+                                                    const val = e.target.value === '' ? '0' : parseFloat(e.target.value).toString();
+                                                    handleFieldUpdate(item.id, 'receivedQty', val);
+                                                }}
                                                 onFocus={(e) => e.target.select()}
                                                 className="w-20 px-2 py-1 text-center border border-gray-300 rounded focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                                                 min="0"
@@ -127,7 +130,10 @@ export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSp
                                             <input
                                                 type="number"
                                                 value={(item.freeQty ?? 0).toString()}
-                                                onChange={(e) => handleFieldUpdate(item.id, 'freeQty', e.target.value)}
+                                                onChange={(e) => {
+                                                    const val = e.target.value === '' ? '0' : parseFloat(e.target.value).toString();
+                                                    handleFieldUpdate(item.id, 'freeQty', val);
+                                                }}
                                                 onFocus={(e) => e.target.select()}
                                                 className="w-20 px-2 py-1 text-center border border-gray-300 rounded focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                                                 min="0"
@@ -153,36 +159,42 @@ export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSp
                                                     const date = new Date(item.expiryDate);
                                                     return `${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
                                                 })() : ''}
-                                                onChange={(e) => {
-                                                    let value = e.target.value.replace(/[^0-9]/g, ''); // Only numbers
+                                                onInput={(e) => {
+                                                    let value = e.currentTarget.value.replace(/[^0-9/]/g, '');
 
-                                                    // Auto-format: Add / after 2 digits
-                                                    if (value.length >= 2) {
-                                                        const month = value.substring(0, 2);
-                                                        const year = value.substring(2, 6);
-
-                                                        // Validate month (01-12)
-                                                        if (parseInt(month) > 12) {
-                                                            value = '12' + year;
-                                                        }
-                                                        if (parseInt(month) === 0) {
-                                                            value = '01' + year;
-                                                        }
-
-                                                        e.target.value = month + (year ? '/' + year : '');
+                                                    // Auto-add / after 2 digits if not already there
+                                                    if (value.length === 2 && !value.includes('/')) {
+                                                        value = value + '/';
                                                     }
 
-                                                    // Limit to MM/YYYY format (7 chars max)
-                                                    if (e.target.value.length > 7) {
-                                                        e.target.value = e.target.value.substring(0, 7);
+                                                    // Validate month (can't be > 12)
+                                                    if (value.length >= 2 && !value.includes('/')) {
+                                                        const month = parseInt(value.substring(0, 2));
+                                                        if (month > 12) {
+                                                            value = '12';
+                                                        }
                                                     }
+
+                                                    // Limit to MM/YYYY format
+                                                    if (value.length > 7) {
+                                                        value = value.substring(0, 7);
+                                                    }
+
+                                                    e.currentTarget.value = value;
                                                 }}
                                                 onBlur={(e) => {
-                                                    const value = e.target.value;
+                                                    let value = e.currentTarget.value.trim();
+
+                                                    // Validate and save only on blur
                                                     if (value && value.match(/^(0?[1-9]|1[0-2])\/(\d{4})$/)) {
                                                         const [month, year] = value.split('/');
+                                                        const paddedMonth = month.padStart(2, '0');
                                                         const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
-                                                        const fullDate = `${year}-${month.padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+                                                        const fullDate = `${year}-${paddedMonth}-${String(lastDay).padStart(2, '0')}`;
+
+                                                        // Update display to padded format
+                                                        e.currentTarget.value = `${paddedMonth}/${year}`;
+
                                                         handleFieldUpdate(item.id, 'expiryDate', fullDate);
                                                     }
                                                 }}
@@ -197,7 +209,10 @@ export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSp
                                             <input
                                                 type="number"
                                                 value={item.mrp || 0}
-                                                onChange={(e) => handleFieldUpdate(item.id, 'mrp', e.target.value)}
+                                                onChange={(e) => {
+                                                    const val = e.target.value === '' ? '0' : parseFloat(e.target.value).toString();
+                                                    handleFieldUpdate(item.id, 'mrp', val);
+                                                }}
                                                 onFocus={(e) => e.target.select()}
                                                 className="w-24 px-2 py-1 text-right border border-gray-300 rounded focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                                                 step="0.01"
@@ -210,7 +225,10 @@ export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSp
                                             <input
                                                 type="number"
                                                 value={item.unitPrice || 0}
-                                                onChange={(e) => handleFieldUpdate(item.id, 'unitPrice', e.target.value)}
+                                                onChange={(e) => {
+                                                    const val = e.target.value === '' ? '0' : parseFloat(e.target.value).toString();
+                                                    handleFieldUpdate(item.id, 'unitPrice', val);
+                                                }}
                                                 onFocus={(e) => e.target.select()}
                                                 className="w-24 px-2 py-1 text-right border border-gray-300 rounded focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                                                 step="0.01"
@@ -223,7 +241,10 @@ export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSp
                                             <input
                                                 type="number"
                                                 value={item.discountPercent !== undefined && item.discountPercent !== null ? item.discountPercent : 0}
-                                                onChange={(e) => handleFieldUpdate(item.id, 'discountPercent', e.target.value)}
+                                                onChange={(e) => {
+                                                    const val = e.target.value === '' ? '0' : parseFloat(e.target.value).toString();
+                                                    handleFieldUpdate(item.id, 'discountPercent', val);
+                                                }}
                                                 onFocus={(e) => e.target.select()}
                                                 className="w-20 px-2 py-1 text-right border border-gray-300 rounded focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                                                 step="0.01"
@@ -354,33 +375,24 @@ export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSp
                                                             const date = new Date(child.expiryDate);
                                                             return `${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
                                                         })() : ''}
-                                                        onChange={(e) => {
-                                                            let value = e.target.value.replace(/[^0-9]/g, '');
-
-                                                            if (value.length >= 2) {
-                                                                const month = value.substring(0, 2);
-                                                                const year = value.substring(2, 6);
-
-                                                                if (parseInt(month) > 12) {
-                                                                    value = '12' + year;
-                                                                }
-                                                                if (parseInt(month) === 0) {
-                                                                    value = '01' + year;
-                                                                }
-
-                                                                e.target.value = month + (year ? '/' + year : '');
+                                                        onInput={(e) => {
+                                                            let value = e.currentTarget.value.replace(/[^0-9/]/g, '');
+                                                            if (value.length === 2 && !value.includes('/')) {
+                                                                value = value + '/';
                                                             }
-
-                                                            if (e.target.value.length > 7) {
-                                                                e.target.value = e.target.value.substring(0, 7);
+                                                            if (value.length > 7) {
+                                                                value = value.substring(0, 7);
                                                             }
+                                                            e.currentTarget.value = value;
                                                         }}
                                                         onBlur={(e) => {
-                                                            const value = e.target.value;
+                                                            let value = e.currentTarget.value.trim();
                                                             if (value && value.match(/^(0?[1-9]|1[0-2])\/(\d{4})$/)) {
                                                                 const [month, year] = value.split('/');
+                                                                const paddedMonth = month.padStart(2, '0');
                                                                 const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
-                                                                const fullDate = `${year}-${month.padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+                                                                const fullDate = `${year}-${paddedMonth}-${String(lastDay).padStart(2, '0')}`;
+                                                                e.currentTarget.value = `${paddedMonth}/${year}`;
                                                                 handleFieldUpdate(child.id, 'expiryDate', fullDate);
                                                             }
                                                         }}
@@ -396,6 +408,11 @@ export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSp
                                                         value={child.mrp || 0}
                                                         onChange={(e) => handleFieldUpdate(child.id, 'mrp', e.target.value)}
                                                         onFocus={(e) => e.target.select()}
+                                                        onBlur={(e) => {
+                                                            const val = parseFloat(e.target.value) || 0;
+                                                            e.target.value = val.toString();
+                                                            handleFieldUpdate(child.id, 'mrp', val.toString());
+                                                        }}
                                                         className="w-24 px-2 py-1 text-right border border-gray-300 rounded focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                                                         step="0.01"
                                                         min="0"
@@ -408,6 +425,11 @@ export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSp
                                                         value={child.unitPrice || 0}
                                                         onChange={(e) => handleFieldUpdate(child.id, 'unitPrice', e.target.value)}
                                                         onFocus={(e) => e.target.select()}
+                                                        onBlur={(e) => {
+                                                            const val = parseFloat(e.target.value) || 0;
+                                                            e.target.value = val.toString();
+                                                            handleFieldUpdate(child.id, 'unitPrice', val.toString());
+                                                        }}
                                                         className="w-24 px-2 py-1 text-right border border-gray-300 rounded focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                                                         step="0.01"
                                                         min="0"
@@ -420,6 +442,11 @@ export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSp
                                                         value={child.discountPercent !== undefined && child.discountPercent !== null ? child.discountPercent : 0}
                                                         onChange={(e) => handleFieldUpdate(child.id, 'discountPercent', e.target.value)}
                                                         onFocus={(e) => e.target.select()}
+                                                        onBlur={(e) => {
+                                                            const val = parseFloat(e.target.value) || 0;
+                                                            e.target.value = val.toString();
+                                                            handleFieldUpdate(child.id, 'discountPercent', val.toString());
+                                                        }}
                                                         className="w-20 px-2 py-1 text-right border border-gray-300 rounded focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                                                         step="0.01"
                                                         min="0"

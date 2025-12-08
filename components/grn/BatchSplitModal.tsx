@@ -218,33 +218,31 @@ export default function BatchSplitModal({ item, drugName, onSplit, onClose }: Ba
                                                 const date = new Date(split.expiryDate);
                                                 return `${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
                                             })() : ''}
-                                            onChange={(e) => {
-                                                let value = e.target.value.replace(/[^0-9]/g, '');
-
-                                                if (value.length >= 2) {
-                                                    const month = value.substring(0, 2);
-                                                    const year = value.substring(2, 6);
-
-                                                    if (parseInt(month) > 12) {
-                                                        value = '12' + year;
-                                                    }
-                                                    if (parseInt(month) === 0) {
-                                                        value = '01' + year;
-                                                    }
-
-                                                    e.target.value = month + (year ? '/' + year : '');
+                                            onInput={(e) => {
+                                                let value = e.currentTarget.value.replace(/[^0-9/]/g, '');
+                                                if (value.length === 2 && !value.includes('/')) {
+                                                    value = value + '/';
                                                 }
-
-                                                if (e.target.value.length > 7) {
-                                                    e.target.value = e.target.value.substring(0, 7);
+                                                // Validate month (can't be > 12)
+                                                if (value.length >= 2 && !value.includes('/')) {
+                                                    const month = parseInt(value.substring(0, 2));
+                                                    if (month > 12) {
+                                                        value = '12';
+                                                    }
                                                 }
+                                                if (value.length > 7) {
+                                                    value = value.substring(0, 7);
+                                                }
+                                                e.currentTarget.value = value;
                                             }}
                                             onBlur={(e) => {
-                                                const value = e.target.value;
+                                                let value = e.currentTarget.value.trim();
                                                 if (value && value.match(/^(0?[1-9]|1[0-2])\/(\d{4})$/)) {
                                                     const [month, year] = value.split('/');
+                                                    const paddedMonth = month.padStart(2, '0');
                                                     const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
-                                                    const fullDate = `${year}-${month.padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+                                                    const fullDate = `${year}-${paddedMonth}-${String(lastDay).padStart(2, '0')}`;
+                                                    e.currentTarget.value = `${paddedMonth}/${year}`;
                                                     updateSplit(index, 'expiryDate', fullDate);
                                                 }
                                             }}
