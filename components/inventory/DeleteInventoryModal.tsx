@@ -222,7 +222,10 @@ export default function DeleteInventoryModal({ type, item, onClose, onSuccess }:
                                                     <span className="text-gray-600">{batch.quantityInStock} units</span>
                                                 </div>
                                                 <div className="text-xs text-gray-500 mt-1">
-                                                    Expiry: {new Date(batch.expiryDate).toLocaleDateString()} •
+                                                    Expiry: {(() => {
+                                                        const date = new Date(batch.expiryDate);
+                                                        return `${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+                                                    })()} •
                                                     Value: ₹{((batch.quantityInStock || 0) * (batch.purchasePrice || 0)).toFixed(2)}
                                                 </div>
                                             </div>

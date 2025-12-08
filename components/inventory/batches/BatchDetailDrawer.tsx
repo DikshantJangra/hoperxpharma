@@ -167,8 +167,11 @@ export default function BatchDetailDrawer({ batch, onClose }: any) {
               <div className="bg-white border border-[#e2e8f0] rounded-lg p-4 space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-[#64748b]">Expiry Date</span>
-                  <span className="font-medium text-[#0f172a]">
-                    {batch.expiryDate ? new Date(batch.expiryDate).toLocaleDateString() : (batch.expiry || 'N/A')}
+                  <span className="text-[#0f172a] font-medium">
+                    {batch.expiryDate ? (() => {
+                      const date = new Date(batch.expiryDate);
+                      return `${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+                    })() : (batch.expiry || 'N/A')}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">

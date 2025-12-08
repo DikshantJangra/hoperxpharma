@@ -100,7 +100,10 @@ export default function BatchTable({ batches, isLoading, searchQuery, onSelectBa
                   </td>
                   <td className="px-4 py-3">
                     <div>
-                      <div className="text-sm text-[#0f172a]">{new Date(batch.expiryDate).toLocaleDateString()}</div>
+                      <div className="text-sm text-[#0f172a]">{(() => {
+                        const date = new Date(batch.expiryDate);
+                        return `${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+                      })()}</div>
                       <span className={`inline-block px-2 py-0.5 text-xs rounded mt-1 ${getExpiryColor(daysToExpiry)}`}>
                         {daysToExpiry < 0 ? 'Expired' : `${daysToExpiry}d`}
                       </span>

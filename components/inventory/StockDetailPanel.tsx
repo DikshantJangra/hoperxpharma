@@ -255,7 +255,10 @@ export default function StockDetailPanel({ item, onClose }: any) {
                             )}
                           </div>
                           <p className="text-xs text-[#64748b] mt-1">
-                            Expiry: {new Date(batch.expiryDate).toLocaleDateString()}
+                            Expiry: {(() => {
+                              const date = new Date(batch.expiryDate);
+                              return `${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+                            })()}
                           </p>
                           <div className="flex items-center gap-2 mt-1">
                             <span className="text-xs text-[#64748b]">Location:</span>
