@@ -2,15 +2,17 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { FiX, FiShoppingCart, FiEdit, FiSend, FiClock, FiPackage, FiAlertCircle, FiCheck, FiTrash2 } from 'react-icons/fi';
+import { FiX, FiShoppingCart, FiEdit, FiSend, FiClock, FiPackage, FiAlertCircle, FiCheck, FiTrash2, FiEdit2 } from 'react-icons/fi';
 import { BsSnow, BsQrCode } from 'react-icons/bs';
 import { toast } from 'sonner';
 import AdjustStockModal from './AdjustStockModal';
 import DeleteInventoryModal from './DeleteInventoryModal';
+import EditDrugModal from './EditDrugModal';
 import { mapDrugToDetailPanel } from '@/lib/utils/drugMapper';
 
 export default function StockDetailPanel({ item, onClose }: any) {
   const [showAdjustModal, setShowAdjustModal] = useState(false);
+  const [showEditDrugModal, setShowEditDrugModal] = useState(false);
   const [batchesWithSuppliers, setBatchesWithSuppliers] = useState<any[]>([]);
   const [isLoadingBatches, setIsLoadingBatches] = useState(true);
   const [editingLocation, setEditingLocation] = useState<string | null>(null);
@@ -23,9 +25,55 @@ export default function StockDetailPanel({ item, onClose }: any) {
 
   useEffect(() => {
     if (mappedItem && mappedItem.id) {
-      fetchBatchesWithSuppliers();
+      // Use inventory data that's already in the item object
+      if (item.inventory && Array.isArray(item.inventory)) {
+        fetchSupplierInfo(item.inventory);
+      } else {
+        // Fallback: fetch from API if inventory is not in item
+        fetchBatchesWithSuppliers();
+      }
     }
   }, [mappedItem?.id]);
+
+  const fetchSupplierInfo = async (batches: any[]) => {
+    try {
+      setIsLoadingBatches(true);
+
+      // Fetch supplier info for each batch that has a supplierId
+      const batchesWithSuppliers = await Promise.all(
+        batches.map(async (batch) => {
+          if (batch.supplierId) {
+            try {
+              const response = await fetch(
+                `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'}/suppliers/${batch.supplierId}`,
+                {
+                  headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+                  }
+                }
+              );
+              if (response.ok) {
+                const result = await response.json();
+                const supplier = result.data || result;
+                return { ...batch, supplier };
+              }
+            } catch (error) {
+              console.error(`Failed to fetch supplier for batch ${batch.id}:`, error);
+            }
+          }
+          return { ...batch, supplier: null };
+        })
+      );
+
+      setBatchesWithSuppliers(batchesWithSuppliers);
+    } catch (error) {
+      console.error('Failed to fetch supplier info:', error);
+      // Still show batches even if supplier fetch fails
+      setBatchesWithSuppliers(batches.map(b => ({ ...b, supplier: null })));
+    } finally {
+      setIsLoadingBatches(false);
+    }
+  };
 
   const fetchBatchesWithSuppliers = async () => {
     if (!mappedItem) return;
@@ -305,7 +353,15 @@ export default function StockDetailPanel({ item, onClose }: any) {
             <FiShoppingCart className="w-4 h-4" />
             Create PO
           </button>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-4 gap-2">
+            <button
+              onClick={() => setShowEditDrugModal(true)}
+              className="py-2 border border-emerald-200 bg-emerald-50 text-emerald-700 rounded-lg hover:bg-emerald-100 flex items-center justify-center gap-2 text-sm"
+              title="Edit drug information"
+            >
+              <FiEdit2 className="w-4 h-4" />
+              Edit
+            </button>
             <button
               onClick={() => setShowAdjustModal(true)}
               className="py-2 border border-[#cbd5e1] rounded-lg hover:bg-[#f8fafc] flex items-center justify-center gap-2 text-sm"
@@ -334,7 +390,7 @@ export default function StockDetailPanel({ item, onClose }: any) {
           item={mappedItem}
           onClose={() => setShowAdjustModal(false)}
           onSuccess={() => {
-            fetchBatchesWithSuppliers(); // Refresh batches
+            fetchSupplierInfo(item.inventory || []); // Refresh batches
           }}
         />
       )}
@@ -349,6 +405,18 @@ export default function StockDetailPanel({ item, onClose }: any) {
             if (deleteModal.type === 'drug') {
               onClose(); // Close the detail panel if drug is deleted
             }
+          }}
+        />
+      )}
+
+      {showEditDrugModal && (
+        <EditDrugModal
+          drugId={mappedItem.id}
+          isOpen={showEditDrugModal}
+          onClose={() => setShowEditDrugModal(false)}
+          onSuccess={() => {
+            fetchSupplierInfo(item.inventory || []); // Refresh data
+            toast.success('Drug information updated');
           }}
         />
       )}

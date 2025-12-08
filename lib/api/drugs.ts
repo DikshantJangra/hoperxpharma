@@ -9,6 +9,16 @@ export const drugApi = {
     // Get drug by ID
     async getDrugById(id: string) {
         return apiClient.get(`/drugs/${id}`);
+    },
+
+    // Update drug
+    async updateDrug(id: string, data: any) {
+        return apiClient.put(`/inventory/drugs/${id}`, data);
+    },
+
+    // Delete drug
+    async deleteDrug(id: string) {
+        return apiClient.delete(`/inventory/drugs/${id}`);
     }
 };
 

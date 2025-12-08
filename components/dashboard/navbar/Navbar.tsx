@@ -150,17 +150,18 @@ function CenterSection() {
     const pathname = usePathname()
     const [searchQuery, setSearchQuery] = useState("")
 
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === '/' && !e.ctrlKey && !e.metaKey) {
-                e.preventDefault()
-                document.getElementById('global-search')?.focus()
-            }
-        }
+    // Disabled "/" keyboard shortcut as per user request
+    // useEffect(() => {
+    //     const handleKeyDown = (e: KeyboardEvent) => {
+    //         if (e.key === '/' && !e.ctrlKey && !e.metaKey) {
+    //             e.preventDefault()
+    //             document.getElementById('global-search')?.focus()
+    //         }
+    //     }
 
-        window.addEventListener('keydown', handleKeyDown)
-        return () => window.removeEventListener('keydown', handleKeyDown)
-    }, [])
+    //     window.addEventListener('keydown', handleKeyDown)
+    //     return () => window.removeEventListener('keydown', handleKeyDown)
+    // }, [])
 
     const handleSearch = (e: React.FormEvent) => {
         e.preventDefault()
@@ -234,7 +235,7 @@ function CenterSection() {
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search patients, drugs, invoices... (Press /)"
+                    placeholder="Search patients, drugs, invoices..."
                     className="w-full bg-gray-50 border border-gray-200 rounded-lg pl-10 pr-4 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 focus:bg-white transition-all"
                 />
             </form>
