@@ -69,7 +69,11 @@ class GRNRepository {
         const grn = await prisma.goodsReceivedNote.findUnique({
             where: { id },
             include: {
-                items: true,
+                items: {
+                    include: {
+                        children: true  // Include split batches
+                    }
+                },
                 discrepancies: true,
                 po: {
                     include: {
@@ -195,7 +199,13 @@ class GRNRepository {
             }
 
             // 1. Create inventory batches for each GRN item
+            // Skip parent items (isSplit=true) - only create inventory for actual batches
             for (const item of grn.items) {
+                // Skip parent items that have been split
+                if (item.isSplit) {
+                    continue;
+                }
+
                 const totalQty = item.receivedQty + item.freeQty;
 
                 if (totalQty > 0) {

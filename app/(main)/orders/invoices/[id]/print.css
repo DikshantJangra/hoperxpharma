@@ -1,0 +1,41 @@
+/* Print Styles for Invoice Detail Page */
+@media print {
+    /* Hide non-printable elements */
+    .print\\:hidden {
+        display: none !important;
+    }
+
+    /* Remove shadows and borders for clean print */
+    .print\\:shadow-none {
+        box-shadow: none !important;
+    }
+
+    .print\\:border-0 {
+        border: 0 !important;
+    }
+
+    /* Remove padding for full page print */
+    .print\\:p-0 {
+        padding: 0 !important;
+    }
+
+    /* Ensure page breaks */
+    @page {
+        margin: 1cm;
+    }
+
+    /* Prevent page breaks inside elements */
+    table, tr, td, th {
+        page-break-inside: avoid;
+    }
+
+    /* Ensure black text for printing */
+    body {
+        color: #000 !important;
+    }
+
+    /* Remove background colors */
+    * {
+        background: white !important;
+    }
+}

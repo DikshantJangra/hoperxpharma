@@ -119,6 +119,7 @@ export const sidebarConfig: SidebarSection[] = [
                     { label: "New PO", path: "/orders/new-po", requiredPermission: "po.create" },
                     { label: "Pending", path: "/orders/pending", requiredPermission: "po.read" },
                     { label: "Received", path: "/orders/received", requiredPermission: "po.receive" },
+                    { label: "Invoices", path: "/orders/invoices", requiredPermission: "po.view" },
                     { label: "Returns", path: "/orders/returns", requiredPermission: "po.read" }
                 ]
             },

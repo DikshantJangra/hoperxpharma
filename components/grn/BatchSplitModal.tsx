@@ -17,9 +17,11 @@ export default function BatchSplitModal({ item, drugName, onSplit, onClose }: Ba
             freeQty: 0,
             batchNumber: '',
             expiryDate: '',
+            location: '',
             mrp: item.mrp,
             unitPrice: item.unitPrice,
             discountPercent: item.discountPercent,
+            discountType: item.discountType || 'BEFORE_GST',
             gstPercent: item.gstPercent
         },
         {
@@ -27,15 +29,42 @@ export default function BatchSplitModal({ item, drugName, onSplit, onClose }: Ba
             freeQty: 0,
             batchNumber: '',
             expiryDate: '',
+            location: '',
             mrp: item.mrp,
             unitPrice: item.unitPrice,
             discountPercent: item.discountPercent,
+            discountType: item.discountType || 'BEFORE_GST',
             gstPercent: item.gstPercent
         }
     ]);
 
     const totalQty = splits.reduce((sum, split) => sum + parseInt(split.receivedQty.toString()), 0);
-    const isValid = totalQty === item.receivedQty && splits.every(s => s.batchNumber && s.expiryDate);
+    const totalFreeQty = splits.reduce((sum, split) => sum + parseInt(split.freeQty.toString()), 0);
+
+    // Validation
+    const errors = [];
+    if (totalQty !== item.receivedQty) {
+        errors.push(`Split quantities must total ${item.receivedQty} (currently ${totalQty})`);
+    }
+    if (totalFreeQty !== (item.freeQty || 0)) {
+        errors.push(`Free quantities must total ${item.freeQty || 0} (currently ${totalFreeQty})`);
+    }
+    if (splits.some(s => !s.batchNumber || s.batchNumber.trim() === '')) {
+        errors.push('All splits must have batch numbers');
+    }
+    if (splits.some(s => !s.expiryDate)) {
+        errors.push('All splits must have expiry dates');
+    }
+    if (splits.some(s => s.receivedQty <= 0 && s.freeQty <= 0)) {
+        errors.push('Each split must have quantity > 0');
+    }
+    // Check for duplicate batch numbers
+    const batchNumbers = splits.map(s => s.batchNumber).filter(b => b);
+    if (new Set(batchNumbers).size !== batchNumbers.length) {
+        errors.push('Batch numbers must be unique');
+    }
+
+    const isValid = errors.length === 0;
 
     const addSplit = () => {
         setSplits([...splits, {
@@ -43,9 +72,11 @@ export default function BatchSplitModal({ item, drugName, onSplit, onClose }: Ba
             freeQty: 0,
             batchNumber: '',
             expiryDate: '',
+            location: '',
             mrp: item.mrp,
             unitPrice: item.unitPrice,
             discountPercent: item.discountPercent,
+            discountType: item.discountType || 'BEFORE_GST',
             gstPercent: item.gstPercent
         }]);
     };
@@ -84,13 +115,36 @@ export default function BatchSplitModal({ item, drugName, onSplit, onClose }: Ba
                 {/* Content */}
                 <div className="p-6">
                     <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
-                        <p className="text-sm text-blue-900">
-                            Total quantity to distribute: <span className="font-semibold">{item.receivedQty} units</span>
-                        </p>
-                        <p className="text-sm text-blue-700 mt-1">
-                            Current total: <span className={totalQty === item.receivedQty ? 'text-emerald-600 font-semibold' : 'text-red-600 font-semibold'}>{totalQty} units</span>
-                        </p>
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                            <div>
+                                <span className="text-blue-700">Received to distribute:</span>
+                                <span className="font-semibold text-blue-900 ml-2">{item.receivedQty} units</span>
+                            </div>
+                            <div>
+                                <span className="text-blue-700">Free to distribute:</span>
+                                <span className="font-semibold text-blue-900 ml-2">{item.freeQty || 0} units</span>
+                            </div>
+                            <div>
+                                <span className="text-blue-700">Current received total:</span>
+                                <span className={`font-semibold ml-2 ${totalQty === item.receivedQty ? 'text-emerald-600' : 'text-red-600'}`}>{totalQty} units</span>
+                            </div>
+                            <div>
+                                <span className="text-blue-700">Current free total:</span>
+                                <span className={`font-semibold ml-2 ${totalFreeQty === (item.freeQty || 0) ? 'text-emerald-600' : 'text-red-600'}`}>{totalFreeQty} units</span>
+                            </div>
+                        </div>
                     </div>
+
+                    {errors.length > 0 && (
+                        <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3">
+                            <p className="text-sm font-semibold text-red-900 mb-1">Validation Errors:</p>
+                            <ul className="text-sm text-red-700 list-disc list-inside space-y-1">
+                                {errors.map((error, idx) => (
+                                    <li key={idx}>{error}</li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
 
                     <div className="space-y-4">
                         {splits.map((split, index) => (
@@ -116,6 +170,7 @@ export default function BatchSplitModal({ item, drugName, onSplit, onClose }: Ba
                                             type="number"
                                             value={split.receivedQty}
                                             onChange={(e) => updateSplit(index, 'receivedQty', parseInt(e.target.value) || 0)}
+                                            onFocus={(e) => e.target.select()}
                                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
                                             min="0"
                                         />
@@ -128,6 +183,7 @@ export default function BatchSplitModal({ item, drugName, onSplit, onClose }: Ba
                                             type="number"
                                             value={split.freeQty}
                                             onChange={(e) => updateSplit(index, 'freeQty', parseInt(e.target.value) || 0)}
+                                            onFocus={(e) => e.target.select()}
                                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
                                             min="0"
                                         />
@@ -146,13 +202,32 @@ export default function BatchSplitModal({ item, drugName, onSplit, onClose }: Ba
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Expiry Date *
+                                            Expiry (MM/YYYY) *
                                         </label>
                                         <input
-                                            type="date"
-                                            value={split.expiryDate}
-                                            onChange={(e) => updateSplit(index, 'expiryDate', e.target.value)}
+                                            type="month"
+                                            value={split.expiryDate ? new Date(split.expiryDate).toISOString().substring(0, 7) : ''}
+                                            onChange={(e) => {
+                                                if (e.target.value) {
+                                                    const [year, month] = e.target.value.split('-');
+                                                    const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
+                                                    const fullDate = `${year}-${month}-${String(lastDay).padStart(2, '0')}`;
+                                                    updateSplit(index, 'expiryDate', fullDate);
+                                                }
+                                            }}
                                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Location
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={split.location || ''}
+                                            onChange={(e) => updateSplit(index, 'location', e.target.value)}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
+                                            placeholder="e.g., Rack A-1"
                                         />
                                     </div>
                                     <div>
@@ -163,6 +238,7 @@ export default function BatchSplitModal({ item, drugName, onSplit, onClose }: Ba
                                             type="number"
                                             value={split.mrp}
                                             onChange={(e) => updateSplit(index, 'mrp', parseFloat(e.target.value) || 0)}
+                                            onFocus={(e) => e.target.select()}
                                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
                                             step="0.01"
                                         />
@@ -175,6 +251,7 @@ export default function BatchSplitModal({ item, drugName, onSplit, onClose }: Ba
                                             type="number"
                                             value={split.unitPrice}
                                             onChange={(e) => updateSplit(index, 'unitPrice', parseFloat(e.target.value) || 0)}
+                                            onFocus={(e) => e.target.select()}
                                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
                                             step="0.01"
                                         />

@@ -1,6 +1,6 @@
 const RATE_LIMIT = {
     WINDOW_MS: 15 * 60 * 1000, // 15 minutes
-    MAX_REQUESTS: 400,
+    MAX_REQUESTS: 500,
     AUTH_MAX_REQUESTS: 500, // Increased for testing and legitimate retries
 };
 

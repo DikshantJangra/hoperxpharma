@@ -732,6 +732,7 @@ model Drug {
   poItems           PurchaseOrderItem[]
   saleItems         SaleItem[]
   returnItems       SupplierReturnItem[]
+  grnItems          GRNItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1129,10 +1130,11 @@ model Supplier {
   paymentTerms String? // Net 30, Net 60
   creditLimit  Decimal? @db.Decimal(12, 2)
 
-  store          Store             @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  licenses       SupplierLicense[]
-  purchaseOrders PurchaseOrder[]
-  returns        SupplierReturn[]
+  store               Store                 @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  licenses            SupplierLicense[]
+  purchaseOrders      PurchaseOrder[]
+  returns             SupplierReturn[]
+  goodsReceivedNotes  GoodsReceivedNote[]
 
   createdAt           DateTime              @default(now())
   updatedAt           DateTime              @updatedAt
@@ -1319,10 +1321,11 @@ model GoodsReceivedNote {
 
   notes String? @db.Text
 
-  po            PurchaseOrder    @relation(fields: [poId], references: [id], onDelete: Cascade)
-  items         GRNItem[]
-  discrepancies GRNDiscrepancy[]
-  attachments   GRNAttachment[]
+  supplier          Supplier         @relation(fields: [supplierId], references: [id])
+  po                PurchaseOrder    @relation(fields: [poId], references: [id], onDelete: Cascade)
+  items             GRNItem[]
+  discrepancies     GRNDiscrepancy[]
+  attachments       GRNAttachment[]
 
   completedAt            DateTime?
   createdAt              DateTime                 @default(now())
@@ -1380,10 +1383,22 @@ model GRNItem {
   // Calculated
   lineTotal Decimal @db.Decimal(12, 2)
 
-  grn GoodsReceivedNote @relation(fields: [grnId], references: [id], onDelete: Cascade)
+  // Storage location for this batch
+  location String?
+
+  // Batch split tracking
+  parentItemId String?  // Points to parent if this is a split
+  isSplit      Boolean @default(false)  // True if this item has been split into children
+
+  // Relations
+  grn    GoodsReceivedNote @relation(fields: [grnId], references: [id], onDelete: Cascade)
+  drug   Drug              @relation(fields: [drugId], references: [id])
+  parent GRNItem?          @relation("GRNItemSplit", fields: [parentItemId], references: [id])
+  children GRNItem[]         @relation("GRNItemSplit")
 
   @@index([grnId])
   @@index([poItemId])
+  @@index([parentItemId])
 }
 
 model GRNDiscrepancy {

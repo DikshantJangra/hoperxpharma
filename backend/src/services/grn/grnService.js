@@ -151,7 +151,7 @@ class GRNService {
     }
 
     /**
-     * Split batch - create duplicate item with different batch details
+     * Split batch - create child items with parent reference
      */
     async splitBatch({ grnId, itemId, splitData, userId }) {
         const grn = await grnRepository.getGRNById(grnId);
@@ -165,18 +165,35 @@ class GRNService {
             throw ApiError.notFound('GRN item not found');
         }
 
+        // Prevent splitting already-split items
+        if (originalItem.isSplit) {
+            throw ApiError.badRequest('This item has already been split');
+        }
+
+        // Prevent splitting child items
+        if (originalItem.parentItemId) {
+            throw ApiError.badRequest('Cannot split a batch that is already a split');
+        }
+
         // Validate split quantities
         const totalSplitQty = splitData.reduce((sum, split) => sum + split.receivedQty, 0);
         if (totalSplitQty !== originalItem.receivedQty) {
             throw ApiError.badRequest('Split quantities must equal original received quantity');
         }
 
-        // Delete original item
-        await grnRepository.deleteGRNItem(itemId);
+        // Mark parent as split (don't delete it)
+        await grnRepository.updateGRNItem(grnId, itemId, {
+            isSplit: true
+        });
 
-        // Create new items for each split
+        // Create child items for each split
         const newItems = [];
         for (const split of splitData) {
+            // Calculate proportional orderedQty based on receivedQty ratio
+            // This prevents false "shortage" discrepancies
+            const qtyRatio = split.receivedQty / originalItem.receivedQty;
+            const proportionalOrderedQty = Math.round(originalItem.orderedQty * qtyRatio);
+
             const netAmount = split.receivedQty * split.unitPrice * (1 - (split.discountPercent || 0) / 100);
             const taxAmount = netAmount * (split.gstPercent / 100);
             const lineTotal = netAmount + taxAmount;
@@ -185,7 +202,7 @@ class GRNService {
                 grnId,
                 poItemId: originalItem.poItemId,
                 drugId: originalItem.drugId,
-                orderedQty: originalItem.orderedQty,
+                orderedQty: proportionalOrderedQty,
                 receivedQty: split.receivedQty,
                 freeQty: split.freeQty || 0,
                 rejectedQty: 0,
@@ -194,7 +211,10 @@ class GRNService {
                 mrp: split.mrp,
                 unitPrice: split.unitPrice,
                 discountPercent: split.discountPercent || 0,
+                discountType: split.discountType || 'BEFORE_GST',
                 gstPercent: split.gstPercent,
+                location: split.location || null,
+                parentItemId: itemId,  // Link to parent
                 lineTotal
             });
 
@@ -204,7 +224,7 @@ class GRNService {
         // Recalculate totals
         await this.recalculateGRNTotals(grnId);
 
-        logger.info(`Batch split for item ${itemId} in GRN ${grn.grnNumber}`);
+        logger.info(`Batch split for item ${itemId} in GRN ${grn.grnNumber} - created ${newItems.length} child items`);
 
         return newItems;
     }

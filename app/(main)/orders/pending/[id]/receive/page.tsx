@@ -45,6 +45,10 @@ export default function ReceiveShipmentPage() {
                 const date = new Date(grn.supplierInvoiceDate);
                 const formattedDate = date.toISOString().split('T')[0];
                 setInvoiceDate(formattedDate);
+            } else {
+                // Auto-set to today if not already set
+                const today = new Date().toISOString().split('T')[0];
+                setInvoiceDate(today);
             }
             if (grn.notes) setNotes(grn.notes);
         }
@@ -165,22 +169,16 @@ export default function ReceiveShipmentPage() {
         }
     };
 
+    const updateTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
     const handleItemUpdate = async (itemId: string, updates: any) => {
-        // Optimistic update
+        // Optimistic update (immediate UI feedback)
         setGrn((prevGrn: any) => {
             if (!prevGrn) return null;
 
             const updatedItems = prevGrn.items.map((item: any) => {
                 if (item.id === itemId) {
-                    const newItem = { ...item, ...updates };
-
-                    // Recalculate line total if quantity or price changed
-                    // Note: This is a simple client-side calc, backend does authoritative calc
-                    if (updates.receivedQty !== undefined || updates.freeQty !== undefined || updates.unitPrice !== undefined) {
-                        // Basic total update for UI responsiveness
-                        // Real totals come from backend response
-                    }
-                    return newItem;
+                    return { ...item, ...updates };
                 }
                 return item;
             });
@@ -188,31 +186,36 @@ export default function ReceiveShipmentPage() {
             return { ...prevGrn, items: updatedItems };
         });
 
-        try {
-            const token = tokenManager.getAccessToken();
-
-            const response = await fetch(`${apiBaseUrl}/grn/${grn.id}/items/${itemId}`, {
-                method: 'PATCH',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(updates)
-            });
-
-            if (response.ok) {
-                // Background refresh to get accurate totals/tax from backend
-                // Debounce this if needed, but for now just let it sync
-                const grnResponse = await fetch(`${apiBaseUrl}/grn/${grn.id}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                const grnData = await grnResponse.json();
-                setGrn(grnData.data);
-            }
-        } catch (error) {
-            console.error('Error updating item:', error);
-            // Revert on error would be ideal, but for now just log
+        // Debounce the API call to prevent rate limiting
+        if (updateTimeoutRef.current) {
+            clearTimeout(updateTimeoutRef.current);
         }
+
+        updateTimeoutRef.current = setTimeout(async () => {
+            try {
+                const token = tokenManager.getAccessToken();
+
+                const response = await fetch(`${apiBaseUrl}/grn/${grn.id}/items/${itemId}`, {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(updates)
+                });
+
+                if (response.ok) {
+                    // Only refresh GRN after successful update
+                    const grnResponse = await fetch(`${apiBaseUrl}/grn/${grn.id}`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    const grnData = await grnResponse.json();
+                    setGrn(grnData.data);
+                }
+            } catch (error) {
+                console.error('Error updating item:', error);
+            }
+        }, 500); // Wait 500ms after last keystroke before sending request
     };
 
     const handleBatchSplit = async (itemId: string, splitData: any[]) => {
@@ -229,15 +232,21 @@ export default function ReceiveShipmentPage() {
             });
 
             if (response.ok) {
+                toast.success(`Batch split into ${splitData.length} batches successfully!`);
+
                 // Refresh GRN data
                 const grnResponse = await fetch(`${apiBaseUrl}/grn/${grn.id}`, {
                     headers: { 'Authorization': `Bearer ${token}` }
                 });
                 const grnData = await grnResponse.json();
                 setGrn(grnData.data);
+            } else {
+                const error = await response.json();
+                toast.error(error.error || error.message || 'Failed to split batch');
             }
         } catch (error) {
             console.error('Error splitting batch:', error);
+            toast.error('Failed to split batch');
         }
     };
 

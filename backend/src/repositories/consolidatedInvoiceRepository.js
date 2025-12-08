@@ -11,7 +11,6 @@ class ConsolidatedInvoiceRepository {
         const where = {
             storeId,
             status: 'COMPLETED',
-            deletedAt: null,
         };
 
         if (startDate || endDate) {
@@ -26,7 +25,7 @@ class ConsolidatedInvoiceRepository {
 
         // Filter by invoicing status
         if (status === 'not_invoiced') {
-            where.consolidatedInvoiceGRNs = {
+            where.ConsolidatedInvoiceGRN = {
                 none: {}
             };
         }
@@ -53,7 +52,7 @@ class ConsolidatedInvoiceRepository {
                         }
                     }
                 },
-                consolidatedInvoiceGRNs: {
+                ConsolidatedInvoiceGRN: {
                     include: {
                         consolidatedInvoice: {
                             select: {
@@ -74,8 +73,8 @@ class ConsolidatedInvoiceRepository {
         return grns.map(grn => ({
             ...grn,
             itemsCount: grn.items.length,
-            isInvoiced: grn.consolidatedInvoiceGRNs.length > 0,
-            consolidatedInvoice: grn.consolidatedInvoiceGRNs[0]?.consolidatedInvoice || null,
+            isInvoiced: grn.ConsolidatedInvoiceGRN.length > 0,
+            consolidatedInvoice: grn.ConsolidatedInvoiceGRN[0]?.consolidatedInvoice || null,
         }));
     }
 

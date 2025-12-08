@@ -18,7 +18,9 @@ const updateGRNItemSchema = Joi.object({
     mrp: Joi.number().min(0).allow(null).optional(),
     unitPrice: Joi.number().min(0).allow(null).optional(),
     discountPercent: Joi.number().min(0).max(100).allow(null).optional(),
-    gstPercent: Joi.number().valid(0, 5, 12, 18, 28).allow(null).optional()
+    discountType: Joi.string().valid('BEFORE_GST', 'AFTER_GST').allow(null).optional(),
+    gstPercent: Joi.number().valid(0, 5, 12, 18, 28).allow(null).optional(),
+    location: Joi.string().max(100).allow('', null).optional()
 });
 
 const splitBatchSchema = Joi.object({
@@ -31,7 +33,9 @@ const splitBatchSchema = Joi.object({
             mrp: Joi.number().min(0).required(),
             unitPrice: Joi.number().min(0).required(),
             discountPercent: Joi.number().min(0).max(100).default(0),
-            gstPercent: Joi.number().valid(0, 5, 12, 18, 28).required()
+            discountType: Joi.string().valid('BEFORE_GST', 'AFTER_GST').default('BEFORE_GST'),
+            gstPercent: Joi.number().valid(0, 5, 12, 18, 28).required(),
+            location: Joi.string().max(100).allow('', null).optional()
         })
     ).min(2).required()
 });
