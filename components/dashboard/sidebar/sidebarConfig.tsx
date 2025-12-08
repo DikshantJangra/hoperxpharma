@@ -106,7 +106,6 @@ export const sidebarConfig: SidebarSection[] = [
                     { label: "Stock", path: "/inventory/stock", requiredPermission: "inventory.read" },
                     { label: "Batches", path: "/inventory/batches", requiredPermission: "inventory.read" },
                     { label: "Expiry", path: "/inventory/expiry", requiredPermission: "inventory.read" },
-                    { label: "Adjust", path: "/inventory/adjust", requiredPermission: "inventory.adjust" },
                     { label: "Forecast", path: "/inventory/forecast", requiredPermission: "inventory.read" }
                 ]
             },
