@@ -58,6 +58,7 @@ class InventoryRepository {
             }
         }
 
+
         // Build dynamic orderBy
         const orderBy = buildOrderBy(sortConfig, { name: 'asc' });
 
@@ -69,7 +70,10 @@ class InventoryRepository {
                 orderBy,
                 include: {
                     inventory: {
-                        where: { storeId, deletedAt: null },
+                        where: {
+                            storeId,
+                            deletedAt: null // Exclude soft-deleted batches
+                        },
                         select: {
                             id: true,
                             batchNumber: true,
@@ -126,6 +130,12 @@ class InventoryRepository {
                 });
             });
         }
+
+        // IMPORTANT: Filter out drugs with no active batches (all batches deleted)
+        // This ensures drugs with all batches soft-deleted don't appear
+        filteredDrugs = filteredDrugs.filter(drug => {
+            return drug.inventory && drug.inventory.length > 0;
+        });
 
         return {
             drugs: filteredDrugs,
@@ -278,6 +288,18 @@ class InventoryRepository {
         return await prisma.inventoryBatch.update({
             where: { id },
             data: { location },
+        });
+    }
+
+    /**
+     * Delete batch (soft delete)
+     */
+    async deleteBatch(id, userId) {
+        return await prisma.inventoryBatch.update({
+            where: { id },
+            data: {
+                deletedAt: new Date()
+            },
         });
     }
 

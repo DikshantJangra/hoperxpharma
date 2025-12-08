@@ -238,7 +238,7 @@ class PurchaseOrderRepository {
                                 form: 'Tablet', // Default
                                 manufacturer: '', // Will be updated later
                                 schedule: 'OTC', // Default
-                                gstRate: item.gstPercent || 12,
+                                gstRate: item.gstPercent || 5,
                                 storeId: poData.storeId,
                             }
                         });
@@ -315,7 +315,7 @@ class PurchaseOrderRepository {
                                 form: 'Tablet', // Default
                                 manufacturer: '', // Will be updated later
                                 schedule: 'OTC', // Default
-                                gstRate: item.gstPercent || 12,
+                                gstRate: item.gstPercent || 5,
                                 storeId: poData.storeId || po.storeId,
                             }
                         });

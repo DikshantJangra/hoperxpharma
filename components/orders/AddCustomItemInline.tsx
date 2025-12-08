@@ -1,36 +1,40 @@
 import React, { useState } from 'react';
 import { HiOutlineCheck, HiOutlineXMark } from 'react-icons/hi2';
 import toast from 'react-hot-toast';
+import { normalizeGSTRate } from '@/utils/gst-utils';
 
 interface AddCustomItemInlineProps {
     onAdd: (item: any) => void;
     onCancel: () => void;
     initialName?: string;
+    editMode?: boolean;
+    drugId?: string;
+    initialData?: any;
 }
 
-export default function AddCustomItemInline({ onAdd, onCancel, initialName = '' }: AddCustomItemInlineProps) {
+export default function AddCustomItemInline({ onAdd, onCancel, initialName = '', editMode = false, drugId, initialData }: AddCustomItemInlineProps) {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [formData, setFormData] = useState({
         // Row 1: Basic Info
-        name: initialName,
-        genericName: '',
-        manufacturer: '',
-        form: 'Tablet',
+        name: initialData?.name || initialName,
+        genericName: initialData?.genericName || '',
+        manufacturer: initialData?.manufacturer || '',
+        form: initialData?.form || 'Tablet',
 
         // Row 2: Clinical & Regulatory
-        strength: '',
-        schedule: '',
-        hsnCode: '',
-        gstRate: 12,
+        strength: initialData?.strength || '',
+        schedule: initialData?.schedule || '',
+        hsnCode: initialData?.hsnCode || '',
+        gstRate: initialData?.gstRate || 5,
 
         // Row 3: Inventory
-        defaultUnit: 'Strip',
-        requiresPrescription: false,
-        lowStockThreshold: 10,
+        defaultUnit: initialData?.defaultUnit || 'Strip',
+        requiresPrescription: initialData?.requiresPrescription || false,
+        lowStockThreshold: initialData?.lowStockThreshold || 10,
 
         // PO specific
-        packSize: 10,
-        price: 0
+        packSize: initialData?.packSize || 10,
+        price: initialData?.price || 0
     });
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -39,8 +43,13 @@ export default function AddCustomItemInline({ onAdd, onCancel, initialName = '' 
 
         try {
             const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
-            const response = await fetch(`${apiBaseUrl}/drugs`, {
-                method: 'POST',
+            const method = editMode ? 'PUT' : 'POST';
+            const url = editMode
+                ? `${apiBaseUrl}/drugs/${drugId}`
+                : `${apiBaseUrl}/drugs`;
+
+            const response = await fetch(url, {
+                method,
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
@@ -77,12 +86,12 @@ export default function AddCustomItemInline({ onAdd, onCancel, initialName = '' 
                 packUnit: newDrug.defaultUnit || formData.defaultUnit,
                 unit: (newDrug.defaultUnit || formData.defaultUnit).toLowerCase(),
                 price: Number(formData.price),
-                gstPercent: Number(newDrug.gstRate || formData.gstRate),
+                gstPercent: normalizeGSTRate(newDrug.gstRate || formData.gstRate),
                 currentStock: 0,
                 isCustom: false
             });
 
-            toast.success('Custom item added to catalog and PO');
+            toast.success(editMode ? 'Item updated successfully' : 'Custom item added to catalog and PO');
         } catch (error: any) {
             console.error('Failed to add custom item:', error);
             toast.error(error.message || 'Failed to add item');
@@ -94,7 +103,7 @@ export default function AddCustomItemInline({ onAdd, onCancel, initialName = '' 
     return (
         <form onSubmit={handleSubmit} className="bg-gradient-to-r from-emerald-50 to-teal-50 border border-emerald-200 rounded-lg p-4 space-y-3 animate-in slide-in-from-top-2 duration-200">
             <div className="flex items-center justify-between mb-2">
-                <h4 className="text-sm font-semibold text-gray-900">Add Custom Item</h4>
+                <h4 className="text-sm font-semibold text-gray-900">{editMode ? 'Edit Item' : 'Add Custom Item'}</h4>
                 <button
                     type="button"
                     onClick={onCancel}
@@ -232,7 +241,10 @@ export default function AddCustomItemInline({ onAdd, onCancel, initialName = '' 
                         type="number"
                         min="1"
                         value={formData.packSize}
-                        onChange={e => setFormData({ ...formData, packSize: Number(e.target.value) })}
+                        onChange={e => {
+                            const val = e.target.value.replace(/^0+/, '') || '0';
+                            setFormData({ ...formData, packSize: Number(val) });
+                        }}
                         className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     />
                 </div>
@@ -243,7 +255,10 @@ export default function AddCustomItemInline({ onAdd, onCancel, initialName = '' 
                         min="0"
                         step="0.01"
                         value={formData.price}
-                        onChange={e => setFormData({ ...formData, price: Number(e.target.value) })}
+                        onChange={e => {
+                            const val = e.target.value.replace(/^0+(?=\d)/, '');
+                            setFormData({ ...formData, price: Number(val) });
+                        }}
                         className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     />
                 </div>
@@ -253,7 +268,10 @@ export default function AddCustomItemInline({ onAdd, onCancel, initialName = '' 
                         type="number"
                         min="0"
                         value={formData.lowStockThreshold}
-                        onChange={e => setFormData({ ...formData, lowStockThreshold: Number(e.target.value) })}
+                        onChange={e => {
+                            const val = e.target.value.replace(/^0+/, '') || '0';
+                            setFormData({ ...formData, lowStockThreshold: Number(val) });
+                        }}
                         className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-emerald-500"
                     />
                 </div>
@@ -286,7 +304,7 @@ export default function AddCustomItemInline({ onAdd, onCancel, initialName = '' 
                     className="px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                 >
                     <HiOutlineCheck size={16} />
-                    {isSubmitting ? 'Adding...' : 'Add Item'}
+                    {isSubmitting ? (editMode ? 'Updating...' : 'Adding...') : (editMode ? 'Update Item' : 'Add Item')}
                 </button>
             </div>
         </form>

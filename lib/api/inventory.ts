@@ -31,11 +31,11 @@ export interface Batch {
 }
 
 export interface StockAdjustment {
-    drugId: string;
     batchId: string;
-    quantity: number;
-    type: 'ADD' | 'REMOVE' | 'SET';
+    quantityAdjusted: number; // Changed from 'quantity' to match backend
     reason: string;
+    // drugId and type are not needed - backend only needs batchId, quantityAdjusted, reason
+    // userId is added automatically by backend from req.user.id
 }
 
 export const inventoryApi = {
@@ -87,6 +87,14 @@ export const inventoryApi = {
      */
     async updateDrug(id: string, data: Partial<Drug>) {
         const response = await apiClient.put(`/inventory/drugs/${id}`, data);
+        return response.data;
+    },
+
+    /**
+     * Delete drug and all its batches (soft delete)
+     */
+    async deleteDrug(drugId: string) {
+        const response = await apiClient.delete(`/inventory/drugs/${drugId}`);
         return response.data;
     },
 
@@ -160,6 +168,14 @@ export const inventoryApi = {
      */
     async updateBatchLocation(batchId: string, location: string) {
         const response = await apiClient.patch(`/inventory/batches/${batchId}/location`, { location });
+        return response.data;
+    },
+
+    /**
+     * Delete batch (soft delete)
+     */
+    async deleteBatch(batchId: string) {
+        const response = await apiClient.delete(`/inventory/batches/${batchId}`);
         return response.data;
     },
 

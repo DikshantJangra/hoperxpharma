@@ -47,7 +47,7 @@ const stockAdjustmentSchema = z.object({
     batchId: z.string().cuid(),
     quantityAdjusted: z.number().int(),
     reason: z.string().min(1, 'Reason is required'),
-    userId: z.string().cuid(),
+    // userId is added by controller from req.user.id, not from request body
 });
 
 /**

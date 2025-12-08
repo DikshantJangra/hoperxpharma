@@ -2,18 +2,58 @@
 
 import { useState } from 'react';
 import { FiX, FiAlertCircle } from 'react-icons/fi';
+import { toast } from 'sonner';
 
-export default function AdjustBatchModal({ batch, onClose }: any) {
+export default function AdjustBatchModal({ batch, onClose, onSuccess }: any) {
   const [delta, setDelta] = useState(0);
   const [reason, setReason] = useState('');
-  const resultingQty = batch.qtyOnHand + delta;
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const currentQty = Number(batch.qtyOnHand) || 0;
+  const resultingQty = currentQty + delta;
+
+  const handleSubmit = async () => {
+    if (!reason || delta === 0) {
+      toast.error('Please fill all required fields');
+      return;
+    }
+
+    if (resultingQty < 0) {
+      toast.error('Resulting quantity cannot be negative');
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const { inventoryApi } = await import('@/lib/api/inventory');
+
+      await inventoryApi.adjustStock({
+        batchId: batch.id,
+        quantityAdjusted: delta,
+        reason
+      });
+
+      toast.success(`Stock adjusted successfully: ${delta > 0 ? '+' : ''}${delta} units`);
+
+      if (onSuccess) {
+        onSuccess();
+      }
+
+      onClose();
+    } catch (error: any) {
+      console.error('Failed to adjust stock:', error);
+      toast.error(error.message || 'Failed to adjust stock');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
       <div className="bg-white rounded-lg w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between p-4 border-b border-[#e2e8f0]">
           <h3 className="text-lg font-bold text-[#0f172a]">Adjust Batch Quantity</h3>
-          <button onClick={onClose} className="p-1 hover:bg-[#f8fafc] rounded">
+          <button onClick={onClose} className="p-1 hover:bg-[#f8fafc] rounded" disabled={isSubmitting}>
             <FiX className="w-5 h-5" />
           </button>
         </div>
@@ -32,9 +72,10 @@ export default function AdjustBatchModal({ batch, onClose }: any) {
               onChange={(e) => setDelta(parseInt(e.target.value) || 0)}
               placeholder="Enter +/- quantity"
               className="w-full px-3 py-2 border border-[#cbd5e1] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0ea5a3]"
+              disabled={isSubmitting}
             />
             <p className="text-xs text-[#64748b] mt-1">
-              Current: {batch.qtyOnHand} → Resulting: <span className={resultingQty < 0 ? 'text-[#ef4444]' : 'text-[#10b981]'}>{resultingQty}</span>
+              Current: {currentQty} → Resulting: <span className={resultingQty < 0 ? 'text-[#ef4444]' : 'text-[#10b981]'}>{resultingQty}</span>
             </p>
           </div>
 
@@ -44,6 +85,7 @@ export default function AdjustBatchModal({ batch, onClose }: any) {
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               className="w-full px-3 py-2 border border-[#cbd5e1] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0ea5a3]"
+              disabled={isSubmitting}
             >
               <option value="">Select reason...</option>
               <option value="count">Count correction</option>
@@ -68,14 +110,23 @@ export default function AdjustBatchModal({ batch, onClose }: any) {
           <button
             onClick={onClose}
             className="flex-1 py-2 border border-[#cbd5e1] rounded-lg hover:bg-[#f8fafc]"
+            disabled={isSubmitting}
           >
             Cancel
           </button>
           <button
-            disabled={!reason || delta === 0}
-            className="flex-1 py-2 bg-[#0ea5a3] text-white rounded-lg hover:bg-[#0d9391] disabled:bg-[#cbd5e1] disabled:cursor-not-allowed"
+            onClick={handleSubmit}
+            disabled={!reason || delta === 0 || isSubmitting}
+            className="flex-1 py-2 bg-[#0ea5a3] text-white rounded-lg hover:bg-[#0d9391] disabled:bg-[#cbd5e1] disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            Confirm Adjustment
+            {isSubmitting ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                Adjusting...
+              </>
+            ) : (
+              'Confirm Adjustment'
+            )}
           </button>
         </div>
       </div>

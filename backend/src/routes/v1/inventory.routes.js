@@ -24,6 +24,7 @@ router.get('/drugs', requireStoreAccess, validate(inventoryQuerySchema, 'query')
 router.get('/drugs/:id', inventoryController.getDrugById);
 router.post('/drugs', requirePharmacist, validate(drugSchema), auditLogger.logActivity('DRUG_CREATED', 'drug'), inventoryController.createDrug);
 router.put('/drugs/:id', requirePharmacist, validate(drugSchema), auditLogger.logActivity('DRUG_UPDATED', 'drug'), inventoryController.updateDrug);
+router.delete('/drugs/:id', requirePharmacist, auditLogger.logActivity('DRUG_DELETED', 'drug'), inventoryController.deleteDrug);
 
 /**
  * Batch routes (require store access)
@@ -32,6 +33,7 @@ router.get('/batches', requireStoreAccess, validate(inventoryQuerySchema, 'query
 router.get('/batches/:id', inventoryController.getBatchById);
 router.post('/batches', requireStoreAccess, validate(batchCreateSchema), auditLogger.logActivity('BATCH_CREATED', 'batch'), inventoryController.createBatch);
 router.put('/batches/:id', requirePharmacist, validate(batchUpdateSchema), auditLogger.logActivity('BATCH_UPDATED', 'batch'), inventoryController.updateBatch);
+router.delete('/batches/:id', requirePharmacist, auditLogger.logActivity('BATCH_DELETED', 'batch'), inventoryController.deleteBatch);
 router.patch('/batches/:id/location', requirePharmacist, auditLogger.logActivity('BATCH_LOCATION_UPDATED', 'batch'), inventoryController.updateBatchLocation);
 
 /**

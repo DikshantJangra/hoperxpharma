@@ -260,7 +260,7 @@ const toolHandlers = {
                     drugId: item.drugId,
                     quantity: item.quantity,
                     unitPrice: item.unitPrice,
-                    gstRate: item.gstRate || 12,
+                    gstRate: parseFloat(item.gstRate || item.gst_rate || item.gst || 5),
                     total: lineTotal,
                 };
             });

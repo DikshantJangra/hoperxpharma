@@ -74,6 +74,16 @@ const updateDrug = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Delete drug and all its batches
+ */
+const deleteDrug = asyncHandler(async (req, res) => {
+    const result = await inventoryService.deleteDrug(req.params.id, req.user.id);
+
+    const response = ApiResponse.success(result, `Drug and ${result.deletedBatchCount} batches deleted successfully`);
+    res.status(response.statusCode).json(response);
+});
+
+/**
  * Get inventory batches
  */
 const getBatches = asyncHandler(async (req, res) => {
@@ -203,6 +213,16 @@ const updateBatchLocation = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Delete batch
+ */
+const deleteBatch = asyncHandler(async (req, res) => {
+    const batch = await inventoryService.deleteBatch(req.params.id, req.user.id);
+
+    const response = ApiResponse.success(batch, 'Batch deleted successfully');
+    res.status(response.statusCode).json(response);
+});
+
+/**
  * Get batches with suppliers for a drug
  */
 const getBatchesWithSuppliers = asyncHandler(async (req, res) => {
@@ -217,10 +237,12 @@ module.exports = {
     getDrugById,
     createDrug,
     updateDrug,
+    deleteDrug,
     getBatches,
     getBatchById,
     createBatch,
     updateBatch,
+    deleteBatch,
     adjustStock,
     getLowStockAlerts,
     getExpiringItems,

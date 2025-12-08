@@ -26,7 +26,8 @@ export function mapDrugToDetailPanel(drug: any) {
             );
 
             return {
-                id: batch.batchNumber,
+                id: batch.id, // Database ID (cuid) - needed for API calls
+                batchNumber: batch.batchNumber, // Batch number for display
                 qty: batch.quantityInStock,
                 expiry: new Date(batch.expiryDate).toLocaleDateString(),
                 daysToExpiry,

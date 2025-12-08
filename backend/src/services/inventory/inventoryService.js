@@ -93,28 +93,69 @@ class InventoryService {
      * Update batch
      */
     async updateBatch(id, updateData) {
-        const existingBatch = await inventoryRepository.findBatchById(id);
+        const batch = await inventoryRepository.findBatchById(id);
 
-        if (!existingBatch) {
+        if (!batch) {
             throw ApiError.notFound('Batch not found');
         }
 
-        // If quantity is being updated, create stock movement
-        if (updateData.quantityInStock !== undefined) {
-            const quantityDiff = updateData.quantityInStock - existingBatch.quantityInStock;
+        const updatedBatch = await inventoryRepository.updateBatchQuantity(id, updateData.quantityInStock || batch.quantityInStock);
+        logger.info(`Batch updated: ${updatedBatch.batchNumber}`);
+        return updatedBatch;
+    }
 
-            await inventoryRepository.createStockMovement({
-                batchId: id,
-                movementType: quantityDiff > 0 ? 'IN' : 'OUT',
-                quantity: Math.abs(quantityDiff),
-                reason: 'Manual adjustment',
-                referenceType: 'adjustment',
-            });
+    /**
+     * Delete batch (soft delete)
+     */
+    async deleteBatch(id, userId) {
+        const batch = await inventoryRepository.findBatchById(id);
+
+        if (!batch) {
+            throw ApiError.notFound('Batch not found');
         }
 
-        const batch = await inventoryRepository.updateBatchQuantity(id, updateData.quantityInStock);
-        logger.info(`Batch updated: ${batch.batchNumber}`);
-        return batch;
+        if (batch.deletedAt) {
+            throw ApiError.badRequest('Batch is already deleted');
+        }
+
+        const deletedBatch = await inventoryRepository.deleteBatch(id, userId);
+        logger.info(`Batch soft deleted: ${batch.batchNumber} by user: ${userId}`);
+        return deletedBatch;
+    }
+
+    /**
+     * Delete drug and all its batches (soft delete)
+     */
+    async deleteDrug(id, userId) {
+        try {
+            const drug = await inventoryRepository.findDrugById(id);
+
+            if (!drug) {
+                throw ApiError.notFound('Drug not found');
+            }
+
+            // Get all batches for this drug
+            const batches = await inventoryRepository.getBatchesWithSuppliers(id);
+            logger.info(`Found ${batches.length} batches for drug ${drug.name}`);
+
+            // Delete all batches
+            if (batches.length > 0) {
+                const deletePromises = batches.map(batch =>
+                    inventoryRepository.deleteBatch(batch.id, userId)
+                );
+                await Promise.all(deletePromises);
+            }
+
+            logger.info(`Drug deleted: ${drug.name} with ${batches.length} batches by user: ${userId}`);
+
+            return {
+                drug,
+                deletedBatchCount: batches.length
+            };
+        } catch (error) {
+            logger.error('Delete drug error:', error);
+            throw error;
+        }
     }
 
     /**

@@ -4,9 +4,11 @@ import React, { useState, useEffect } from 'react';
 import { POLine, Supplier } from '@/types/po';
 import LineItemRow from './LineItemRow';
 import ProductSearchBar from './ProductSearchBar';
+import { normalizeGSTRate } from '@/utils/gst-utils';
 import AddCustomItemInline from './AddCustomItemInline';
 import MedicineCommandPalette from '@/components/search/MedicineCommandPalette';
 import { MdAdd, MdSearch, MdShoppingCart, MdPostAdd } from 'react-icons/md';
+import { FiPlus, FiTrash2, FiEdit2, FiPackage } from 'react-icons/fi';
 import type { Medicine } from '@/types/medicine';
 
 interface LineItemTableProps {
@@ -49,7 +51,7 @@ export default function LineItemTable({
       qty: 1,
       unit: product.unit || (product.packUnit || 'strip').toLowerCase(),
       pricePerUnit: product.pricePerUnit || product.price || 0,
-      gstPercent: product.gstPercent || 12,
+      gstPercent: normalizeGSTRate(product.gstPercent),
       lastPurchasePrice: product.lastPurchasePrice || product.lastPrice
     });
     // Don't close search automatically to allow adding multiple items
@@ -75,7 +77,7 @@ export default function LineItemTable({
       qty: 1,
       unit: packUnit.toLowerCase(),
       pricePerUnit: medicine.price || 0,
-      gstPercent: 12, // Default GST
+      gstPercent: 5, // Default to 5% for catalog items (editable)
       discountPercent: 0
     });
   };

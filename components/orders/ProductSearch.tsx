@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { normalizeGSTRate } from '@/utils/gst-utils';
 import { Supplier } from '@/types/po';
 import { HiOutlineMagnifyingGlass, HiOutlineXMark } from 'react-icons/hi2';
 
@@ -73,7 +74,7 @@ export default function ProductSearch({ onSelect, onCancel, supplier }: ProductS
         packSize: 10, // Default pack size
         unit: drug.defaultUnit?.toLowerCase() || 'strip',
         price: 0, // Will be filled by user
-        gstPercent: drug.gstRate || 12,
+        gstPercent: 5, // Default to 5% for all catalog items (editable)
         lastPrice: undefined,
         currentStock: 0, // Will be fetched from inventory if needed
         moq: undefined

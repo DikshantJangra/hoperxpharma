@@ -1,4 +1,5 @@
 import React, { useState, useEffect, forwardRef, useImperativeHandle, useRef, useCallback } from 'react';
+import { normalizeGSTRate } from '@/utils/gst-utils';
 import { HiOutlineMagnifyingGlass, HiOutlineXMark, HiOutlinePlus } from 'react-icons/hi2';
 import { FiUpload } from 'react-icons/fi';
 import BulkAddModal from './BulkAddModal';
@@ -88,7 +89,7 @@ const ProductSearchBar = forwardRef(({ onSelect, supplier }: ProductSearchBarPro
                 const mappedProducts: Product[] = drugs.map((drug: any) => ({
                     id: drug.id,
                     name: `${drug.name}${drug.strength ? ` ${drug.strength}` : ''}${drug.form ? ` ${drug.form}` : ''}`,
-                    gstPercent: drug.gstRate || 12,
+                    gstPercent: 5, // Default to 5% for all catalog items (editable)
                     lastPrice: undefined,
                     currentStock: 0
                 }));

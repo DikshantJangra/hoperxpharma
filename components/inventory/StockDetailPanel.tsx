@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { FiX, FiShoppingCart, FiEdit, FiSend, FiClock, FiPackage, FiAlertCircle, FiCheck } from 'react-icons/fi';
+import { FiX, FiShoppingCart, FiEdit, FiSend, FiClock, FiPackage, FiAlertCircle, FiCheck, FiTrash2 } from 'react-icons/fi';
 import { BsSnow, BsQrCode } from 'react-icons/bs';
 import { toast } from 'sonner';
 import AdjustStockModal from './AdjustStockModal';
+import DeleteInventoryModal from './DeleteInventoryModal';
 import { mapDrugToDetailPanel } from '@/lib/utils/drugMapper';
 
 export default function StockDetailPanel({ item, onClose }: any) {
@@ -14,6 +15,7 @@ export default function StockDetailPanel({ item, onClose }: any) {
   const [isLoadingBatches, setIsLoadingBatches] = useState(true);
   const [editingLocation, setEditingLocation] = useState<string | null>(null);
   const [locationValue, setLocationValue] = useState('');
+  const [deleteModal, setDeleteModal] = useState<{ type: 'drug' | 'batch', item: any } | null>(null);
   const router = useRouter();
 
   // Map the drug data to expected format
@@ -60,6 +62,14 @@ export default function StockDetailPanel({ item, onClose }: any) {
       console.error('Failed to update location:', error);
       toast.error('Failed to update location');
     }
+  };
+
+  const handleDeleteBatch = (batch: any) => {
+    setDeleteModal({ type: 'batch', item: batch });
+  };
+
+  const handleDeleteDrug = () => {
+    setDeleteModal({ type: 'drug', item: mappedItem });
   };
 
   const formatMovementType = (type: string) => {
@@ -251,6 +261,13 @@ export default function StockDetailPanel({ item, onClose }: any) {
                         >
                           Adjust
                         </button>
+                        <button
+                          onClick={() => handleDeleteBatch(batch)}
+                          className="px-2 py-1 text-xs border border-red-200 text-red-600 rounded hover:bg-red-50"
+                          title="Delete batch"
+                        >
+                          <FiTrash2 className="w-3 h-3" />
+                        </button>
                       </div>
 
                       {/* Stock Movements */}
@@ -288,7 +305,7 @@ export default function StockDetailPanel({ item, onClose }: any) {
             <FiShoppingCart className="w-4 h-4" />
             Create PO
           </button>
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-3 gap-2">
             <button
               onClick={() => setShowAdjustModal(true)}
               className="py-2 border border-[#cbd5e1] rounded-lg hover:bg-[#f8fafc] flex items-center justify-center gap-2 text-sm"
@@ -300,6 +317,14 @@ export default function StockDetailPanel({ item, onClose }: any) {
               <FiSend className="w-4 h-4" />
               Transfer
             </button>
+            <button
+              onClick={handleDeleteDrug}
+              className="py-2 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 flex items-center justify-center gap-2 text-sm"
+              title="Delete drug and all batches"
+            >
+              <FiTrash2 className="w-4 h-4" />
+              Delete
+            </button>
           </div>
         </div>
       </div>
@@ -308,6 +333,23 @@ export default function StockDetailPanel({ item, onClose }: any) {
         <AdjustStockModal
           item={mappedItem}
           onClose={() => setShowAdjustModal(false)}
+          onSuccess={() => {
+            fetchBatchesWithSuppliers(); // Refresh batches
+          }}
+        />
+      )}
+
+      {deleteModal && (
+        <DeleteInventoryModal
+          type={deleteModal.type}
+          item={deleteModal.item}
+          onClose={() => setDeleteModal(null)}
+          onSuccess={() => {
+            fetchBatchesWithSuppliers();
+            if (deleteModal.type === 'drug') {
+              onClose(); // Close the detail panel if drug is deleted
+            }
+          }}
         />
       )}
     </>

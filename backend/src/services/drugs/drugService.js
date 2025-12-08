@@ -111,7 +111,7 @@ class DrugService {
             form: row.form || row.dosage_form || 'Tablet',
             manufacturer: row.manufacturer || row.company,
             hsnCode: row.hsnCode || row.hsn_code || row.hsn,
-            gstRate: parseFloat(row.gstRate || row.gst_rate || row.gst || 12),
+            gstRate: parseFloat(row.gstRate || row.gst_rate || row.gst || 5),
             requiresPrescription: this.parseBooleanField(row.requiresPrescription || row.prescription_required),
             defaultUnit: row.defaultUnit || row.unit || 'Strip',
             lowStockThreshold: parseInt(row.lowStockThreshold || row.min_stock || 10),

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { POCalculationEngine, type POLine } from '@/lib/calculations/poCalculations';
 import { SuggestedItem } from '@/types/po';
 import toast from 'react-hot-toast';
+import { normalizeGSTRate } from '@/utils/gst-utils';
 
 export interface Supplier {
     id: string;
@@ -290,7 +291,7 @@ export function useEfficientPOComposer(storeId: string, poId?: string) {
                         lastPurchasePrice: item.lastPurchasePrice,
                         currentStock: item.currentStock || 0,
                         packUnit: item.packUnit || 'Unit',
-                        gstPercent: item.gstPercent || 12
+                        gstPercent: normalizeGSTRate(item.gstPercent)
                     };
                 });
 
@@ -323,7 +324,7 @@ export function useEfficientPOComposer(storeId: string, poId?: string) {
             qty: item.qty || 1,
             pricePerUnit: item.pricePerUnit || 0,
             discountPercent: item.discountPercent || 0,
-            gstPercent: item.gstPercent || 12
+            gstPercent: normalizeGSTRate(item.gstPercent || 5)
         };
 
         setPO(prev => ({
@@ -580,7 +581,7 @@ export function useEfficientPOComposer(storeId: string, poId?: string) {
                     qty: item.quantity,
                     pricePerUnit: item.unitPrice || 0,
                     discountPercent: item.discountPercent || 0,
-                    gstPercent: 12 // Default, will be updated by validation
+                    gstPercent: normalizeGSTRate(12) // Default, will be updated by validation
                 });
             });
 

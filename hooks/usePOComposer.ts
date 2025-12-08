@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { PurchaseOrder, POLine, Supplier, ValidationResult, SuggestedItem } from '@/types/po';
+import { normalizeGSTRate } from '@/utils/gst-utils';
 
 export function usePOComposer(storeId: string) {
   const [po, setPO] = useState<PurchaseOrder>({
@@ -94,7 +95,7 @@ export function usePOComposer(storeId: string) {
         unit: item.unit || 'strip',
         pricePerUnit: item.pricePerUnit || item.lastPurchasePrice || 0,
         discountPercent: item.discountPercent || 0,
-        gstPercent: item.gstPercent || 12,
+        gstPercent: normalizeGSTRate(item.gstPercent || 5),
         lineNet: 0,
         lastPurchasePrice: item.lastPurchasePrice,
         suggestedQty: item.suggestedQty,
@@ -204,7 +205,7 @@ export function usePOComposer(storeId: string) {
           qty: line.qty,
           pricePerUnit: line.pricePerUnit,
           discountPercent: line.discountPercent || 0,
-          gstPercent: Math.round(line.gstPercent),  // Ensure integer for validation
+          gstPercent: normalizeGSTRate(line.gstPercent),  // Normalize to valid GST rate
           lineNet: line.lineNet,
         })),
         subtotal: po.subtotal,
@@ -227,7 +228,12 @@ export function usePOComposer(storeId: string) {
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to save draft');
+        const errorMessage = errorData.message || errorData.error || 'Failed to save draft';
+        const errors = errorData.errors || [];
+        const fullMessage = errors.length > 0
+          ? `${errorMessage}\n${errors.join('\n')}`
+          : errorMessage;
+        throw new Error(fullMessage);
       }
 
       const result = await response.json();
@@ -283,7 +289,13 @@ export function usePOComposer(storeId: string) {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to send PO');
+        const errorData = await response.json();
+        const errorMessage = errorData.message || errorData.error || 'Failed to send PO';
+        const errors = errorData.errors || [];
+        const fullMessage = errors.length > 0
+          ? `${errorMessage}\n${errors.join('\n')}`
+          : errorMessage;
+        throw new Error(fullMessage);
       }
 
       return await response.json();
@@ -292,6 +304,26 @@ export function usePOComposer(storeId: string) {
       throw error;
     }
   }, [po.poId]);
+
+  const clearDraft = useCallback(() => {
+    // Reset PO to initial state
+    setPO({
+      status: 'draft',
+      storeId,
+      deliveryAddress: { line1: '', city: '', pin: '' },
+      currency: 'INR',
+      lines: [],
+      subtotal: 0,
+      taxBreakdown: [],
+      total: 0,
+    });
+
+    // Clear validation
+    setValidationResult({ valid: true, warnings: [], errors: [] });
+
+    // Note: We don't clear localStorage here as it's auto-saved
+    // The next change will overwrite it
+  }, [storeId]);
 
   return {
     po,
@@ -307,6 +339,7 @@ export function usePOComposer(storeId: string) {
     saveDraft,
     requestApproval,
     sendPO,
-    setPO
+    setPO,
+    clearDraft
   };
 }

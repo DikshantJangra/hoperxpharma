@@ -9,7 +9,7 @@ import LineItemTable from './LineItemTable';
 import POSummary from './POSummary';
 import DeliveryCard from './DeliveryCard';
 import AttachmentUploader from './AttachmentUploader';
-import { FiLayout, FiSave, FiSend, FiAlertCircle } from 'react-icons/fi';
+import { FiLayout, FiSave, FiSend, FiAlertCircle, FiTrash2 } from 'react-icons/fi';
 import toast, { Toaster } from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
 
@@ -47,7 +47,8 @@ export default function NewPOPage({ storeId, poId }: NewPOPageProps) {
     saveDraft,
     requestApproval,
     sendPO,
-    setPO
+    setPO,
+    clearDraft
   } = usePOComposer(storeId);
 
   useEffect(() => {
@@ -196,6 +197,17 @@ export default function NewPOPage({ storeId, poId }: NewPOPageProps) {
     }
   };
 
+  const handleClearDraft = () => {
+    if (confirm('Are you sure you want to clear this draft? All unsaved changes will be lost.')) {
+      clearDraft();
+      toast.success('Draft cleared successfully');
+      // If we're editing an existing PO, redirect to new PO page
+      if (poId) {
+        router.push('/orders/new-po');
+      }
+    }
+  };
+
   const canSend = po.supplier && po.lines.length > 0 && validationResult.errors.length === 0;
   const needsApproval = po.total > (po.approvalThreshold || 50000);
   const formatCurrency = (amount: number | string) => `₹${Number(amount || 0).toFixed(2)}`;
@@ -209,7 +221,16 @@ export default function NewPOPage({ storeId, poId }: NewPOPageProps) {
             <h1 className="text-2xl font-bold text-gray-900">New Purchase Order</h1>
             <p className="text-sm text-gray-500 mt-1">Create and send orders to suppliers</p>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            {(po.lines.length > 0 || po.supplier) && (
+              <button
+                onClick={handleClearDraft}
+                className="p-2.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-red-50 hover:border-red-200 hover:text-red-600 transition-colors"
+                title="Clear Draft"
+              >
+                <FiTrash2 size={20} />
+              </button>
+            )}
             <SupplierSelect value={po.supplier} onChange={setSupplier} />
             <button
               onClick={() => setShowSuggestions(!showSuggestions)}

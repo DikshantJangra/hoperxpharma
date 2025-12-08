@@ -17,7 +17,7 @@ export default function AddCustomItemModal({ isOpen, onClose, onAdd, initialName
         packSize: 10,
         packUnit: 'Strip',
         price: 0,
-        gstPercent: 12,
+        gstPercent: 5,
         hsn: ''
     });
 
@@ -76,7 +76,7 @@ export default function AddCustomItemModal({ isOpen, onClose, onAdd, initialName
                 packSize: 10,
                 packUnit: 'Strip',
                 price: 0,
-                gstPercent: 12,
+                gstPercent: 5,
                 hsn: ''
             });
         } catch (error: any) {

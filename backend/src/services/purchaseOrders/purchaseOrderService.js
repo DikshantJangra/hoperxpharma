@@ -1,6 +1,7 @@
 const purchaseOrderRepository = require('../../repositories/purchaseOrderRepository');
 const ApiError = require('../../utils/ApiError');
 const logger = require('../../config/logger');
+const { normalizeGSTRate } = require('../../utils/gst-utils');
 
 /**
  * Purchase Order Service - Business logic for PO management
@@ -419,7 +420,7 @@ class PurchaseOrderService {
                     qty: item.qty,
                     pricePerUnit: item.pricePerUnit || lastPO?.unitPrice || 0,
                     discountPercent: item.discountPercent || 0,
-                    gstPercent: drug.gstRate || 12,
+                    gstPercent: normalizeGSTRate(drug.gstRate),
                     packUnit: drug.defaultUnit || 'Strip',
                     packSize: 10, // Default
                     lastPurchasePrice: lastPO?.unitPrice,
