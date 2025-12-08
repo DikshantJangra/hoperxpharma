@@ -208,7 +208,12 @@ class GRNRepository {
                             quantityInStock: totalQty,
                             mrp: item.mrp,
                             purchasePrice: item.unitPrice,
-                            supplierId: grn.supplierId
+                            supplierId: grn.supplierId,
+                            // Additional fields from receiving
+                            discountPercent: item.discountPercent || 0,
+                            discountType: item.discountType || 'BEFORE_GST',
+                            gstPercent: item.gstPercent || 0,
+                            location: item.location || item.rackLocation || null
                         }
                     });
 

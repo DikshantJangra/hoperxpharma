@@ -25,6 +25,8 @@ const businessTypeRoutes = require('./businessType.routes');
 const prescriptionRoutes = require('./prescriptions.routes');
 const dispenseRoutes = require('./dispense.routes');
 const portalRoutes = require('../portal.routes');
+const consolidatedInvoicesRoutes = require('./consolidatedInvoices.routes');
+
 
 const router = express.Router();
 
@@ -58,6 +60,8 @@ router.use('/prescriptions', prescriptionRoutes);
 router.use('/dispense', dispenseRoutes);
 router.use('/prescribers', require('./prescribers.routes'));
 router.use('/portal', portalRoutes);
+router.use('/consolidated-invoices', consolidatedInvoicesRoutes);
+
 
 
 

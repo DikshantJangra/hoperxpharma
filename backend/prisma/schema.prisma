@@ -182,18 +182,18 @@ model User {
   emergencyContactPhone String?
   employeeId            String?   @unique // Internal employee ID
 
-  storeUsers       StoreUser[]
-  auditLogs        AuditLog[]
-  accessLogs       AccessLog[]
-  onboarding       OnboardingProgress?
-  returnsRequested SupplierReturn[]     @relation("ReturnRequester")
-  returnsApproved  SupplierReturn[]     @relation("ReturnApprover")
-  userRoles        UserRoleAssignment[]
-  adminPin         AdminPin?
-  grns             GoodsReceivedNote[]
-  savedFilters     SavedFilter[]
-  avatars          UserAvatar[]
-  assignedPrescriptions Prescription[] @relation("AssignedPrescriptions")
+  storeUsers            StoreUser[]
+  auditLogs             AuditLog[]
+  accessLogs            AccessLog[]
+  onboarding            OnboardingProgress?
+  returnsRequested      SupplierReturn[]     @relation("ReturnRequester")
+  returnsApproved       SupplierReturn[]     @relation("ReturnApprover")
+  userRoles             UserRoleAssignment[]
+  adminPin              AdminPin?
+  grns                  GoodsReceivedNote[]
+  savedFilters          SavedFilter[]
+  avatars               UserAvatar[]
+  assignedPrescriptions Prescription[]       @relation("AssignedPrescriptions")
 
   // HR Relations
   attendanceLogs     AttendanceLog[]
@@ -201,9 +201,10 @@ model User {
   performanceMetrics PerformanceMetric[]
   shift              Shift?              @relation(fields: [shiftId], references: [id])
 
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  deletedAt           DateTime?
+  ConsolidatedInvoice ConsolidatedInvoice[]
 
   @@index([email])
   @@index([phoneNumber])
@@ -323,24 +324,24 @@ model AdminPin {
 model BusinessTypeConfig {
   id           String @id @default(cuid())
   businessType String @unique // "Retail Pharmacy", "Wholesale Pharmacy", "Hospital-based Pharmacy", "Multi-store Chain"
-  
+
   // Feature visibility configuration (JSON)
   // Example: { "prescriptions": "essential", "pos": "essential", "engage": "optional" }
   featureConfig Json
-  
+
   // Sidebar sections to show/hide
   enabledSections String[] // ["Operations", "Inventory & Supply", ...]
-  
+
   // Default permissions for this business type
   defaultPermissions String[] // Permission codes
-  
+
   // Description and metadata
   description String?
   icon        String? // Icon identifier for UI
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   @@index([businessType])
 }
 
@@ -353,7 +354,7 @@ model Store {
   whatsapp     String? // WhatsApp number for business communication
   businessType String?
   logoUrl      String?
-  
+
   // Store-specific feature overrides (optional)
   // Allows customization beyond business type defaults
   // Example: { "engage": "hidden" } to hide loyalty features even for retail
@@ -410,13 +411,14 @@ model Store {
   attendanceLogs     AttendanceLog[]
   shifts             Shift[]
   performanceMetrics PerformanceMetric[]
-  
+
   // Store Settings
   settings StoreSettings?
 
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  deletedAt           DateTime?
+  ConsolidatedInvoice ConsolidatedInvoice[]
 
   @@index([email])
   @@index([deletedAt])
@@ -457,37 +459,37 @@ model StoreOperatingHours {
 }
 
 model StoreSettings {
-  id        String   @id @default(cuid())
-  storeId   String   @unique
-  store     Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  
+  id      String @id @default(cuid())
+  storeId String @unique
+  store   Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
   // Inventory Thresholds
-  lowStockThreshold    Int     @default(10)
-  nearExpiryThreshold  Int     @default(90)
-  
+  lowStockThreshold   Int @default(10)
+  nearExpiryThreshold Int @default(90)
+
   // Inventory Defaults
-  defaultUoM           String  @default("Units")
-  defaultGSTSlab       String  @default("12")
-  
+  defaultUoM     String @default("Units")
+  defaultGSTSlab String @default("12")
+
   // Inventory Features
-  batchTracking        Boolean @default(true)
-  autoGenerateCodes    Boolean @default(true)
-  purchaseRounding     Boolean @default(false)
-  allowNegativeStock   Boolean @default(false)
-  
+  batchTracking      Boolean @default(true)
+  autoGenerateCodes  Boolean @default(true)
+  purchaseRounding   Boolean @default(false)
+  allowNegativeStock Boolean @default(false)
+
   // POS & Billing Settings
-  invoiceFormat        String  @default("INV/0001")
-  paymentMethods       String  @default("Cash") // Comma-separated values
-  billingType          String  @default("MRP-based")
-  printFormat          String  @default("Thermal")
-  footerText           String  @default("Thank you for your business!")
-  autoRounding         Boolean @default(true)
-  defaultCustomerType  String  @default("Walk-in")
-  enableGSTBilling     Boolean @default(true)
-  
+  invoiceFormat       String  @default("INV/0001")
+  paymentMethods      String  @default("Cash") // Comma-separated values
+  billingType         String  @default("MRP-based")
+  printFormat         String  @default("Thermal")
+  footerText          String  @default("Thank you for your business!")
+  autoRounding        Boolean @default(true)
+  defaultCustomerType String  @default("Walk-in")
+  enableGSTBilling    Boolean @default(true)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   @@index([storeId])
 }
 
@@ -623,13 +625,13 @@ model Patient {
 }
 
 model SavedFilter {
-  id           String   @id @default(cuid())
+  id           String  @id @default(cuid())
   name         String
   userId       String
   filters      Json
-  type         String   @default("filter") // "filter" or "watchlist"
-  alertEnabled Boolean  @default(false)
-  
+  type         String  @default("filter") // "filter" or "watchlist"
+  alertEnabled Boolean @default(false)
+
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
@@ -865,57 +867,57 @@ model InventoryForecast {
 // ============================================================================
 
 model Prescription {
-  id           String             @id @default(cuid())
+  id           String  @id @default(cuid())
   storeId      String
   patientId    String
-  prescriberId String?            // Made optional
-  source       String             @default("manual") // manual, e-rx, fax, phone
-  priority     String             @default("Normal") // Normal, Urgent
-  status       String             @default("DRAFT") // DRAFT, IN_PROGRESS, ON_HOLD, COMPLETED, CANCELLED
-  
+  prescriberId String? // Made optional
+  source       String  @default("manual") // manual, e-rx, fax, phone
+  priority     String  @default("Normal") // Normal, Urgent
+  status       String  @default("DRAFT") // DRAFT, IN_PROGRESS, ON_HOLD, COMPLETED, CANCELLED
+
   // Queue Management
-  stage        String             @default("NEW") // NEW, UNVERIFIED, VERIFIED, READY, DELIVERED, ON_HOLD
-  assignedTo   String?            // User ID who's working on it
-  
+  stage      String  @default("NEW") // NEW, UNVERIFIED, VERIFIED, READY, DELIVERED, ON_HOLD
+  assignedTo String? // User ID who's working on it
+
   // Refill Tracking
-  refillNumber     Int            @default(0) // 0 = original, 1+ = refill
-  refillsRemaining Int            @default(0)
-  originalRxId     String?        // Link to original if refill
-  
+  refillNumber     Int     @default(0) // 0 = original, 1+ = refill
+  refillsRemaining Int     @default(0)
+  originalRxId     String? // Link to original if refill
+
   // Controlled Substance
-  controlledFlag   Boolean        @default(false)
-  
+  controlledFlag Boolean @default(false)
+
   // E-Rx Integration
-  eRxId            String?        // External e-Rx system ID
-  eRxMetadata      Json?          // e-Rx provider data
-  
+  eRxId       String? // External e-Rx system ID
+  eRxMetadata Json? // e-Rx provider data
+
   // OCR & Digital
-  uploadedImages   String[]       // OCR image URLs
-  ocrText          String?        // Extracted text
-  ocrConfidence    Float?         // OCR accuracy score
-  
+  uploadedImages String[] // OCR image URLs
+  ocrText        String? // Extracted text
+  ocrConfidence  Float? // OCR accuracy score
+
   // Workflow Timing
   processingStarted   DateTime?
   processingCompleted DateTime?
-  
+
   // Reminders
-  reminderSent     DateTime?
-  nextRefillDue    DateTime?
-  
-  notes        String?
-  createdAt    DateTime           @default(now())
-  updatedAt    DateTime           @updatedAt
-  deletedAt    DateTime?
-  
-  store        Store              @relation(fields: [storeId], references: [id])
-  patient      Patient            @relation(fields: [patientId], references: [id])
-  prescriber   Prescriber?        @relation(fields: [prescriberId], references: [id]) // Made optional
-  assignedUser User?              @relation("AssignedPrescriptions", fields: [assignedTo], references: [id])
-  
-  items        PrescriptionItem[]
+  reminderSent  DateTime?
+  nextRefillDue DateTime?
+
+  notes     String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  store        Store       @relation(fields: [storeId], references: [id])
+  patient      Patient     @relation(fields: [patientId], references: [id])
+  prescriber   Prescriber? @relation(fields: [prescriberId], references: [id]) // Made optional
+  assignedUser User?       @relation("AssignedPrescriptions", fields: [assignedTo], references: [id])
+
+  items          PrescriptionItem[]
   dispenseEvents DispenseEvent[]
-  files        PrescriptionFile[]
-  
+  files          PrescriptionFile[]
+
   // Refill chain
   originalPrescription Prescription?  @relation("RefillChain", fields: [originalRxId], references: [id], onDelete: SetNull, onUpdate: NoAction)
   refills              Prescription[] @relation("RefillChain")
@@ -1132,9 +1134,10 @@ model Supplier {
   purchaseOrders PurchaseOrder[]
   returns        SupplierReturn[]
 
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  deletedAt           DateTime?
+  ConsolidatedInvoice ConsolidatedInvoice[]
 
   @@index([gstin])
   @@index([deletedAt])
@@ -1179,12 +1182,12 @@ model PurchaseOrder {
   approvedBy String?
   approvedAt DateTime?
 
-  store    Store               @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  supplier Supplier            @relation(fields: [supplierId], references: [id])
-  items    PurchaseOrderItem[]
-  receipts POReceipt[]
-  grns     GoodsReceivedNote[]
-  returns  SupplierReturn[]
+  store       Store               @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  supplier    Supplier            @relation(fields: [supplierId], references: [id])
+  items       PurchaseOrderItem[]
+  receipts    POReceipt[]
+  grns        GoodsReceivedNote[]
+  returns     SupplierReturn[]
   attachments POAttachment[]
 
   createdAt DateTime  @default(now())
@@ -1197,25 +1200,24 @@ model PurchaseOrder {
 }
 
 model POAttachment {
-  id              String   @id @default(cuid())
+  id              String        @id @default(cuid())
   purchaseOrderId String
   purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
-  
-  fileName        String
-  fileType        String   // pdf, image, document
-  mimeType        String
-  originalSize    BigInt   // Original file size in bytes
-  compressedSize  BigInt   // Compressed file size in bytes
-  r2Key           String   // R2 storage key
-  url             String   // Public URL
-  
-  uploadedAt      DateTime @default(now())
-  uploadedBy      String
-  
+
+  fileName       String
+  fileType       String // pdf, image, document
+  mimeType       String
+  originalSize   BigInt // Original file size in bytes
+  compressedSize BigInt // Compressed file size in bytes
+  r2Key          String // R2 storage key
+  url            String // Public URL
+
+  uploadedAt DateTime @default(now())
+  uploadedBy String
+
   @@index([purchaseOrderId])
   @@map("po_attachments")
 }
-
 
 model PurchaseOrderItem {
   id          String @id @default(cuid())
@@ -1322,9 +1324,10 @@ model GoodsReceivedNote {
   discrepancies GRNDiscrepancy[]
   attachments   GRNAttachment[]
 
-  completedAt DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  completedAt            DateTime?
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime                 @updatedAt
+  ConsolidatedInvoiceGRN ConsolidatedInvoiceGRN[]
 
   @@index([poId])
   @@index([storeId])
@@ -1332,21 +1335,21 @@ model GoodsReceivedNote {
 }
 
 model GRNAttachment {
-  id       String @id @default(cuid())
-  grnId    String
-  grn      GoodsReceivedNote @relation(fields: [grnId], references: [id], onDelete: Cascade)
-  
-  fileName        String
-  fileType        String   // pdf, image, document
-  mimeType        String
-  originalSize    BigInt
-  compressedSize  BigInt
-  r2Key           String
-  url             String
-  
-  uploadedAt      DateTime @default(now())
-  uploadedBy      String
-  
+  id    String            @id @default(cuid())
+  grnId String
+  grn   GoodsReceivedNote @relation(fields: [grnId], references: [id], onDelete: Cascade)
+
+  fileName       String
+  fileType       String // pdf, image, document
+  mimeType       String
+  originalSize   BigInt
+  compressedSize BigInt
+  r2Key          String
+  url            String
+
+  uploadedAt DateTime @default(now())
+  uploadedBy String
+
   @@index([grnId])
   @@map("grn_attachments")
 }
@@ -1401,14 +1404,113 @@ model GRNDiscrepancy {
   debitNoteValue     Decimal? @db.Decimal(10, 2)
   debitNoteGenerated Boolean  @default(false)
 
-  grn GoodsReceivedNote @relation(fields: [grnId], references: [id], onDelete: Cascade)
-
-  createdAt  DateTime  @default(now())
+  grn        GoodsReceivedNote @relation(fields: [grnId], references: [id], onDelete: Cascade)
+  createdAt  DateTime          @default(now())
   resolvedAt DateTime?
 
   @@index([grnId])
   @@index([reason])
+  @@map("grn_discrepancies")
 }
+
+// ============================================================================
+// CONSOLIDATED INVOICES (Supplier Invoice Management)
+// ============================================================================
+
+enum ConsolidatedInvoiceType {
+  SINGLE_SUPPLIER // All GRNs from one supplier
+  MULTI_SUPPLIER // GRNs from multiple suppliers
+  PERIOD // Period-based (daily/monthly/yearly)
+}
+
+enum ConsolidatedInvoiceStatus {
+  DRAFT // Being created
+  FINALIZED // Ready to send
+  SENT // Sent to supplier
+  ARCHIVED // Archived for record-keeping
+}
+
+model ConsolidatedInvoice {
+  id            String  @id @default(cuid())
+  invoiceNumber String  @unique // CI-2024-001
+  storeId       String
+  supplierId    String? // Optional - can be multi-supplier
+
+  // Invoice Details
+  invoiceDate DateTime  @default(now())
+  periodStart DateTime? // For period-based invoices
+  periodEnd   DateTime?
+
+  // Financials
+  subtotal  Decimal @db.Decimal(12, 2)
+  taxAmount Decimal @db.Decimal(12, 2)
+  total     Decimal @db.Decimal(12, 2)
+
+  // Metadata
+  type   ConsolidatedInvoiceType   @default(SINGLE_SUPPLIER)
+  status ConsolidatedInvoiceStatus @default(DRAFT)
+  notes  String?                   @db.Text
+
+  // Relations
+  store    Store                     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  supplier Supplier?                 @relation(fields: [supplierId], references: [id])
+  grns     ConsolidatedInvoiceGRN[]
+  items    ConsolidatedInvoiceItem[]
+
+  createdBy     String
+  createdByUser User     @relation(fields: [createdBy], references: [id])
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([storeId, invoiceDate])
+  @@index([supplierId])
+  @@index([status])
+  @@map("consolidated_invoices")
+}
+
+model ConsolidatedInvoiceGRN {
+  id                    String @id @default(cuid())
+  consolidatedInvoiceId String
+  grnId                 String
+
+  consolidatedInvoice ConsolidatedInvoice @relation(fields: [consolidatedInvoiceId], references: [id], onDelete: Cascade)
+  grn                 GoodsReceivedNote   @relation(fields: [grnId], references: [id])
+
+  @@unique([consolidatedInvoiceId, grnId])
+  @@index([grnId])
+  @@map("consolidated_invoice_grns")
+}
+
+model ConsolidatedInvoiceItem {
+  id                    String  @id @default(cuid())
+  consolidatedInvoiceId String
+  drugId                String
+  drugName              String
+  batchNumber           String?
+
+  // Quantities from all GRNs
+  totalQuantity Int
+  unit          String
+
+  // Pricing
+  unitPrice       Decimal @db.Decimal(10, 2)
+  gstPercent      Decimal @db.Decimal(5, 2)
+  discountPercent Decimal @default(0) @db.Decimal(5, 2)
+
+  // Calculated
+  subtotal  Decimal @db.Decimal(12, 2)
+  taxAmount Decimal @db.Decimal(12, 2)
+  lineTotal Decimal @db.Decimal(12, 2)
+
+  consolidatedInvoice ConsolidatedInvoice @relation(fields: [consolidatedInvoiceId], references: [id], onDelete: Cascade)
+
+  @@index([consolidatedInvoiceId])
+  @@map("consolidated_invoice_items")
+}
+
+// ============================================================================
+// SUPPLIER RETURNS
+// ============================================================================
 
 model SupplierReturn {
   id           String        @id @default(cuid())
@@ -2526,25 +2628,25 @@ model PrescriptionFile {
 model UserAvatar {
   id         String   @id @default(cuid())
   userId     String
-  sha        String   // Content hash for deduplication
-  key        String   // R2 object key: objects/avatars/<sha>.webp
+  sha        String // Content hash for deduplication
+  key        String // R2 object key: objects/avatars/<sha>.webp
   version    Int      @default(1)
   isActive   Boolean  @default(true)
   uploadedAt DateTime @default(now())
-  
+
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   @@index([userId, isActive])
   @@index([sha])
 }
 
 model AvatarObject {
   sha          String   @id // SHA256 hash as primary key
-  key          String   // R2 object key: objects/avatars/<sha>.webp
+  key          String // R2 object key: objects/avatars/<sha>.webp
   sizeBytes    BigInt
   refCount     Int      @default(0)
   createdAt    DateTime @default(now())
   lastAccessed DateTime @updatedAt
-  
+
   @@index([refCount])
 }
