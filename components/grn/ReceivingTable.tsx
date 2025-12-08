@@ -35,20 +35,11 @@ export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSp
     };
 
     const handleFieldUpdate = (itemId: string, field: string, value: any) => {
-        const updates: any = {};
-
-        // For numeric fields, parse the value
-        if (['receivedQty', 'freeQty', 'unitPrice', 'discountPercent', 'gstPercent', 'mrp'].includes(field)) {
-            if (value === '' || value === null || value === undefined) {
-                updates[field] = 0; // Always set to 0, never null
-            } else {
-                const parsedValue = field.includes('Qty') ? parseInt(value) : parseFloat(value);
-                updates[field] = isNaN(parsedValue) ? 0 : parsedValue;
-            }
-        } else {
-            // For text fields like batchNumber, expiryDate, discountType - just pass the value
-            updates[field] = value;
-        }
+        // Just pass the value directly to parent without conversion
+        // The parent will handle the conversion when sending to API
+        const updates: any = {
+            [field]: value
+        };
 
         onItemUpdate(itemId, updates);
     };
@@ -148,32 +139,66 @@ export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSp
                                                 type="text"
                                                 value={item.batchNumber || ''}
                                                 onChange={(e) => handleFieldUpdate(item.id, 'batchNumber', e.target.value)}
-                                                className="w-28 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm"
-                                                placeholder="Batch #"
+                                                onFocus={(e) => e.target.select()}
+                                                className="w-32 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm"
+                                                placeholder="Batch No"
                                                 disabled={isParent}
                                             />
                                         </td>
                                         <td className="px-4 py-3">
                                             <input
-                                                type="month"
-                                                value={item.expiryDate ? new Date(item.expiryDate).toISOString().substring(0, 7) : ''}
+                                                type="text"
+                                                key={`expiry-${item.id}-${item.expiryDate}`}
+                                                defaultValue={item.expiryDate ? (() => {
+                                                    const date = new Date(item.expiryDate);
+                                                    return `${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+                                                })() : ''}
                                                 onChange={(e) => {
-                                                    if (e.target.value) {
-                                                        const [year, month] = e.target.value.split('-');
+                                                    let value = e.target.value.replace(/[^0-9]/g, ''); // Only numbers
+
+                                                    // Auto-format: Add / after 2 digits
+                                                    if (value.length >= 2) {
+                                                        const month = value.substring(0, 2);
+                                                        const year = value.substring(2, 6);
+
+                                                        // Validate month (01-12)
+                                                        if (parseInt(month) > 12) {
+                                                            value = '12' + year;
+                                                        }
+                                                        if (parseInt(month) === 0) {
+                                                            value = '01' + year;
+                                                        }
+
+                                                        e.target.value = month + (year ? '/' + year : '');
+                                                    }
+
+                                                    // Limit to MM/YYYY format (7 chars max)
+                                                    if (e.target.value.length > 7) {
+                                                        e.target.value = e.target.value.substring(0, 7);
+                                                    }
+                                                }}
+                                                onBlur={(e) => {
+                                                    const value = e.target.value;
+                                                    if (value && value.match(/^(0?[1-9]|1[0-2])\/(\d{4})$/)) {
+                                                        const [month, year] = value.split('/');
                                                         const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
-                                                        const fullDate = `${year}-${month}-${String(lastDay).padStart(2, '0')}`;
+                                                        const fullDate = `${year}-${month.padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
                                                         handleFieldUpdate(item.id, 'expiryDate', fullDate);
                                                     }
                                                 }}
+                                                onFocus={(e) => e.target.select()}
                                                 className="w-32 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm"
+                                                placeholder="MM/YYYY"
+                                                maxLength={7}
                                                 disabled={isParent}
                                             />
                                         </td>
                                         <td className="px-4 py-3">
                                             <input
                                                 type="number"
-                                                value={item.mrp || ''}
+                                                value={item.mrp || 0}
                                                 onChange={(e) => handleFieldUpdate(item.id, 'mrp', e.target.value)}
+                                                onFocus={(e) => e.target.select()}
                                                 className="w-24 px-2 py-1 text-right border border-gray-300 rounded focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                                                 step="0.01"
                                                 min="0"
@@ -184,8 +209,9 @@ export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSp
                                         <td className="px-4 py-3">
                                             <input
                                                 type="number"
-                                                value={item.unitPrice || ''}
+                                                value={item.unitPrice || 0}
                                                 onChange={(e) => handleFieldUpdate(item.id, 'unitPrice', e.target.value)}
+                                                onFocus={(e) => e.target.select()}
                                                 className="w-24 px-2 py-1 text-right border border-gray-300 rounded focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                                                 step="0.01"
                                                 min="0"
@@ -315,30 +341,61 @@ export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSp
                                                         type="text"
                                                         value={child.batchNumber || ''}
                                                         onChange={(e) => handleFieldUpdate(child.id, 'batchNumber', e.target.value)}
+                                                        onFocus={(e) => e.target.select()}
                                                         className="w-28 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm"
                                                         placeholder="Batch #"
                                                     />
                                                 </td>
                                                 <td className="px-4 py-3">
                                                     <input
-                                                        type="month"
-                                                        value={child.expiryDate ? new Date(child.expiryDate).toISOString().substring(0, 7) : ''}
+                                                        type="text"
+                                                        key={`expiry-${child.id}-${child.expiryDate}`}
+                                                        defaultValue={child.expiryDate ? (() => {
+                                                            const date = new Date(child.expiryDate);
+                                                            return `${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+                                                        })() : ''}
                                                         onChange={(e) => {
-                                                            if (e.target.value) {
-                                                                const [year, month] = e.target.value.split('-');
+                                                            let value = e.target.value.replace(/[^0-9]/g, '');
+
+                                                            if (value.length >= 2) {
+                                                                const month = value.substring(0, 2);
+                                                                const year = value.substring(2, 6);
+
+                                                                if (parseInt(month) > 12) {
+                                                                    value = '12' + year;
+                                                                }
+                                                                if (parseInt(month) === 0) {
+                                                                    value = '01' + year;
+                                                                }
+
+                                                                e.target.value = month + (year ? '/' + year : '');
+                                                            }
+
+                                                            if (e.target.value.length > 7) {
+                                                                e.target.value = e.target.value.substring(0, 7);
+                                                            }
+                                                        }}
+                                                        onBlur={(e) => {
+                                                            const value = e.target.value;
+                                                            if (value && value.match(/^(0?[1-9]|1[0-2])\/(\d{4})$/)) {
+                                                                const [month, year] = value.split('/');
                                                                 const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
-                                                                const fullDate = `${year}-${month}-${String(lastDay).padStart(2, '0')}`;
+                                                                const fullDate = `${year}-${month.padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
                                                                 handleFieldUpdate(child.id, 'expiryDate', fullDate);
                                                             }
                                                         }}
+                                                        onFocus={(e) => e.target.select()}
                                                         className="w-32 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm"
+                                                        placeholder="MM/YYYY"
+                                                        maxLength={7}
                                                     />
                                                 </td>
                                                 <td className="px-4 py-3">
                                                     <input
                                                         type="number"
-                                                        value={child.mrp || ''}
+                                                        value={child.mrp || 0}
                                                         onChange={(e) => handleFieldUpdate(child.id, 'mrp', e.target.value)}
+                                                        onFocus={(e) => e.target.select()}
                                                         className="w-24 px-2 py-1 text-right border border-gray-300 rounded focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                                                         step="0.01"
                                                         min="0"
@@ -348,8 +405,9 @@ export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSp
                                                 <td className="px-4 py-3">
                                                     <input
                                                         type="number"
-                                                        value={child.unitPrice || ''}
+                                                        value={child.unitPrice || 0}
                                                         onChange={(e) => handleFieldUpdate(child.id, 'unitPrice', e.target.value)}
+                                                        onFocus={(e) => e.target.select()}
                                                         className="w-24 px-2 py-1 text-right border border-gray-300 rounded focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                                                         step="0.01"
                                                         min="0"

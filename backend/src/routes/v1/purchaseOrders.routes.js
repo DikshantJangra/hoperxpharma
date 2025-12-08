@@ -39,6 +39,8 @@ router.post('/:id/request-approval', requireStoreAccess, poController.requestApp
 router.put('/:id/approve', requirePharmacist, poController.approvePO);
 router.put('/:id/send', requirePharmacist, poController.sendPO);
 router.post('/:id/receipts', requireStoreAccess, validate(receiptCreateSchema), poController.createReceipt);
+router.delete('/:id', requirePharmacist, poController.deletePO);
+
 
 /**
  * Efficient PO Composer routes

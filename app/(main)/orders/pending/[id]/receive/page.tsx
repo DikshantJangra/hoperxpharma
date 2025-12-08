@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { tokenManager } from '@/lib/api/client';
 import ReceivingTable from '@/components/grn/ReceivingTable';
@@ -54,7 +54,8 @@ export default function ReceiveShipmentPage() {
         }
     }, [grn]);
 
-    // Auto-save every 30 seconds if there are changes
+    // DISABLED: Auto-save - only save when user clicks "Save Draft" button
+    /*
     useEffect(() => {
         if (!grn) return;
 
@@ -64,6 +65,36 @@ export default function ReceiveShipmentPage() {
 
         return () => clearInterval(autoSaveInterval);
     }, [grn, invoiceNo, invoiceDate, notes]);
+    */
+
+    // DISABLED: Background sync was causing items to re-order
+    // The optimistic updates + debounced API calls are sufficient
+    // If needed in future, implement smart merging instead of full state replacement
+    /*
+    useEffect(() => {
+        if (!grn) return;
+
+        const syncInterval = setInterval(async () => {
+            // Only sync if no pending updates
+            if (pendingUpdatesRef.current.size === 0) {
+                try {
+                    const token = tokenManager.getAccessToken();
+                    const response = await fetch(`${apiBaseUrl}/grn/${grn.id}`, {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    });
+                    if (response.ok) {
+                        const grnData = await response.json();
+                        setGrn(grnData.data);
+                    }
+                } catch (error) {
+                    console.error('Background sync error:', error);
+                }
+            }
+        }, 10000); // Sync every 10 seconds when idle
+
+        return () => clearInterval(syncInterval);
+    }, [grn?.id]);
+    */
 
     const initializeGRN = async () => {
         setLoading(true);
@@ -170,9 +201,10 @@ export default function ReceiveShipmentPage() {
     };
 
     const updateTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+    const pendingUpdatesRef = React.useRef<Set<string>>(new Set());
 
     const handleItemUpdate = async (itemId: string, updates: any) => {
-        // Optimistic update (immediate UI feedback)
+        // Optimistic update (immediate UI feedback) - use raw values
         setGrn((prevGrn: any) => {
             if (!prevGrn) return null;
 
@@ -186,6 +218,9 @@ export default function ReceiveShipmentPage() {
             return { ...prevGrn, items: updatedItems };
         });
 
+        // Track this item as having pending updates
+        pendingUpdatesRef.current.add(itemId);
+
         // Debounce the API call to prevent rate limiting
         if (updateTimeoutRef.current) {
             clearTimeout(updateTimeoutRef.current);
@@ -195,28 +230,122 @@ export default function ReceiveShipmentPage() {
             try {
                 const token = tokenManager.getAccessToken();
 
+                // Sanitize values for API call
+                const sanitizedUpdates: any = {};
+                const numericFields = ['receivedQty', 'freeQty', 'unitPrice', 'discountPercent', 'gstPercent', 'mrp'];
+
+                for (const [key, value] of Object.entries(updates)) {
+                    if (numericFields.includes(key)) {
+                        // Convert to number for API
+                        if (value === '' || value === null || value === undefined) {
+                            sanitizedUpdates[key] = 0;
+                        } else {
+                            const parsedValue = key.includes('Qty') ? parseInt(value as string) : parseFloat(value as string);
+                            sanitizedUpdates[key] = isNaN(parsedValue) ? 0 : parsedValue;
+                        }
+                    } else {
+                        // Text fields - pass as is
+                        sanitizedUpdates[key] = value;
+                    }
+                }
+
                 const response = await fetch(`${apiBaseUrl}/grn/${grn.id}/items/${itemId}`, {
                     method: 'PATCH',
                     headers: {
                         'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify(updates)
+                    body: JSON.stringify(sanitizedUpdates)
                 });
 
                 if (response.ok) {
-                    // Only refresh GRN after successful update
-                    const grnResponse = await fetch(`${apiBaseUrl}/grn/${grn.id}`, {
-                        headers: { 'Authorization': `Bearer ${token}` }
+                    const result = await response.json();
+
+                    // Only update the specific item
+                    setGrn((prevGrn: any) => {
+                        if (!prevGrn) return null;
+
+                        const updatedItems = prevGrn.items.map((item: any) => {
+                            if (item.id === itemId) {
+                                return { ...item, ...result.data };
+                            }
+                            return item;
+                        });
+
+                        return { ...prevGrn, items: updatedItems };
                     });
-                    const grnData = await grnResponse.json();
-                    setGrn(grnData.data);
+
+                    // Remove from pending updates
+                    pendingUpdatesRef.current.delete(itemId);
+                } else {
+                    // On error, remove from pending
+                    pendingUpdatesRef.current.delete(itemId);
+
+                    // Try to get error message
+                    try {
+                        const errorData = await response.json();
+                        console.error('Failed to update item:', errorData);
+                        toast.error(errorData.error || errorData.message || 'Failed to update item');
+                    } catch (e) {
+                        console.error('Failed to update item (no error details)');
+                        toast.error('Failed to update item');
+                    }
                 }
             } catch (error) {
                 console.error('Error updating item:', error);
+                pendingUpdatesRef.current.delete(itemId);
+                toast.error('Network error while updating item');
             }
-        }, 500); // Wait 500ms after last keystroke before sending request
+        }, 1500); // Wait 1.5 seconds after last keystroke before sending request
     };
+
+    // Calculate totals from items (client-side calculation)
+    const calculatedTotals = useMemo(() => {
+        if (!grn || !grn.items) {
+            return { subtotal: 0, taxAmount: 0, total: 0 };
+        }
+
+        let subtotal = 0;
+        let taxAmount = 0;
+
+        for (const item of grn.items) {
+            // Skip parent items that have been split (only count actual batches)
+            if (item.isSplit) {
+                continue;
+            }
+
+            const receivedQty = parseFloat(item.receivedQty) || 0;
+            const unitPrice = parseFloat(item.unitPrice) || 0;
+            const discountPercent = parseFloat(item.discountPercent) || 0;
+            const gstPercent = parseFloat(item.gstPercent) || 0;
+            const discountType = item.discountType || 'BEFORE_GST';
+
+            if (discountType === 'AFTER_GST') {
+                // After GST: Calculate gross + tax, then apply discount
+                const grossAmount = receivedQty * unitPrice;
+                const tax = grossAmount * (gstPercent / 100);
+                const subtotalWithTax = grossAmount + tax;
+                const discountAmount = subtotalWithTax * (discountPercent / 100);
+
+                // Distribute discount proportionally
+                const discountRatio = 1 - (discountPercent / 100);
+                subtotal += grossAmount * discountRatio;
+                taxAmount += tax * discountRatio;
+            } else {
+                // Before GST (default): Apply discount first, then GST
+                const netAmount = receivedQty * unitPrice * (1 - discountPercent / 100);
+                const tax = netAmount * (gstPercent / 100);
+
+                subtotal += netAmount;
+                taxAmount += tax;
+            }
+        }
+
+        const total = subtotal + taxAmount;
+
+        return { subtotal, taxAmount, total };
+    }, [grn]);
+
 
     const handleBatchSplit = async (itemId: string, splitData: any[]) => {
         try {
@@ -583,19 +712,19 @@ export default function ReceiveShipmentPage() {
                     <div>
                         <div className="text-sm text-gray-600">Subtotal</div>
                         <div className="text-xl font-semibold text-gray-900">
-                            ₹{formatCurrency(grn.subtotal)}
+                            ₹{formatCurrency(calculatedTotals.subtotal)}
                         </div>
                     </div>
                     <div>
                         <div className="text-sm text-gray-600">Tax Amount</div>
                         <div className="text-xl font-semibold text-gray-900">
-                            ₹{formatCurrency(grn.taxAmount)}
+                            ₹{formatCurrency(calculatedTotals.taxAmount)}
                         </div>
                     </div>
                     <div>
                         <div className="text-sm text-gray-600">Total</div>
                         <div className="text-2xl font-bold text-emerald-600">
-                            ₹{formatCurrency(grn.total)}
+                            ₹{formatCurrency(calculatedTotals.total)}
                         </div>
                     </div>
                 </div>

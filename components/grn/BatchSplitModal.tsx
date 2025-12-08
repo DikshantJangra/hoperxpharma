@@ -11,14 +11,15 @@ interface BatchSplitModalProps {
 }
 
 export default function BatchSplitModal({ item, drugName, onSplit, onClose }: BatchSplitModalProps) {
+    const [attemptedSubmit, setAttemptedSubmit] = useState(false);
     const [splits, setSplits] = useState([
         {
             receivedQty: Math.floor(item.receivedQty / 2),
             freeQty: 0,
-            batchNumber: '',
-            expiryDate: '',
-            location: '',
-            mrp: item.mrp,
+            batchNumber: item.batchNumber || '',
+            expiryDate: item.expiryDate || '',
+            location: item.location || '',
+            mrp: item.mrp || 0,
             unitPrice: item.unitPrice,
             discountPercent: item.discountPercent,
             discountType: item.discountType || 'BEFORE_GST',
@@ -27,10 +28,10 @@ export default function BatchSplitModal({ item, drugName, onSplit, onClose }: Ba
         {
             receivedQty: item.receivedQty - Math.floor(item.receivedQty / 2),
             freeQty: 0,
-            batchNumber: '',
-            expiryDate: '',
-            location: '',
-            mrp: item.mrp,
+            batchNumber: item.batchNumber || '',
+            expiryDate: item.expiryDate || '',
+            location: item.location || '',
+            mrp: item.mrp || 0,
             unitPrice: item.unitPrice,
             discountPercent: item.discountPercent,
             discountType: item.discountType || 'BEFORE_GST',
@@ -70,10 +71,10 @@ export default function BatchSplitModal({ item, drugName, onSplit, onClose }: Ba
         setSplits([...splits, {
             receivedQty: 0,
             freeQty: 0,
-            batchNumber: '',
-            expiryDate: '',
-            location: '',
-            mrp: item.mrp,
+            batchNumber: item.batchNumber || '',
+            expiryDate: item.expiryDate || '',
+            location: item.location || '',
+            mrp: item.mrp || 0,
             unitPrice: item.unitPrice,
             discountPercent: item.discountPercent,
             discountType: item.discountType || 'BEFORE_GST',
@@ -91,6 +92,13 @@ export default function BatchSplitModal({ item, drugName, onSplit, onClose }: Ba
         const newSplits = [...splits];
         newSplits[index] = { ...newSplits[index], [field]: value };
         setSplits(newSplits);
+    };
+
+    const handleSplit = () => {
+        setAttemptedSubmit(true);
+        if (isValid) {
+            onSplit(splits);
+        }
     };
 
     return (
@@ -135,7 +143,7 @@ export default function BatchSplitModal({ item, drugName, onSplit, onClose }: Ba
                         </div>
                     </div>
 
-                    {errors.length > 0 && (
+                    {attemptedSubmit && errors.length > 0 && (
                         <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3">
                             <p className="text-sm font-semibold text-red-900 mb-1">Validation Errors:</p>
                             <ul className="text-sm text-red-700 list-disc list-inside space-y-1">
@@ -205,17 +213,44 @@ export default function BatchSplitModal({ item, drugName, onSplit, onClose }: Ba
                                             Expiry (MM/YYYY) *
                                         </label>
                                         <input
-                                            type="month"
-                                            value={split.expiryDate ? new Date(split.expiryDate).toISOString().substring(0, 7) : ''}
+                                            type="text"
+                                            defaultValue={split.expiryDate ? (() => {
+                                                const date = new Date(split.expiryDate);
+                                                return `${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+                                            })() : ''}
                                             onChange={(e) => {
-                                                if (e.target.value) {
-                                                    const [year, month] = e.target.value.split('-');
+                                                let value = e.target.value.replace(/[^0-9]/g, '');
+
+                                                if (value.length >= 2) {
+                                                    const month = value.substring(0, 2);
+                                                    const year = value.substring(2, 6);
+
+                                                    if (parseInt(month) > 12) {
+                                                        value = '12' + year;
+                                                    }
+                                                    if (parseInt(month) === 0) {
+                                                        value = '01' + year;
+                                                    }
+
+                                                    e.target.value = month + (year ? '/' + year : '');
+                                                }
+
+                                                if (e.target.value.length > 7) {
+                                                    e.target.value = e.target.value.substring(0, 7);
+                                                }
+                                            }}
+                                            onBlur={(e) => {
+                                                const value = e.target.value;
+                                                if (value && value.match(/^(0?[1-9]|1[0-2])\/(\d{4})$/)) {
+                                                    const [month, year] = value.split('/');
                                                     const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
-                                                    const fullDate = `${year}-${month}-${String(lastDay).padStart(2, '0')}`;
+                                                    const fullDate = `${year}-${month.padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
                                                     updateSplit(index, 'expiryDate', fullDate);
                                                 }
                                             }}
                                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
+                                            placeholder="MM/YYYY (e.g., 12/2027)"
+                                            maxLength={7}
                                         />
                                     </div>
                                     <div>
@@ -243,19 +278,7 @@ export default function BatchSplitModal({ item, drugName, onSplit, onClose }: Ba
                                             step="0.01"
                                         />
                                     </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Unit Price
-                                        </label>
-                                        <input
-                                            type="number"
-                                            value={split.unitPrice}
-                                            onChange={(e) => updateSplit(index, 'unitPrice', parseFloat(e.target.value) || 0)}
-                                            onFocus={(e) => e.target.select()}
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
-                                            step="0.01"
-                                        />
-                                    </div>
+
                                 </div>
                             </div>
                         ))}
@@ -280,8 +303,8 @@ export default function BatchSplitModal({ item, drugName, onSplit, onClose }: Ba
                             Cancel
                         </button>
                         <button
-                            onClick={() => onSplit(splits)}
-                            disabled={!isValid}
+                            onClick={handleSplit}
+                            disabled={attemptedSubmit && !isValid}
                             className="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             Split Batch

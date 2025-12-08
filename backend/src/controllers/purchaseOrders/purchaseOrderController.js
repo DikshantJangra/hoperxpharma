@@ -217,6 +217,14 @@ const autosavePO = asyncHandler(async (req, res) => {
     res.status(response.statusCode).json(response);
 });
 
+const deletePO = asyncHandler(async (req, res) => {
+    await purchaseOrderService.deletePO(req.params.id, req.storeId);
+
+    const response = ApiResponse.success(null, 'Purchase order deleted successfully');
+    res.status(response.statusCode).json(response);
+});
+
+
 module.exports = {
     getSuppliers,
     getSupplierById,
@@ -238,4 +246,5 @@ module.exports = {
     calculatePO,
     bulkAddItems,
     autosavePO,
+    deletePO,
 };

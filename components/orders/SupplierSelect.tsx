@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Supplier } from '@/types/po';
-import { Supplier as ApiSupplier } from '@/lib/api/supplier';
+import { Supplier as ApiSupplier, supplierApi } from '@/lib/api/supplier';
 import { HiOutlineChevronDown, HiOutlineMagnifyingGlass } from 'react-icons/hi2';
 import SupplierForm from '@/components/suppliers/SupplierForm';
 import { FiPlus, FiAlertCircle } from 'react-icons/fi';
@@ -29,7 +29,6 @@ export default function SupplierSelect({ value, onChange }: SupplierSelectProps)
     setLoading(true);
     setError(null);
     try {
-      const { supplierApi } = await import('@/lib/api/supplier');
       console.log('🔍 [SupplierSelect] Fetching suppliers...');
 
       const response = await supplierApi.getSuppliers({
@@ -91,8 +90,6 @@ export default function SupplierSelect({ value, onChange }: SupplierSelectProps)
   const handleAddNew = async (newSupplierData: any) => {
     try {
       console.log('💾 [SupplierSelect] Creating new supplier:', newSupplierData);
-
-      const { supplierApi } = await import('@/lib/api/supplier');
 
       // Create supplier via API
       const response = await supplierApi.createSupplier(newSupplierData);

@@ -102,4 +102,12 @@ export const purchaseOrderApi = {
         const response = await apiClient.get('/purchase-orders/stats');
         return response.data;
     },
+
+    /**
+     * Delete purchase order
+     */
+    async deletePO(id: string) {
+        const response = await apiClient.delete(`/purchase-orders/${id}`);
+        return response.data;
+    },
 };

@@ -5,10 +5,13 @@ import React, { useState, useEffect } from 'react';
 import OrderList from '@/components/orders/OrderList';
 import OrderFilters, { FilterState } from '@/components/orders/OrderFilters';
 import { HiOutlineClock, HiOutlineExclamationCircle, HiOutlineCalendar } from 'react-icons/hi2';
-import { HiOutlineRefresh } from 'react-icons/hi'; // Added HiOutlineRefresh
-import { Order } from '@/components/orders/OrderList'; // Changed Order import source
+import { HiOutlineRefresh } from 'react-icons/hi';
+import { Order } from '@/components/orders/OrderList';
 import { tokenManager } from '@/lib/api/client';
 import { useRouter } from 'next/navigation';
+import { purchaseOrderApi } from '@/lib/api/purchaseOrders';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import Toast from '@/components/ui/Toast';
 
 const StatCardSkeleton = () => (
     <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 animate-pulse">
@@ -25,6 +28,11 @@ const StatCardSkeleton = () => (
 export default function PendingOrdersPage() {
     const [orders, setOrders] = useState<Order[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [deleteConfirm, setDeleteConfirm] = useState<{ isOpen: boolean; order: Order | null }>({
+        isOpen: false,
+        order: null
+    });
+    const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' | 'info' } | null>(null);
     const router = useRouter();
 
     useEffect(() => {
@@ -75,12 +83,46 @@ export default function PendingOrdersPage() {
         router.push(`/orders/${order.id}`);
     };
 
-    const handleReceive = (order: Order) => { // Updated signature to take Order object
+    const handleReceive = (order: Order) => {
         router.push(`/orders/pending/${order.id}/receive`);
     };
 
     const handleEdit = (order: Order) => {
         router.push(`/orders/new-po?id=${order.id}`);
+    };
+
+    const handleDelete = (order: Order) => {
+        setDeleteConfirm({ isOpen: true, order });
+    };
+
+    const confirmDelete = async () => {
+        const order = deleteConfirm.order;
+        if (!order) return;
+
+        setDeleteConfirm({ isOpen: false, order: null });
+
+        try {
+            await purchaseOrderApi.deletePO(order.id);
+
+            // Show success toast
+            setToast({
+                message: `Purchase order ${order.poNumber} has been deleted successfully.`,
+                type: 'success'
+            });
+
+            // Refresh the orders list
+            await fetchPendingOrders();
+        } catch (error: any) {
+            console.error('Failed to delete purchase order:', error);
+            setToast({
+                message: error.message || 'Failed to delete purchase order. Please try again.',
+                type: 'error'
+            });
+        }
+    };
+
+    const cancelDelete = () => {
+        setDeleteConfirm({ isOpen: false, order: null });
     };
 
     // Calculate stats from the fetched orders
@@ -163,8 +205,32 @@ export default function PendingOrdersPage() {
                 onView={handleView}
                 onReceive={handleReceive}
                 onEdit={handleEdit}
+                onDelete={handleDelete}
                 loading={isLoading}
             />
+
+            {/* Delete Confirmation Dialog */}
+            <ConfirmDialog
+                isOpen={deleteConfirm.isOpen}
+                title="Delete Purchase Order"
+                message={`Are you sure you want to delete PO ${deleteConfirm.order?.poNumber}?\n\nThis action cannot be undone.`}
+                confirmLabel="Delete"
+                cancelLabel="Cancel"
+                type="danger"
+                onConfirm={confirmDelete}
+                onCancel={cancelDelete}
+            />
+
+            {/* Toast Notifications */}
+            {toast && (
+                <div className="fixed bottom-4 right-4 z-50">
+                    <Toast
+                        message={toast.message}
+                        type={toast.type}
+                        onClose={() => setToast(null)}
+                    />
+                </div>
+            )}
         </div>
     );
 }

@@ -471,6 +471,34 @@ class PurchaseOrderService {
             version: (existingPO.version || 0) + 1
         };
     }
+
+    /**
+     * Delete purchase order
+     * Only allows deletion of DRAFT or SENT orders
+     */
+    async deletePO(id, storeId) {
+        const po = await purchaseOrderRepository.findPOById(id);
+
+        if (!po) {
+            throw ApiError.notFound('Purchase order not found');
+        }
+
+        // Verify the PO belongs to the user's store
+        if (po.storeId !== storeId) {
+            throw ApiError.forbidden('You do not have permission to delete this purchase order');
+        }
+
+        // Only allow deletion of DRAFT or SENT orders
+        if (po.status !== 'DRAFT' && po.status !== 'SENT') {
+            throw ApiError.badRequest(`Cannot delete purchase order with status: ${po.status}. Only DRAFT or SENT orders can be deleted.`);
+        }
+
+        // Delete the purchase order (cascade will delete items)
+        await purchaseOrderRepository.deletePO(id);
+        logger.info(`Purchase order deleted: ${po.poNumber} (ID: ${id})`);
+
+        return { success: true };
+    }
 }
 
 module.exports = new PurchaseOrderService();

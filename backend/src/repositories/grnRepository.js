@@ -70,8 +70,15 @@ class GRNRepository {
             where: { id },
             include: {
                 items: {
+                    orderBy: {
+                        id: 'asc'  // Order by ID (insertion order) - GRNItem doesn't have createdAt
+                    },
                     include: {
-                        children: true  // Include split batches
+                        children: {
+                            orderBy: {
+                                id: 'asc'  // Also order child batches by ID
+                            }
+                        }
                     }
                 },
                 discrepancies: true,
@@ -328,7 +335,18 @@ class GRNRepository {
         const grns = await prisma.goodsReceivedNote.findMany({
             where: { poId },
             include: {
-                items: true,
+                items: {
+                    orderBy: {
+                        id: 'asc'  // Stable ordering
+                    },
+                    include: {
+                        children: {
+                            orderBy: {
+                                id: 'asc'  // Also order child batches
+                            }
+                        }
+                    }
+                },
                 discrepancies: true,
                 po: {
                     include: {

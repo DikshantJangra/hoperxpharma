@@ -1,7 +1,7 @@
 import React from 'react';
 import Link from 'next/link';
 import OrderStatusBadge from './OrderStatusBadge';
-import { FiEye, FiEdit2, FiDownload, FiPackage } from 'react-icons/fi';
+import { FiEye, FiEdit2, FiDownload, FiPackage, FiTrash2 } from 'react-icons/fi';
 
 export interface Order {
     id: string;
@@ -20,10 +20,11 @@ interface OrderListProps {
     onView?: (order: Order) => void;
     onEdit?: (order: Order) => void;
     onReceive?: (order: Order) => void;
+    onDelete?: (order: Order) => void;
     showActions?: boolean;
 }
 
-export default function OrderList({ orders, loading = false, onView, onEdit, onReceive, showActions = true }: OrderListProps) {
+export default function OrderList({ orders, loading = false, onView, onEdit, onReceive, onDelete, showActions = true }: OrderListProps) {
     const formatCurrency = (amount: number) => `₹${amount.toLocaleString('en-IN')}`;
     const formatDate = (dateStr: string) => new Date(dateStr).toLocaleDateString('en-IN', {
         year: 'numeric',
@@ -63,7 +64,7 @@ export default function OrderList({ orders, loading = false, onView, onEdit, onR
                                 Status
                             </th>
                             {showActions && (
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     Actions
                                 </th>
                             )}
@@ -95,8 +96,8 @@ export default function OrderList({ orders, loading = false, onView, onEdit, onR
                                             <OrderStatusBadge status={order.status} />
                                         </td>
                                         {showActions && (
-                                            <td className="px-6 py-4 text-right">
-                                                <div className="flex items-center justify-end gap-2">
+                                            <td className="px-6 py-4 text-center">
+                                                <div className="flex items-center justify-center gap-2">
                                                     <button onClick={() => onView?.(order)} className="p-1 text-blue-600 hover:bg-blue-50 rounded" title="View">
                                                         <FiEye size={16} />
                                                     </button>
@@ -113,6 +114,11 @@ export default function OrderList({ orders, loading = false, onView, onEdit, onR
                                                     <button onClick={() => onEdit?.(order)} className="p-1 text-gray-600 hover:bg-gray-50 rounded" title="Edit">
                                                         <FiEdit2 size={16} />
                                                     </button>
+                                                    {onDelete && (order.status === 'draft' || order.status === 'sent') && (
+                                                        <button onClick={() => onDelete?.(order)} className="p-1 text-red-600 hover:bg-red-50 rounded" title="Delete">
+                                                            <FiTrash2 size={16} />
+                                                        </button>
+                                                    )}
                                                 </div>
                                             </td>
                                         )}

@@ -2,8 +2,6 @@
  * API Client Configuration
  */
 
-import { syncManager } from "@/lib/offline/sync-manager";
-
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 const API_TIMEOUT = parseInt(process.env.NEXT_PUBLIC_API_TIMEOUT || '30000');
 
@@ -192,6 +190,8 @@ async function baseFetch(
 
         if ((isNetworkError || !navigator.onLine) && isMutation) {
             try {
+                // Lazy load syncManager only when needed for offline functionality
+                const { syncManager } = await import('@/lib/offline/sync-manager');
                 const body = options.body ? JSON.parse(options.body as string) : undefined;
                 await syncManager.queueMutation(endpoint, options.method as any, body);
                 throw new OfflineError();

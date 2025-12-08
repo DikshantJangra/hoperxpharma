@@ -607,6 +607,23 @@ class PurchaseOrderRepository {
         });
     }
 
+    /**
+     * Delete purchase order
+     */
+    async deletePO(id) {
+        return await prisma.$transaction(async (tx) => {
+            // Delete all PO items first (foreign key constraint)
+            await tx.purchaseOrderItem.deleteMany({
+                where: { poId: id },
+            });
+
+            // Delete the purchase order
+            await tx.purchaseOrder.delete({
+                where: { id },
+            });
+        });
+    }
+
     async updateTemplateUsage(id) {
         return await prisma.pOTemplate.update({
             where: { id },
