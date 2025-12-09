@@ -32,7 +32,7 @@ class AlertService {
     async getActiveAlerts(storeId, filters = {}) {
         const where = {
             storeId,
-            status: { in: ['NEW', 'ACKNOWLEDGED', 'IN_PROGRESS'] },
+            status: { in: ['NEW', 'SNOOZED'] },
         };
 
         // Apply filters
@@ -61,7 +61,7 @@ class AlertService {
      */
     async getAlertCounts(storeId) {
         const [total, byStatus, bySeverity] = await Promise.all([
-            prisma.alert.count({ where: { storeId, status: { in: ['NEW', 'ACKNOWLEDGED', 'IN_PROGRESS'] } } }),
+            prisma.alert.count({ where: { storeId, status: { in: ['NEW', 'SNOOZED'] } } }),
             prisma.alert.groupBy({
                 by: ['status'],
                 where: { storeId },
@@ -69,7 +69,7 @@ class AlertService {
             }),
             prisma.alert.groupBy({
                 by: ['severity'],
-                where: { storeId, status: { in: ['NEW', 'ACKNOWLEDGED', 'IN_PROGRESS'] } },
+                where: { storeId, status: { in: ['NEW', 'SNOOZED'] } },
                 _count: true
             })
         ]);
@@ -112,7 +112,15 @@ class AlertService {
         return await prisma.alert.update({
             where: { id: alertId },
             data: {
-                status: 'ACKNOWLEDGED',
+                status: 'SNOOZED', // 'ACKNOWLEDGED' not in enum, mapping to 'SNOOZED' or just keeping 'NEW' is better but let's use 'SNOOZED' to hide it or keep it 'NEW' if just seen.
+                // Actually, if 'ACKNOWLEDGED' means "I saw it but didn't fix it", maybe SNOOZED is best approximation.
+                // Or we can just log the acknowledgement without status change if 'NEW' is the only active state.
+                // But typically UI expects status change.
+                // For now, let's map acknowledge to SNOOZED to keep it "active but handled" or just don't change status?
+                // The prompt says "Invalid value for argument `in`. Expected AlertStatus."
+                // AlertStatus in schema is NEW, SNOOZED, RESOLVED.
+                // I will change 'ACKNOWLEDGED' to 'SNOOZED' for now.
+                status: 'SNOOZED',
                 acknowledgedBy: userId,
                 acknowledgedAt: new Date()
             }
@@ -154,7 +162,7 @@ class AlertService {
         return await prisma.alert.update({
             where: { id: alertId },
             data: {
-                status: 'DISMISSED'
+                status: 'RESOLVED' // DISMISSED not in enum, mapping to RESOLVED
             }
         });
     }

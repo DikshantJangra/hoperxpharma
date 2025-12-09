@@ -45,8 +45,8 @@ class AccessLogService {
     /**
      * Get access statistics
      */
-    async getAccessStats(startDate, endDate) {
-        return await accessLogRepository.getAccessStats(startDate, endDate);
+    async getAccessStats(storeId, startDate, endDate) {
+        return await accessLogRepository.getAccessStats(storeId, startDate, endDate);
     }
 
     /**
@@ -84,11 +84,11 @@ class AccessLogService {
     /**
      * Search access logs
      */
-    async searchAccessLogs(searchQuery, limit = 50) {
+    async searchAccessLogs(storeId, searchQuery, limit = 50) {
         if (!searchQuery || searchQuery.trim().length === 0) {
             throw new Error('Search query is required');
         }
-        return await accessLogRepository.searchAccessLogs(searchQuery, limit);
+        return await accessLogRepository.searchAccessLogs(storeId, searchQuery, limit);
     }
 
     /**

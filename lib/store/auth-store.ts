@@ -4,6 +4,7 @@ import { authApi } from '@/lib/api/auth';
 import { userApi, UserProfile, Store, getPrimaryStore } from '@/lib/api/user';
 import { rbacApi } from '@/lib/api/rbac';
 import { tokenManager } from '@/lib/api/client';
+import { isNetworkError, isTimeoutError } from '@/lib/utils/network';
 
 interface AuthState {
     user: UserProfile | null;
@@ -118,9 +119,9 @@ export const useAuthStore = create<AuthState>()(
                         }
                     } catch (refreshError: any) {
                         // Distinguish between network errors and auth errors
-                        const isNetworkError = refreshError?.statusCode === 408 || refreshError?.message?.includes('timeout') || refreshError?.message?.includes('network');
+                        const isNetError = isNetworkError(refreshError) || isTimeoutError(refreshError);
 
-                        if (isNetworkError) {
+                        if (isNetError) {
                             console.warn('Network error during token refresh, will retry on next request');
                             // Don't logout on network errors, just set loading to false
                             set({ isLoading: false });
@@ -173,9 +174,9 @@ export const useAuthStore = create<AuthState>()(
                     console.log('Auth check successful - user authenticated');
                 } catch (error: any) {
                     // If profile fetch fails, token might be invalid
-                    const isNetworkError = error?.statusCode === 408 || error?.message?.includes('timeout') || error?.message?.includes('network');
+                    const isNetError = isNetworkError(error) || isTimeoutError(error);
 
-                    if (isNetworkError) {
+                    if (isNetError) {
                         console.warn('Network error during profile fetch, will retry on next request');
                         set({ isLoading: false });
                     } else {

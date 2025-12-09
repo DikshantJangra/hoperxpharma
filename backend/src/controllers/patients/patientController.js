@@ -42,7 +42,7 @@ const searchPatients = asyncHandler(async (req, res) => {
  * Get patient by ID
  */
 const getPatientById = asyncHandler(async (req, res) => {
-    const patient = await patientService.getPatientById(req.params.id);
+    const patient = await patientService.getPatientById(req.params.id, req.storeId);
 
     const response = ApiResponse.success(patient);
     res.status(response.statusCode).json(response);
@@ -65,7 +65,7 @@ const createPatient = asyncHandler(async (req, res) => {
  * Update patient
  */
 const updatePatient = asyncHandler(async (req, res) => {
-    const patient = await patientService.updatePatient(req.params.id, req.body);
+    const patient = await patientService.updatePatient(req.params.id, req.body, req.storeId);
 
     const response = ApiResponse.success(patient, 'Patient updated successfully');
     res.status(response.statusCode).json(response);
@@ -75,7 +75,7 @@ const updatePatient = asyncHandler(async (req, res) => {
  * Delete patient
  */
 const deletePatient = asyncHandler(async (req, res) => {
-    const result = await patientService.deletePatient(req.params.id, req.user.id);
+    const result = await patientService.deletePatient(req.params.id, req.user.id, req.storeId);
 
     const response = ApiResponse.success(result);
     res.status(response.statusCode).json(response);
@@ -105,7 +105,7 @@ const withdrawConsent = asyncHandler(async (req, res) => {
  * Get patient consents
  */
 const getPatientConsents = asyncHandler(async (req, res) => {
-    const consents = await patientService.getPatientConsents(req.params.patientId);
+    const consents = await patientService.getPatientConsents(req.params.patientId || req.params.id, req.storeId);
 
     const response = ApiResponse.success(consents);
     res.status(response.statusCode).json(response);
@@ -145,7 +145,7 @@ const getPatientStats = asyncHandler(async (req, res) => {
  * Get patient history
  */
 const getPatientHistory = asyncHandler(async (req, res) => {
-    const history = await patientService.getPatientHistory(req.params.id, req.query);
+    const history = await patientService.getPatientHistory(req.params.id, req.storeId, req.query);
 
     const response = ApiResponse.success(history);
     res.status(response.statusCode).json(response);
@@ -184,7 +184,7 @@ const processRefill = asyncHandler(async (req, res) => {
  * Get adherence
  */
 const getAdherence = asyncHandler(async (req, res) => {
-    const adherence = await patientService.getAdherence(req.params.id);
+    const adherence = await patientService.getAdherence(req.params.id, req.storeId);
 
     const response = ApiResponse.success(adherence);
     res.status(response.statusCode).json(response);

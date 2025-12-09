@@ -17,11 +17,15 @@ class PurchaseOrderService {
     /**
      * Get supplier by ID
      */
-    async getSupplierById(id) {
+    async getSupplierById(id, storeId) {
         const supplier = await purchaseOrderRepository.findSupplierById(id);
 
         if (!supplier) {
             throw ApiError.notFound('Supplier not found');
+        }
+
+        if (storeId && supplier.storeId && supplier.storeId !== storeId) {
+            throw ApiError.forbidden('Access to this supplier is denied');
         }
 
         return supplier;
@@ -63,11 +67,15 @@ class PurchaseOrderService {
     /**
      * Get PO by ID
      */
-    async getPOById(id) {
+    async getPOById(id, storeId) {
         const po = await purchaseOrderRepository.findPOById(id);
 
         if (!po) {
             throw ApiError.notFound('Purchase order not found');
+        }
+
+        if (storeId && po.storeId !== storeId) {
+            throw ApiError.forbidden('Access to this purchase order is denied');
         }
 
         // Transform attachments to convert BigInt to Number for JSON serialization

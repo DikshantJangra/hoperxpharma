@@ -1,6 +1,7 @@
 /**
  * API Client Configuration
  */
+import { isNetworkError, isTimeoutError } from '@/lib/utils/network';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 const API_TIMEOUT = parseInt(process.env.NEXT_PUBLIC_API_TIMEOUT || '30000');
@@ -193,16 +194,18 @@ async function baseFetch(
         }
 
         // Check for offline/network error
-        const isNetworkError = error instanceof TypeError && error.message === 'Failed to fetch';
+        const isNetError = isNetworkError(error);
         const isMutation = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(options.method || 'GET');
 
-        if ((isNetworkError || !navigator.onLine) && isMutation) {
+        if (isNetError && isMutation) {
             try {
-                // Lazy load syncManager only when needed for offline functionality
-                const { syncManager } = await import('@/lib/offline/sync-manager');
-                const body = options.body ? JSON.parse(options.body as string) : undefined;
-                await syncManager.queueMutation(endpoint, options.method as any, body);
-                throw new OfflineError();
+                // Only queue mutations if we're in a browser environment
+                if (typeof window !== 'undefined') {
+                    const { syncManager } = await import('@/lib/offline/sync-manager');
+                    const body = options.body ? JSON.parse(options.body as string) : undefined;
+                    await syncManager.queueMutation(endpoint, options.method as any, body);
+                    throw new OfflineError();
+                }
             } catch (queueError) {
                 console.error('Failed to queue offline mutation:', queueError);
                 // Fall through to throw original error
@@ -210,8 +213,11 @@ async function baseFetch(
         }
 
         if (error instanceof Error) {
-            if (error.name === 'AbortError') {
+            if (error.name === 'AbortError' || isTimeoutError(error)) {
                 throw new ApiError(408, 'Request timeout');
+            }
+            if (isNetworkError(error)) {
+                throw new ApiError(503, 'Network connection failed');
             }
             throw new ApiError(500, error.message);
         }

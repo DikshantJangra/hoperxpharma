@@ -23,7 +23,15 @@ class AccessLogController {
             sortOrder,
         } = req.query;
 
+        console.log('Fetching Access Logs:', {
+            storeId: req.storeId,
+            userId: req.user.id,
+            role: req.user.role,
+            filters: req.query
+        });
+
         const result = await accessLogService.getAccessLogs({
+            storeId: req.storeId,
             userId,
             eventType,
             ipAddress,
@@ -67,7 +75,7 @@ class AccessLogController {
      */
     getAccessStats = asyncHandler(async (req, res) => {
         const { startDate, endDate } = req.query;
-        const stats = await accessLogService.getAccessStats(startDate, endDate);
+        const stats = await accessLogService.getAccessStats(req.storeId, startDate, endDate);
 
         res.json({
             success: true,
@@ -113,12 +121,13 @@ class AccessLogController {
      */
     searchAccessLogs = asyncHandler(async (req, res) => {
         const { query, limit } = req.body;
+        const storeId = req.storeId;
 
         if (!query) {
             throw ApiError.badRequest('Search query is required');
         }
 
-        const logs = await accessLogService.searchAccessLogs(query, limit);
+        const logs = await accessLogService.searchAccessLogs(storeId, query, limit);
         const formattedLogs = logs.map((log) => accessLogService.formatAccessLog(log));
 
         res.json({

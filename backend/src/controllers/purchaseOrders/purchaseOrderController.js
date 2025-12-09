@@ -7,8 +7,8 @@ const ApiError = require('../../utils/ApiError');
  * Supplier Controllers
  */
 const getSuppliers = asyncHandler(async (req, res) => {
-    // Extract storeId from authenticated user
-    const storeId = req.user.stores?.find(s => s.isPrimary)?.id || req.user.stores?.[0]?.id;
+    // Extract storeId from authenticated user (now guaranteed by requireStoreAccess)
+    const storeId = req.storeId;
 
     if (!storeId) {
         throw ApiError.badRequest('No store associated with user');
@@ -29,7 +29,7 @@ const getSuppliers = asyncHandler(async (req, res) => {
 });
 
 const getSupplierById = asyncHandler(async (req, res) => {
-    const supplier = await purchaseOrderService.getSupplierById(req.params.id);
+    const supplier = await purchaseOrderService.getSupplierById(req.params.id, req.storeId);
 
     const response = ApiResponse.success(supplier);
     res.status(response.statusCode).json(response);
@@ -68,7 +68,7 @@ const getPurchaseOrders = asyncHandler(async (req, res) => {
 });
 
 const getPOById = asyncHandler(async (req, res) => {
-    const po = await purchaseOrderService.getPOById(req.params.id);
+    const po = await purchaseOrderService.getPOById(req.params.id, req.storeId);
 
     const response = ApiResponse.success(po);
     res.status(response.statusCode).json(response);
@@ -163,7 +163,7 @@ const getInventorySuggestions = asyncHandler(async (req, res) => {
 const pdfService = require('../../services/pdf/pdfService');
 
 const getPreviewPdf = asyncHandler(async (req, res) => {
-    const po = await purchaseOrderService.getPOById(req.params.id);
+    const po = await purchaseOrderService.getPOById(req.params.id, req.storeId);
 
     if (!po) {
         throw new ApiError(404, 'Purchase order not found');

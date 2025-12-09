@@ -3,12 +3,13 @@ const auditController = require('../../controllers/audit/auditController');
 const accessLogController = require('../../controllers/audit/accessLogController');
 const exportController = require('../../controllers/audit/exportController');
 const { authenticate } = require('../../middlewares/auth');
-const { requirePermission } = require('../../middlewares/rbac');
+const { requirePermission, requireStoreAccess } = require('../../middlewares/rbac');
 
 const router = express.Router();
 
-// All audit routes require authentication
+// All audit routes require authentication and store access
 router.use(authenticate);
+router.use(requireStoreAccess);
 
 // Activity Log Routes
 router.get('/activity', requirePermission('audit.view'), auditController.getActivityLogs);

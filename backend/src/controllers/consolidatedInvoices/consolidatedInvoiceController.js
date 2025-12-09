@@ -18,7 +18,7 @@ const getGRNsForInvoicing = asyncHandler(async (req, res) => {
     }
 
     const { startDate, endDate, supplierId, status } = req.query;
-    const storeId = req.user.storeId;
+    const storeId = req.storeId;
 
     const grns = await consolidatedInvoiceService.getGRNsForInvoicing(storeId, {
         startDate,
@@ -42,7 +42,7 @@ const getGRNsForInvoicing = asyncHandler(async (req, res) => {
 const createInvoice = asyncHandler(async (req, res) => {
     const { grnIds, type, periodStart, periodEnd, notes } = req.body;
     const userId = req.user.id;
-    const storeId = req.user.storeId;
+    const storeId = req.storeId;
 
     const invoice = await consolidatedInvoiceService.createInvoice(
         { grnIds, type, periodStart, periodEnd, notes },
@@ -63,7 +63,7 @@ const createInvoice = asyncHandler(async (req, res) => {
  */
 const getInvoiceById = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const storeId = req.user.storeId;
+    const storeId = req.storeId;
 
     const invoice = await consolidatedInvoiceService.getInvoiceById(id, storeId);
 
@@ -88,7 +88,7 @@ const listInvoices = asyncHandler(async (req, res) => {
     }
 
     const { page, limit, status, supplierId, startDate, endDate, search } = req.query;
-    const storeId = req.user.storeId;
+    const storeId = req.storeId;
 
     const result = await consolidatedInvoiceService.listInvoices(storeId, {
         page: page ? parseInt(page) : 1,
@@ -114,7 +114,7 @@ const listInvoices = asyncHandler(async (req, res) => {
 const updateInvoiceStatus = asyncHandler(async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
-    const storeId = req.user.storeId;
+    const storeId = req.storeId;
 
     const invoice = await consolidatedInvoiceService.updateInvoiceStatus(id, storeId, status);
 
@@ -131,7 +131,7 @@ const updateInvoiceStatus = asyncHandler(async (req, res) => {
  */
 const finalizeInvoice = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const storeId = req.user.storeId;
+    const storeId = req.storeId;
 
     const invoice = await consolidatedInvoiceService.finalizeInvoice(id, storeId);
 
@@ -148,7 +148,7 @@ const finalizeInvoice = asyncHandler(async (req, res) => {
  */
 const deleteInvoice = asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const storeId = req.user.storeId;
+    const storeId = req.storeId;
 
     await consolidatedInvoiceService.deleteInvoice(id, storeId);
 

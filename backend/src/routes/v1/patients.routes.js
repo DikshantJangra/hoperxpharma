@@ -14,26 +14,27 @@ const {
 
 const router = express.Router();
 
-// All routes require authentication
+// All routes require authentication and store access
 router.use(authenticate);
+router.use(requireStoreAccess);
 
 /**
- * Patient routes (require store access)
+ * Patient routes
  * IMPORTANT: Specific routes must come BEFORE parameterized routes (:id)
  */
-router.get('/search', requireStoreAccess, patientController.searchPatients);
-router.get('/', requireStoreAccess, validate(patientQuerySchema, 'query'), patientController.getPatients);
-router.get('/stats', requireStoreAccess, patientController.getPatientStats);
+router.get('/search', patientController.searchPatients);
+router.get('/', validate(patientQuerySchema, 'query'), patientController.getPatients);
+router.get('/stats', patientController.getPatientStats);
 
 /**
  * Refills routes (MUST be before /:id to avoid conflict)
  */
-router.get('/refills', requireStoreAccess, patientController.getRefillsDue);
+router.get('/refills', patientController.getRefillsDue);
 
 /**
  * All consents route (MUST be before /:id to avoid conflict)
  */
-router.get('/consents/all', requireStoreAccess, patientController.getAllConsents);
+router.get('/consents/all', patientController.getAllConsents);
 
 /**
  * Consent routes
@@ -60,6 +61,6 @@ router.get('/:id/adherence', patientController.getAdherence);
 router.post('/:id/adherence', patientController.recordAdherence);
 
 // Create patient (after specific routes)
-router.post('/', requireStoreAccess, validate(patientCreateSchema), auditLogger.logActivity('PATIENT_CREATED', 'patient'), patientController.createPatient);
+router.post('/', validate(patientCreateSchema), auditLogger.logActivity('PATIENT_CREATED', 'patient'), patientController.createPatient);
 
 module.exports = router;

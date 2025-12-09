@@ -31,15 +31,10 @@ class AccessLogRepository {
      */
     async getAccessLogs(filters = {}) {
         const {
-            userId,
-            eventType,
-            ipAddress,
-            startDate,
-            endDate,
-            page = 1,
             limit = 50,
             sortBy = 'createdAt',
             sortOrder = 'desc',
+            storeId // Passed from controller
         } = filters;
 
         const where = {
@@ -54,6 +49,27 @@ class AccessLogRepository {
                     },
                 }
                 : {}),
+            // Filter by store - Include users who are in StoreUser OR have a Role in this store
+            ...(storeId && {
+                user: {
+                    OR: [
+                        {
+                            storeUsers: {
+                                some: {
+                                    storeId: storeId
+                                }
+                            }
+                        },
+                        {
+                            userRoles: {
+                                some: {
+                                    storeId: storeId
+                                }
+                            }
+                        }
+                    ]
+                }
+            })
         };
 
         const [logs, total] = await Promise.all([
@@ -111,8 +127,17 @@ class AccessLogRepository {
     /**
      * Get access statistics
      */
-    async getAccessStats(startDate, endDate) {
+    async getAccessStats(storeId, startDate, endDate) {
         const where = {
+            ...(storeId && {
+                user: {
+                    storeUsers: {
+                        some: {
+                            storeId: storeId
+                        }
+                    }
+                }
+            }),
             ...(startDate || endDate
                 ? {
                     createdAt: {
@@ -228,9 +253,19 @@ class AccessLogRepository {
     /**
      * Search access logs
      */
-    async searchAccessLogs(searchQuery, limit = 50) {
+    async searchAccessLogs(storeId, searchQuery, limit = 50) {
         return await prisma.accessLog.findMany({
             where: {
+                // Filter by store
+                ...(storeId && {
+                    user: {
+                        storeUsers: {
+                            some: {
+                                storeId: storeId
+                            }
+                        }
+                    }
+                }),
                 OR: [
                     { ipAddress: { contains: searchQuery, mode: 'insensitive' } },
                     { eventType: { contains: searchQuery, mode: 'insensitive' } },

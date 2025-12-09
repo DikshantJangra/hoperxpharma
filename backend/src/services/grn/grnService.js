@@ -290,6 +290,11 @@ class GRNService {
 
         // Validate all items have batch and expiry
         for (const item of latestGrn.items) {
+            // Skip parent items that have been split - they don't need batch/expiry as children have them
+            if (item.isSplit) {
+                continue;
+            }
+
             const poItem = latestGrn.po.items.find(pi => pi.id === item.poItemId);
             const drugName = poItem?.drug ? `${poItem.drug.name}${poItem.drug.strength ? ` ${poItem.drug.strength}` : ''}` : 'Unknown Drug';
 
@@ -412,6 +417,11 @@ class GRNService {
         let taxAmount = 0;
 
         for (const item of grn.items) {
+            // Skip parent items that have been split (only count actual batches)
+            if (item.isSplit) {
+                continue;
+            }
+
             const discountType = item.discountType || 'BEFORE_GST';
 
             if (discountType === 'AFTER_GST') {
@@ -420,7 +430,6 @@ class GRNService {
                 const tax = grossAmount * (item.gstPercent / 100);
                 const subtotalWithTax = grossAmount + tax;
                 const discountAmount = subtotalWithTax * ((item.discountPercent || 0) / 100);
-                const itemTotal = subtotalWithTax - discountAmount;
 
                 // For totals, we need to separate base and tax
                 // Approximate: distribute discount proportionally

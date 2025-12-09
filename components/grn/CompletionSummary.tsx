@@ -37,52 +37,8 @@ export default function CompletionSummary({ grn, po, onConfirm, onCancel, saving
         return isNaN(num) ? '0.00' : num.toFixed(2);
     };
 
-    // Calculate totals from items (same logic as receiving page)
-    const calculateTotals = () => {
-        if (!grn || !grn.items) {
-            return { subtotal: 0, taxAmount: 0, total: 0 };
-        }
-
-        let subtotal = 0;
-        let taxAmount = 0;
-
-        for (const item of grn.items) {
-            // Skip parent items that have been split
-            if (item.isSplit) {
-                continue;
-            }
-
-            const receivedQty = parseFloat(item.receivedQty) || 0;
-            const unitPrice = parseFloat(item.unitPrice) || 0;
-            const discountPercent = parseFloat(item.discountPercent) || 0;
-            const gstPercent = parseFloat(item.gstPercent) || 0;
-            const discountType = item.discountType || 'BEFORE_GST';
-
-            if (discountType === 'AFTER_GST') {
-                // After GST: Calculate gross + tax, then apply discount
-                const grossAmount = receivedQty * unitPrice;
-                const tax = grossAmount * (gstPercent / 100);
-                const subtotalWithTax = grossAmount + tax;
-                const discountAmount = subtotalWithTax * (discountPercent / 100);
-
-                // Distribute discount proportionally
-                const discountRatio = 1 - (discountPercent / 100);
-                subtotal += grossAmount * discountRatio;
-                taxAmount += tax * discountRatio;
-            } else {
-                // Before GST (default): Apply discount first, then GST
-                const netAmount = receivedQty * unitPrice * (1 - discountPercent / 100);
-                const tax = netAmount * (gstPercent / 100);
-
-                subtotal += netAmount;
-                taxAmount += tax;
-            }
-        }
-
-        const total = subtotal + taxAmount;
-
-        return { subtotal, taxAmount, total };
-    };
+    // Use passed totals or default to 0
+    const { subtotal, taxAmount, total } = (grn as any).totals || { subtotal: 0, taxAmount: 0, total: 0 };
 
     // Format expiry date to MM/YYYY format (no day)
     const formatExpiryDate = (dateString: string) => {
@@ -183,16 +139,16 @@ export default function CompletionSummary({ grn, po, onConfirm, onCancel, saving
                             <div className="space-y-2">
                                 <div className="flex items-center justify-between text-sm">
                                     <span className="text-gray-600">Subtotal</span>
-                                    <span className="font-medium">₹{formatCurrency(calculateTotals().subtotal)}</span>
+                                    <span className="font-medium">₹{formatCurrency(subtotal)}</span>
                                 </div>
                                 <div className="flex items-center justify-between text-sm">
                                     <span className="text-gray-600">Tax Amount</span>
-                                    <span className="font-medium">₹{formatCurrency(calculateTotals().taxAmount)}</span>
+                                    <span className="font-medium">₹{formatCurrency(taxAmount)}</span>
                                 </div>
                                 <div className="border-t border-gray-300 pt-2 flex items-center justify-between">
                                     <span className="font-semibold text-gray-900">Total Payable</span>
                                     <span className="text-lg font-bold text-gray-900">
-                                        ₹{formatCurrency(calculateTotals().total)}
+                                        ₹{formatCurrency(total)}
                                     </span>
                                 </div>
                             </div>

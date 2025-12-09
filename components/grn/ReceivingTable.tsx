@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { HiOutlineCheck, HiOutlineExclamationCircle, HiOutlineArrowUp, HiOutlineCog, HiOutlineExclamationTriangle } from 'react-icons/hi2';
+import { HiOutlineCheck, HiOutlineExclamationCircle, HiOutlineArrowUp, HiOutlineCog, HiOutlineExclamationTriangle, HiOutlineTrash } from 'react-icons/hi2';
 import BatchSplitModal from './BatchSplitModal';
 import DiscrepancyHandler from './DiscrepancyHandler';
 
@@ -11,9 +11,10 @@ interface ReceivingTableProps {
     onItemUpdate: (itemId: string, updates: any) => void;
     onBatchSplit: (itemId: string, splitData: any[]) => void;
     onDiscrepancy: (itemId: string, discrepancyData: any) => void;
+    onDeleteBatch: (itemId: string) => void;
 }
 
-export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSplit, onDiscrepancy }: ReceivingTableProps) {
+export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSplit, onDiscrepancy, onDeleteBatch }: ReceivingTableProps) {
     const [editingItem, setEditingItem] = useState<string | null>(null);
     const [splitItem, setSplitItem] = useState<any | null>(null);
     const [discrepancyItem, setDiscrepancyItem] = useState<any | null>(null);
@@ -79,6 +80,9 @@ export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSp
                             </th>
                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                                 Disc Type
+                            </th>
+                            <th className="px-4 py-3 text-right text-xs font-medium text-gray-700 uppercase tracking-wider">
+                                GST %
                             </th>
                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                                 Location
@@ -148,7 +152,7 @@ export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSp
                                                 onFocus={(e) => e.target.select()}
                                                 className="w-32 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm"
                                                 placeholder="Batch No"
-                                                disabled={isParent}
+                                            // Batch number editing enabled for parent to propagate
                                             />
                                         </td>
                                         <td className="px-4 py-3">
@@ -202,7 +206,7 @@ export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSp
                                                 className="w-32 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm"
                                                 placeholder="MM/YYYY"
                                                 maxLength={7}
-                                                disabled={isParent}
+                                            // Expiry editing enabled for parent to propagate
                                             />
                                         </td>
                                         <td className="px-4 py-3">
@@ -218,7 +222,7 @@ export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSp
                                                 step="0.01"
                                                 min="0"
                                                 placeholder="0.00"
-                                                disabled={isParent}
+                                            // MRP editing enabled for parent to propagate
                                             />
                                         </td>
                                         <td className="px-4 py-3">
@@ -234,7 +238,7 @@ export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSp
                                                 step="0.01"
                                                 min="0"
                                                 placeholder="0.00"
-                                                disabled={isParent}
+                                            // Unit Price editing enabled for parent to propagate
                                             />
                                         </td>
                                         <td className="px-4 py-3">
@@ -251,7 +255,7 @@ export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSp
                                                 min="0"
                                                 max="100"
                                                 placeholder="0"
-                                                disabled={isParent}
+                                            // Discount editing enabled for parent to propagate
                                             />
                                         </td>
                                         <td className="px-4 py-3">
@@ -259,10 +263,24 @@ export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSp
                                                 value={item.discountType || 'BEFORE_GST'}
                                                 onChange={(e) => handleFieldUpdate(item.id, 'discountType', e.target.value)}
                                                 className="w-32 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm"
-                                                disabled={isParent}
+                                            // Discount Type editing enabled for parent to propagate
                                             >
                                                 <option value="BEFORE_GST">Before GST</option>
                                                 <option value="AFTER_GST">After GST</option>
+                                            </select>
+                                        </td>
+                                        <td className="px-4 py-3">
+                                            <select
+                                                value={item.gstPercent !== undefined && item.gstPercent !== null ? item.gstPercent : 5}
+                                                onChange={(e) => handleFieldUpdate(item.id, 'gstPercent', parseFloat(e.target.value))}
+                                                disabled={isParent} // Disable GST editing for parent items that are split
+                                                className={`w-20 px-2 py-1 text-right border border-gray-300 rounded focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm ${isParent ? 'bg-gray-100 text-gray-500 cursor-not-allowed' : ''}`}
+                                            >
+                                                {[0, 5, 12, 18, 28].map((rate) => (
+                                                    <option key={rate} value={rate}>
+                                                        {rate}%
+                                                    </option>
+                                                ))}
                                             </select>
                                         </td>
                                         <td className="px-4 py-3">
@@ -272,7 +290,7 @@ export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSp
                                                 onChange={(e) => handleFieldUpdate(item.id, 'location', e.target.value)}
                                                 className="w-32 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm"
                                                 placeholder="e.g., Rack A-1"
-                                                disabled={isParent}
+                                            // Location editing enabled for parent to propagate
                                             />
                                         </td>
                                         <td className="px-4 py-3">
@@ -465,6 +483,19 @@ export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSp
                                                     </select>
                                                 </td>
                                                 <td className="px-4 py-3">
+                                                    <select
+                                                        value={child.gstPercent !== undefined && child.gstPercent !== null ? child.gstPercent : 5}
+                                                        onChange={(e) => handleFieldUpdate(child.id, 'gstPercent', parseFloat(e.target.value))}
+                                                        className="w-20 px-2 py-1 text-right border border-gray-300 rounded focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm"
+                                                    >
+                                                        {[0, 5, 12, 18, 28].map((rate) => (
+                                                            <option key={rate} value={rate}>
+                                                                {rate}%
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                </td>
+                                                <td className="px-4 py-3">
                                                     <input
                                                         type="text"
                                                         value={child.location || ''}
@@ -481,8 +512,17 @@ export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSp
                                                 </td>
                                                 <td className="px-4 py-3">
                                                     <div className="flex items-center justify-center gap-2">
-                                                        {/* No split button for children */}
-                                                        <span className="text-xs text-gray-400">Batch</span>
+                                                        <button
+                                                            onClick={() => {
+                                                                if (confirm('Are you sure you want to delete this split batch?')) {
+                                                                    onDeleteBatch(child.id);
+                                                                }
+                                                            }}
+                                                            className="text-red-500 hover:text-red-700"
+                                                            title="Delete Batch"
+                                                        >
+                                                            <HiOutlineTrash className="h-5 w-5" />
+                                                        </button>
                                                     </div>
                                                 </td>
                                             </tr>

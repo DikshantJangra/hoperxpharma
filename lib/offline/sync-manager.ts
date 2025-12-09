@@ -77,47 +77,39 @@ class SyncManager {
     async sync() {
         if (!this.isOnline || !this.db) return;
 
-        const tx = this.db.transaction('mutations', 'readwrite');
-        const store = tx.objectStore('mutations');
-        const mutations = await store.getAll();
+        try {
+            const mutations = await this.db.getAll('mutations');
+            
+            // Sort by timestamp to ensure order
+            mutations.sort((a, b) => a.timestamp - b.timestamp);
 
-        // Sort by timestamp to ensure order
-        mutations.sort((a, b) => a.timestamp - b.timestamp);
-
-        for (const mutation of mutations) {
-            try {
-                await this.processMutation(mutation);
-                await store.delete(mutation.id);
-            } catch (error) {
-                console.error(`Failed to sync mutation ${mutation.id}:`, error);
-                // Increment retry count or move to dead letter queue
-                // For now, we'll leave it in the queue to retry later
-                // but maybe with a max retry limit
-                if (mutation.retryCount > 5) {
-                    await store.delete(mutation.id); // Give up
-                    console.error(`Dropped mutation ${mutation.id} after max retries`);
-                } else {
-                    mutation.retryCount++;
-                    await store.put(mutation);
+            for (const mutation of mutations) {
+                try {
+                    await this.processMutation(mutation);
+                    // Use a new transaction for each delete to avoid inactive transaction errors
+                    await this.db.delete('mutations', mutation.id);
+                } catch (error) {
+                    console.error(`Failed to sync mutation ${mutation.id}:`, error);
+                    // Increment retry count
+                    if (mutation.retryCount > 5) {
+                        await this.db.delete('mutations', mutation.id);
+                        console.error(`Dropped mutation ${mutation.id} after max retries`);
+                    } else {
+                        mutation.retryCount++;
+                        await this.db.put('mutations', mutation);
+                    }
                 }
             }
+        } catch (error) {
+            console.error('Sync operation failed:', error);
         }
-
-        await tx.done;
     }
 
     /**
      * Execute the mutation against the API
      */
     private async processMutation(mutation: Mutation) {
-        // We need to import apiClient dynamically or pass it in to avoid circular deps if apiClient uses SyncManager
-        // For now, assume standard fetch or axios
-        // But we need auth headers. 
-        // Best to use the existing apiClient from lib/api/client if possible, 
-        // but that might cause issues if we modify apiClient to use this.
-
-        // Let's use fetch with the token from localStorage for now
-        const token = localStorage.getItem('accessToken'); // Match tokenManager key
+        const token = localStorage.getItem('accessToken');
 
         const headers: HeadersInit = {
             'Content-Type': 'application/json',
@@ -127,14 +119,25 @@ class SyncManager {
             headers['Authorization'] = `Bearer ${token}`;
         }
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'}${mutation.url}`, {
-            method: mutation.method,
-            headers,
-            body: JSON.stringify(mutation.body),
-        });
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-        if (!response.ok) {
-            throw new Error(`API error: ${response.status} ${response.statusText}`);
+        try {
+            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'}${mutation.url}`, {
+                method: mutation.method,
+                headers,
+                body: JSON.stringify(mutation.body),
+                signal: controller.signal,
+            });
+
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+                throw new Error(`API error: ${response.status} ${response.statusText}`);
+            }
+        } catch (error) {
+            clearTimeout(timeoutId);
+            throw error;
         }
     }
 

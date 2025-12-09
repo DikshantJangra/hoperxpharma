@@ -4,9 +4,11 @@ const prescriptionController = require('../../controllers/prescriptions/prescrip
 const queueController = require('../../controllers/prescriptions/queueController');
 const eRxController = require('../../controllers/prescriptions/eRxController');
 const { authenticate } = require('../../middlewares/auth');
+const { requireStoreAccess } = require('../../middlewares/rbac');
 
-// All routes require authentication
+// All routes require authentication and store access
 router.use(authenticate);
+router.use(requireStoreAccess);
 
 // List prescriptions (with filters)
 router.get('/', prescriptionController.getPrescriptions.bind(prescriptionController));

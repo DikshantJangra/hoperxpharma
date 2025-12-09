@@ -11,7 +11,7 @@ class AuditController {
      * GET /api/v1/audit/activity
      */
     getActivityLogs = asyncHandler(async (req, res) => {
-        const storeId = req.user.primaryStoreId;
+        const storeId = req.storeId;
         const {
             userId,
             entityType,
@@ -70,7 +70,7 @@ class AuditController {
      * GET /api/v1/audit/activity/stats
      */
     getActivityStats = asyncHandler(async (req, res) => {
-        const storeId = req.user.primaryStoreId;
+        const storeId = req.storeId;
         const { startDate, endDate } = req.query;
 
         const stats = await auditService.getActivityStats(storeId, startDate, endDate);
@@ -86,7 +86,7 @@ class AuditController {
      * POST /api/v1/audit/activity/search
      */
     searchActivities = asyncHandler(async (req, res) => {
-        const storeId = req.user.primaryStoreId;
+        const storeId = req.storeId;
         const { query, limit } = req.body;
 
         if (!query) {
@@ -107,7 +107,7 @@ class AuditController {
      * GET /api/v1/audit/activity/entity/:entityType/:entityId
      */
     getActivityByEntity = asyncHandler(async (req, res) => {
-        const storeId = req.user.primaryStoreId;
+        const storeId = req.storeId;
         const { entityType, entityId } = req.params;
 
         const logs = await auditService.getActivityByEntity(entityType, entityId, storeId);

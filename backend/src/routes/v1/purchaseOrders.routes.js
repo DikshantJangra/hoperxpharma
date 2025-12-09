@@ -19,8 +19,8 @@ router.use(authenticate);
 /**
  * Supplier routes
  */
-router.get('/suppliers', validate(poQuerySchema, 'query'), poController.getSuppliers);
-router.get('/suppliers/:id', poController.getSupplierById);
+router.get('/suppliers', requireStoreAccess, validate(poQuerySchema, 'query'), poController.getSuppliers);
+router.get('/suppliers/:id', requireStoreAccess, poController.getSupplierById);
 router.post('/suppliers', requirePharmacist, validate(supplierCreateSchema), poController.createSupplier);
 router.put('/suppliers/:id', requirePharmacist, validate(supplierUpdateSchema), poController.updateSupplier);
 
@@ -31,8 +31,8 @@ router.get('/', requireStoreAccess, validate(poQuerySchema, 'query'), poControll
 router.get('/stats', requireStoreAccess, poController.getPOStats);
 router.get('/inventory/suggestions', requireStoreAccess, poController.getInventorySuggestions);
 router.post('/validate', poController.validatePO);
-router.get('/:id/preview.pdf', poController.getPreviewPdf);
-router.get('/:id', poController.getPOById);
+router.get('/:id/preview.pdf', requireStoreAccess, poController.getPreviewPdf);
+router.get('/:id', requireStoreAccess, poController.getPOById);
 router.post('/', requireStoreAccess, validate(poCreateSchema), poController.createPO);
 router.put('/:id', requireStoreAccess, validate(poCreateSchema), poController.updatePO);
 router.post('/:id/request-approval', requireStoreAccess, poController.requestApproval);

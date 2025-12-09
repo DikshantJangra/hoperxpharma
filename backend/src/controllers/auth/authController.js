@@ -1,4 +1,5 @@
 const authService = require('../../services/auth/authService');
+const accessLogService = require('../../services/audit/accessLogService');
 const asyncHandler = require('../../middlewares/asyncHandler');
 const ApiResponse = require('../../utils/ApiResponse');
 const ApiError = require('../../utils/ApiError');
@@ -97,27 +98,53 @@ const signup = asyncHandler(async (req, res) => {
  */
 const login = asyncHandler(async (req, res) => {
     const { email, password } = req.body;
-    const result = await authService.login(email, password);
 
-    // Set refresh token in httpOnly cookie
-    res.cookie('refreshToken', result.refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
-        maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-        path: '/',
-    });
+    // Get IP and User Agent info
+    const ipAddress = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+    const userAgent = req.headers['user-agent'];
 
-    const response = ApiResponse.success(
-        {
-            user: result.user,
-            accessToken: result.accessToken,
-            permissions: result.permissions, // Include permissions
-        },
-        MESSAGES.AUTH.LOGIN_SUCCESS
-    );
+    try {
+        const result = await authService.login(email, password);
 
-    res.status(response.statusCode).json(response);
+        // Set refresh token in httpOnly cookie
+        res.cookie('refreshToken', result.refreshToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+            path: '/',
+        });
+
+        // Log successful login
+        await accessLogService.logAccess({
+            userId: result.user.id,
+            eventType: 'login_success',
+            ipAddress,
+            userAgent,
+            deviceInfo: userAgent // Simple mapping for now
+        });
+
+        const response = ApiResponse.success(
+            {
+                user: result.user,
+                accessToken: result.accessToken,
+                permissions: result.permissions, // Include permissions
+            },
+            MESSAGES.AUTH.LOGIN_SUCCESS
+        );
+
+        res.status(response.statusCode).json(response);
+
+    } catch (error) {
+        // Log failed login attempt if user exists (handled in service but we don't have user ID here easily unless we fetch it)
+        // For security, maybe just log failure without user ID or try to find user by email first?
+        // But throwing error prevents us from knowing user ID if invalid credentials.
+        // We can just log with email in metadata or if we want to be strict, we'd need to lookup user ID.
+        // Given complexity, let's skip failed login logging for now unless we refactor to find user first.
+        // Or we can log 'login_failure' without user ID if schema allows (it doesn't, userId is required).
+        // So we skip failure logging for now.
+        throw error;
+    }
 });
 
 /**
@@ -173,6 +200,20 @@ const refresh = asyncHandler(async (req, res) => {
 const logout = asyncHandler(async (req, res) => {
     // Clear refresh token cookie
     res.clearCookie('refreshToken', { path: '/' });
+
+    // Log logout if authenticated
+    if (req.user) {
+        const ipAddress = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+        const userAgent = req.headers['user-agent'];
+
+        await accessLogService.logAccess({
+            userId: req.user.id,
+            eventType: 'logout',
+            ipAddress,
+            userAgent,
+            deviceInfo: userAgent
+        });
+    }
 
     const response = ApiResponse.success(null, MESSAGES.AUTH.LOGOUT_SUCCESS);
 

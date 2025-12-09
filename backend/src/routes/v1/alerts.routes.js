@@ -2,9 +2,11 @@ const express = require('express');
 const router = express.Router();
 const alertController = require('../../controllers/alerts/alert.controller');
 const { authenticate } = require('../../middlewares/auth');
+const { requireStoreAccess } = require('../../middlewares/rbac');
 
-// All routes require authentication
+// All routes require authentication and store access
 router.use(authenticate);
+router.use(requireStoreAccess);
 
 // Alert routes
 router.get('/', alertController.getAlerts);

@@ -13,7 +13,7 @@ class PrescriptionController {
     async createPrescription(req, res) {
         try {
             const userId = req.user.id;
-            const storeId = req.user.primaryStore?.id || req.user.storeUsers?.[0]?.storeId;
+            const storeId = req.storeId;
 
             if (!storeId) {
                 return res.status(400).json({
@@ -96,7 +96,7 @@ class PrescriptionController {
      */
     async getVerifiedPrescriptions(req, res) {
         try {
-            const storeId = req.user.primaryStore?.id || req.user.storeUsers?.[0]?.storeId;
+            const storeId = req.storeId;
             const { search } = req.query;
 
             const prescriptions = await prescriptionService.getVerifiedPrescriptions(storeId, search);
@@ -120,7 +120,7 @@ class PrescriptionController {
      */
     async getPrescriptions(req, res) {
         try {
-            const storeId = req.user.primaryStore?.id || req.user.storeUsers?.[0]?.storeId;
+            const storeId = req.storeId;
             const { status, search } = req.query;
 
             const prescriptions = await prescriptionService.getPrescriptionsByStore(
@@ -178,6 +178,13 @@ class PrescriptionController {
                 return res.status(404).json({
                     success: false,
                     message: 'Prescription not found'
+                });
+            }
+
+            if (prescription.storeId !== req.storeId) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Access denied'
                 });
             }
 
@@ -265,6 +272,15 @@ class PrescriptionController {
                 });
             }
 
+            // Verify ownership
+            const existing = await prisma.prescription.findUnique({ where: { id } });
+            if (!existing) {
+                return res.status(404).json({ success: false, message: 'Prescription not found' });
+            }
+            if (existing.storeId !== req.storeId) {
+                return res.status(403).json({ success: false, message: 'Access denied' });
+            }
+
             const prescription = await prisma.prescription.update({
                 where: { id },
                 data: {
@@ -279,7 +295,7 @@ class PrescriptionController {
                     storeId: prescription.storeId,
                     userId: userId,
                     action: 'PRESCRIPTION_HOLD',
-                    resource: 'Prescription',
+                    resource: 'Prescription', // Note: schema says entityType typically
                     resourceId: id,
                     details: { reason, expectedResolutionDate, assignTo }
                 }
@@ -321,6 +337,13 @@ class PrescriptionController {
                 return res.status(404).json({
                     success: false,
                     message: 'Prescription not found'
+                });
+            }
+
+            if (prescription.storeId !== req.storeId) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Access denied'
                 });
             }
 

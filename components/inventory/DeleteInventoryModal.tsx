@@ -30,8 +30,9 @@ export default function DeleteInventoryModal({ type, item, onClose, onSuccess }:
                 const { inventoryApi } = await import('@/lib/api/inventory');
                 const response = await inventoryApi.getBatchesWithSuppliers(item.id);
 
-                if (response.success) {
-                    const batches = response.data || [];
+                // response is the batches array directly because inventoryApi unwraps it
+                if (Array.isArray(response)) {
+                    const batches = response;
                     const totalStock = batches.reduce((sum: number, b: any) => sum + (b.quantityInStock || 0), 0);
                     const totalValue = batches.reduce((sum: number, b: any) =>
                         sum + ((b.quantityInStock || 0) * (b.purchasePrice || 0)), 0

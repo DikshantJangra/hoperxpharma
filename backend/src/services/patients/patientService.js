@@ -23,11 +23,15 @@ class PatientService {
     /**
      * Get patient by ID
      */
-    async getPatientById(id) {
+    async getPatientById(id, storeId) {
         const patient = await patientRepository.findById(id);
 
         if (!patient) {
             throw ApiError.notFound('Patient not found');
+        }
+
+        if (storeId && patient.storeId !== storeId) {
+            throw ApiError.forbidden('Access to this patient is denied');
         }
 
         return patient;
@@ -64,11 +68,15 @@ class PatientService {
     /**
      * Update patient
      */
-    async updatePatient(id, patientData) {
+    async updatePatient(id, patientData, storeId) {
         const existingPatient = await patientRepository.findById(id);
 
         if (!existingPatient) {
             throw ApiError.notFound('Patient not found');
+        }
+
+        if (storeId && existingPatient.storeId !== storeId) {
+            throw ApiError.forbidden('Access to update this patient is denied');
         }
 
         // If phone number is being updated, check for duplicates
@@ -92,11 +100,15 @@ class PatientService {
     /**
      * Delete patient (soft delete for GDPR compliance)
      */
-    async deletePatient(id, deletedBy) {
+    async deletePatient(id, deletedBy, storeId) {
         const existingPatient = await patientRepository.findById(id);
 
         if (!existingPatient) {
             throw ApiError.notFound('Patient not found');
+        }
+
+        if (storeId && existingPatient.storeId !== storeId) {
+            throw ApiError.forbidden('Access to delete this patient is denied');
         }
 
         await patientRepository.softDelete(id, deletedBy);
@@ -134,7 +146,9 @@ class PatientService {
     /**
      * Get patient consents
      */
-    async getPatientConsents(patientId) {
+    async getPatientConsents(patientId, storeId) {
+        // Verify ownership
+        await this.getPatientById(patientId, storeId);
         return await patientRepository.getConsents(patientId);
     }
 
@@ -174,7 +188,10 @@ class PatientService {
     /**
      * Get patient history timeline
      */
-    async getPatientHistory(patientId, filters) {
+    async getPatientHistory(patientId, storeId, filters) {
+        // Verify ownership
+        await this.getPatientById(patientId, storeId);
+
         const historyData = await patientRepository.getPatientHistory(patientId, filters);
 
         if (!historyData) {
@@ -298,11 +315,15 @@ class PatientService {
     /**
      * Get adherence data for a patient
      */
-    async getAdherence(patientId) {
+    async getAdherence(patientId, storeId) {
         const patient = await patientRepository.findById(patientId);
 
         if (!patient) {
             throw ApiError.notFound('Patient not found');
+        }
+
+        if (storeId && patient.storeId !== storeId) {
+            throw ApiError.forbidden('Access to this patient is denied');
         }
 
         const [adherenceRecords, stats] = await Promise.all([

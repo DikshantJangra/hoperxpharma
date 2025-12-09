@@ -78,7 +78,7 @@ export default function BatchSplitModal({ item, drugName, onSplit, onClose }: Ba
             unitPrice: item.unitPrice,
             discountPercent: item.discountPercent,
             discountType: item.discountType || 'BEFORE_GST',
-            gstPercent: item.gstPercent
+            gstPercent: item.gstPercent || 5
         }]);
     };
 
@@ -196,7 +196,7 @@ export default function BatchSplitModal({ item, drugName, onSplit, onClose }: Ba
                                             min="0"
                                         />
                                     </div>
-                                    <div>
+                                    <div className="col-span-2 sm:col-span-1">
                                         <label className="block text-sm font-medium text-gray-700 mb-1">
                                             Batch Number *
                                         </label>
@@ -208,7 +208,7 @@ export default function BatchSplitModal({ item, drugName, onSplit, onClose }: Ba
                                             placeholder="e.g., A2X9"
                                         />
                                     </div>
-                                    <div>
+                                    <div className="col-span-2 sm:col-span-1">
                                         <label className="block text-sm font-medium text-gray-700 mb-1">
                                             Expiry (MM/YYYY) *
                                         </label>
@@ -223,7 +223,6 @@ export default function BatchSplitModal({ item, drugName, onSplit, onClose }: Ba
                                                 if (value.length === 2 && !value.includes('/')) {
                                                     value = value + '/';
                                                 }
-                                                // Validate month (can't be > 12)
                                                 if (value.length >= 2 && !value.includes('/')) {
                                                     const month = parseInt(value.substring(0, 2));
                                                     if (month > 12) {
@@ -251,18 +250,7 @@ export default function BatchSplitModal({ item, drugName, onSplit, onClose }: Ba
                                             maxLength={7}
                                         />
                                     </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                                            Location
-                                        </label>
-                                        <input
-                                            type="text"
-                                            value={split.location || ''}
-                                            onChange={(e) => updateSplit(index, 'location', e.target.value)}
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
-                                            placeholder="e.g., Rack A-1"
-                                        />
-                                    </div>
+
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">
                                             MRP
@@ -276,7 +264,74 @@ export default function BatchSplitModal({ item, drugName, onSplit, onClose }: Ba
                                             step="0.01"
                                         />
                                     </div>
-
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Purchase Rate
+                                        </label>
+                                        <input
+                                            type="number"
+                                            value={split.unitPrice}
+                                            onChange={(e) => updateSplit(index, 'unitPrice', parseFloat(e.target.value) || 0)}
+                                            onFocus={(e) => e.target.select()}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
+                                            step="0.01"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Disc %
+                                        </label>
+                                        <input
+                                            type="number"
+                                            value={split.discountPercent !== undefined && split.discountPercent !== null ? split.discountPercent : 0}
+                                            onChange={(e) => updateSplit(index, 'discountPercent', parseFloat(e.target.value) || 0)}
+                                            onFocus={(e) => e.target.select()}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
+                                            step="0.01"
+                                            max="100"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Disc Type
+                                        </label>
+                                        <select
+                                            value={split.discountType || 'BEFORE_GST'}
+                                            onChange={(e) => updateSplit(index, 'discountType', e.target.value)}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
+                                        >
+                                            <option value="BEFORE_GST">Before GST</option>
+                                            <option value="AFTER_GST">After GST</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            GST %
+                                        </label>
+                                        <select
+                                            value={split.gstPercent !== undefined && split.gstPercent !== null ? split.gstPercent : 5}
+                                            onChange={(e) => updateSplit(index, 'gstPercent', parseFloat(e.target.value) || 0)}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
+                                        >
+                                            {[0, 5, 12, 18, 28].map((rate) => (
+                                                <option key={rate} value={rate}>
+                                                    {rate}%
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                    <div className="col-span-2">
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Location
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={split.location || ''}
+                                            onChange={(e) => updateSplit(index, 'location', e.target.value)}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
+                                            placeholder="e.g., Rack A-1"
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         ))}

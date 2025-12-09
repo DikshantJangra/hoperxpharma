@@ -204,146 +204,297 @@ export default function ReceiveShipmentPage() {
     const pendingUpdatesRef = React.useRef<Set<string>>(new Set());
 
     const handleItemUpdate = async (itemId: string, updates: any) => {
-        // Optimistic update (immediate UI feedback) - use raw values
+        // Define fields that should propagate from parent to children
+        const PROPAGATABLE_FIELDS = ['batchNumber', 'expiryDate', 'mrp', 'unitPrice', 'discountPercent', 'discountType', 'gstPercent', 'location'];
+        const isPropagatingUpdate = Object.keys(updates).some(key => PROPAGATABLE_FIELDS.includes(key));
+
+        // Optimistic update (immediate UI feedback)
         setGrn((prevGrn: any) => {
             if (!prevGrn) return null;
 
+            // Check if this is a parent item that should propagate updates
+            const parentItem = prevGrn.items.find((i: any) => i.id === itemId);
+            const shouldPropagate = parentItem && parentItem.isSplit && isPropagatingUpdate;
+
             const updatedItems = prevGrn.items.map((item: any) => {
+                // 1. Update the item itself if it matches
                 if (item.id === itemId) {
                     return { ...item, ...updates };
                 }
+
+                // 2. If this item has children, check if one of the children is the item being updated
+                if (item.children && item.children.length > 0) {
+                    const childIndex = item.children.findIndex((c: any) => c.id === itemId);
+                    if (childIndex !== -1) {
+                        // Found the child in this parent's children array
+                        const updatedChildren = [...item.children];
+                        updatedChildren[childIndex] = { ...updatedChildren[childIndex], ...updates };
+                        return { ...item, children: updatedChildren };
+                    }
+                }
+
+                // 3. Propagate to children if this is a parent item and propagation is enabled
+                if (shouldPropagate && item.parentItemId === itemId) {
+                    // Only apply updates for propagatable fields
+                    const childUpdates: any = {};
+                    PROPAGATABLE_FIELDS.forEach(field => {
+                        if (updates[field] !== undefined) {
+                            childUpdates[field] = updates[field];
+                        }
+                    });
+
+                    // Note: If we are updating a child here via propagation, we don't need to check 
+                    // if it has its own children (grand-children) as that's not supported
+                    return { ...item, ...childUpdates };
+                }
+
+                // 4. Also propagate to children inside the children array of the parent
+                if (shouldPropagate && item.id === itemId && item.children) {
+                    const childUpdates: any = {};
+                    PROPAGATABLE_FIELDS.forEach(field => {
+                        if (updates[field] !== undefined) {
+                            childUpdates[field] = updates[field];
+                        }
+                    });
+
+                    const updatedChildren = item.children.map((child: any) => ({
+                        ...child,
+                        ...childUpdates
+                    }));
+                    return { ...item, ...updates, children: updatedChildren };
+                }
+
                 return item;
             });
 
             return { ...prevGrn, items: updatedItems };
         });
 
-        // Track this item as having pending updates
+        // Track pending updates
         pendingUpdatesRef.current.add(itemId);
 
-        // Debounce the API call to prevent rate limiting
+        // If propagating, find children and add them to pending too
+        // Note: We use the 'grn' from closure which is fresh enough for finding relationships
+        const isParent = grn?.items?.find((i: any) => i.id === itemId)?.isSplit;
+        let childIds: string[] = [];
+
+        if (isParent && isPropagatingUpdate) {
+            childIds = grn.items
+                .filter((i: any) => i.parentItemId === itemId)
+                .map((i: any) => i.id);
+            childIds.forEach((id: string) => pendingUpdatesRef.current.add(id));
+        }
+
+        // Debounce the API call
         if (updateTimeoutRef.current) {
             clearTimeout(updateTimeoutRef.current);
         }
 
         updateTimeoutRef.current = setTimeout(async () => {
-            try {
-                const token = tokenManager.getAccessToken();
+            const token = tokenManager.getAccessToken();
 
-                // Sanitize values for API call
-                const sanitizedUpdates: any = {};
-                const numericFields = ['receivedQty', 'freeQty', 'unitPrice', 'discountPercent', 'gstPercent', 'mrp'];
+            // Function to process a single item update
+            const updateSingleItem = async (id: string, itemUpdates: any) => {
+                try {
+                    // Sanitize values
+                    const sanitizedUpdates: any = {};
+                    const numericFields = ['receivedQty', 'freeQty', 'unitPrice', 'discountPercent', 'gstPercent', 'mrp'];
 
-                for (const [key, value] of Object.entries(updates)) {
-                    if (numericFields.includes(key)) {
-                        // Convert to number for API
-                        if (value === '' || value === null || value === undefined) {
-                            sanitizedUpdates[key] = 0;
-                        } else {
-                            const parsedValue = key.includes('Qty') ? parseInt(value as string) : parseFloat(value as string);
-                            sanitizedUpdates[key] = isNaN(parsedValue) ? 0 : parsedValue;
-                        }
-                    } else {
-                        // Text fields - pass as is
-                        sanitizedUpdates[key] = value;
-                    }
-                }
-
-                const response = await fetch(`${apiBaseUrl}/grn/${grn.id}/items/${itemId}`, {
-                    method: 'PATCH',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(sanitizedUpdates)
-                });
-
-                if (response.ok) {
-                    const result = await response.json();
-
-                    // Only update the specific item
-                    setGrn((prevGrn: any) => {
-                        if (!prevGrn) return null;
-
-                        const updatedItems = prevGrn.items.map((item: any) => {
-                            if (item.id === itemId) {
-                                return { ...item, ...result.data };
+                    for (const [key, value] of Object.entries(itemUpdates)) {
+                        if (numericFields.includes(key)) {
+                            if (value === '' || value === null || value === undefined) {
+                                sanitizedUpdates[key] = 0;
+                            } else {
+                                const parsedValue = key.includes('Qty') ? parseInt(value as string) : parseFloat(value as string);
+                                sanitizedUpdates[key] = isNaN(parsedValue) ? 0 : parsedValue;
                             }
-                            return item;
-                        });
+                        } else {
+                            sanitizedUpdates[key] = value;
+                        }
+                    }
 
-                        return { ...prevGrn, items: updatedItems };
+                    const response = await fetch(`${apiBaseUrl}/grn/${grn.id}/items/${id}`, {
+                        method: 'PATCH',
+                        headers: {
+                            'Authorization': `Bearer ${token}`,
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(sanitizedUpdates)
                     });
 
-                    // Remove from pending updates
-                    pendingUpdatesRef.current.delete(itemId);
-                } else {
-                    // On error, remove from pending
-                    pendingUpdatesRef.current.delete(itemId);
-
-                    // Try to get error message
-                    try {
-                        const errorData = await response.json();
-                        console.error('Failed to update item:', errorData);
-                        toast.error(errorData.error || errorData.message || 'Failed to update item');
-                    } catch (e) {
-                        console.error('Failed to update item (no error details)');
-                        toast.error('Failed to update item');
+                    if (!response.ok) {
+                        throw new Error('Failed to update');
                     }
+
+                    // We don't need to consume the response data here because we already did optimistic updates.
+                    // The only risk is if server transforms data differently, but we'll fetch fresh on save/complete.
+                    pendingUpdatesRef.current.delete(id);
+                    return true;
+                } catch (error) {
+                    console.error(`Error updating item ${id}:`, error);
+                    pendingUpdatesRef.current.delete(id);
+                    return false;
                 }
-            } catch (error) {
-                console.error('Error updating item:', error);
-                pendingUpdatesRef.current.delete(itemId);
-                toast.error('Network error while updating item');
+            };
+
+            // 1. Update the parent item first
+            await updateSingleItem(itemId, updates);
+
+            // 2. If propagating, update all children with the SAME updates (filtered by propagatable fields)
+            if (childIds.length > 0) {
+                const childUpdates: any = {};
+                PROPAGATABLE_FIELDS.forEach(field => {
+                    if (updates[field] !== undefined) {
+                        childUpdates[field] = updates[field];
+                    }
+                });
+
+                // Update all children concurrently
+                await Promise.all(childIds.map(childId => updateSingleItem(childId, childUpdates)));
+
+                if (childIds.length > 0) {
+                    toast.success('Updated parent and propagation to split batches');
+                }
             }
-        }, 1500); // Wait 1.5 seconds after last keystroke before sending request
+
+        }, 1500);
     };
 
-    // Calculate totals from items (client-side calculation)
+    // Calculate detailed totals from items (client-side calculation)
     const calculatedTotals = useMemo(() => {
         if (!grn || !grn.items) {
-            return { subtotal: 0, taxAmount: 0, total: 0 };
+            return {
+                grossAmount: 0,
+                discountAmount: 0,
+                taxableAmount: 0,
+                taxAmount: 0,
+                totalAmount: 0,
+                breakdown: {} as Record<number, { taxable: number, tax: number }>,
+                rows: [] as any[]
+            };
         }
 
-        let subtotal = 0;
+        let grossAmount = 0;
+        let discountAmount = 0;
+        let taxableAmount = 0;
         let taxAmount = 0;
+        let totalAmount = 0;
+        const breakdown: Record<number, { taxable: number, tax: number }> = {};
+        const rows: any[] = [];
+        const processedIds = new Set<string>();
 
-        for (const item of grn.items) {
-            // Skip parent items that have been split (only count actual batches)
-            if (item.isSplit) {
-                continue;
-            }
+        const processItem = (item: any) => {
+            if (processedIds.has(item.id)) return;
+            processedIds.add(item.id);
 
             const receivedQty = parseFloat(item.receivedQty) || 0;
+            // Skip items with no received quantity if that's the desired behavior, 
+            // but usually we want to see even 0 qty items in the list (just with 0 totals)
+
             const unitPrice = parseFloat(item.unitPrice) || 0;
             const discountPercent = parseFloat(item.discountPercent) || 0;
             const gstPercent = parseFloat(item.gstPercent) || 0;
             const discountType = item.discountType || 'BEFORE_GST';
 
+            const itemGross = receivedQty * unitPrice;
+            grossAmount += itemGross;
+
+            let itemTaxable = 0;
+            let itemTax = 0;
+            let itemDiscount = 0;
+            let itemTotal = 0;
+
             if (discountType === 'AFTER_GST') {
-                // After GST: Calculate gross + tax, then apply discount
-                const grossAmount = receivedQty * unitPrice;
-                const tax = grossAmount * (gstPercent / 100);
-                const subtotalWithTax = grossAmount + tax;
-                const discountAmount = subtotalWithTax * (discountPercent / 100);
+                // After GST: Tax is on Gross. Discount is on (Gross + Tax).
+                // Taxable Value = Gross
+                const tax = itemGross * (gstPercent / 100);
+                const grossWithTax = itemGross + tax;
+                const discount = grossWithTax * (discountPercent / 100);
 
-                // Distribute discount proportionally
-                const discountRatio = 1 - (discountPercent / 100);
-                subtotal += grossAmount * discountRatio;
-                taxAmount += tax * discountRatio;
-            } else {
-                // Before GST (default): Apply discount first, then GST
-                const netAmount = receivedQty * unitPrice * (1 - discountPercent / 100);
-                const tax = netAmount * (gstPercent / 100);
+                itemTaxable = itemGross;
+                itemTax = tax;
+                itemDiscount = discount;
+                itemTotal = grossWithTax - discount;
 
-                subtotal += netAmount;
+                taxableAmount += itemGross;
                 taxAmount += tax;
+                discountAmount += discount;
+                totalAmount += itemTotal;
+            } else {
+                // Before GST (Default): Discount is on Gross. Tax is on (Gross - Discount).
+                // Taxable Value = Gross - Discount
+                const discount = itemGross * (discountPercent / 100);
+                const taxable = itemGross - discount;
+                const tax = taxable * (gstPercent / 100);
+
+                itemTaxable = taxable;
+                itemTax = tax;
+                itemDiscount = discount;
+                itemTaxable = taxable;
+                itemTax = tax;
+                itemDiscount = discount;
+                itemTotal = taxable + tax;
+
+                taxableAmount += taxable;
+                discountAmount += discount;
+                taxAmount += tax;
+                totalAmount += itemTotal;
             }
+
+            // Fix: ensure rounding to 2 decimals for display consistency
+            itemTaxable = Math.round(itemTaxable * 100) / 100;
+            itemTax = Math.round(itemTax * 100) / 100;
+            itemTotal = Math.round(itemTotal * 100) / 100;
+
+            // Add to breakdown
+            if (!breakdown[gstPercent]) {
+                breakdown[gstPercent] = { taxable: 0, tax: 0 };
+            }
+            breakdown[gstPercent].taxable += itemTaxable;
+            breakdown[gstPercent].tax += itemTax;
+
+            // Add to itemized rows
+            rows.push({
+                id: item.id,
+                drugId: item.drugId,
+                batchNumber: item.batchNumber,
+                expiryDate: item.expiryDate,
+                receivedQty,
+                unitPrice,
+                mrp: item.mrp,
+                discountPercent,
+                gstPercent,
+                gross: itemGross,
+                discount: itemDiscount,
+                taxable: itemTaxable,
+                tax: itemTax,
+                total: itemTotal
+            });
+        };
+
+        for (const item of grn.items) {
+            // Skip parent items that have been split (only count actual batches)
+            if (item.isSplit) {
+                // If the parent has children in its nested array, process them!
+                // This covers the case where children might not be top-level in grn.items
+                if (item.children && item.children.length > 0) {
+                    item.children.forEach((child: any) => processItem(child));
+                }
+                continue;
+            }
+
+            processItem(item);
         }
 
-        const total = subtotal + taxAmount;
-
-        return { subtotal, taxAmount, total };
+        return {
+            grossAmount,
+            discountAmount,
+            taxableAmount,
+            taxAmount,
+            totalAmount,
+            breakdown,
+            rows
+        };
     }, [grn]);
 
 
@@ -419,6 +570,9 @@ export default function ReceiveShipmentPage() {
         // Item validation
         if (grn && grn.items) {
             grn.items.forEach((item: any) => {
+                // Skip validation for parent items that are split
+                if (item.isSplit) return;
+
                 const drugName = getDrugName(item.drugId);
 
                 if (!item.batchNumber || item.batchNumber.trim() === '') {
@@ -542,6 +696,8 @@ export default function ReceiveShipmentPage() {
         }
     };
 
+
+
     if (loading) {
         return (
             <div className="p-6">
@@ -560,6 +716,42 @@ export default function ReceiveShipmentPage() {
     const formatCurrency = (amount: any) => {
         const num = Number(amount);
         return isNaN(num) ? '0.00' : num.toFixed(2);
+    };
+
+    const handleDeleteBatch = async (itemId: string) => {
+        try {
+            const token = tokenManager.getAccessToken();
+
+            const response = await fetch(`${apiBaseUrl}/grn/${grn.id}/items/${itemId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (response.ok) {
+                toast.success('Batch deleted successfully');
+
+                // Optimistically remove the item
+                setGrn((prev: any) => ({
+                    ...prev,
+                    items: prev.items.filter((item: any) => item.id !== itemId)
+                }));
+
+                // Refresh GRN data to ensure parent/child state is synced
+                const grnResponse = await fetch(`${apiBaseUrl}/grn/${grn.id}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const grnData = await grnResponse.json();
+                setGrn(grnData.data);
+            } else {
+                const error = await response.json();
+                toast.error(error.error || error.message || 'Failed to delete batch');
+            }
+        } catch (error) {
+            console.error('Error deleting batch:', error);
+            toast.error('Failed to delete batch');
+        }
     };
 
     return (
@@ -704,36 +896,165 @@ export default function ReceiveShipmentPage() {
                 onItemUpdate={handleItemUpdate}
                 onBatchSplit={handleBatchSplit}
                 onDiscrepancy={handleDiscrepancy}
+                onDeleteBatch={handleDeleteBatch}
             />
 
-            {/* Summary Panel */}
+            {/* Itemized Bill Preview Panel */}
             <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mt-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4 border-b pb-2">Itemized Bill Breakdown</h2>
+                <div className="overflow-x-auto border border-gray-200 rounded-lg mb-6">
+                    <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                            <tr>
+                                <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item Details</th>
+                                <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Batch Info</th>
+                                <th scope="col" className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Qty</th>
+                                <th scope="col" className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Rate</th>
+                                <th scope="col" className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Gross</th>
+                                <th scope="col" className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Discount</th>
+                                <th scope="col" className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Taxable</th>
+                                <th scope="col" className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">GST Data</th>
+                                <th scope="col" className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Net Amount</th>
+                            </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-200">
+                            {calculatedTotals.rows.map((row) => (
+                                <tr key={row.id} className="hover:bg-gray-50">
+                                    <td className="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
+                                        {getDrugName(row.drugId)}
+                                    </td>
+                                    <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500">
+                                        <div>#{row.batchNumber}</div>
+                                        <div className="text-gray-400">Exp: {row.expiryDate ? (() => {
+                                            const date = new Date(row.expiryDate);
+                                            return `${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+                                        })() : '-'}</div>
+                                    </td>
+                                    <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-700 text-right">{row.receivedQty}</td>
+                                    <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-700 text-right">₹{formatCurrency(row.unitPrice)}</td>
+                                    <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-700 text-right">₹{formatCurrency(row.gross)}</td>
+                                    <td className="px-3 py-2 whitespace-nowrap text-sm text-red-600 text-right">
+                                        <div>-₹{formatCurrency(row.discount)}</div>
+                                        <div className="text-xs text-red-400">({row.discountPercent}%)</div>
+                                    </td>
+                                    <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900 font-medium text-right">₹{formatCurrency(row.taxable)}</td>
+                                    <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500 text-right">
+                                        <div>₹{formatCurrency(row.tax)}</div>
+                                        <div className="text-xs text-gray-400">({row.gstPercent}%)</div>
+                                    </td>
+                                    <td className="px-3 py-2 whitespace-nowrap text-sm font-bold text-gray-900 text-right">₹{formatCurrency(row.total)}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                        <tfoot className="bg-gray-50 font-semibold">
+                            <tr>
+                                <td colSpan={6} className="px-3 py-2 text-right text-gray-900">Total Taxable Value</td>
+                                <td className="px-3 py-2 text-right text-gray-900">₹{formatCurrency(calculatedTotals.taxableAmount)}</td>
+                                <td className="px-3 py-2 text-right text-gray-900">₹{formatCurrency(calculatedTotals.taxAmount)}</td>
+                                <td className="px-3 py-2 text-right text-emerald-700">₹{formatCurrency(calculatedTotals.totalAmount)}</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+
+                <h2 className="text-lg font-semibold text-gray-900 mb-4 border-b pb-2">Payment Breakdown & Tax Analysis</h2>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    {/* Left Side: Tax Breakdown Table */}
                     <div>
-                        <div className="text-sm text-gray-600">Subtotal</div>
-                        <div className="text-xl font-semibold text-gray-900">
-                            ₹{formatCurrency(calculatedTotals.subtotal)}
+                        <h3 className="text-sm font-medium text-gray-700 mb-3 uppercase tracking-wider">GST Breakdown</h3>
+                        <div className="overflow-hidden border border-gray-200 rounded-lg">
+                            <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-gray-50">
+                                    <tr>
+                                        <th scope="col" className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">GST Rate</th>
+                                        <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Taxable Value</th>
+                                        <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">CGST</th>
+                                        <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">SGST</th>
+                                        <th scope="col" className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total Tax</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                    {Object.entries(calculatedTotals.breakdown).sort((a, b) => Number(a[0]) - Number(b[0])).map(([rate, data]: [string, any]) => (
+                                        <tr key={rate}>
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-900">{rate}%</td>
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500 text-right">₹{formatCurrency(data.taxable)}</td>
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500 text-right">
+                                                <span className="text-xs text-gray-400 mr-1">({Number(rate) / 2}%)</span>
+                                                ₹{formatCurrency(data.tax / 2)}
+                                            </td>
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-500 text-right">
+                                                <span className="text-xs text-gray-400 mr-1">({Number(rate) / 2}%)</span>
+                                                ₹{formatCurrency(data.tax / 2)}
+                                            </td>
+                                            <td className="px-4 py-2 whitespace-nowrap text-sm font-medium text-gray-900 text-right">₹{formatCurrency(data.tax)}</td>
+                                        </tr>
+                                    ))}
+                                    {Object.keys(calculatedTotals.breakdown).length === 0 && (
+                                        <tr>
+                                            <td colSpan={5} className="px-4 py-4 text-center text-sm text-gray-500">No taxable items in this order</td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                                <tfoot className="bg-gray-50">
+                                    <tr>
+                                        <td className="px-4 py-2 text-sm font-bold text-gray-900">Total</td>
+                                        <td className="px-4 py-2 text-right text-sm font-bold text-gray-900">₹{formatCurrency(calculatedTotals.taxableAmount)}</td>
+                                        <td className="px-4 py-2 text-right text-sm font-bold text-gray-900">₹{formatCurrency(calculatedTotals.taxAmount / 2)}</td>
+                                        <td className="px-4 py-2 text-right text-sm font-bold text-gray-900">₹{formatCurrency(calculatedTotals.taxAmount / 2)}</td>
+                                        <td className="px-4 py-2 text-right text-sm font-bold text-gray-900">₹{formatCurrency(calculatedTotals.taxAmount)}</td>
+                                    </tr>
+                                </tfoot>
+                            </table>
                         </div>
                     </div>
-                    <div>
-                        <div className="text-sm text-gray-600">Tax Amount</div>
-                        <div className="text-xl font-semibold text-gray-900">
-                            ₹{formatCurrency(calculatedTotals.taxAmount)}
-                        </div>
-                    </div>
-                    <div>
-                        <div className="text-sm text-gray-600">Total</div>
-                        <div className="text-2xl font-bold text-emerald-600">
-                            ₹{formatCurrency(calculatedTotals.total)}
+
+                    {/* Right Side: Final Summary Statement */}
+                    <div className="flex flex-col justify-center">
+                        <div className="bg-emerald-50/50 p-6 rounded-lg border border-emerald-100">
+                            <h3 className="text-sm font-medium text-emerald-800 mb-4 uppercase tracking-wider border-b border-emerald-200 pb-2">Final Settlement</h3>
+
+                            <div className="space-y-3">
+                                <div className="flex justify-between items-center">
+                                    <span className="text-gray-600 text-sm">Total Gross Amount</span>
+                                    <span className="text-gray-900 font-medium">₹{formatCurrency(calculatedTotals.grossAmount)}</span>
+                                </div>
+
+                                <div className="flex justify-between items-center">
+                                    <span className="text-gray-600 text-sm">Total Discount Applied</span>
+                                    <span className="text-red-600 font-medium">- ₹{formatCurrency(calculatedTotals.discountAmount)}</span>
+                                </div>
+
+                                <div className="flex justify-between items-center py-2 border-t border-dashed border-emerald-200">
+                                    <span className="text-gray-700 font-medium text-sm">Net Taxable Value</span>
+                                    <span className="text-gray-900 font-medium">₹{formatCurrency(calculatedTotals.taxableAmount)}</span>
+                                </div>
+
+                                <div className="flex justify-between items-center">
+                                    <span className="text-gray-600 text-sm">Total GST (CGST + SGST)</span>
+                                    <span className="text-gray-900 font-medium">+ ₹{formatCurrency(calculatedTotals.taxAmount)}</span>
+                                </div>
+
+                                <div className="flex justify-between items-center pt-4 border-t-2 border-white">
+                                    <span className="text-emerald-900 font-bold text-lg">Grand Total Payable</span>
+                                    <span className="text-2xl font-bold text-emerald-700">₹{formatCurrency(calculatedTotals.totalAmount)}</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* Completion Summary Modal */}
             {showSummary && (
                 <CompletionSummary
-                    grn={grn}
+                    grn={{
+                        ...grn,
+                        totals: {
+                            subtotal: calculatedTotals.taxableAmount,
+                            taxAmount: calculatedTotals.taxAmount,
+                            total: calculatedTotals.totalAmount
+                        }
+                    }}
                     po={po}
                     onConfirm={handleComplete}
                     onCancel={() => setShowSummary(false)}
@@ -749,16 +1070,7 @@ export default function ReceiveShipmentPage() {
                 />
             )}
 
-            {/* Completion Summary */}
-            {showSummary && (
-                <CompletionSummary
-                    grn={grn}
-                    po={po}
-                    onConfirm={handleComplete}
-                    onCancel={() => setShowSummary(false)}
-                    saving={saving}
-                />
-            )}
+
         </div>
     );
 }

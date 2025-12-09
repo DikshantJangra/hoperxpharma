@@ -2,9 +2,11 @@ const express = require('express');
 const router = express.Router();
 const consolidatedInvoiceController = require('../../controllers/consolidatedInvoices/consolidatedInvoiceController');
 const { authenticate } = require('../../middlewares/auth');
+const { requireStoreAccess } = require('../../middlewares/rbac');
 
-// All routes require authentication
+// All routes require authentication and store access
 router.use(authenticate);
+router.use(requireStoreAccess);
 
 // Get GRNs available for invoicing
 router.get('/grns', consolidatedInvoiceController.getGRNsForInvoicing);
