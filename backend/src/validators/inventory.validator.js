@@ -21,7 +21,7 @@ const drugSchema = z.object({
  */
 const batchCreateSchema = z.object({
     storeId: z.string().cuid(),
-    drugId: z.string().cuid(),
+    drugId: z.string(),
     batchNumber: z.string().min(1, 'Batch number is required'),
     expiryDate: z.string().datetime(),
     quantityInStock: z.number().int().positive('Quantity must be positive'),
@@ -57,7 +57,7 @@ const inventoryQuerySchema = z.object({
     page: z.string().transform(Number).pipe(z.number().int().positive()).optional(),
     limit: z.string().transform(Number).pipe(z.number().int().positive().max(100)).optional(),
     search: z.string().optional(),
-    drugId: z.string().cuid().optional(),
+    drugId: z.string().optional(),
     expiringInDays: z.string().transform(Number).pipe(z.number().int().positive()).optional(),
 });
 

@@ -89,16 +89,41 @@ export default function OrdersPage() {
 
             if (response.ok) {
                 const result = await response.json();
-                // ApiResponse.paginated returns data as the array directly
                 const fetchedOrders = Array.isArray(result.data) ? result.data : (result.data?.orders || []);
-                setOrders(fetchedOrders);
+
+                // Fetch GRNs for received orders to get actual totals
+                const ordersWithGRNTotals = await Promise.all(
+                    fetchedOrders.map(async (order: PurchaseOrder) => {
+                        if (order.status === 'RECEIVED' || order.status === 'PARTIALLY_RECEIVED') {
+                            try {
+                                const grnResponse = await fetch(`${apiBaseUrl}/grn/po/${order.id}`, {
+                                    headers: {
+                                        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+                                    }
+                                });
+
+                                if (grnResponse.ok) {
+                                    const grnData = await grnResponse.json();
+                                    const grns = grnData.data || [];
+                                    const grnTotal = grns.reduce((sum: number, grn: any) => sum + Number(grn.total || 0), 0);
+                                    return { ...order, total: grnTotal };
+                                }
+                            } catch (error) {
+                                console.error('Failed to fetch GRN for order:', order.id, error);
+                            }
+                        }
+                        return order;
+                    })
+                );
+
+                setOrders(ordersWithGRNTotals);
 
                 // Calculate stats
-                const draft = fetchedOrders.filter((o: PurchaseOrder) => o.status === 'DRAFT').length;
-                const pending = fetchedOrders.filter((o: PurchaseOrder) => o.status === 'PENDING_APPROVAL' || o.status === 'SENT').length;
-                const received = fetchedOrders.filter((o: PurchaseOrder) => o.status === 'RECEIVED').length;
+                const draft = ordersWithGRNTotals.filter((o: PurchaseOrder) => o.status === 'DRAFT').length;
+                const pending = ordersWithGRNTotals.filter((o: PurchaseOrder) => o.status === 'PENDING_APPROVAL' || o.status === 'SENT').length;
+                const received = ordersWithGRNTotals.filter((o: PurchaseOrder) => o.status === 'RECEIVED').length;
 
-                const thisMonth = fetchedOrders
+                const thisMonth = ordersWithGRNTotals
                     .filter((o: PurchaseOrder) => {
                         const orderDate = new Date(o.createdAt);
                         const now = new Date();

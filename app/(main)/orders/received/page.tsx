@@ -31,7 +31,9 @@ export default function ReceivedOrdersPage() {
         try {
             const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
             const token = tokenManager.getAccessToken();
-            const response = await fetch(`${apiBaseUrl}/purchase-orders?status=RECEIVED&limit=100`, {
+
+            // Fetch completed GRNs instead of POs to get actual received amounts
+            const response = await fetch(`${apiBaseUrl}/grn?status=COMPLETED&limit=100`, {
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
@@ -39,17 +41,17 @@ export default function ReceivedOrdersPage() {
 
             if (response.ok) {
                 const result = await response.json();
-                const fetchedOrders = Array.isArray(result.data) ? result.data : [];
+                const fetchedGRNs = Array.isArray(result.data) ? result.data : [];
 
-                // Transform to Order format
-                const transformedOrders: Order[] = fetchedOrders.map((po: any) => ({
-                    id: po.id,
-                    poNumber: po.poNumber,
-                    supplier: po.supplier?.name || 'Unknown',
-                    date: po.createdAt,
-                    amount: Number(po.total),
-                    status: po.status.toLowerCase() as any,
-                    expectedDelivery: po.expectedDeliveryDate
+                // Transform GRNs to Order format
+                const transformedOrders: Order[] = fetchedGRNs.map((grn: any) => ({
+                    id: grn.poId, // Use PO ID for the link to work
+                    poNumber: grn.grnNumber, // Show GRN number
+                    supplier: grn.po?.supplier?.name || 'Unknown',
+                    date: grn.completedAt || grn.createdAt,
+                    amount: Number(grn.total), // Use GRN total, not PO total
+                    status: 'received' as any,
+                    expectedDelivery: null
                 }));
 
                 setOrders(transformedOrders);

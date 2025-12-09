@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
 import ProductSearch from '@/components/pos/ProductSearch';
 import Basket from '@/components/pos/Basket';
@@ -13,7 +14,11 @@ import SplitPaymentModal from '@/components/pos/SplitPaymentModal';
 import SuccessScreen from '@/components/pos/SuccessScreen';
 import QuickAddGrid from '@/components/pos/QuickAddGrid';
 import DraftRestoreModal from '@/components/pos/DraftRestoreModal';
+import PrescriptionBanner from '@/components/pos/PrescriptionBanner';
 import { salesApi } from '@/lib/api/sales';
+import { prescriptionApi } from '@/lib/api/prescriptions';
+import PrescriptionImportModal from '@/components/pos/PrescriptionImportModal';
+import { inventoryApi } from '@/lib/api/inventory';
 
 export default function NewSalePage() {
   const [basketItems, setBasketItems] = useState<any[]>([]);
@@ -32,6 +37,10 @@ export default function NewSalePage() {
   const [showDraftRestore, setShowDraftRestore] = useState(false);
   const [pendingDraft, setPendingDraft] = useState<any>(null);
   const [storeId, setStoreId] = useState<string>('');
+  const [showPrescriptionModal, setShowPrescriptionModal] = useState(false);
+  const [linkedPrescriptionId, setLinkedPrescriptionId] = useState<string | null>(null);
+  const [activePrescription, setActivePrescription] = useState<any>(null);
+  const [isLoadingRx, setIsLoadingRx] = useState(false);
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Get storeId from localStorage
@@ -46,6 +55,41 @@ export default function NewSalePage() {
       }
     }
   }, []);
+
+  // Handle draft restore from modal
+  const handleRestoreDraft = () => {
+    if (!pendingDraft) return;
+
+    try {
+      // Parse items if they're JSON string
+      const items = typeof pendingDraft.items === 'string' ? JSON.parse(pendingDraft.items) : pendingDraft.items;
+
+      setCurrentDraftId(pendingDraft.id);
+      localStorage.setItem('currentDraftId', pendingDraft.id);
+      setBasketItems(items || []);
+
+      if (pendingDraft.customerId) {
+        setCustomer({
+          id: pendingDraft.customerId,
+          firstName: pendingDraft.customerName?.split(' ')[0] || '',
+          lastName: pendingDraft.customerName?.split(' ').slice(1).join(' ') || '',
+          phoneNumber: pendingDraft.customerPhone
+        });
+      }
+
+      setShowDraftRestore(false);
+      setPendingDraft(null);
+      toast.success('Draft restored successfully!');
+    } catch (error) {
+      console.error('Error restoring draft:', error);
+      toast.error('Failed to restore draft');
+    }
+  };
+
+  const handleDiscardDraft = () => {
+    setShowDraftRestore(false);
+    setPendingDraft(null);
+  };
 
   // Restore draft on page load
   useEffect(() => {
@@ -108,40 +152,36 @@ export default function NewSalePage() {
     return () => clearTimeout(timer);
   }, []);
 
-  // Handle draft restore from modal
-  const handleRestoreDraft = () => {
-    if (!pendingDraft) return;
+  // Handle Import from URL (Redirect from Prescriptions page)
+  const searchParams = useSearchParams();
+  useEffect(() => {
+    const importRxId = searchParams.get('importRx');
+    if (importRxId && !linkedPrescriptionId && !isLoadingRx) {
+      const fetchAndImport = async () => {
+        setIsLoadingRx(true);
+        try {
+          console.log("Auto-importing prescription:", importRxId);
+          const response = await prescriptionApi.getPrescriptionById(importRxId);
+          if (response.success && response.data) {
+            await handleImportPrescription(response.data);
+            toast.success('Prescription imported successfully!');
+            // Clear the param from URL without reload to prevent re-import on refresh
+            window.history.replaceState({}, '', '/pos/new-sale');
+          } else {
+            toast.error('Failed to load prescription for import');
+          }
+        } catch (error) {
+          console.error("Import error:", error);
+          toast.error('Error importing prescription');
+        } finally {
+          setIsLoadingRx(false);
+        }
+      };
 
-    try {
-      // Parse items if they're JSON string
-      const items = typeof pendingDraft.items === 'string' ? JSON.parse(pendingDraft.items) : pendingDraft.items;
-
-      setCurrentDraftId(pendingDraft.id);
-      localStorage.setItem('currentDraftId', pendingDraft.id);
-      setBasketItems(items || []);
-
-      if (pendingDraft.customerId) {
-        setCustomer({
-          id: pendingDraft.customerId,
-          firstName: pendingDraft.customerName?.split(' ')[0] || '',
-          lastName: pendingDraft.customerName?.split(' ').slice(1).join(' ') || '',
-          phoneNumber: pendingDraft.customerPhone
-        });
-      }
-
-      setShowDraftRestore(false);
-      setPendingDraft(null);
-      toast.success('Draft restored successfully!');
-    } catch (error) {
-      console.error('Error restoring draft:', error);
-      toast.error('Failed to restore draft');
+      // Small delay to ensure everything is ready
+      setTimeout(fetchAndImport, 500);
     }
-  };
-
-  const handleDiscardDraft = () => {
-    setShowDraftRestore(false);
-    setPendingDraft(null);
-  };
+  }, [searchParams, linkedPrescriptionId, isLoadingRx]);
 
   // Auto-save draft every 30 seconds
   useEffect(() => {
@@ -246,6 +286,10 @@ export default function NewSalePage() {
         e.preventDefault();
         saveDraft(false); // Manual save
       }
+      if (e.key === 'F6') {
+        e.preventDefault();
+        setShowPrescriptionModal(true);
+      }
       if (e.key === 'F8') {
         e.preventDefault();
         if (basketItems.length > 0) {
@@ -291,14 +335,18 @@ export default function NewSalePage() {
               : item
           );
         }
-        return [...prev, { ...product, qty: 1 }];
+        return [...prev, {
+          ...product,
+          qty: 1,
+          gstRate: product.gstRate ? Number(product.gstRate) : 5 // Default 5% if missing
+        }];
       });
     }
   };
 
   const handleBatchSelect = (batch: any) => {
     if (pendingProduct) {
-      setBasketItems(prev => [...prev, { ...pendingProduct, batchId: batch.batchId, qty: 1 }]);
+      setBasketItems(prev => [...prev, { ...pendingProduct, batchId: batch.id, batchNumber: batch.batchNumber, location: batch.location, stock: batch.quantityInStock, expiryDate: batch.expiryDate, qty: 1, gstRate: pendingProduct.gstRate ? Number(pendingProduct.gstRate) : 5 }]);
     }
     setShowBatchModal(false);
     setPendingProduct(null);
@@ -307,6 +355,106 @@ export default function NewSalePage() {
   const handleCustomerSelect = (selectedCustomer: any) => {
     setCustomer(selectedCustomer);
     setShowCustomerModal(false);
+  };
+
+  const handleImportPrescription = async (rx: any) => {
+    // 1. Set Customer
+    if (rx.patient) {
+      setCustomer({
+        id: rx.patient.id,
+        firstName: rx.patient.firstName,
+        lastName: rx.patient.lastName,
+        phoneNumber: rx.patient.phoneNumber,
+        email: rx.patient.email
+      });
+      // Ensure customer modal is closed
+      setShowCustomerModal(false);
+    }
+
+    // 2. Set Sale Context
+    setLinkedPrescriptionId(rx.id);
+    setActivePrescription(rx);
+
+    // 3. Process Items
+    const newItems: any[] = [];
+    const missingBatches: string[] = [];
+
+    // Show loading toast since this might take a moment
+    const loadingToast = toast.loading('Importing prescription items...');
+
+    try {
+      if (!rx.items || !Array.isArray(rx.items)) {
+        throw new Error('No items found in prescription');
+      }
+
+      for (const item of rx.items) {
+        const drugId = item.drug?.id || item.drugId;
+        if (!drugId) continue;
+
+        try {
+          // Fetch batches for this drug
+          const batchResponse = await inventoryApi.getBatches({ drugId: drugId, limit: 10 });
+          // Handle response format variations
+          const batches = (batchResponse as any).data || (batchResponse as any).batches || [];
+
+          // Filter: active, not expired (optional but recommended), positive stock
+          // Note: batchResponse objects might need type checking
+          const validBatches = Array.isArray(batches) ? batches.filter((b: any) => Number(b.quantityInStock) > 0) : [];
+
+          // Sort by expiry (FEFO) - earliest expiry first
+          validBatches.sort((a: any, b: any) => new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime());
+
+          if (validBatches.length > 0) {
+            const bestBatch = validBatches[0];
+            newItems.push({
+              id: item.drug.id,
+              name: item.drug.name,
+              sku: item.drug.sku || item.drug.id,
+              batchId: bestBatch.id,
+              batchNumber: bestBatch.batchNumber, // Display this!
+              location: bestBatch.location, // Pass location
+              expiryDate: bestBatch.expiryDate,
+              stock: Number(bestBatch.quantityInStock), // Explicitly map stock
+              mrp: Number(bestBatch.mrp),
+              // Use quantity from Rx, default to 1, cap at available stock? No, user might adjust.
+              qty: Number(item.quantityPrescribed) || 1,
+              discount: 0,
+              gstRate: Number(item.drug.gstRate) || 5, // Default to 5% if missing
+              type: 'RX' // Tag as Prescription Item
+            });
+          } else {
+            missingBatches.push(item.drug?.name || 'Unknown Drug');
+          }
+        } catch (err) {
+          console.error('Error fetching batches for', item.drug?.name, err);
+          missingBatches.push(item.drug?.name || 'Unknown Drug');
+        }
+      }
+
+      if (newItems.length > 0) {
+        setBasketItems(prev => {
+          // Avoid duplicates if possible? Or typically users want adding.
+          // We'll just append for now, user can consolidate.
+          return [...prev, ...newItems];
+        });
+        toast.dismiss(loadingToast);
+        toast.success(`Imported ${newItems.length} items from Prescription`);
+      } else {
+        toast.dismiss(loadingToast);
+        toast.warning('No available stock found for prescription items');
+      }
+
+      if (missingBatches.length > 0) {
+        // Delay this toast slightly to ensure visibility
+        setTimeout(() => {
+          toast.warning(`Out of stock: ${missingBatches.join(', ')}`, { duration: 5000 });
+        }, 500);
+      }
+    } catch (error) {
+      console.error('Import failed', error);
+      toast.dismiss(loadingToast);
+      toast.error('Failed to import prescription items');
+    }
   };
 
 
@@ -321,43 +469,90 @@ export default function NewSalePage() {
   const clearBasket = () => {
     setBasketItems([]);
     setCustomer(null);
+    setLinkedPrescriptionId(null);
+    setActivePrescription(null);
     setCurrentDraftId(null); // Clear draft ID when clearing basket
     localStorage.removeItem('currentDraftId'); // Remove from localStorage
   };
 
-  const subtotal = basketItems.reduce((sum: number, item: any) =>
-    sum + (item.qty * item.mrp - (item.discount || 0)), 0
-  );
+  // Apply Overall Discount
+  const handleApplyOverallDiscount = (type: 'percentage' | 'amount', value: number) => {
+    setBasketItems(prev => {
+      const totalMrp = prev.reduce((sum, item) => sum + (item.qty * item.mrp), 0);
+
+      return prev.map(item => {
+        const itemTotal = item.qty * item.mrp;
+        let discountValue = 0;
+        let discountAmount = 0;
+
+        if (type === 'percentage') {
+          discountValue = value;
+          discountAmount = (itemTotal * value) / 100;
+        } else {
+          // Weighted distribution for fixed amount
+          const ratio = itemTotal / totalMrp;
+          discountAmount = value * ratio;
+          discountValue = discountAmount; // For 'amount' type, value is the amount
+        }
+
+        return {
+          ...item,
+          discountType: type,
+          discountValue: Number(discountValue.toFixed(2)),
+          discount: Number(discountAmount.toFixed(2))
+        };
+      });
+    });
+    toast.success('Overall discount applied to all items');
+  };
 
   // Calculate GST
+  // Enhanced Financial Calculations
   const calculateTotals = () => {
-    let subtotal = 0;
+    let totalMrp = 0;
+    let totalDiscount = 0;
+    let taxableValue = 0;
     let taxAmount = 0;
+    let netTotal = 0;
 
     basketItems.forEach((item: any) => {
-      const itemTotal = item.qty * item.mrp;
+      // 1. Base values
+      const itemMrpTotal = item.qty * item.mrp;
       const itemDiscount = item.discount || 0;
-      const netAmount = itemTotal - itemDiscount;
 
-      // Calculate GST (assuming GST is included in MRP)
+      // 2. Net Payable for this line (Inclusive of Tax)
+      const lineNet = itemMrpTotal - itemDiscount;
+
+      // 3. Back-calculate Tax
       const gstRate = item.gstRate || 0;
-      const taxableAmount = netAmount / (1 + gstRate / 100);
-      const itemTax = netAmount - taxableAmount;
+      const itemTaxable = lineNet / (1 + gstRate / 100);
+      const itemTax = lineNet - itemTaxable;
 
-      subtotal += netAmount;
+      // 4. Accumulate
+      totalMrp += itemMrpTotal;
+      totalDiscount += itemDiscount;
+      taxableValue += itemTaxable;
       taxAmount += itemTax;
+      netTotal += lineNet;
     });
 
+    const roundedTotal = Math.round(netTotal);
+    const roundOff = roundedTotal - netTotal;
+
     return {
-      subtotal: subtotal - taxAmount,
+      totalMrp,
+      totalDiscount,
+      taxableValue,
       taxAmount,
-      total: Math.round(subtotal),
+      roundOff,
+      total: roundedTotal,
+      subtotal: totalMrp // For legacy props, usually Total MRP is what's expected as "Subtotal" in simple views
     };
   };
 
   const totals = calculateTotals();
 
-  const handleFinalize = async (paymentMethod: string = 'CASH', splits?: any) => {
+  const handleFinalize = async (paymentMethod: string = 'CASH', splits?: any, invoiceType: string = 'RECEIPT') => {
     if (basketItems.length === 0) {
       toast.error('Please add items to the basket');
       return;
@@ -397,13 +592,15 @@ export default function NewSalePage() {
       // Create sale with required fields (storeId and soldBy added by middleware)
       const saleData = {
         patientId: customer?.id || null,
+        invoiceType: invoiceType.toUpperCase(), // Pass invoice type
         subtotal: Number(totals.subtotal.toFixed(2)),
-        discountAmount: 0,
+        discountAmount: Number(totals.totalDiscount.toFixed(2)),
         taxAmount: Number(totals.taxAmount.toFixed(2)),
-        roundOff: Number((Math.round(totals.total) - totals.total).toFixed(2)),
-        total: Number(Math.round(totals.total)),
+        roundOff: Number(totals.roundOff.toFixed(2)),
+        total: Number(totals.total),
         items,
         paymentSplits,
+        prescriptionId: linkedPrescriptionId, // Link to prescription if imported
       };
 
       console.log('Creating sale with data:', saleData);
@@ -484,11 +681,26 @@ export default function NewSalePage() {
 
   return (
     <div className="h-screen flex flex-col bg-[#f8fafc]">
-      <POSHeader saleId={saleId} onOpenCustomer={() => setShowCustomerModal(true)} />
+      <POSHeader
+        saleId={saleId}
+        onOpenCustomer={() => setShowCustomerModal(true)}
+        onOpenPrescription={() => setShowPrescriptionModal(true)}
+        activePrescription={activePrescription}
+      />
 
       <div className="flex-1 flex overflow-hidden">
         {/* Left Panel - 65% */}
         <div className="w-[65%] flex flex-col border-r border-[#e2e8f0]">
+          {/* Hybrid Context Banner */}
+          <PrescriptionBanner
+            prescription={activePrescription}
+            onClear={() => {
+              setLinkedPrescriptionId(null);
+              setActivePrescription(null);
+              toast.success('Unlinked prescription from sale');
+            }}
+          />
+
           <ProductSearch
             onAddProduct={addToBasket}
             searchFocus={searchFocus}
@@ -510,9 +722,12 @@ export default function NewSalePage() {
             basketItems={basketItems}
             customer={customer}
             onCustomerChange={setCustomer}
-            onFinalize={handleFinalize}
+            onFinalize={(method: string, splits?: any, invoiceType?: string) => handleFinalize(method, splits, invoiceType)}
             onOpenCustomer={() => setShowCustomerModal(true)}
             onSplitPayment={() => setShowSplitPayment(true)}
+            onClear={clearBasket}
+            onApplyDiscount={handleApplyOverallDiscount}
+            totals={totals}
           />
         </div>
       </div>
@@ -532,6 +747,12 @@ export default function NewSalePage() {
         <CustomerModal
           onSelect={handleCustomerSelect}
           onClose={() => setShowCustomerModal(false)}
+        />
+      )}
+      {showPrescriptionModal && (
+        <PrescriptionImportModal
+          onSelect={handleImportPrescription}
+          onClose={() => setShowPrescriptionModal(false)}
         />
       )}
       {showSplitPayment && (

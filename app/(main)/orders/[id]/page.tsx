@@ -186,35 +186,70 @@ export default function OrderDetailsPage() {
                 <div className="lg:col-span-2 space-y-6">
                     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                         <div className="px-6 py-4 border-b border-gray-200">
-                            <h2 className="text-lg font-semibold text-gray-900">Order Items</h2>
+                            <h2 className="text-lg font-semibold text-gray-900">
+                                {(order.status === 'RECEIVED' || order.status === 'PARTIALLY_RECEIVED') && grns.length > 0
+                                    ? 'Received Items'
+                                    : 'Order Items'}
+                            </h2>
                         </div>
                         <div className="overflow-x-auto">
                             <table className="min-w-full divide-y divide-gray-200">
                                 <thead className="bg-gray-50">
                                     <tr>
                                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item</th>
-                                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Qty</th>
-                                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Unit Price</th>
-                                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            {(order.status === 'RECEIVED' || order.status === 'PARTIALLY_RECEIVED') && grns.length > 0 ? 'Batch' : 'Qty'}
+                                        </th>
+                                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            {(order.status === 'RECEIVED' || order.status === 'PARTIALLY_RECEIVED') && grns.length > 0 ? 'Qty' : 'Unit Price'}
+                                        </th>
+                                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                            {(order.status === 'RECEIVED' || order.status === 'PARTIALLY_RECEIVED') && grns.length > 0 ? 'MRP' : 'Total'}
+                                        </th>
                                     </tr>
                                 </thead>
                                 <tbody className="bg-white divide-y divide-gray-200">
-                                    {order.items.map((item) => (
-                                        <tr key={item.id} className="hover:bg-gray-50">
-                                            <td className="px-6 py-4">
-                                                <div className="font-medium text-gray-900">{item.drug.name}</div>
-                                                <div className="text-sm text-gray-500">{item.drug.strength} • {item.drug.type}</div>
-                                            </td>
-                                            <td className="px-6 py-4 text-right text-sm text-gray-900">{item.quantity}</td>
-                                            <td className="px-6 py-4 text-right text-sm text-gray-900">{formatCurrency(item.unitPrice)}</td>
-                                            <td className="px-6 py-4 text-right text-sm font-medium text-gray-900">
-                                                {formatCurrency(
-                                                    item.total ||
-                                                    (item.quantity * item.unitPrice * (1 - (item.discountPercent || 0) / 100) * (1 + (item.gstPercent || 0) / 100))
-                                                )}
-                                            </td>
-                                        </tr>
-                                    ))}
+                                    {(order.status === 'RECEIVED' || order.status === 'PARTIALLY_RECEIVED') && grns.length > 0 ? (
+                                        // Show GRN items for received orders
+                                        grns.flatMap((grn: any) =>
+                                            grn.items
+                                                ?.filter((item: any) => !item.isSplit) // Skip parent items
+                                                .map((item: any) => {
+                                                    const poItem = order.items.find((pi: any) => pi.id === item.poItemId);
+                                                    const drugInfo: any = poItem?.drug || {};
+
+                                                    return (
+                                                        <tr key={item.id} className="hover:bg-gray-50">
+                                                            <td className="px-6 py-4">
+                                                                <div className="font-medium text-gray-900">{drugInfo.name || 'Unknown'}</div>
+                                                                <div className="text-sm text-gray-500">{drugInfo.strength} • {drugInfo.type}</div>
+                                                            </td>
+                                                            <td className="px-6 py-4 text-right text-sm text-gray-900">{item.batchNumber}</td>
+                                                            <td className="px-6 py-4 text-right text-sm text-gray-900">{item.receivedQty + item.freeQty}</td>
+                                                            <td className="px-6 py-4 text-right text-sm font-medium text-gray-900">{formatCurrency(item.mrp)}</td>
+                                                        </tr>
+                                                    );
+                                                }) || []
+                                        )
+                                    ) : (
+                                        // Show PO items for non-received orders
+                                        order.items.map((item) => (
+                                            <tr key={item.id} className="hover:bg-gray-50">
+                                                <td className="px-6 py-4">
+                                                    <div className="font-medium text-gray-900">{item.drug.name}</div>
+                                                    <div className="text-sm text-gray-500">{item.drug.strength} • {item.drug.type}</div>
+                                                </td>
+                                                <td className="px-6 py-4 text-right text-sm text-gray-900">{item.quantity}</td>
+                                                <td className="px-6 py-4 text-right text-sm text-gray-900">{formatCurrency(item.unitPrice)}</td>
+                                                <td className="px-6 py-4 text-right text-sm font-medium text-gray-900">
+                                                    {formatCurrency(
+                                                        item.total ||
+                                                        (item.quantity * item.unitPrice * (1 - (item.discountPercent || 0) / 100) * (1 + (item.gstPercent || 0) / 100))
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
                                 </tbody>
                             </table>
                         </div>
@@ -342,19 +377,35 @@ export default function OrderDetailsPage() {
 
                     {/* Order Summary */}
                     <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-                        <h2 className="text-lg font-semibold text-gray-900 mb-4">Order Summary</h2>
+                        <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                            {(order.status === 'RECEIVED' || order.status === 'PARTIALLY_RECEIVED') && grns.length > 0
+                                ? 'Received Summary'
+                                : 'Order Summary'}
+                        </h2>
                         <div className="space-y-3">
                             <div className="flex justify-between text-sm text-gray-600">
                                 <span>Subtotal</span>
-                                <span>{formatCurrency(order.subtotal)}</span>
+                                <span>{formatCurrency(
+                                    (order.status === 'RECEIVED' || order.status === 'PARTIALLY_RECEIVED') && grns.length > 0
+                                        ? grns.reduce((sum: number, grn: any) => sum + Number(grn.subtotal || 0), 0)
+                                        : order.subtotal
+                                )}</span>
                             </div>
                             <div className="flex justify-between text-sm text-gray-600">
                                 <span>Tax (GST)</span>
-                                <span>{formatCurrency(order.taxAmount)}</span>
+                                <span>{formatCurrency(
+                                    (order.status === 'RECEIVED' || order.status === 'PARTIALLY_RECEIVED') && grns.length > 0
+                                        ? grns.reduce((sum: number, grn: any) => sum + Number(grn.taxAmount || 0), 0)
+                                        : order.taxAmount
+                                )}</span>
                             </div>
                             <div className="pt-3 border-t border-gray-100 flex justify-between items-center">
                                 <span className="font-semibold text-gray-900">Total</span>
-                                <span className="text-xl font-bold text-emerald-600">{formatCurrency(order.total)}</span>
+                                <span className="text-xl font-bold text-emerald-600">{formatCurrency(
+                                    (order.status === 'RECEIVED' || order.status === 'PARTIALLY_RECEIVED') && grns.length > 0
+                                        ? grns.reduce((sum: number, grn: any) => sum + Number(grn.total || 0), 0)
+                                        : order.total
+                                )}</span>
                             </div>
                         </div>
                     </div>

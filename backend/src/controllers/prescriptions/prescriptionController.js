@@ -1,3 +1,6 @@
+const r2Config = require('../../config/r2');
+const path = require('path');
+const { v4: uuidv4 } = require('uuid');
 const prescriptionService = require('../../services/prescriptions/prescriptionService');
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
@@ -19,18 +22,51 @@ class PrescriptionController {
                 });
             }
 
-            // Handle uploaded files
-            const uploadedImages = req.files ? req.files.map(file => `/uploads/prescriptions/${file.filename}`) : [];
+            if (req.files) {
+                // Files received successfully
+            }
+
+            // Handle uploaded files (R2 Upload)
+            const processedFiles = [];
+            if (req.files && req.files.length > 0) {
+                const date = new Date();
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+
+                for (const file of req.files) {
+                    const fileExt = path.extname(file.originalname);
+                    const fileId = uuidv4();
+                    const key = `prescriptions/${year}/${month}/${day}/${fileId}${fileExt}`;
+
+                    await r2Config.uploadObject(key, file.buffer, file.mimetype);
+                    const publicUrl = r2Config.getPublicUrl(key);
+
+                    processedFiles.push({
+                        url: publicUrl,
+                        key: key,
+                        ocrData: req.body.ocrData ? JSON.parse(req.body.ocrData) : null // Attach OCR only if passed
+                    });
+                }
+            }
+
+            // Parse items if sent as string (FormData)
+            let items = req.body.items;
+            if (typeof items === 'string') {
+                try {
+                    items = JSON.parse(items);
+                } catch (e) {
+                    return res.status(400).json({ success: false, message: 'Invalid items format' });
+                }
+            }
 
             // Allow manual override of images if needed, otherwise use uploaded
             const prescriptionData = {
                 ...req.body,
-                storeId
+                items,
+                storeId,
+                files: processedFiles
             };
-
-            if (uploadedImages.length > 0) {
-                prescriptionData.uploadedImages = uploadedImages;
-            }
 
             const prescription = await prescriptionService.createPrescription(
                 prescriptionData,
@@ -50,6 +86,30 @@ class PrescriptionController {
             return res.status(500).json({
                 success: false,
                 message: error.message || 'Failed to create prescription'
+            });
+        }
+    }
+
+    /**
+     * Get Verified Prescriptions for POS import
+     * GET /api/v1/prescriptions/verified
+     */
+    async getVerifiedPrescriptions(req, res) {
+        try {
+            const storeId = req.user.primaryStore?.id || req.user.storeUsers?.[0]?.storeId;
+            const { search } = req.query;
+
+            const prescriptions = await prescriptionService.getVerifiedPrescriptions(storeId, search);
+
+            return res.json({
+                success: true,
+                data: prescriptions
+            });
+        } catch (error) {
+            console.error('[PrescriptionController] Get Verified error:', error);
+            return res.status(500).json({
+                success: false,
+                message: error.message || 'Failed to fetch verified prescriptions'
             });
         }
     }
@@ -101,6 +161,7 @@ class PrescriptionController {
                             drug: true
                         }
                     },
+                    files: true,
                     dispenseEvents: {
                         include: {
                             items: {
@@ -263,10 +324,10 @@ class PrescriptionController {
                 });
             }
 
-            if (prescription.status !== 'DRAFT') {
+            if (prescription.status.toUpperCase() !== 'DRAFT') {
                 return res.status(400).json({
                     success: false,
-                    message: 'Only DRAFT prescriptions can be deleted'
+                    message: `Only DRAFT prescriptions can be deleted (Current: ${prescription.status})`
                 });
             }
 
@@ -285,9 +346,9 @@ class PrescriptionController {
                     storeId: prescription.storeId,
                     userId: userId,
                     action: 'PRESCRIPTION_DELETE',
-                    resource: 'Prescription',
-                    resourceId: id,
-                    details: { reason: 'User requested delete' }
+                    entityType: 'Prescription',
+                    entityId: id,
+                    changes: { reason: 'User requested delete' }
                 }
             });
 

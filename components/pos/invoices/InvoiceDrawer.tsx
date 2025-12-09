@@ -3,48 +3,102 @@
 import { useState } from 'react';
 import { FiX, FiPrinter, FiMail, FiMessageSquare, FiRotateCcw, FiDownload, FiClock } from 'react-icons/fi';
 import { BsQrCode } from 'react-icons/bs';
+import { salesApi } from '@/lib/api/sales';
 
 const DrawerSkeleton = () => (
-    <div className="w-[40%] bg-white border-l border-[#e2e8f0] flex flex-col h-full animate-pulse">
-        <div className="p-4 border-b border-[#e2e8f0]">
-            <div className="h-6 bg-gray-200 rounded w-1/3 mb-2"></div>
-            <div className="h-4 bg-gray-100 rounded w-1/4"></div>
-        </div>
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-            <div className="flex items-center gap-2">
-                <div className="h-6 w-20 bg-gray-200 rounded-full"></div>
-                <div className="h-6 w-24 bg-gray-100 rounded-full"></div>
-            </div>
-            <div className="h-20 bg-gray-100 rounded-lg"></div>
-            <div className="h-20 bg-gray-100 rounded-lg"></div>
-            <div>
-                <div className="h-4 bg-gray-200 rounded w-1/4 mb-2"></div>
-                <div className="h-16 bg-gray-100 rounded-lg mb-2"></div>
-                <div className="h-16 bg-gray-100 rounded-lg"></div>
-            </div>
-            <div className="h-24 bg-gray-100 rounded-lg"></div>
-        </div>
-        <div className="border-t border-[#e2e8f0] p-4 space-y-2">
-            <div className="h-10 bg-gray-200 rounded-lg"></div>
-            <div className="h-10 bg-gray-100 rounded-lg"></div>
-        </div>
+  <div className="w-[40%] bg-white border-l border-[#e2e8f0] flex flex-col h-full animate-pulse">
+    <div className="p-4 border-b border-[#e2e8f0]">
+      <div className="h-6 bg-gray-200 rounded w-1/3 mb-2"></div>
+      <div className="h-4 bg-gray-100 rounded w-1/4"></div>
     </div>
+    <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex items-center gap-2">
+        <div className="h-6 w-20 bg-gray-200 rounded-full"></div>
+        <div className="h-6 w-24 bg-gray-100 rounded-full"></div>
+      </div>
+      <div className="h-20 bg-gray-100 rounded-lg"></div>
+      <div className="h-20 bg-gray-100 rounded-lg"></div>
+      <div>
+        <div className="h-4 bg-gray-200 rounded w-1/4 mb-2"></div>
+        <div className="h-16 bg-gray-100 rounded-lg mb-2"></div>
+        <div className="h-16 bg-gray-100 rounded-lg"></div>
+      </div>
+      <div className="h-24 bg-gray-100 rounded-lg"></div>
+    </div>
+    <div className="border-t border-[#e2e8f0] p-4 space-y-2">
+      <div className="h-10 bg-gray-200 rounded-lg"></div>
+      <div className="h-10 bg-gray-100 rounded-lg"></div>
+    </div>
+  </div>
 )
 
 export default function InvoiceDrawer({ invoice, onClose, isLoading }: any) {
   const [showAuditLog, setShowAuditLog] = useState(false);
   const [showReturnModal, setShowReturnModal] = useState(false);
+  const [isPrinting, setIsPrinting] = useState(false);
+
+  const handlePrint = async () => {
+    // Note: invoice.id in the drawer currently maps to invoiceNumber from the table.
+    // invoice.saleId is passed from InvoiceTable mapping.
+
+    if (!invoice?.saleId) {
+      console.error("No sale ID found for printing");
+      return;
+    }
+
+    try {
+      setIsPrinting(true);
+
+      // Cleanup any previous print iframe to avoid memory leaks
+      const existingIframe = document.getElementById('print-iframe');
+      if (existingIframe) {
+        document.body.removeChild(existingIframe);
+      }
+
+      const blob = await salesApi.downloadInvoicePDF(invoice.saleId);
+      // Ensure specific PDF type for browser compatibility
+      const pdfBlob = new Blob([blob], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(pdfBlob);
+
+      const iframe = document.createElement('iframe');
+      iframe.id = 'print-iframe'; // Add ID for future cleanup
+      // Use off-screen positioning
+      iframe.style.position = 'fixed';
+      iframe.style.left = '-9999px';
+      iframe.style.top = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = 'none';
+      iframe.src = url;
+
+      document.body.appendChild(iframe);
+
+      iframe.onload = () => {
+        // Some browsers need focus before print
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+
+        // WE DO NOT REMOVE THE IFRAME HERE.
+        // Removing it while the print dialog is open causes it to crash/disappear in many browsers.
+        // We clean it up at the start of the NEXT print job instead.
+      };
+    } catch (error) {
+      console.error('Print failed:', error);
+    } finally {
+      setIsPrinting(false);
+    }
+  };
 
   if (isLoading) {
     return <DrawerSkeleton />;
   }
 
   if (!invoice) {
-      return (
-        <div className="w-[40%] bg-white border-l border-[#e2e8f0] flex flex-col h-full items-center justify-center text-gray-500">
-            Select an invoice to see details.
-        </div>
-      )
+    return (
+      <div className="w-[40%] bg-white border-l border-[#e2e8f0] flex flex-col h-full items-center justify-center text-gray-500">
+        Select an invoice to see details.
+      </div>
+    )
   }
 
   const items = invoice.items || [];
@@ -100,8 +154,8 @@ export default function InvoiceDrawer({ invoice, onClose, isLoading }: any) {
             <div className="space-y-2">
               {invoice.paymentModes.map((payment: any, idx: number) => (
                 <div key={idx} className="flex justify-between text-sm">
-                    <span className="text-[#64748b]">{payment.mode}</span>
-                    <span className="font-medium text-[#0f172a]">₹{payment.amount}</span>
+                  <span className="text-[#64748b]">{payment.mode}</span>
+                  <span className="font-medium text-[#0f172a]">₹{payment.amount}</span>
                 </div>
               ))}
             </div>
@@ -182,6 +236,39 @@ export default function InvoiceDrawer({ invoice, onClose, isLoading }: any) {
             </div>
           )}
 
+          {/* Attachments */}
+          {invoice.attachments && invoice.attachments.length > 0 && (
+            <div className="bg-[#f0f9ff] rounded-lg p-4 border border-[#bae6fd]">
+              <h3 className="text-sm font-semibold text-[#0284c7] mb-3 flex items-center gap-2">
+                <FiPrinter className="w-4 h-4" />
+                Attachments ({invoice.attachments.length})
+              </h3>
+              <div className="space-y-2">
+                {invoice.attachments.map((file: any, index: number) => (
+                  <div key={index} className="flex items-center justify-between bg-white p-2 rounded border border-[#e0f2fe]">
+                    <div className="flex items-center gap-2 overflow-hidden">
+                      <div className="p-1.5 bg-[#e0f2fe] rounded text-[#0284c7]">
+                        <span className="text-[10px] font-bold uppercase">{file.type?.substring(0, 3) || 'DOC'}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-[#0f172a] truncate">{file.name || `Attachment ${index + 1}`}</p>
+                      </div>
+                    </div>
+                    <a
+                      href={file.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-1 hover:bg-[#f0f9ff] rounded text-[#0284c7]"
+                      title="View/Download"
+                    >
+                      <FiDownload className="w-4 h-4" />
+                    </a>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Audit Log */}
           <button
             onClick={() => setShowAuditLog(true)}
@@ -195,9 +282,13 @@ export default function InvoiceDrawer({ invoice, onClose, isLoading }: any) {
         {/* Actions */}
         <div className="border-t border-[#e2e8f0] p-4 space-y-2">
           <div className="grid grid-cols-2 gap-2">
-            <button className="py-2 bg-[#0ea5a3] text-white rounded-lg hover:bg-[#0d9391] flex items-center justify-center gap-2">
+            <button
+              onClick={handlePrint}
+              disabled={isPrinting}
+              className="py-2 bg-[#0ea5a3] text-white rounded-lg hover:bg-[#0d9391] flex items-center justify-center gap-2 disabled:opacity-50"
+            >
               <FiPrinter className="w-4 h-4" />
-              Print
+              {isPrinting ? 'Printing...' : 'Print'}
             </button>
             <button className="py-2 border border-[#cbd5e1] rounded-lg hover:bg-[#f8fafc] flex items-center justify-center gap-2">
               <FiMessageSquare className="w-4 h-4" />

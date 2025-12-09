@@ -21,6 +21,7 @@ export default function InvoiceTable({ searchQuery, onSelectInvoice, selectedInv
   const [invoices, setInvoices] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [downloadingPdf, setDownloadingPdf] = useState<string | null>(null);
+  const [printingPdf, setPrintingPdf] = useState<string | null>(null);
 
   useEffect(() => {
     fetchInvoices();
@@ -68,6 +69,58 @@ export default function InvoiceTable({ searchQuery, onSelectInvoice, selectedInv
       console.error('Failed to download PDF:', error);
     } finally {
       setDownloadingPdf(null);
+    }
+    setDownloadingPdf(null);
+  };
+
+  const handlePrint = async (e: React.MouseEvent, saleId: string, invoiceNumber: string) => {
+    e.stopPropagation();
+
+    try {
+      setPrintingPdf(saleId);
+
+      // Cleanup any previous print iframe to avoid memory leaks
+      const existingIframe = document.getElementById('print-iframe');
+      if (existingIframe) {
+        document.body.removeChild(existingIframe);
+      }
+
+      const blob = await salesApi.downloadInvoicePDF(saleId);
+      // Ensure specific PDF type for browser compatibility
+      const pdfBlob = new Blob([blob], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(pdfBlob);
+
+      const iframe = document.createElement('iframe');
+      iframe.id = 'print-iframe'; // Add ID for future cleanup
+      // Use off-screen positioning
+      iframe.style.position = 'fixed';
+      iframe.style.left = '-9999px';
+      iframe.style.top = '0';
+      iframe.style.width = '0';
+      iframe.style.height = '0';
+      iframe.style.border = 'none';
+      iframe.src = url;
+
+      document.body.appendChild(iframe);
+
+      // Wait for content to load, then print
+      iframe.onload = () => {
+        // Some browsers need focus before print
+        iframe.contentWindow?.focus();
+        iframe.contentWindow?.print();
+
+        // WE DO NOT REMOVE THE IFRAME HERE.
+        // Removing it while the print dialog is open causes it to crash/disappear in many browsers.
+        // We clean it up at the start of the NEXT print job instead.
+      };
+
+      console.log('Invoice sent to printer');
+    } catch (error: any) {
+      console.error('Failed to print PDF:', error);
+      // Fallback: Open in new window if direct print fails
+      // window.open(url, '_blank'); 
+    } finally {
+      setPrintingPdf(null);
     }
   };
 
@@ -119,6 +172,7 @@ export default function InvoiceTable({ searchQuery, onSelectInvoice, selectedInv
                 onClick={() => {
                   // Map API response to InvoiceDrawer format
                   const mappedInvoice = {
+                    saleId: invoice.id, // Pass real UUID for actions
                     id: invoice.invoiceNumber,
                     date: formatDate(invoice.createdAt),
                     time: formatTime(invoice.createdAt),
@@ -153,6 +207,7 @@ export default function InvoiceTable({ searchQuery, onSelectInvoice, selectedInv
                       roundOff: invoice.roundOff
                     },
                     amount: invoice.total,
+                    attachments: invoice.attachments || [], // Map attachments
                     auditLog: [] // TODO: Add audit logs
                   };
                   onSelectInvoice(mappedInvoice);
@@ -213,9 +268,9 @@ export default function InvoiceTable({ searchQuery, onSelectInvoice, selectedInv
                   <div className="flex items-center gap-2">
                     <button
                       onClick={(e) => handleDownloadPDF(e, invoice.id, invoice.invoiceNumber)}
-                      disabled={downloadingPdf === invoice.id}
                       className="p-1.5 hover:bg-[#f1f5f9] rounded text-[#64748b] hover:text-[#0ea5a3] transition-colors disabled:opacity-50"
                       title="Download PDF"
+                      disabled={downloadingPdf === invoice.id}
                     >
                       {downloadingPdf === invoice.id ? (
                         <div className="w-4 h-4 border-2 border-[#0ea5a3] border-t-transparent rounded-full animate-spin"></div>
@@ -224,12 +279,16 @@ export default function InvoiceTable({ searchQuery, onSelectInvoice, selectedInv
                       )}
                     </button>
                     <button
-                      onClick={(e) => e.stopPropagation()}
-                      className="p-1.5 hover:bg-[#f1f5f9] rounded text-[#64748b] hover:text-[#0ea5a3] transition-colors opacity-50 cursor-not-allowed"
-                      title="Print (Coming Soon)"
-                      disabled
+                      onClick={(e) => handlePrint(e, invoice.id, invoice.invoiceNumber)}
+                      className="p-1.5 hover:bg-[#f1f5f9] rounded text-[#64748b] hover:text-[#0ea5a3] transition-colors"
+                      title="Print Invoice"
+                      disabled={printingPdf === invoice.id}
                     >
-                      <FiPrinter className="w-4 h-4" />
+                      {printingPdf === invoice.id ? (
+                        <div className="w-4 h-4 border-2 border-[#0ea5a3] border-t-transparent rounded-full animate-spin"></div>
+                      ) : (
+                        <FiPrinter className="w-4 h-4" />
+                      )}
                     </button>
                     <button
                       onClick={(e) => e.stopPropagation()}

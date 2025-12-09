@@ -66,6 +66,7 @@ export const sidebarConfig: SidebarSection[] = [
                     { label: "Workbench", path: "/prescriptions/queue" }
                 ]
             },
+            /*
             {
                 icon: <RiCapsuleLine size={18} />,
                 label: "Dispense",
@@ -81,6 +82,7 @@ export const sidebarConfig: SidebarSection[] = [
                     { label: "Dispense", path: "/dispense/dispense" }
                 ]
             },
+            */
             {
                 icon: <MdPeople size={18} />,
                 label: "Patients",
@@ -277,6 +279,7 @@ export const sidebarConfig: SidebarSection[] = [
                 requiredPermission: "system.store.manage",
                 subItems: [
                     { label: "Profile", path: "/store/profile" },
+                    { label: "Invoice Design", path: "/store/invoice-design" },
                     { label: "Licenses", path: "/store/licenses" },
                     { label: "Hardware", path: "/store/hardware" },
                     { label: "Timings", path: "/store/timings" }

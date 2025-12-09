@@ -4,12 +4,15 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { FiSearch, FiPlus, FiClock, FiUser, FiAlertCircle, FiCheck, FiEdit, FiPause, FiX, FiPackage, FiSave, FiCheckCircle, FiFileText, FiTrash2, FiUpload, FiLink, FiMonitor, FiAlertTriangle, FiInfo, FiPaperclip, FiMapPin, FiBox } from "react-icons/fi";
 import { prescriptionApi } from "@/lib/api/prescriptions";
+import DeleteConfirmationModal from "@/components/common/DeleteConfirmationModal";
 import { drugApi, patientApi } from "@/lib/api/drugs";
 import OCRUploader from "./upload/components/OCRUploader";
 import toast, { Toaster } from 'react-hot-toast';
 import PrescriberSelect from "./components/PrescriberSelect";
+import PatientSearchSelect from "@/components/prescriptions/PatientSearchSelect";
 import ImageViewer from "./components/ImageViewer";
 import { optimizeImage } from "@/utils/imageOptimizer";
+import { tokenManager } from "@/lib/api/client";
 
 // New Interface for Inventory Display
 interface InventoryBatch {
@@ -74,7 +77,7 @@ export default function PrescriptionsPage() {
 
         // Auto-fill Patient
         if (data.patientName && data.patientName.length > 2) {
-            setPatientSearch(data.patientName);
+            // Patient name detected - user can search manually in PatientSearchSelect
             toast.success(`Detected Patient: ${data.patientName}`);
         }
 
@@ -126,23 +129,37 @@ export default function PrescriptionsPage() {
             }))));
 
             if (scannedFile) {
-                formData.append('images', scannedFile);
+                if (scannedFile.type.startsWith('image/')) {
+                    try {
+                        const optimized = await optimizeImage(scannedFile);
+                        formData.append('files', optimized);
+                    } catch (e) {
+                        console.warn("Retrying scanned file optimization or fallback", e);
+                        formData.append('files', scannedFile);
+                    }
+                } else {
+                    formData.append('files', scannedFile);
+                }
                 if (ocrText) formData.append('ocrText', ocrText);
             }
             // Append extra attachments
             attachments.forEach(file => {
-                formData.append('images', file);
+                formData.append('files', file);
             });
 
             // Since we need to use FormData, we probably need a custom API call here
             // or update the generic API helper to support FormData.
             // For now, let's assume we use a direct fetch or axios call for multipart
 
+            const token = tokenManager.getAccessToken();
+
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1'}/prescriptions`, {
                 method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
                 body: formData,
-                // Do NOT set Content-Type header, browser sets it with boundary for FormData
-                credentials: 'include' // Important for cookies
+                credentials: 'include' // Important for cookies (if used in addition to token)
             });
 
             const result = await response.json();
@@ -166,11 +183,7 @@ export default function PrescriptionsPage() {
     // ... existing code ...
 
     // New prescription form state
-    const [patientSearch, setPatientSearch] = useState("");
-    const [patientResults, setPatientResults] = useState<any[]>([]);
     const [selectedPatient, setSelectedPatient] = useState<any>(null);
-    const [showPatientResults, setShowPatientResults] = useState(false);
-    const [searchingPatients, setSearchingPatients] = useState(false);
 
     const [drugSearch, setDrugSearch] = useState("");
     const [drugResults, setDrugResults] = useState<any[]>([]);
@@ -178,6 +191,7 @@ export default function PrescriptionsPage() {
     const [searchingDrugs, setSearchingDrugs] = useState(false);
 
     const [items, setItems] = useState<PrescriptionItem[]>([]);
+    const [editingIndex, setEditingIndex] = useState<number | null>(null);
     const [currentItem, setCurrentItem] = useState<Partial<PrescriptionItem>>({
         quantity: 1,
         sig: "",
@@ -220,30 +234,48 @@ export default function PrescriptionsPage() {
         try {
             const response = await prescriptionApi.verifyPrescription(id);
             if (response.success) {
-                toast.success('✅ Prescription verified and sent to dispense queue!');
-                fetchPrescriptions();
+                toast.success('✅ Prescription verified! Redirecting to POS...');
+                router.push(`/pos/new-sale?importRx=${id}`);
             }
         } catch (error: any) {
             toast.error(error.response?.data?.message || 'Failed to verify prescription');
         }
     };
 
-    const handleDelete = async (id: string) => {
-        if (!confirm('Are you sure you want to delete this prescription? This action cannot be undone.')) {
-            return;
-        }
+    const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+    const [itemToDelete, setItemToDelete] = useState<string | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    const handleDeleteClick = (id: string) => {
+        setItemToDelete(id);
+        setDeleteModalOpen(true);
+    };
+
+    const confirmDelete = async () => {
+        if (!itemToDelete) return;
+
         try {
-            const response = await prescriptionApi.deletePrescription(id);
+            setIsDeleting(true);
+            const response = await prescriptionApi.deletePrescription(itemToDelete);
             if (response.success) {
                 toast.success('Prescription deleted successfully');
-                if (selectedId === id) {
+                if (selectedId === itemToDelete) {
                     setSelectedId(null);
                     setRightPanel('empty');
                 }
                 fetchPrescriptions();
             }
+            setDeleteModalOpen(false);
+            setItemToDelete(null);
         } catch (error: any) {
-            toast.error(error.response?.data?.message || 'Failed to delete prescription');
+            console.error('Delete error:', error);
+            // Handle specific "Failed to fetch" or network errors specially if needed
+            const message = error.message === 'Failed to fetch'
+                ? 'Network error: Could not connect to server'
+                : (error.response?.data?.message || 'Failed to delete prescription');
+            toast.error(message);
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -262,7 +294,6 @@ export default function PrescriptionsPage() {
     const resetNewForm = () => {
         setSelectedPatient(null);
         setSelectedPrescriber(null);
-        setPatientSearch("");
         setItems([]);
         setCurrentItem({ quantity: 1, sig: "", daysSupply: 30 });
         setDrugSearch("");
@@ -270,6 +301,7 @@ export default function PrescriptionsPage() {
         setSource('manual');
         setErrors({});
         setDrugInventory(null);
+        setEditingIndex(null);
     };
 
     const selectedRx = prescriptions.find(rx => rx.id === selectedId);
@@ -281,30 +313,6 @@ export default function PrescriptionsPage() {
         onHold: prescriptions.filter(p => p.status === 'ON_HOLD').length,
         completed: prescriptions.filter(p => p.status === 'COMPLETED').length
     };
-
-    // Patient search
-    useEffect(() => {
-        const timer = setTimeout(async () => {
-            if (patientSearch.length >= 2) {
-                try {
-                    setSearchingPatients(true);
-                    const response = await patientApi.searchPatients(patientSearch);
-                    if (response.success) {
-                        setPatientResults(response.data || []);
-                        setShowPatientResults(true);
-                    }
-                } catch (error) {
-                    toast.error('Failed to search patients');
-                } finally {
-                    setSearchingPatients(false);
-                }
-            } else {
-                setPatientResults([]);
-                setShowPatientResults(false);
-            }
-        }, 300);
-        return () => clearTimeout(timer);
-    }, [patientSearch]);
 
     // Drug search
     useEffect(() => {
@@ -330,13 +338,6 @@ export default function PrescriptionsPage() {
         return () => clearTimeout(timer);
     }, [drugSearch]);
 
-    const handleSelectPatient = (patient: any) => {
-        setSelectedPatient(patient);
-        setPatientSearch(`${patient.firstName} ${patient.lastName}`);
-        setShowPatientResults(false);
-        setErrors({ ...errors, patient: '' });
-    };
-
     const handleSelectDrug = async (drug: any) => {
         setCurrentItem({
             ...currentItem,
@@ -352,10 +353,22 @@ export default function PrescriptionsPage() {
             if (response.success && response.data.inventory) {
                 const batches = response.data.inventory.items || response.data.inventory;
                 const total = batches.reduce((acc: number, b: any) => acc + b.quantityInStock, 0);
+                const sortedBatches = batches.sort((a: any, b: any) => new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime());
                 setDrugInventory({
                     total,
-                    batches: batches.sort((a: any, b: any) => new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime())
+                    batches: sortedBatches
                 });
+
+                // FEFO: Auto-select first batch
+                if (sortedBatches.length > 0) {
+                    setCurrentItem(prev => ({
+                        ...prev,
+                        drugId: drug.id,
+                        drugName: drug.name,
+                        isControlled: drug.isControlled || false,
+                        batchId: sortedBatches[0].id
+                    }));
+                }
             }
         } catch (e) {
             console.error("Failed to fetch inventory", e);
@@ -366,11 +379,39 @@ export default function PrescriptionsPage() {
     const validateItem = (): boolean => {
         const newErrors: Record<string, string> = {};
         if (!currentItem.drugId) newErrors.drug = 'Please select a medication';
-        if (!currentItem.quantity || currentItem.quantity < 1) newErrors.quantity = 'Quantity must be at least 1';
+
+        if (!currentItem.quantity || currentItem.quantity < 1) {
+            newErrors.quantity = 'Quantity must be at least 1';
+        } else if (drugInventory) {
+            // Check against selected batch stock
+            const selectedBatch = drugInventory.batches.find(b => b.id === currentItem.batchId);
+            if (selectedBatch && Number(currentItem.quantity) > selectedBatch.quantityInStock) {
+                newErrors.quantity = `Max quantity for this batch is ${selectedBatch.quantityInStock}`;
+            }
+        }
+
         if (!currentItem.sig || currentItem.sig.trim() === '') newErrors.sig = 'Instructions are required';
+
         if (!currentItem.daysSupply || currentItem.daysSupply < 1) newErrors.daysSupply = 'Days supply must be at least 1';
+
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
+    };
+
+    const handleSelectBatch = (batch: InventoryBatch) => {
+        const existingIndex = items.findIndex(item => item.batchId === batch.id && item.drugId === currentItem.drugId);
+
+        if (existingIndex >= 0) {
+            setCurrentItem({ ...items[existingIndex] });
+            setEditingIndex(existingIndex);
+            toast('Loaded existing item for editing', { icon: '📝' });
+        } else {
+            setCurrentItem({ ...currentItem, batchId: batch.id });
+            if (editingIndex !== null) {
+                // If switching batch while editing, we keep editing index (changing batch of same item)
+                // Or we can treat it as 'changing mind' and remaining in edit mode for that slot
+            }
+        }
     };
 
     const handleAddItem = () => {
@@ -378,11 +419,21 @@ export default function PrescriptionsPage() {
             toast.error('Please fill in all required fields');
             return;
         }
-        setItems([...items, currentItem as PrescriptionItem]);
+
+        if (editingIndex !== null) {
+            const updatedItems = [...items];
+            updatedItems[editingIndex] = currentItem as PrescriptionItem;
+            setItems(updatedItems);
+            setEditingIndex(null);
+            toast.success('Medication updated');
+        } else {
+            setItems([...items, currentItem as PrescriptionItem]);
+            toast.success('Medication added');
+        }
+
         setCurrentItem({ quantity: 1, sig: "", daysSupply: 30 });
         setDrugSearch("");
         setErrors({});
-        toast.success('Medication added');
     };
 
     const handleRemoveItem = (index: number) => {
@@ -544,7 +595,7 @@ export default function PrescriptionsPage() {
                                             <button
                                                 onClick={(e) => {
                                                     e.stopPropagation();
-                                                    handleDelete(rx.id);
+                                                    handleDeleteClick(rx.id);
                                                 }}
                                                 className="p-1.5 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
                                                 title="Delete"
@@ -589,7 +640,7 @@ export default function PrescriptionsPage() {
                                         </div>
                                         <div className="flex gap-2">
                                             <button
-                                                onClick={() => handleDelete(selectedRx.id)}
+                                                onClick={() => handleDeleteClick(selectedRx.id)}
                                                 className="px-4 py-2 border-2 border-red-300 text-red-700 rounded-lg text-sm font-semibold hover:bg-red-50 transition-colors flex items-center gap-2"
                                             >
                                                 <FiTrash2 className="w-4 h-4" />
@@ -686,6 +737,71 @@ export default function PrescriptionsPage() {
                                                     </div>
                                                 </div>
                                             </div>
+
+                                            {/* Attachments Display */}
+                                            {console.log('Selected Rx Debug:', { files: selectedRx.files, uploadedImages: selectedRx.uploadedImages })}
+                                            {((selectedRx.files && selectedRx.files.length > 0) || (selectedRx.uploadedImages && selectedRx.uploadedImages.length > 0)) && (
+                                                <div className="pt-4 border-t border-gray-200">
+                                                    <h2 className="text-base font-bold text-gray-900 mb-3 flex items-center gap-2">
+                                                        <FiPaperclip className="text-gray-400" />
+                                                        Attachments ({(selectedRx.files?.length || 0) + (selectedRx.uploadedImages?.length || 0)})
+                                                    </h2>
+                                                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                                        {/* Render Relation Files */}
+                                                        {selectedRx.files?.map((file: any) => (
+                                                            <div key={file.id} className="group relative border border-gray-200 rounded-lg overflow-hidden bg-gray-50 p-2">
+                                                                <div className="aspect-video bg-gray-200 rounded mb-2 overflow-hidden flex items-center justify-center">
+                                                                    {file.fileUrl.match(/\.(jpeg|jpg|png|webp)$/i) ? (
+                                                                        <img
+                                                                            src={file.fileUrl}
+                                                                            alt="Attachment"
+                                                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                                                        />
+                                                                    ) : (
+                                                                        <FiFileText className="w-8 h-8 text-gray-400" />
+                                                                    )}
+                                                                </div>
+                                                                <div className="flex items-center justify-between">
+                                                                    <span className="text-xs text-gray-500 truncate max-w-[100px] block" title={file.fileUrl.split('/').pop()}>
+                                                                        {file.fileUrl.split('/').pop()}
+                                                                    </span>
+                                                                    <a
+                                                                        href={file.fileUrl}
+                                                                        target="_blank"
+                                                                        rel="noopener noreferrer"
+                                                                        className="p-1.5 bg-white border border-gray-200 rounded hover:bg-teal-50 hover:text-teal-600 transition-colors"
+                                                                        title="View/Download"
+                                                                    >
+                                                                        <FiLink className="w-3 h-3" />
+                                                                    </a>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                        {/* Render Legacy Uploaded Images (Strings) */}
+                                                        {selectedRx.uploadedImages?.map((url: string, idx: number) => {
+                                                            // Avoid duplicates if usage overlaps (rare but possible during migration)
+                                                            if (selectedRx.files?.some((f: any) => f.fileUrl === url)) return null;
+                                                            return (
+                                                                <div key={`legacy-${idx}`} className="group relative border border-gray-200 rounded-lg overflow-hidden bg-gray-50 p-2">
+                                                                    <div className="aspect-video bg-gray-200 rounded mb-2 overflow-hidden flex items-center justify-center">
+                                                                        <img
+                                                                            src={url}
+                                                                            alt="Attachment"
+                                                                            className="w-full h-full object-cover group-hover:scale-105 transition-transform"
+                                                                        />
+                                                                    </div>
+                                                                    <div className="flex items-center justify-between">
+                                                                        <span className="text-xs text-gray-500 truncate max-w-[100px] block">Legacy Img {idx + 1}</span>
+                                                                        <a href={url} target="_blank" rel="noopener noreferrer" className="p-1.5 bg-white border border-gray-200 rounded hover:bg-teal-50 hover:text-teal-600 transition-colors">
+                                                                            <FiLink className="w-3 h-3" />
+                                                                        </a>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            )}
 
                                             {/* Medications */}
                                             <div className="pt-4 border-t border-gray-200">
@@ -834,33 +950,13 @@ export default function PrescriptionsPage() {
                                                     {selectedPatient && <FiCheckCircle className="w-4 h-4 text-green-600 ml-auto" />}
                                                 </div>
 
-                                                {!selectedPatient ? (
-                                                    <div className="relative">
-                                                        <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                                        <input
-                                                            type="text"
-                                                            value={patientSearch}
-                                                            onChange={(e) => setPatientSearch(e.target.value)}
-                                                            placeholder="Search patient..."
-                                                            className="w-full pl-9 pr-4 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-teal-500 outline-none"
-                                                        />
-                                                        {/* Result dropdown logic needed here or reuse verify mode logic */}
-                                                        {showPatientResults && (
-                                                            <div className="absolute z-10 w-full mt-1 bg-white border rounded-lg shadow-lg max-h-40 overflow-y-auto">
-                                                                {patientResults.map(p => (
-                                                                    <div key={p.id} onClick={() => handleSelectPatient(p)} className="p-2 hover:bg-gray-50 cursor-pointer text-sm">
-                                                                        {p.firstName} {p.lastName}
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                ) : (
-                                                    <div className="p-2 bg-teal-50 border border-teal-100 rounded text-sm flex justify-between items-center">
-                                                        <span className="font-semibold text-teal-900">{selectedPatient.firstName} {selectedPatient.lastName}</span>
-                                                        <button onClick={() => setSelectedPatient(null)} className="text-teal-600 hover:text-teal-800"><FiX /></button>
-                                                    </div>
-                                                )}
+                                                <PatientSearchSelect
+                                                    selectedPatient={selectedPatient}
+                                                    onSelect={(patient) => {
+                                                        setSelectedPatient(patient);
+                                                        setErrors({ ...errors, patient: '' });
+                                                    }}
+                                                />
                                             </div>
 
                                             {/* Prescriber Selection */}
@@ -911,9 +1007,9 @@ export default function PrescriptionsPage() {
                                                                     <span className="font-semibold text-blue-800">Stock: {drugInventory.total}</span>
                                                                     <span className="text-blue-600">FEFO Active</span>
                                                                 </div>
-                                                                {currentItem.quantity! > drugInventory.total && (
+                                                                {drugInventory.batches.find(b => b.id === currentItem.batchId) && Number(currentItem.quantity || 0) > (drugInventory.batches.find(b => b.id === currentItem.batchId)?.quantityInStock || 0) && (
                                                                     <div className="text-xs text-red-600 font-bold flex items-center gap-1">
-                                                                        <FiAlertTriangle /> Exceeds Stock
+                                                                        <FiAlertTriangle /> Exceeds Batch Stock ({drugInventory.batches.find(b => b.id === currentItem.batchId)?.quantityInStock})
                                                                     </div>
                                                                 )}
                                                             </div>
@@ -923,7 +1019,11 @@ export default function PrescriptionsPage() {
                                                                 type="number"
                                                                 placeholder="Qty"
                                                                 value={currentItem.quantity}
-                                                                onChange={(e) => setCurrentItem({ ...currentItem, quantity: parseInt(e.target.value) || 1 })}
+                                                                onChange={(e) => {
+                                                                    const val = Number(e.target.value);
+                                                                    e.target.value = val.toString();
+                                                                    setCurrentItem({ ...currentItem, quantity: val });
+                                                                }}
                                                                 className="p-1.5 text-sm border rounded"
                                                             />
                                                             <input
@@ -934,7 +1034,9 @@ export default function PrescriptionsPage() {
                                                                 className="p-1.5 text-sm border rounded"
                                                             />
                                                         </div>
-                                                        <button onClick={handleAddItem} className="w-full py-1 bg-blue-600 text-white text-xs font-bold rounded">Add</button>
+                                                        <button onClick={handleAddItem} className="w-full py-1 bg-blue-600 text-white text-xs font-bold rounded">
+                                                            {editingIndex !== null ? 'Update' : 'Add'}
+                                                        </button>
                                                     </div>
                                                 )}
 
@@ -969,101 +1071,13 @@ export default function PrescriptionsPage() {
                                             {selectedPatient && <FiCheckCircle className="w-4 h-4 text-green-600 ml-auto" />}
                                         </div>
 
-                                        <div className="relative">
-                                            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                            <input
-                                                type="text"
-                                                value={patientSearch}
-                                                onChange={(e) => setPatientSearch(e.target.value)}
-                                                placeholder="Search patient by name or phone..."
-                                                className={`w-full pl-9 pr-10 py-2.5 text-sm border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 ${errors.patient ? 'border-red-300' : 'border-gray-300'}`}
-                                            />
-                                            {searchingPatients && (
-                                                <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                                                    <div className="animate-spin h-4 w-4 border-2 border-teal-600 rounded-full border-t-transparent" />
-                                                </div>
-                                            )}
-
-                                            {showPatientResults && (
-                                                <div className="absolute z-10 w-full mt-2 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
-                                                    {patientResults.length > 0 ? (
-                                                        patientResults.map((patient) => (
-                                                            <div
-                                                                key={patient.id}
-                                                                onClick={() => handleSelectPatient(patient)}
-                                                                className="p-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0"
-                                                            >
-                                                                <div className="font-medium text-gray-900 text-sm">
-                                                                    {patient.firstName} {patient.lastName}
-                                                                </div>
-                                                                <div className="text-xs text-gray-500">
-                                                                    {patient.phoneNumber} • {patient.dateOfBirth ? new Date(patient.dateOfBirth).toLocaleDateString() : 'No DOB'}
-                                                                </div>
-                                                            </div>
-                                                        ))
-                                                    ) : (
-                                                        <div className="p-4 text-center text-gray-500 text-sm">
-                                                            <FiAlertCircle className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-                                                            <p className="mb-3">No patients found</p>
-                                                            <button
-                                                                onClick={() => {
-                                                                    setShowPatientResults(false);
-                                                                    // Create quick patient inline
-                                                                    const firstName = prompt('Patient First Name:');
-                                                                    if (!firstName) return;
-                                                                    const lastName = prompt('Patient Last Name:');
-                                                                    if (!lastName) return;
-                                                                    const phoneNumber = prompt('Phone Number:');
-                                                                    if (!phoneNumber) return;
-
-                                                                    // Create patient
-                                                                    patientApi.createPatient({
-                                                                        firstName,
-                                                                        lastName,
-                                                                        phoneNumber,
-                                                                        dateOfBirth: null
-                                                                    }).then((response) => {
-                                                                        if (response.success) {
-                                                                            toast.success('Patient created successfully!');
-                                                                            handleSelectPatient(response.data);
-                                                                        }
-                                                                    }).catch((error) => {
-                                                                        toast.error('Failed to create patient');
-                                                                    });
-                                                                }}
-                                                                className="px-4 py-2 bg-teal-600 text-white rounded-lg text-sm font-semibold hover:bg-teal-700 transition-colors flex items-center gap-2 mx-auto"
-                                                            >
-                                                                <FiPlus className="w-4 h-4" />
-                                                                Add New Patient
-                                                            </button>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        {selectedPatient && (
-                                            <div className="mt-3 p-3 bg-teal-50 border border-teal-200 rounded-lg">
-                                                <div className="grid grid-cols-3 gap-3 text-xs">
-                                                    <div>
-                                                        <div className="text-gray-600 font-medium">Name</div>
-                                                        <div className="text-gray-900 font-semibold">
-                                                            {selectedPatient.firstName} {selectedPatient.lastName}
-                                                        </div>
-                                                    </div>
-                                                    <div>
-                                                        <div className="text-gray-600 font-medium">Phone</div>
-                                                        <div className="text-gray-900 font-semibold">{selectedPatient.phoneNumber}</div>
-                                                    </div>
-                                                    <div>
-                                                        <div className="text-gray-600 font-medium">Allergies</div>
-                                                        <div className="text-gray-900 font-semibold">
-                                                            {selectedPatient.allergies?.join(', ') || 'None'}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
+                                        <PatientSearchSelect
+                                            selectedPatient={selectedPatient}
+                                            onSelect={(patient) => {
+                                                setSelectedPatient(patient);
+                                                setErrors({ ...errors, patient: '' });
+                                            }}
+                                        />
                                     </div>
 
                                     {/* Prescriber Selection */}
@@ -1174,7 +1188,7 @@ export default function PrescriptionsPage() {
                                                             {drugInventory.batches.map(batch => (
                                                                 <div
                                                                     key={batch.id}
-                                                                    onClick={() => setCurrentItem({ ...currentItem, batchId: batch.id })}
+                                                                    onClick={() => handleSelectBatch(batch)}
                                                                     className={`flex justify-between text-xs p-2 rounded border cursor-pointer transition-colors ${currentItem.batchId === batch.id
                                                                         ? 'bg-blue-600 text-white border-blue-600'
                                                                         : 'bg-white text-gray-700 border-blue-100 hover:border-blue-300'
@@ -1193,16 +1207,16 @@ export default function PrescriptionsPage() {
                                                                             ? (currentItem.batchId === batch.id ? 'text-red-200' : 'text-red-600')
                                                                             : (currentItem.batchId === batch.id ? 'text-green-200' : 'text-green-600')
                                                                             }`}>
-                                                                            Exp: {new Date(batch.expiryDate).toLocaleDateString()}
+                                                                            Exp: {new Date(batch.expiryDate).toLocaleDateString('en-US', { month: '2-digit', year: 'numeric' })}
                                                                         </span>
                                                                         <span className="font-bold">Qty: {batch.quantityInStock}</span>
                                                                     </div>
                                                                 </div>
                                                             ))}
                                                         </div>
-                                                        {(currentItem.quantity || 0) > drugInventory.total && (
+                                                        {drugInventory.batches.find(b => b.id === currentItem.batchId) && Number(currentItem.quantity || 0) > (drugInventory.batches.find(b => b.id === currentItem.batchId)?.quantityInStock || 0) && (
                                                             <div className="text-xs font-bold text-red-600 flex items-center gap-1">
-                                                                <FiAlertTriangle /> Warning: Quantity exceeds available stock!
+                                                                <FiAlertTriangle /> Warning: Quantity exceeds available batch stock!
                                                             </div>
                                                         )}
                                                     </div>
@@ -1227,7 +1241,11 @@ export default function PrescriptionsPage() {
                                                             type="number"
                                                             min="1"
                                                             value={currentItem.quantity}
-                                                            onChange={(e) => setCurrentItem({ ...currentItem, quantity: parseInt(e.target.value) || 1 })}
+                                                            onChange={(e) => {
+                                                                const val = Number(e.target.value);
+                                                                e.target.value = val.toString();
+                                                                setCurrentItem({ ...currentItem, quantity: val });
+                                                            }}
                                                             className={`w-full px-3 py-2 text-sm border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 ${errors.quantity ? 'border-red-300' : 'border-gray-300'}`}
                                                         />
                                                     </div>
@@ -1238,7 +1256,11 @@ export default function PrescriptionsPage() {
                                                                 type="number"
                                                                 min="1"
                                                                 value={currentItem.daysSupply}
-                                                                onChange={(e) => setCurrentItem({ ...currentItem, daysSupply: parseInt(e.target.value) || 30 })}
+                                                                onChange={(e) => {
+                                                                    const val = Number(e.target.value);
+                                                                    e.target.value = val.toString();
+                                                                    setCurrentItem({ ...currentItem, daysSupply: val });
+                                                                }}
                                                                 className={`w-full px-3 py-2 text-sm border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 ${errors.daysSupply ? 'border-red-300' : 'border-gray-300'}`}
                                                             />
                                                             {/* Quick Select Days */}
@@ -1401,10 +1423,23 @@ export default function PrescriptionsPage() {
 
                                 </>
                             )}
+
                         </div>
                     )}
                 </div>
             </div>
-        </div>
+
+            <DeleteConfirmationModal
+                isOpen={deleteModalOpen}
+                onClose={() => {
+                    setDeleteModalOpen(false);
+                    setItemToDelete(null);
+                }}
+                onConfirm={confirmDelete}
+                title="Delete Prescription"
+                message="Are you sure you want to delete this prescription? This action cannot be undone."
+                isDeleting={isDeleting}
+            />
+        </div >
     );
 }

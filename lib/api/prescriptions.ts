@@ -10,6 +10,11 @@ export const prescriptionApi = {
     return apiClient.get(`/prescriptions${queryString ? `?${queryString}` : ''}`);
   },
 
+  // Get verified prescriptions for POS
+  async getVerifiedPrescriptions(search?: string) {
+    return apiClient.get(`/prescriptions/verified${search ? `?search=${search}` : ''}`);
+  },
+
   // Get single prescription by ID
   async getPrescriptionById(id: string) {
     return apiClient.get(`/prescriptions/${id}`);

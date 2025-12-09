@@ -299,6 +299,8 @@ class PDFService {
             return {
                 srNo: index + 1,
                 drugName: item.drug?.name || 'Item',
+                manufacturer: item.drug?.manufacturer || '',
+                packSize: item.drug?.packSize || '1s',
                 hsnCode: item.drug?.hsnCode || '-',
                 batchNumber: item.batch?.batchNumber || '',
                 expiryDate: item.batch?.expiryDate ? formatDate(item.batch.expiryDate) : '',
@@ -324,7 +326,7 @@ class PDFService {
             invoiceTime: formatTime(sale.createdAt),
 
             store: {
-                displayName: sale.store?.displayName || sale.store?.name || 'HopeRx Pharmacy',
+                displayName: sale.store?.displayName || sale.store?.name || '',
                 addressLine1: sale.store?.addressLine1 || '',
                 addressLine2: sale.store?.addressLine2 || '',
                 city: sale.store?.city || '',
@@ -335,7 +337,20 @@ class PDFService {
                 phoneNumber: sale.store?.phoneNumber || '',
                 email: sale.store?.email || '',
                 logoUrl: sale.store?.logoUrl || '',
-                is24x7: sale.store?.is24x7 || false
+                is24x7: sale.store?.is24x7 || false,
+                // New Professional Fields
+                signatureUrl: sale.store?.signatureUrl,
+                jurisdiction: sale.store?.jurisdiction || 'Subject to local jurisdiction',
+                terms: sale.store?.termsAndConditions
+                    ? sale.store.termsAndConditions.split('\n')
+                    : [
+                        'Medicines once sold will not be taken back or exchanged.',
+                        'Prescription medicines are sold only against valid prescription.',
+                        'Please check the expiry date before use.',
+                        'Interest @18% p.a. will be charged if bill is not paid on due date.'
+                    ],
+                // Bank details removed as per user request
+                bank: null
             },
 
             patient: sale.patient ? {
@@ -350,7 +365,8 @@ class PDFService {
                 pinCode: sale.patient.pinCode,
                 dateOfBirth: sale.patient.dateOfBirth ? formatDate(sale.patient.dateOfBirth) : null,
                 gender: sale.patient.gender,
-                bloodGroup: sale.patient.bloodGroup
+                bloodGroup: sale.patient.bloodGroup,
+                gstin: sale.patient.gstin // Added patient GSTIN
             } : null,
 
             items: items,
@@ -363,6 +379,7 @@ class PDFService {
             })) || [],
 
             soldByName: sale.soldByUser?.firstName + ' ' + sale.soldByUser?.lastName || 'Staff',
+            soldBySignature: sale.soldByUser?.signatureUrl, // Staff signature
 
             subtotal: formatCurrency(sale.subtotal),
             discountAmount: Number(sale.discountAmount) > 0 ? formatCurrency(sale.discountAmount) : null,
@@ -372,7 +389,14 @@ class PDFService {
             igst: igstTotal > 0 ? formatCurrency(igstTotal) : null,
             roundOff: Number(sale.roundOff) !== 0 ? formatCurrency(sale.roundOff) : null,
             total: formatCurrency(sale.total),
-            amountInWords: this.convertNumberToWords(Number(sale.total)),
+            amountInWords: this.convertNumberToWords(Math.round(Number(sale.total))), // Fixed to invoke method
+
+            branding: {
+                primaryColor: '#0ea5a3', // Can be dynamic from store settings
+                secondaryColor: '#f0fdfa'
+            },
+
+            generatedAt: moment().format('DD-MMM-YYYY hh:mm A'),
 
             upiQrCode: null // TODO: Generate QR code for UPI payments
         };
@@ -380,7 +404,26 @@ class PDFService {
 
     convertNumberToWords(amount) {
         // Simple placeholder for now, can use a library like 'number-to-words' if needed
-        return `${amount} Rupees Only`;
+        const num = parseInt(amount, 10);
+        if (isNaN(num)) return '';
+
+        const a = ['', 'One ', 'Two ', 'Three ', 'Four ', 'Five ', 'Six ', 'Seven ', 'Eight ', 'Nine ', 'Ten ', 'Eleven ', 'Twelve ', 'Thirteen ', 'Fourteen ', 'Fifteen ', 'Sixteen ', 'Seventeen ', 'Eighteen ', 'Nineteen '];
+        const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+        const inWords = (n) => {
+            if ((n = n.toString()).length > 9) return 'overflow';
+            const n_array = ('000000000' + n).slice(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
+            if (!n_array) return;
+            let str = '';
+            str += (n_array[1] != 0) ? (a[Number(n_array[1])] || b[n_array[1][0]] + ' ' + a[n_array[1][1]]) + 'Crore ' : '';
+            str += (n_array[2] != 0) ? (a[Number(n_array[2])] || b[n_array[2][0]] + ' ' + a[n_array[2][1]]) + 'Lakh ' : '';
+            str += (n_array[3] != 0) ? (a[Number(n_array[3])] || b[n_array[3][0]] + ' ' + a[n_array[3][1]]) + 'Thousand ' : '';
+            str += (n_array[4] != 0) ? (a[Number(n_array[4])] || b[n_array[4][0]] + ' ' + a[n_array[4][1]]) + 'Hundred ' : '';
+            str += (n_array[5] != 0) ? ((str != '') ? 'and ' : '') + (a[Number(n_array[5])] || b[n_array[5][0]] + ' ' + a[n_array[5][1]]) : '';
+            return str;
+        }
+
+        return inWords(num) + 'Rupees Only';
     }
 }
 

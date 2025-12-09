@@ -28,7 +28,26 @@ class PrescriptionService {
             prescriptionData.prescriber = { connect: { id: prescriberId } };
         }
 
-        // Create prescription with items
+        // Handle uploaded images/files
+        if (data.files && data.files.length > 0) {
+            // For backward compatibility or easy access
+            prescriptionData.uploadedImages = data.files.map(f => f.url);
+
+            // Prepare PrescriptionFile creation
+            prescriptionData.files = {
+                create: data.files.map(f => ({
+                    fileUrl: f.url,
+                    thumbnailUrl: f.thumbnailUrl || null,
+                    ocrData: f.ocrData || {},
+                    uploadedBy: userId
+                }))
+            };
+        } else if (data.uploadedImages && data.uploadedImages.length > 0) {
+            // Fallback if only uploadedImages string array is passed
+            prescriptionData.uploadedImages = data.uploadedImages;
+        }
+
+        // Create prescription with items and files
         const prescription = await prisma.prescription.create({
             data: prescriptionData,
             include: {
@@ -38,7 +57,8 @@ class PrescriptionService {
                     }
                 },
                 patient: true,
-                prescriber: true
+                prescriber: true,
+                files: true
             }
         });
 
@@ -50,7 +70,7 @@ class PrescriptionService {
                 action: 'PRESCRIPTION_CREATED',
                 entityType: 'Prescription',
                 entityId: prescription.id,
-                changes: { itemCount: items.length, priority, source }
+                changes: { itemCount: items.length, priority, source, filesCount: (data.files?.length || 0) }
             }
         });
 
@@ -121,6 +141,42 @@ class PrescriptionService {
     }
 
     /**
+     * Get Verified/In-Progress prescriptions for POS
+     * These are active prescriptions not yet converted to a sale
+     */
+    async getVerifiedPrescriptions(storeId, search) {
+        const where = {
+            storeId,
+            status: 'IN_PROGRESS', // Prescriptions ready for dispensing
+            sale: null, // Not yet associated with a sale
+            deletedAt: null
+        };
+
+        if (search) {
+            where.OR = [
+                { patient: { firstName: { contains: search, mode: 'insensitive' } } },
+                { patient: { lastName: { contains: search, mode: 'insensitive' } } },
+                { patient: { phoneNumber: { contains: search, mode: 'insensitive' } } },
+                { id: { contains: search, mode: 'insensitive' } }
+            ];
+        }
+
+        return await prisma.prescription.findMany({
+            where,
+            include: {
+                patient: true,
+                prescriber: true,
+                items: {
+                    include: { drug: true }
+                },
+                files: true
+            },
+            orderBy: { updatedAt: 'desc' },
+            take: 50 // Limit results
+        });
+    }
+
+    /**
      * Get prescriptions by status for a store
      */
     async getPrescriptionsByStore(storeId, status, search) {
@@ -148,7 +204,8 @@ class PrescriptionService {
                 prescriber: true,
                 items: {
                     include: { drug: true }
-                }
+                },
+                files: true
             },
             orderBy: { createdAt: 'desc' }
         });

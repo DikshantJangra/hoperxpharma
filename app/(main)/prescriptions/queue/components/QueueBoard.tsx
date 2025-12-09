@@ -114,7 +114,7 @@ const QueueBoard = ({ prescriptions, onRefresh }: QueueBoardProps) => {
                             </div>
 
                             {/* Droppable Area */}
-                            <Droppable droppableId={columnId}>
+                            <Droppable droppableId={columnId} isDropDisabled={false}>
                                 {(provided, snapshot) => (
                                     <div
                                         {...provided.droppableProps}

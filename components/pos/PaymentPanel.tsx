@@ -2,33 +2,35 @@
 
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { FiUser, FiCreditCard, FiSmartphone, FiDollarSign } from 'react-icons/fi';
+import { FiUser, FiCreditCard, FiSmartphone, FiDollarSign, FiUserPlus } from 'react-icons/fi';
 import { BsWallet2 } from 'react-icons/bs';
 
-export default function PaymentPanel({ basketItems, customer, onCustomerChange, onFinalize, onOpenCustomer, onSplitPayment }: any) {
-  const [invoiceType, setInvoiceType] = useState<'receipt' | 'gst' | 'credit'>('receipt');
+export default function PaymentPanel({
+  basketItems,
+  customer,
+  onCustomerChange,
+  onFinalize,
+  onOpenCustomer,
+  onSplitPayment,
+  onClear,
+  onApplyDiscount,
+  totals // Receive calculated totals from parent
+}: any) {
+  const [invoiceType, setInvoiceType] = useState<'RECEIPT' | 'GST_INVOICE' | 'ESTIMATE'>('RECEIPT');
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'upi' | 'wallet'>('cash');
   const [showFinalizeModal, setShowFinalizeModal] = useState(false);
   const [overallDiscount, setOverallDiscount] = useState(0);
   const [discountType, setDiscountType] = useState<'amount' | 'percentage'>('amount');
 
-  const subtotal = basketItems.reduce((sum: number, item: any) =>
-    sum + (item.qty * item.mrp - (item.discount || 0)), 0
-  );
-
-  // Calculate overall discount
-  const overallDiscountAmount = discountType === 'percentage'
-    ? (subtotal * overallDiscount) / 100
-    : overallDiscount;
-
-  const taxAmount = basketItems.reduce((sum: number, item: any) => {
-    const lineTotal = item.qty * item.mrp - (item.discount || 0);
-    return sum + (lineTotal * item.gstRate / (100 + item.gstRate));
-  }, 0);
-
-  const total = subtotal - overallDiscountAmount;
-  const roundOff = Math.round(total) - total;
-  const finalTotal = Math.round(total);
+  // Use passed totals or fallback to safe defaults
+  const safeTotals = totals || {
+    totalMrp: 0,
+    totalDiscount: 0,
+    taxableValue: 0,
+    taxAmount: 0,
+    roundOff: 0,
+    total: 0
+  };
 
   const handleFinalize = () => {
     // Validation 1: Empty basket
@@ -37,10 +39,15 @@ export default function PaymentPanel({ basketItems, customer, onCustomerChange, 
       return;
     }
 
-    // Validation 2: Customer required for all sales
-    if (!customer) {
-      toast.error('Customer required! Please add customer details.');
+    // Validation 2: Customer Check - OPTIONAL for standard receipts
+    if (invoiceType === 'GST_INVOICE' && !customer) {
+      toast.error('Customer Details Required for Tax Invoice (GST)!');
       onOpenCustomer();
+      return;
+    }
+    // Warn but allow for regular receipts
+    if (!customer && invoiceType !== 'RECEIPT') {
+      toast.error('Customer required for this invoice type');
       return;
     }
 
@@ -55,225 +62,240 @@ export default function PaymentPanel({ basketItems, customer, onCustomerChange, 
       return;
     }
 
-    // Validation 4: Customer required for GST invoice (additional check)
-    if (invoiceType === 'gst' && !customer) {
-      toast.error('Customer required for GST Invoice! Please add customer details.');
-      onOpenCustomer();
-      return;
-    }
-
-    // Validation 5: Check for items with zero price
-    const zeroPriceItems = basketItems.filter((item: any) => !item.mrp || item.mrp === 0);
-    if (zeroPriceItems.length > 0) {
-      const itemNames = zeroPriceItems.map((item: any) => item.name).join(', ');
-      toast.error(`Price issue: ${itemNames}. Some items have zero price.`);
-      return;
-    }
-
     setShowFinalizeModal(true);
   };
 
   const confirmFinalize = () => {
     setShowFinalizeModal(false);
-    onFinalize(paymentMethod.toUpperCase());
+    // Pass invoice type along with payment method
+    onFinalize(paymentMethod.toUpperCase(), undefined, invoiceType);
   };
 
-
   return (
-    <div className="h-full flex flex-col">
+    <div className="h-full flex flex-col bg-[#f0f9ff]/30">
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {/* Customer Section */}
-        <div className="bg-[#f8fafc] rounded-lg p-3 border border-[#e2e8f0]">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-[#64748b]">Customer</span>
-            <button onClick={onOpenCustomer} className="text-xs text-[#0ea5a3] hover:underline">+ Add</button>
-          </div>
-          {customer ? (
-            <div className="flex items-center gap-2">
-              <FiUser className="w-4 h-4 text-[#64748b]" />
-              <span className="text-sm text-[#0f172a]">
-                {customer.firstName} {customer.lastName}
-              </span>
+
+        {/* Top Actions Grid */}
+        <div className="grid grid-cols-2 gap-3">
+          {/* Customer Selector */}
+          <div className={`rounded-lg p-3 border transition-colors ${customer ? 'bg-white border-indigo-200' : 'bg-gray-50 border-dashed border-gray-300'}`}>
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Customer</span>
+              {customer && <button onClick={() => onCustomerChange(null)} className="text-xs text-red-400 hover:text-red-600">Clear</button>}
             </div>
-          ) : (
-            <div className="text-xs text-[#94a3b8]">No customer selected</div>
-          )}
-        </div>
-
-        {/* Invoice Type */}
-        <div>
-          <label className="text-sm font-medium text-[#64748b] mb-2 block">Invoice Type</label>
-          <select
-            value={invoiceType}
-            onChange={(e) => setInvoiceType(e.target.value as any)}
-            className="w-full px-3 py-2 border border-[#cbd5e1] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0ea5a3]"
-          >
-            <option value="receipt">Regular Receipt</option>
-            <option value="gst">Tax Invoice (GST)</option>
-            <option value="credit">Credit Note</option>
-          </select>
-        </div>
-
-        {/* Summary */}
-        <div className="bg-white border border-[#e2e8f0] rounded-lg p-4 space-y-2">
-          <div className="flex justify-between text-sm">
-            <span className="text-[#64748b]">Subtotal</span>
-            <span className="text-[#0f172a]">₹{subtotal.toFixed(2)}</span>
+            {customer ? (
+              <div className="flex items-center gap-2" role="button" onClick={onOpenCustomer}>
+                <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold">
+                  {customer.firstName[0]}
+                </div>
+                <div className="overflow-hidden">
+                  <div className="font-semibold text-gray-900 truncate">{customer.firstName} {customer.lastName}</div>
+                  <div className="text-xs text-gray-500">{customer.phoneNumber}</div>
+                </div>
+              </div>
+            ) : (
+              <button onClick={onOpenCustomer} className="w-full flex items-center justify-center gap-2 text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 transition-all py-3 rounded-lg border border-dashed border-gray-300 hover:border-indigo-300 group">
+                <div className="w-6 h-6 rounded-full bg-gray-100 group-hover:bg-white flex items-center justify-center transition-colors">
+                  <FiUserPlus className="w-3.5 h-3.5" />
+                </div>
+                <span className="text-sm font-semibold">Select Customer</span>
+              </button>
+            )}
           </div>
 
-          {/* Overall Discount */}
-          <div className="flex items-center gap-2">
-            <div className="flex-1">
-              <div className="flex items-center gap-1 mb-1">
-                <span className="text-xs text-[#64748b]">Overall Discount</span>
+          {/* Invoice Type Selector */}
+          <div className="bg-white rounded-lg p-3 border border-gray-200">
+            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-2">Invoice Type</span>
+            <select
+              value={invoiceType}
+              onChange={(e) => setInvoiceType(e.target.value as any)}
+              className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-md focus:ring-indigo-500 focus:border-indigo-500 block p-1.5"
+            >
+              <option value="RECEIPT">Standard Receipt</option>
+              <option value="GST_INVOICE">Tax Invoice (GST)</option>
+              <option value="ESTIMATE">Estimate / Quote</option>
+            </select>
+
+            {/* Minimal Helper Text */}
+            <div className="mt-1.5 text-[10px] leading-tight text-gray-500 px-1">
+              {invoiceType === 'RECEIPT' && "Standard sale. Deducts stock & records revenue."}
+              {invoiceType === 'GST_INVOICE' && <span className="text-orange-600">⚠ Requires Customer. Deducts stock.</span>}
+              {invoiceType === 'ESTIMATE' && <span className="text-blue-600">ℹ Quotation only. Does NOT deduct stock.</span>}
+            </div>
+          </div>
+        </div>
+
+        {/* Financial Summary Card */}
+        <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+          <div className="p-4 space-y-3">
+
+            {/* 1. Total MRP */}
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-gray-500">Total MRP</span>
+              <span className="font-medium text-gray-900">₹{safeTotals.totalMrp.toFixed(2)}</span>
+            </div>
+
+            {/* Overall Discount Input */}
+            <div className="bg-green-50 rounded-lg p-2 border border-green-100">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold text-green-700 uppercase">Apply Discount</span>
                 <div className="flex gap-1">
                   <button
                     onClick={() => setDiscountType('amount')}
-                    className={`px-2 py-0.5 text-xs rounded ${discountType === 'amount' ? 'bg-[#0ea5a3] text-white' : 'bg-[#f1f5f9] text-[#64748b]'}`}
+                    className={`px-2 py-0.5 text-[10px] font-bold rounded ${discountType === 'amount' ? 'bg-green-600 text-white shadow-sm' : 'bg-white text-green-600 border border-green-200'}`}
                   >
                     ₹
                   </button>
                   <button
                     onClick={() => setDiscountType('percentage')}
-                    className={`px-2 py-0.5 text-xs rounded ${discountType === 'percentage' ? 'bg-[#0ea5a3] text-white' : 'bg-[#f1f5f9] text-[#64748b]'}`}
+                    className={`px-2 py-0.5 text-[10px] font-bold rounded ${discountType === 'percentage' ? 'bg-green-600 text-white shadow-sm' : 'bg-white text-green-600 border border-green-200'}`}
                   >
                     %
                   </button>
                 </div>
               </div>
-              <input
-                type="number"
-                value={overallDiscount || ''}
-                onChange={(e) => setOverallDiscount(parseFloat(e.target.value) || 0)}
-                placeholder="0"
-                className="w-full px-2 py-1 text-sm border border-[#cbd5e1] rounded focus:outline-none focus:ring-1 focus:ring-[#0ea5a3]"
-              />
+              <div className="flex gap-2">
+                <input
+                  type="number"
+                  value={overallDiscount || ''}
+                  onChange={(e) => setOverallDiscount(parseFloat(e.target.value) || 0)}
+                  placeholder={discountType === 'percentage' ? 'Ex: 10%' : 'Ex: 500'}
+                  className="flex-1 px-2 py-1.5 text-sm rounded border border-green-200 focus:outline-none focus:ring-1 focus:ring-green-500"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      onApplyDiscount(discountType, overallDiscount);
+                    }
+                  }}
+                />
+                <button
+                  onClick={() => onApplyDiscount(discountType, overallDiscount)}
+                  className="px-3 py-1.5 bg-green-600 text-white text-xs font-bold rounded hover:bg-green-700 transition-colors"
+                >
+                  Apply
+                </button>
+              </div>
             </div>
-            <div className="text-sm font-medium text-[#ef4444]">
-              -₹{overallDiscountAmount.toFixed(2)}
-            </div>
-          </div>
 
-          <div className="flex justify-between text-sm">
-            <span className="text-[#64748b]">Tax (GST)</span>
-            <span className="text-[#0f172a]">₹{taxAmount.toFixed(2)}</span>
+            {/* 2. Discounts */}
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-gray-500">Total Discount</span>
+              <span className="font-medium text-green-600">-₹{safeTotals.totalDiscount.toFixed(2)}</span>
+            </div>
+
+            <div className="h-px bg-gray-100 my-2"></div>
+
+            {/* 3. Tax Breakdown (Info Only) */}
+            <div className="flex justify-between items-center text-xs text-gray-400">
+              <span>Taxable Value</span>
+              <span>₹{safeTotals.taxableValue.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between items-center text-xs text-gray-400">
+              <span>GST (Included)</span>
+              <span>₹{safeTotals.taxAmount.toFixed(2)}</span>
+            </div>
+
+            <div className="h-px bg-gray-100 my-2"></div>
+
+            {/* 4. Final Total */}
+            <div className="flex justify-between items-center">
+              <span className="text-base font-bold text-gray-900">Net Payable</span>
+              <span className="text-2xl font-bold text-teal-600">₹{safeTotals.total}</span>
+            </div>
           </div>
-          <div className="flex justify-between text-sm">
-            <span className="text-[#64748b]">Round-off</span>
-            <span className="text-[#0f172a]">₹{roundOff.toFixed(2)}</span>
-          </div>
-          <div className="border-t border-[#e2e8f0] pt-2 flex justify-between">
-            <span className="font-semibold text-[#0f172a]">Total</span>
-            <span className="font-bold text-xl text-[#0ea5a3]">₹{finalTotal}</span>
+          <div className="bg-gray-50 px-4 py-2 text-xs text-center text-gray-500 border-t border-gray-100">
+            {safeTotals.roundOff !== 0 && `Rounded off by ₹${safeTotals.roundOff.toFixed(2)}`}
           </div>
         </div>
 
         {/* Payment Methods */}
         <div>
-          <label className="text-sm font-medium text-[#64748b] mb-2 block">Payment Method</label>
+          <span className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-2">Payment Mode</span>
           <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={() => setPaymentMethod('cash')}
-              className={`p-3 rounded-lg border-2 flex flex-col items-center gap-1 ${paymentMethod === 'cash'
-                ? 'border-[#0ea5a3] bg-[#f0fdfa]'
-                : 'border-[#e2e8f0] hover:border-[#cbd5e1]'
-                }`}
-            >
-              <FiDollarSign className="w-5 h-5" />
-              <span className="text-xs font-medium">Cash</span>
-            </button>
-            <button
-              onClick={() => setPaymentMethod('card')}
-              className={`p-3 rounded-lg border-2 flex flex-col items-center gap-1 ${paymentMethod === 'card'
-                ? 'border-[#0ea5a3] bg-[#f0fdfa]'
-                : 'border-[#e2e8f0] hover:border-[#cbd5e1]'
-                }`}
-            >
-              <FiCreditCard className="w-5 h-5" />
-              <span className="text-xs font-medium">Card</span>
-            </button>
-            <button
-              onClick={() => setPaymentMethod('upi')}
-              className={`p-3 rounded-lg border-2 flex flex-col items-center gap-1 ${paymentMethod === 'upi'
-                ? 'border-[#0ea5a3] bg-[#f0fdfa]'
-                : 'border-[#e2e8f0] hover:border-[#cbd5e1]'
-                }`}
-            >
-              <FiSmartphone className="w-5 h-5" />
-              <span className="text-xs font-medium">UPI</span>
-            </button>
-            <button
-              onClick={() => setPaymentMethod('wallet')}
-              className={`p-3 rounded-lg border-2 flex flex-col items-center gap-1 ${paymentMethod === 'wallet'
-                ? 'border-[#0ea5a3] bg-[#f0fdfa]'
-                : 'border-[#e2e8f0] hover:border-[#cbd5e1]'
-                }`}
-            >
-              <BsWallet2 className="w-5 h-5" />
-              <span className="text-xs font-medium">Wallet</span>
-            </button>
+            {[
+              { id: 'cash', icon: FiDollarSign, label: 'Cash' },
+              { id: 'upi', icon: FiSmartphone, label: 'UPI' },
+              { id: 'card', icon: FiCreditCard, label: 'Card' },
+              { id: 'wallet', icon: BsWallet2, label: 'Wallet' }
+            ].map((method) => (
+              <button
+                key={method.id}
+                onClick={() => setPaymentMethod(method.id as any)}
+                className={`p-3 rounded-lg border-2 flex flex-col items-center justify-center gap-1 transition-all ${paymentMethod === method.id
+                  ? 'border-teal-500 bg-teal-50 text-teal-700 shadow-sm'
+                  : 'border-transparent bg-white text-gray-600 hover:bg-gray-50'
+                  }`}
+              >
+                <method.icon className="w-5 h-5" />
+                <span className="text-xs font-semibold">{method.label}</span>
+              </button>
+            ))}
           </div>
         </div>
       </div>
 
       {/* Bottom Actions */}
-      <div className="border-t border-[#e2e8f0] p-4 bg-white space-y-2">
+      <div className="border-t border-gray-200 p-4 bg-white space-y-3 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
         <button
           onClick={handleFinalize}
           disabled={basketItems.length === 0}
-          className="w-full py-4 bg-[#0ea5a3] text-white rounded-lg font-semibold text-lg hover:bg-[#0d9391] disabled:bg-[#cbd5e1] disabled:cursor-not-allowed"
+          className="w-full py-4 bg-teal-600 text-white rounded-xl font-bold text-lg hover:bg-teal-700 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-teal-600/20 flex items-center justify-center gap-2"
         >
-          Collect ₹{finalTotal}
+          <span>Collect</span>
+          <span>₹{safeTotals.total}</span>
         </button>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-2 gap-3">
           <button
             onClick={onSplitPayment}
-            disabled={basketItems.length === 0}
-            className="py-2 text-sm border border-[#cbd5e1] rounded-lg hover:bg-[#f8fafc] disabled:opacity-50"
+            className="py-2.5 text-sm font-medium text-gray-700 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors"
           >
-            Split Payment (F9)
+            Split (F9)
           </button>
           <button
             onClick={() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'F2' }))}
-            disabled={basketItems.length === 0}
-            className="py-2 text-sm border border-[#cbd5e1] rounded-lg hover:bg-[#f8fafc] disabled:opacity-50"
+            className="py-2.5 text-sm font-medium text-gray-700 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors"
           >
-            Save Draft (F2)
+            Draft (F2)
           </button>
         </div>
       </div>
 
       {/* Finalize Modal */}
       {showFinalizeModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-            <h3 className="text-xl font-bold text-[#0f172a] mb-4">Confirm Sale</h3>
-            <div className="space-y-2 mb-6">
-              <div className="flex justify-between">
-                <span className="text-[#64748b]">Items</span>
-                <span className="font-medium">{basketItems.length}</span>
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl scale-100 animate-in zoom-in-95 duration-200">
+            <h3 className="text-xl font-bold text-gray-900 mb-6 text-center">Confirm Sale</h3>
+
+            <div className="space-y-4 mb-8">
+              <div className="bg-gray-50 rounded-xl p-4">
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-gray-500 text-sm">Customer</span>
+                  <span className="font-medium text-gray-900">{customer ? `${customer.firstName} ${customer.lastName}` : 'Guest (Walk-in)'}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-500 text-sm">Total Items</span>
+                  <span className="font-medium text-gray-900">{basketItems.length}</span>
+                </div>
               </div>
-              <div className="flex justify-between">
-                <span className="text-[#64748b]">Payment Method</span>
-                <span className="font-medium capitalize">{paymentMethod}</span>
-              </div>
-              <div className="flex justify-between text-lg font-bold">
-                <span>Total</span>
-                <span className="text-[#0ea5a3]">₹{finalTotal}</span>
+
+              <div className="text-center">
+                <div className="text-sm text-gray-500 uppercase tracking-wider font-semibold mb-1">Total Payable</div>
+                <div className="text-4xl font-black text-teal-600">₹{safeTotals.total}</div>
+                <div className="text-sm text-gray-400 mt-1 capitalize">via {paymentMethod}</div>
               </div>
             </div>
-            <div className="flex gap-3">
+
+            <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={() => setShowFinalizeModal(false)}
-                className="flex-1 py-2 border border-[#cbd5e1] rounded-lg hover:bg-[#f8fafc]"
+                className="py-3 px-4 border border-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={confirmFinalize}
-                className="flex-1 py-2 bg-[#0ea5a3] text-white rounded-lg hover:bg-[#0d9391]"
+                className="py-3 px-4 bg-teal-600 text-white rounded-xl font-semibold hover:bg-teal-700 transition-colors shadow-lg shadow-teal-600/20"
               >
-                Confirm & Print
+                Complete
               </button>
             </div>
           </div>

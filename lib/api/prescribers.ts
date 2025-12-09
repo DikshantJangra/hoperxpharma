@@ -25,17 +25,17 @@ export const prescriberApi = {
 
     // Create a new prescriber
     createPrescriber: async (prescriberData: { name: string; licenseNumber: string; clinicAddress?: string; phoneNumber?: string }) => {
-        try {
-            const response = await fetch(`${API_URL}/prescribers`, {
-                method: 'POST',
-                headers: getAuthHeaders(),
-                body: JSON.stringify(prescriberData),
-            });
-            const data = await response.json();
-            return data;
-        } catch (error) {
-            console.error("Failed to create prescriber", error);
-            return { success: false, message: "Network error" };
+        const response = await fetch(`${API_URL}/prescribers`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify(prescriberData),
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.message || 'Failed to create prescriber');
         }
+
+        return data;
     }
 };

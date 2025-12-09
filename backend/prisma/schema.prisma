@@ -88,10 +88,12 @@ enum InvoiceType {
   RECEIPT
   GST_INVOICE
   CREDIT_NOTE
+  ESTIMATE
 }
 
 enum SaleStatus {
   DRAFT
+  QUOTATION
   COMPLETED
   REFUNDED
   PARTIALLY_REFUNDED
@@ -171,6 +173,8 @@ model User {
   pinAttempts    Int       @default(0) // Failed PIN attempt counter
   pinLockedUntil DateTime? // PIN lockout timestamp
   lastLoginAt    DateTime? // Last login timestamp for activity tracking
+  signatureUrl   String?   // Digital signature for verifying prescriptions/invoices
+
 
   // HR fields
   faceDataUrl           String? // S3 URL for reference face photos (JSON array)
@@ -368,10 +372,17 @@ model Store {
   // Address
   addressLine1 String
   addressLine2 String?
+  landmark     String?
   city         String
   state        String
   pinCode      String
-  landmark     String?
+
+  // Professional Invoice Data
+  signatureUrl       String? // Authorized Signatory Image
+  bankDetails        Json?   // { bankName, accNo, ifsc, branch, upiId }
+  termsAndConditions String? // Default Invoice Terms
+  jurisdiction       String? // Legal Jurisdiction (e.g., "Subject to Mumbai Jurisdiction")
+
 
   // Operations
   is24x7       Boolean @default(false)
@@ -392,6 +403,7 @@ model Store {
 
   // Relations to other tables
   patients        Patient[]
+  prescribers     Prescriber[]
   prescriptions   Prescription[]
   inventory       InventoryBatch[]
   suppliers       Supplier[]
@@ -915,6 +927,8 @@ model Prescription {
   prescriber   Prescriber? @relation(fields: [prescriberId], references: [id]) // Made optional
   assignedUser User?       @relation("AssignedPrescriptions", fields: [assignedTo], references: [id])
 
+  sale Sale?
+
   items          PrescriptionItem[]
   dispenseEvents DispenseEvent[]
   files          PrescriptionFile[]
@@ -952,18 +966,22 @@ model PrescriptionItem {
 
 model Prescriber {
   id            String  @id @default(cuid())
+  storeId       String
   name          String
-  licenseNumber String  @unique
+  licenseNumber String
   clinic        String?
   phoneNumber   String?
   email         String?
   specialty     String?
 
+  store         Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
   prescriptions Prescription[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([storeId, licenseNumber])
+  @@index([storeId])
   @@index([licenseNumber])
 }
 
@@ -1611,8 +1629,13 @@ model Sale {
   creditReason   String?
 
   soldBy String
+  
+  attachments Json? // Array of { name, url, type }
+
 
   store         Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  prescription  Prescription?  @relation(fields: [prescriptionId], references: [id])
+  prescriptionId String?       @unique
   patient       Patient?       @relation(fields: [patientId], references: [id])
   originalSale  Sale?          @relation("CreditNotes", fields: [originalSaleId], references: [id])
   creditNotes   Sale[]         @relation("CreditNotes")

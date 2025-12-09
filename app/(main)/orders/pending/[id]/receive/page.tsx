@@ -504,7 +504,7 @@ export default function ReceiveShipmentPage() {
                 body: JSON.stringify({
                     supplierInvoiceNo: invoiceNo,
                     supplierInvoiceDate: invoiceDate || null,
-                    notes
+                    ...(notes.trim() ? { notes: notes.trim() } : {})  // Only include if not empty
                 })
             });
 

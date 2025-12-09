@@ -117,12 +117,23 @@ class QueueService {
             throw new Error(`Invalid stage: ${stage}`);
         }
 
+        const updateData = {
+            stage,
+            updatedAt: new Date()
+        };
+
+        // Automatically update status based on stage
+        if (['VERIFIED', 'READY'].includes(stage)) {
+            updateData.status = 'IN_PROGRESS';
+        } else if (stage === 'ON_HOLD') {
+            updateData.status = 'ON_HOLD';
+        } else if (stage === 'DELIVERED') {
+            updateData.status = 'COMPLETED';
+        }
+
         const prescription = await prisma.prescription.update({
             where: { id },
-            data: {
-                stage,
-                updatedAt: new Date()
-            },
+            data: updateData,
             include: {
                 patient: true
             }

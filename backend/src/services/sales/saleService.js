@@ -36,24 +36,38 @@ class SaleService {
         // Generate invoice number
         const invoiceNumber = await saleRepository.generateInvoiceNumber(saleInfo.storeId);
 
-        // Validate stock availability for all items
-        for (const item of items) {
-            const batch = await inventoryService.getBatchById(item.batchId);
+        // Validations & Logic based on Invoice Type
+        if (saleInfo.invoiceType === 'ESTIMATE') {
+            saleInfo.status = 'QUOTATION';
+            // ESTIMATES do not deduct stock or validate payment
+        } else {
+            // Validate stock availability for all items (ONLY for real sales)
+            for (const item of items) {
+                const batch = await inventoryService.getBatchById(item.batchId);
 
-            if (batch.quantityInStock < item.quantity) {
-                throw ApiError.badRequest(
-                    `Insufficient stock for ${batch.drug.name}. Available: ${batch.quantityInStock}, Required: ${item.quantity}`
-                );
+                if (batch.quantityInStock < item.quantity) {
+                    throw ApiError.badRequest(
+                        `Insufficient stock for ${batch.drug.name}. Available: ${batch.quantityInStock}, Required: ${item.quantity}`
+                    );
+                }
+            }
+
+            // Validate payment total matches sale total
+            const paymentTotal = paymentSplits.reduce((sum, p) => sum + p.amount, 0);
+            // Allow small float diff
+            if (Math.abs(paymentTotal - saleInfo.total) > 0.1) {
+                // throw ApiError.badRequest('Payment total does not match sale total'); 
+                // Note: For now, we allow partial payments or credit later, but strictly warning here is good.
+                // Keeping it loose for MVP interactions if needed, but strict is safer.
+                // Re-enabling strict check:
+                if (Math.abs(paymentTotal - saleInfo.total) > 0.01) {
+                    throw ApiError.badRequest('Payment total does not match sale total');
+                }
             }
         }
 
-        // Validate payment total matches sale total
-        const paymentTotal = paymentSplits.reduce((sum, p) => sum + p.amount, 0);
-        if (Math.abs(paymentTotal - saleInfo.total) > 0.01) {
-            throw ApiError.badRequest('Payment total does not match sale total');
-        }
-
         // Create sale with transaction
+        // Repository needs to know NOT to deduct stock if ESTIMATE
         const result = await saleRepository.createSale(
             { ...saleInfo, invoiceNumber },
             items,

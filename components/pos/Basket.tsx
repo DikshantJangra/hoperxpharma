@@ -2,10 +2,12 @@
 
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { FiMinus, FiPlus, FiX, FiTag, FiChevronDown, FiPercent } from 'react-icons/fi';
+import { FiMinus, FiPlus, FiX, FiTag, FiChevronDown, FiPercent, FiTrash } from 'react-icons/fi';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 
 export default function Basket({ items, onUpdateItem, onRemoveItem, onClear }: any) {
   const [expandedItem, setExpandedItem] = useState<number | null>(null);
+  const [showClearDialog, setShowClearDialog] = useState(false);
 
   const subtotal = items.reduce((sum: number, item: any) => {
     const lineTotal = item.qty * item.mrp - (item.discount || 0);
@@ -31,9 +33,45 @@ export default function Basket({ items, onUpdateItem, onRemoveItem, onClear }: a
               <div key={index} className="bg-white border border-[#e2e8f0] rounded-lg p-3">
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex-1">
-                    <div className="font-medium text-[#0f172a]">{item.name}</div>
-                    <div className="text-xs text-[#64748b] mt-0.5">
-                      {item.strength} • Batch: {item.batchId} • GST: {item.gstRate}%
+                    <div className="flex items-center gap-2">
+                      <div className="font-medium text-[#0f172a]">{item.name}</div>
+                      {item.type === 'RX' && (
+                        <span className="flex items-center gap-1 px-1.5 py-0.5 bg-purple-100 text-purple-700 text-[10px] font-bold rounded border border-purple-200 uppercase tracking-wide">
+                          <FiTag className="w-3 h-3" /> RX
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Premium Metadata Badges */}
+                    <div className="flex flex-wrap gap-1.5 mt-1.5">
+                      {/* Batch */}
+                      <div className="flex items-center gap-1 px-1.5 py-0.5 bg-gray-100 border border-gray-200 rounded text-[10px] text-gray-600 font-medium" title="Batch Number">
+                        <span className="opacity-70">Batch:</span>
+                        <span className="text-gray-900">{item.batchNumber || item.batchId}</span>
+                      </div>
+
+                      {/* Location */}
+                      {item.location && (
+                        <div className="flex items-center gap-1 px-1.5 py-0.5 bg-yellow-50 border border-yellow-200 rounded text-[10px] text-yellow-700 font-medium" title="Storage Location">
+                          <span className="opacity-70">Loc:</span>
+                          <span>{item.location}</span>
+                        </div>
+                      )}
+
+                      {/* Expiry - Formatted MM/YYYY */}
+                      {item.expiryDate && (
+                        <div className={`flex items-center gap-1 px-1.5 py-0.5 border rounded text-[10px] font-medium ${new Date(item.expiryDate) < new Date() ? 'bg-red-50 border-red-200 text-red-700' : 'bg-blue-50 border-blue-100 text-blue-700'
+                          }`} title="Expiry Date">
+                          <span className="opacity-70">Exp:</span>
+                          <span>{new Date(item.expiryDate).toLocaleDateString('en-US', { month: '2-digit', year: 'numeric' })}</span>
+                        </div>
+                      )}
+
+                      {/* GST */}
+                      <div className={`flex items-center gap-1 px-1.5 py-0.5 border rounded text-[10px] font-medium ${item.gstRate > 0 ? 'bg-indigo-50 border-indigo-100 text-indigo-700' : 'bg-gray-50 border-gray-100 text-gray-500'}`}>
+                        <span className="opacity-70">GST:</span>
+                        <span>{item.gstRate || 0}%</span>
+                      </div>
                     </div>
                   </div>
                   <button
@@ -133,9 +171,20 @@ export default function Basket({ items, onUpdateItem, onRemoveItem, onClear }: a
                             const value = parseFloat(e.target.value) || 0;
                             const discountType = item.discountType || 'amount';
                             const lineTotal = item.qty * item.mrp;
-                            const discountAmount = discountType === 'percentage'
-                              ? (lineTotal * value) / 100
-                              : value;
+
+                            let discountAmount = 0;
+                            if (discountType === 'percentage') {
+                              discountAmount = (lineTotal * value) / 100;
+                            } else {
+                              discountAmount = value;
+                            }
+
+                            // Cap discount at line total
+                            if (discountAmount > lineTotal) {
+                              toast.error('Discount cannot exceed item total');
+                              return;
+                            }
+
                             onUpdateItem(index, {
                               discountValue: value,
                               discount: discountAmount
@@ -149,10 +198,32 @@ export default function Basket({ items, onUpdateItem, onRemoveItem, onClear }: a
                       </div>
                     </div>
 
+                    {/* GST Edit */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-xs text-[#64748b]">GST %</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <select
+                          value={item.gstRate || 0}
+                          onChange={(e) => onUpdateItem(index, { gstRate: Number(e.target.value) })}
+                          className="w-full px-2 py-1.5 text-sm border border-[#cbd5e1] rounded focus:outline-none focus:ring-1 focus:ring-[#0ea5a3] bg-white"
+                        >
+                          <option value="0">0% (Exempt)</option>
+                          <option value="5">5%</option>
+                          <option value="12">12%</option>
+                          <option value="18">18%</option>
+                          <option value="28">28%</option>
+                        </select>
+                      </div>
+                    </div>
+
                     {/* Stock Info */}
-                    <div className="text-xs text-[#64748b]">
-                      Stock: {item.stock || item.totalStock || 'N/A'} available
-                      {item.expiryDate && ` • Expiry: ${new Date(item.expiryDate).toLocaleDateString()}`}
+                    <div className="flex items-center justify-between text-xs mt-2 bg-gray-50 p-2 rounded border border-gray-100">
+                      <span className="text-gray-500">Available Stock</span>
+                      <span className={`font-bold ${item.qty > (item.stock || 0) ? 'text-red-600' : 'text-gray-700'}`}>
+                        {item.stock !== undefined ? item.stock : 'N/A'} units
+                      </span>
                     </div>
                     {item.qty > (item.stock || item.totalStock || 0) && (
                       <div className="text-xs text-[#ef4444] mt-1">
@@ -174,13 +245,28 @@ export default function Basket({ items, onUpdateItem, onRemoveItem, onClear }: a
             <span className="font-semibold text-lg text-[#0f172a]">₹{subtotal.toFixed(2)}</span>
           </div>
           <button
-            onClick={onClear}
-            className="w-full py-2 text-sm text-[#ef4444] border border-[#fecaca] rounded-lg hover:bg-[#fef2f2]"
+            onClick={() => setShowClearDialog(true)}
+            className="w-full py-2.5 text-sm font-medium text-[#ef4444] border border-[#fecaca] rounded-lg hover:bg-[#fef2f2] flex items-center justify-center gap-2 transition-colors"
           >
-            Clear Basket
+            <FiTrash className="w-4 h-4" />
+            <span>Clear Sale</span>
           </button>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={showClearDialog}
+        title="Clear Entire Sale?"
+        message="This will remove all items from the basket, unselect the customer, and unlink any prescription. This action cannot be undone."
+        confirmLabel="Yes, Clear All"
+        type="danger"
+        onConfirm={() => {
+          onClear();
+          setShowClearDialog(false);
+          toast.success('Sale cleared successfully');
+        }}
+        onCancel={() => setShowClearDialog(false)}
+      />
     </div>
   );
 }

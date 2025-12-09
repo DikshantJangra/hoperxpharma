@@ -60,7 +60,11 @@ export default function PrescriberSelect({ onSelect, selectedPrescriber }: Presc
                 setSearch('');
             }
         } catch (error: any) {
-            toast.error(error.response?.data?.message || 'Failed to add prescriber');
+            const errorMessage = error.response?.data?.message
+                || error.message
+                || 'Failed to add prescriber';
+            toast.error(errorMessage);
+            console.error('Error adding prescriber:', error);
         }
     };
 

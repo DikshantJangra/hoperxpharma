@@ -19,10 +19,13 @@ router.post('/queue/bulk', queueController.bulkUpdate);
 router.get('/erx/pending', eRxController.getPending);
 router.post('/erx/import', eRxController.importScript);
 
-const upload = require('../../middlewares/upload');
+const upload = require('../../middlewares/uploadR2');
 
 // Create new prescription (supports file upload)
-router.post('/', upload.array('images', 5), prescriptionController.createPrescription.bind(prescriptionController));
+router.post('/', authenticate, upload.array('files'), prescriptionController.createPrescription);
+router.get('/verified', authenticate, prescriptionController.getVerifiedPrescriptions);
+// List prescriptions (with filters)
+router.get('/', authenticate, prescriptionController.getPrescriptions);
 
 // Get single prescription
 router.get('/:id', prescriptionController.getPrescriptionById.bind(prescriptionController));

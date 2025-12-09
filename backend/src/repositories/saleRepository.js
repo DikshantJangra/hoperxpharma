@@ -63,6 +63,7 @@ class SaleRepository {
             where: { id, deletedAt: null },
             include: {
                 patient: true,
+                store: true, // Fix: Include store details
                 items: {
                     include: {
                         drug: true,
@@ -88,10 +89,46 @@ class SaleRepository {
      */
     async createSale(saleData, items, paymentSplits) {
         return await prisma.$transaction(async (tx) => {
+            // If prescription ID is linked, fetch it to get attachments
+            let attachments = [];
+            if (saleData.prescriptionId) {
+                const rx = await tx.prescription.findUnique({
+                    where: { id: saleData.prescriptionId },
+                    include: { files: true }
+                });
+
+                if (rx && rx.files && rx.files.length > 0) {
+                    attachments = rx.files.map(f => ({
+                        name: 'Prescription Attachment',
+                        url: f.url,
+                        type: f.fileType || 'image'
+                    }));
+                }
+
+                // Update Prescription Status
+                await tx.prescription.update({
+                    where: { id: saleData.prescriptionId },
+                    data: {
+                        status: 'COMPLETED',
+                        stage: 'DELIVERED', // or 'DISPENSED'
+                        updatedAt: new Date()
+                    }
+                });
+            }
+
             // Create sale
             const sale = await tx.sale.create({
-                data: saleData,
+                data: {
+                    ...saleData,
+                    attachments: attachments.length > 0 ? attachments : undefined
+                },
             });
+
+            /* 
+            // Previous code block removed:
+            // If prescription ID is linked, update its status
+            if (saleData.prescriptionId) { ... } 
+            */
 
             // Create sale items
             const saleItems = await Promise.all(
@@ -117,30 +154,32 @@ class SaleRepository {
                 )
             );
 
-            // Update inventory and create stock movements
-            for (const item of items) {
-                // Deduct from batch
-                await tx.inventoryBatch.update({
-                    where: { id: item.batchId },
-                    data: {
-                        quantityInStock: {
-                            decrement: item.quantity,
+            // Update inventory and create stock movements (SKIP for ESTIMATES)
+            if (saleData.invoiceType !== 'ESTIMATE') {
+                for (const item of items) {
+                    // Deduct from batch
+                    await tx.inventoryBatch.update({
+                        where: { id: item.batchId },
+                        data: {
+                            quantityInStock: {
+                                decrement: item.quantity,
+                            },
                         },
-                    },
-                });
+                    });
 
-                // Create stock movement
-                await tx.stockMovement.create({
-                    data: {
-                        batchId: item.batchId,
-                        movementType: 'OUT',
-                        quantity: item.quantity,
-                        reason: 'Sale',
-                        referenceType: 'sale',
-                        referenceId: sale.id,
-                    },
-                });
-            }
+                    // Create stock movement
+                    await tx.stockMovement.create({
+                        data: {
+                            batchId: item.batchId,
+                            movementType: 'OUT',
+                            quantity: item.quantity,
+                            reason: 'Sale',
+                            referenceType: 'sale',
+                            referenceId: sale.id,
+                        },
+                    });
+                }
+            } // End of ESTIMATE check
 
             return { sale, items: saleItems, payments };
         });

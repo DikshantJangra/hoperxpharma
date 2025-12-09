@@ -319,6 +319,10 @@ class GRNService {
             });
         }
 
+        // CRITICAL: Recalculate totals from items before completing
+        // This ensures updated prices during receiving are reflected in the final GRN
+        await this.recalculateGRNTotals(grnId);
+
         // Complete GRN (updates inventory, PO status, creates stock movements)
         const completedGRN = await grnRepository.completeGRN(grnId, userId);
 
