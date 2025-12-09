@@ -14,6 +14,7 @@ import SplitPaymentModal from '@/components/pos/SplitPaymentModal';
 import SuccessScreen from '@/components/pos/SuccessScreen';
 import QuickAddGrid from '@/components/pos/QuickAddGrid';
 import DraftRestoreModal from '@/components/pos/DraftRestoreModal';
+import CustomerLedgerPanel from '@/components/customers/CustomerLedgerPanel';
 import PrescriptionBanner from '@/components/pos/PrescriptionBanner';
 import { salesApi } from '@/lib/api/sales';
 import { prescriptionApi } from '@/lib/api/prescriptions';
@@ -27,6 +28,7 @@ export default function NewSalePage() {
   const [searchFocus, setSearchFocus] = useState(true);
   const [showBatchModal, setShowBatchModal] = useState(false);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
+  const [showLedgerModal, setShowLedgerModal] = useState(false);
   const [showSplitPayment, setShowSplitPayment] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [pendingProduct, setPendingProduct] = useState<any>(null);
@@ -321,32 +323,89 @@ export default function NewSalePage() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [basketItems, customer]);
 
+  /* 
+   * FIX: Add to basket with Duplicate Check
+   */
   const addToBasket = (product: any) => {
-    if (product.batches > 1) {
+    // If product has multiple batches and no specific batch is selected, show modal
+    if (product.batches > 1 && !product.batchId) {
       setPendingProduct(product);
       setShowBatchModal(true);
-    } else {
-      setBasketItems(prev => {
-        const existing = prev.find(item => item.sku === product.sku && item.batchId === product.batchId);
-        if (existing) {
-          return prev.map(item =>
-            item.sku === product.sku && item.batchId === product.batchId
-              ? { ...item, qty: item.qty + 1 }
-              : item
-          );
-        }
-        return [...prev, {
-          ...product,
-          qty: 1,
-          gstRate: product.gstRate ? Number(product.gstRate) : 5 // Default 5% if missing
-        }];
-      });
+      return;
     }
+
+    // Fallback: If single batch or batch pre-selected/flattened
+    // Ensure we have a valid batchId if possible, or use 'default' if it's a non-batched item (unlikely for Pharma)
+    const targetBatchId = product.batchId || (product.batches === 1 ? product.batchList?.[0]?.id : null);
+
+    if (!targetBatchId) {
+      toast.error('Cannot add item: Batch ID is missing. Please select a specific batch.');
+      // Force open modal if we can't determine batch?
+      setPendingProduct(product);
+      setShowBatchModal(true);
+      return;
+    }
+
+    setBasketItems(prev => {
+      // Check if item with same Drug ID AND Batch ID exists
+      // Using drugId + batchId is safer than SKU which might be missing
+      const existingIndex = prev.findIndex(item =>
+        item.id === product.id && item.batchId === targetBatchId
+      );
+
+      if (existingIndex >= 0) {
+        // Update existing item quantity
+        const newItems = [...prev];
+        newItems[existingIndex] = {
+          ...newItems[existingIndex],
+          qty: newItems[existingIndex].qty + 1
+        };
+        toast.success(`Added another unit of ${product.name}`);
+        return newItems;
+      }
+
+      // Add new item
+      return [...prev, {
+        ...product,
+        // Ensure batchId is set if we found it in fallback
+        batchId: product.batchId || targetBatchId,
+        qty: 1,
+        gstRate: product.gstRate ? Number(product.gstRate) : 5
+      }];
+    });
   };
 
   const handleBatchSelect = (batch: any) => {
     if (pendingProduct) {
-      setBasketItems(prev => [...prev, { ...pendingProduct, batchId: batch.id, batchNumber: batch.batchNumber, location: batch.location, stock: batch.quantityInStock, expiryDate: batch.expiryDate, qty: 1, gstRate: pendingProduct.gstRate ? Number(pendingProduct.gstRate) : 5 }]);
+      // FIX: Check if this batch already exists in basket to prevent duplicates
+      const newItem = {
+        ...pendingProduct,
+        batchId: batch.id,
+        batchNumber: batch.batchNumber, // Ensure these are strings!
+        location: batch.location,
+        stock: Number(batch.quantityInStock), // Fix N/A issue by ensuring number
+        expiryDate: batch.expiryDate,
+        qty: 1,
+        gstRate: pendingProduct.gstRate ? Number(pendingProduct.gstRate) : 5
+      };
+
+      setBasketItems(prev => {
+        const existingIndex = prev.findIndex(item =>
+          item.id === newItem.id && item.batchId === newItem.batchId
+        );
+
+        if (existingIndex >= 0) {
+          const newItems = [...prev];
+          newItems[existingIndex] = {
+            ...newItems[existingIndex],
+            qty: newItems[existingIndex].qty + 1
+          };
+          toast.success(`Added another unit of ${newItem.name}`);
+          return newItems;
+        }
+
+        return [...prev, newItem];
+      });
     }
     setShowBatchModal(false);
     setPendingProduct(null);
@@ -358,6 +417,20 @@ export default function NewSalePage() {
   };
 
   const handleImportPrescription = async (rx: any) => {
+    // 0. Validation: Check if a prescription is already linked or items exist
+    if (linkedPrescriptionId && linkedPrescriptionId === rx.id) {
+      toast.error('This prescription is already imported!');
+      return;
+    }
+
+    // FIX: Clear basket before importing new prescription
+    // "And then from scratch the new basket should be loaded!"
+    if (basketItems.length > 0) {
+      clearBasket();
+      // Small toast to inform user
+      toast.info('Cleared previous basket for new prescription');
+    }
+
     // 1. Set Customer
     if (rx.patient) {
       setCustomer({
@@ -365,7 +438,8 @@ export default function NewSalePage() {
         firstName: rx.patient.firstName,
         lastName: rx.patient.lastName,
         phoneNumber: rx.patient.phoneNumber,
-        email: rx.patient.email
+        email: rx.patient.email,
+        currentBalance: rx.patient.currentBalance // Ensure debt info is carried over
       });
       // Ensure customer modal is closed
       setShowCustomerModal(false);
@@ -432,30 +506,27 @@ export default function NewSalePage() {
       }
 
       if (newItems.length > 0) {
-        setBasketItems(prev => {
-          // Avoid duplicates if possible? Or typically users want adding.
-          // We'll just append for now, user can consolidate.
-          return [...prev, ...newItems];
-        });
+        setBasketItems(newItems); // Replace with new items since we cleared above
         toast.dismiss(loadingToast);
-        toast.success(`Imported ${newItems.length} items from Prescription`);
+        toast.success(`Imported ${newItems.length} items from prescription`);
       } else {
         toast.dismiss(loadingToast);
-        toast.warning('No available stock found for prescription items');
+        toast.warning('No available batches found for prescription items');
       }
 
       if (missingBatches.length > 0) {
-        // Delay this toast slightly to ensure visibility
-        setTimeout(() => {
-          toast.warning(`Out of stock: ${missingBatches.join(', ')}`, { duration: 5000 });
-        }, 500);
+        toast.error(`Could not find stock for: ${missingBatches.join(', ')}`);
       }
+
     } catch (error) {
-      console.error('Import failed', error);
+      console.error("Import error:", error);
       toast.dismiss(loadingToast);
-      toast.error('Failed to import prescription items');
+      toast.error('Error importing prescription');
+    } finally {
+      setIsLoadingRx(false);
     }
   };
+
 
 
   const updateBasketItem = (index: number, updates: any) => {
@@ -562,7 +633,8 @@ export default function NewSalePage() {
       const { salesApi } = await import('@/lib/api/sales');
 
       // Prepare sale items - GST is already included in MRP
-      const items = basketItems.map((item: any) => {
+      // Prepare sale items - GST is already included in MRP
+      const items = basketItems.filter((item: any) => item.batchId).map((item: any) => {
         const itemTotal = item.qty * item.mrp;
         const itemDiscount = item.discount || 0;
         const netAmount = itemTotal - itemDiscount;
@@ -583,11 +655,29 @@ export default function NewSalePage() {
         };
       });
 
+      if (items.length !== basketItems.length) {
+        toast.error('Some items were invalid (missing batch) and removed.');
+        if (items.length === 0) return;
+      }
+
       // Prepare payment splits
-      const paymentSplits = [{
-        paymentMethod,
-        amount: Number(totals.total),
-      }];
+      let paymentSplits: any[] = [];
+
+      if (paymentMethod === 'SPLIT' && splits) {
+        // Map the splits object { cash: 10, card: 20 ... } to an array
+        const methods = ['cash', 'card', 'upi', 'wallet', 'credit'];
+        paymentSplits = methods
+          .filter(m => splits[m] && Number(splits[m]) > 0)
+          .map(m => ({
+            paymentMethod: m.toUpperCase(),
+            amount: Number(splits[m])
+          }));
+      } else {
+        paymentSplits = [{
+          paymentMethod,
+          amount: Number(totals.total),
+        }];
+      }
 
       // Create sale with required fields (storeId and soldBy added by middleware)
       const saleData = {
@@ -724,6 +814,7 @@ export default function NewSalePage() {
             onCustomerChange={setCustomer}
             onFinalize={(method: string, splits?: any, invoiceType?: string) => handleFinalize(method, splits, invoiceType)}
             onOpenCustomer={() => setShowCustomerModal(true)}
+            onOpenLedger={() => customer ? setShowLedgerModal(true) : toast.error("Select a customer first")}
             onSplitPayment={() => setShowSplitPayment(true)}
             onClear={clearBasket}
             onApplyDiscount={handleApplyOverallDiscount}
@@ -762,6 +853,18 @@ export default function NewSalePage() {
           onConfirm={(splits: any) => {
             setShowSplitPayment(false);
             handleFinalize('SPLIT', splits);
+          }}
+        />
+      )}
+
+      {showLedgerModal && customer && (
+        <CustomerLedgerPanel
+          isOpen={showLedgerModal}
+          onClose={() => setShowLedgerModal(false)}
+          customerId={customer.id}
+          onBalanceUpdate={(newBalance) => {
+            console.log('Refreshing POS customer balance:', newBalance);
+            setCustomer((prev: any) => prev ? ({ ...prev, currentBalance: newBalance }) : null);
           }}
         />
       )}

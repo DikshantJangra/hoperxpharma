@@ -3,6 +3,7 @@ const asyncHandler = require('../../middlewares/asyncHandler');
 const ApiResponse = require('../../utils/ApiResponse');
 const { parsePagination, parseSort, buildPaginationMeta } = require('../../utils/queryParser');
 const { SORTABLE_FIELDS } = require('../../config/sortableFields');
+const httpStatus = require('http-status');
 
 /**
  * Get all patients
@@ -43,6 +44,17 @@ const searchPatients = asyncHandler(async (req, res) => {
  */
 const getPatientById = asyncHandler(async (req, res) => {
     const patient = await patientService.getPatientById(req.params.id, req.storeId);
+
+    // Explicitly cast Decimal to Number to prevent frontend serialization issues
+    if (patient && patient.currentBalance) {
+        patient.currentBalance = parseFloat(patient.currentBalance.toString());
+    }
+
+    // DEBUG (Optional - keep for confirmation)
+    // console.log(`[DEBUG] API getPatientById: CAST Balance=${patient?.currentBalance} (Type: ${typeof patient?.currentBalance})`);
+
+    // DEBUG: Log patient balance
+    console.log(`[DEBUG] API getPatientById: ${patient?.firstName} Balance=${patient?.currentBalance} (Type: ${typeof patient?.currentBalance})`);
 
     const response = ApiResponse.success(patient);
     res.status(response.statusCode).json(response);
@@ -218,6 +230,76 @@ const getAllConsents = asyncHandler(async (req, res) => {
     res.status(response.statusCode).json(response);
 });
 
+/**
+ * Get Customer Ledger
+ */
+const getLedger = asyncHandler(async (req, res) => {
+    const { page, limit } = parsePagination(req.query);
+    const { ledger, total } = await patientService.getLedger(req.params.id, req.storeId, {
+        page,
+        limit
+    });
+
+    const response = ApiResponse.paginated(ledger, buildPaginationMeta(total, page, limit));
+    res.status(response.statusCode).json(response);
+});
+
+/**
+ * Process Customer Payment
+ */
+const processPayment = asyncHandler(async (req, res) => {
+    const result = await patientService.processCustomerPayment(req.params.id, req.body, req.storeId);
+
+    const response = ApiResponse.created(result, 'Payment processed successfully');
+    res.status(response.statusCode).json(response);
+});
+
+/**
+ * Get Debtors
+ */
+const getDebtors = asyncHandler(async (req, res) => {
+    console.log('[getDebtors] StoreId:', req.storeId);
+    const { page, limit } = parsePagination(req.query);
+    const sortConfig = parseSort(req.query);
+    const filters = {
+        page,
+        limit,
+        search: req.query.search || '',
+        minBalance: req.query.minBalance,
+        maxBalance: req.query.maxBalance,
+        sortConfig
+    };
+
+    const { debtors, total, totalOutstanding, totalDebtors } = await patientService.getDebtors(req.storeId, filters);
+    
+    console.log('[getDebtors] Results:', { debtors: debtors.length, total, totalOutstanding, totalDebtors });
+    console.log('[getDebtors] First debtor:', debtors[0]);
+
+    const response = ApiResponse.paginated(debtors, buildPaginationMeta(total, page, limit));
+    // Add extra stats to response
+    response.meta.totalOutstanding = totalOutstanding;
+    response.meta.totalDebtors = totalDebtors;
+    
+    console.log('[getDebtors] Response meta:', response.meta);
+
+    res.status(response.statusCode).json(response);
+});
+
+/**
+ * Get Unpaid Invoices
+ */
+const getUnpaidInvoices = asyncHandler(async (req, res) => {
+    const result = await patientService.getUnpaidInvoices(req.params.id, req.storeId);
+    const response = ApiResponse.success(result, 'Unpaid invoices fetched successfully');
+    res.status(200).json(response);
+});
+
+const syncBalance = asyncHandler(async (req, res) => {
+    const result = await patientService.syncPatientBalance(req.params.id, req.storeId);
+    const response = ApiResponse.success(result, 'Balance synchronized successfully');
+    res.status(200).json(response);
+});
+
 module.exports = {
     getPatients,
     searchPatients,
@@ -237,4 +319,9 @@ module.exports = {
     getAdherence,
     recordAdherence,
     getAllConsents,
+    getLedger,
+    processPayment,
+    getDebtors,
+    getUnpaidInvoices,
+    syncBalance
 };

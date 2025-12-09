@@ -291,7 +291,7 @@ const getInsights = asyncHandler(async (req, res) => {
         where: {
             storeId,
             status: { in: ['NEW'] },
-            severity: { in: ['CRITICAL', 'HIGH'] }
+            severity: { in: ['CRITICAL', 'WARNING'] }
         },
         take: 3,
         orderBy: [

@@ -1,16 +1,66 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FiX } from 'react-icons/fi';
 
-export default function SplitPaymentModal({ total, onConfirm, onClose }: any) {
-  const [cash, setCash] = useState(0);
-  const [card, setCard] = useState(0);
-  const [upi, setUpi] = useState(0);
-  const [wallet, setWallet] = useState(0);
+export default function SplitPaymentModal({ total = 0, onConfirm, onClose }: any) {
+  // Use strings for inputs to allow decimals (e.g. "10.") without forcing parse
+  const [cash, setCash] = useState('');
+  const [card, setCard] = useState('');
+  const [upi, setUpi] = useState('');
+  const [wallet, setWallet] = useState('');
+  const [credit, setCredit] = useState('');
 
-  const collected = cash + card + upi + wallet;
+  // Helper to safely parse string to float
+  const safeParse = (val: string) => {
+    const parsed = parseFloat(val);
+    return isNaN(parsed) ? 0 : parsed;
+  };
+
+  // Auto-calculate credit when other fields change
+  useEffect(() => {
+    const valCash = safeParse(cash);
+    const valCard = safeParse(card);
+    const valUpi = safeParse(upi);
+    const valWallet = safeParse(wallet);
+
+    const otherPayments = valCash + valCard + valUpi + valWallet;
+
+    // Calculate remaining, capped at 0 (can't have negative credit auto-fill)
+    // Use Number.toFixed to prevent floating point anomalies during typing
+    const remaining = Math.max(0, total - otherPayments);
+
+    // Only update if difference is significant to avoid fighting user input?
+    // User wants "Keep on auto written", so we overwrite.
+    setCredit(remaining > 0 ? remaining.toFixed(2).replace(/\.00$/, '') : '');
+
+  }, [cash, card, upi, wallet, total]);
+
+  const valCash = safeParse(cash);
+  const valCard = safeParse(card);
+  const valUpi = safeParse(upi);
+  const valWallet = safeParse(wallet);
+  const valCredit = safeParse(credit);
+
+  // FIX: collected should only include actual payments, not credit
+  const collected = valCash + valCard + valUpi + valWallet;
+
+  // Balance here means "Amount Remaining to be covered" (likely by Credit)
   const balance = total - collected;
+
+  // Validation: Ensure Total = (Received + Credit)
+  const totalAllocated = collected + valCredit;
+  const isBalanced = Math.abs(total - totalAllocated) < 0.01;
+
+  const handleConfirm = () => {
+    onConfirm({
+      cash: valCash,
+      card: valCard,
+      upi: valUpi,
+      wallet: valWallet,
+      credit: valCredit
+    });
+  };
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
@@ -27,8 +77,8 @@ export default function SplitPaymentModal({ total, onConfirm, onClose }: any) {
             <label className="text-sm text-[#64748b] mb-1 block">Cash</label>
             <input
               type="number"
-              value={cash || ''}
-              onChange={(e) => setCash(parseFloat(e.target.value) || 0)}
+              value={cash}
+              onChange={(e) => setCash(e.target.value)}
               className="w-full px-3 py-2 border border-[#cbd5e1] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0ea5a3]"
               placeholder="0.00"
             />
@@ -38,8 +88,8 @@ export default function SplitPaymentModal({ total, onConfirm, onClose }: any) {
             <label className="text-sm text-[#64748b] mb-1 block">Card</label>
             <input
               type="number"
-              value={card || ''}
-              onChange={(e) => setCard(parseFloat(e.target.value) || 0)}
+              value={card}
+              onChange={(e) => setCard(e.target.value)}
               className="w-full px-3 py-2 border border-[#cbd5e1] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0ea5a3]"
               placeholder="0.00"
             />
@@ -49,8 +99,8 @@ export default function SplitPaymentModal({ total, onConfirm, onClose }: any) {
             <label className="text-sm text-[#64748b] mb-1 block">UPI</label>
             <input
               type="number"
-              value={upi || ''}
-              onChange={(e) => setUpi(parseFloat(e.target.value) || 0)}
+              value={upi}
+              onChange={(e) => setUpi(e.target.value)}
               className="w-full px-3 py-2 border border-[#cbd5e1] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0ea5a3]"
               placeholder="0.00"
             />
@@ -60,9 +110,23 @@ export default function SplitPaymentModal({ total, onConfirm, onClose }: any) {
             <label className="text-sm text-[#64748b] mb-1 block">Wallet</label>
             <input
               type="number"
-              value={wallet || ''}
-              onChange={(e) => setWallet(parseFloat(e.target.value) || 0)}
+              value={wallet}
+              onChange={(e) => setWallet(e.target.value)}
               className="w-full px-3 py-2 border border-[#cbd5e1] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0ea5a3]"
+              placeholder="0.00"
+            />
+          </div>
+
+          <div>
+            <label className="text-sm text-[#64748b] mb-1 block flex items-center justify-between">
+              <span>Credit (Pay Later)</span>
+              <span className="text-[10px] text-teal-600 bg-teal-50 px-1 rounded">Auto-filled</span>
+            </label>
+            <input
+              type="number"
+              value={credit}
+              onChange={(e) => setCredit(e.target.value)}
+              className="w-full px-3 py-2 border border-orange-200 bg-orange-50 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 font-medium text-orange-800"
               placeholder="0.00"
             />
           </div>
@@ -73,15 +137,23 @@ export default function SplitPaymentModal({ total, onConfirm, onClose }: any) {
               <span className="font-semibold">₹{total.toFixed(2)}</span>
             </div>
             <div className="flex justify-between text-sm">
-              <span className="text-[#64748b]">Collected</span>
-              <span className="font-semibold">₹{collected.toFixed(2)}</span>
+              <span className="text-[#64748b]">Collected (Received)</span>
+              <span className="font-semibold font-mono">₹{collected.toFixed(2)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="font-semibold">Balance Due</span>
-              <span className={`font-bold text-lg ${balance > 0 ? 'text-[#ef4444]' : 'text-[#10b981]'}`}>
+              <span className="font-semibold">Remaining Balance</span>
+              {/* If balanced (meaning remaining is covered by credit), show it neutrally or as a success?
+                  The user wants to see "Balance Due". If balance > 0, it means we have debt.
+               */}
+              <span className={`font-bold text-lg font-mono ${balance > 0.01 ? 'text-orange-600' : 'text-gray-900'}`}>
                 ₹{balance.toFixed(2)}
               </span>
             </div>
+            {!isBalanced && (
+              <div className="text-xs text-red-500 text-right font-medium">
+                Mismatch: ₹{(total - totalAllocated).toFixed(2)}
+              </div>
+            )}
           </div>
         </div>
 
@@ -93,8 +165,8 @@ export default function SplitPaymentModal({ total, onConfirm, onClose }: any) {
             Cancel
           </button>
           <button
-            onClick={() => onConfirm({ cash, card, upi, wallet })}
-            disabled={balance !== 0}
+            onClick={handleConfirm}
+            disabled={!isBalanced}
             className="flex-1 py-2 bg-[#0ea5a3] text-white rounded-lg hover:bg-[#0d9391] disabled:bg-[#cbd5e1] disabled:cursor-not-allowed"
           >
             Confirm

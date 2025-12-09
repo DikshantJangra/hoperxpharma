@@ -154,6 +154,67 @@ class SaleRepository {
                 )
             );
 
+            // Calculate total credit amount used in this sale
+            const creditPayment = paymentSplits.find(p => p.paymentMethod === 'CREDIT');
+            const creditAmount = creditPayment ? parseFloat(creditPayment.amount) : 0;
+
+            // Set initial balance and status
+            let saleBalance = 0;
+            let paymentStatus = 'PAID'; // Default for fully paid
+
+            if (creditAmount > 0) {
+                saleBalance = creditAmount;
+                paymentStatus = 'UNPAID';
+                // If there were other payments (e.g. partial cash), status might be PARTIAL essentially,
+                // but for simplified tracking, if there is ANY credit, it is UNPAID/PARTIAL depending on logic.
+                // Let's stick to UNPAID if full credit, or PARTIAL if mixed.
+                const totalAmount = parseFloat(sale.total);
+                if (creditAmount < totalAmount) {
+                    paymentStatus = 'PARTIAL';
+                }
+            }
+
+            // Update Sale with balance info (if credit used)
+            if (creditAmount > 0) {
+                await tx.sale.update({
+                    where: { id: sale.id },
+                    data: {
+                        balance: creditAmount,
+                        paymentStatus: paymentStatus
+                    }
+                });
+            }
+
+            if (creditAmount > 0) {
+                if (!saleData.patientId) {
+                    throw new Error("Customer is required for Credit/Pay Later sales.");
+                }
+
+                // 1. Update Patient Balance (Increase Debt)
+                const updatedPatient = await tx.patient.update({
+                    where: { id: saleData.patientId },
+                    data: {
+                        currentBalance: {
+                            increment: creditAmount
+                        }
+                    }
+                });
+
+                // 2. Add to Ledger
+                await tx.customerLedger.create({
+                    data: {
+                        storeId: saleData.storeId,
+                        patientId: saleData.patientId,
+                        type: 'DEBIT', // Increasing debt
+                        amount: creditAmount,
+                        balanceAfter: updatedPatient.currentBalance,
+                        referenceType: 'SALE',
+                        referenceId: sale.id,
+                        notes: `Credit Sale Invoice: ${saleData.invoiceNumber}`
+                    }
+                });
+            }
+
             // Update inventory and create stock movements (SKIP for ESTIMATES)
             if (saleData.invoiceType !== 'ESTIMATE') {
                 for (const item of items) {
@@ -268,6 +329,34 @@ class SaleRepository {
     `;
 
         return result;
+    }
+    /**
+     * Get unpaid invoices for a customer
+     */
+    async getUnpaidInvoices(patientId) {
+        return await prisma.sale.findMany({
+            where: {
+                patientId,
+                paymentStatus: {
+                    in: ['UNPAID', 'PARTIAL', 'OVERDUE']
+                },
+                balance: {
+                    gt: 0
+                },
+                deletedAt: null
+            },
+            orderBy: {
+                createdAt: 'asc' // Oldest first
+            },
+            select: {
+                id: true,
+                invoiceNumber: true,
+                createdAt: true,
+                total: true,
+                balance: true,
+                paymentStatus: true
+            }
+        });
     }
 }
 

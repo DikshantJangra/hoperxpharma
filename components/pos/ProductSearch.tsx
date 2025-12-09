@@ -111,6 +111,9 @@ export default function ProductSearch({ onAddProduct, searchFocus, setSearchFocu
       ...product,
       stock: product.totalStock,
       batches: product.batchCount,
+      // Explicitly pass batch info if available on the search result (flattened view)
+      batchId: product.batchId,
+      batchNumber: product.batchNumber
     });
     setQuery('');
     setResults([]);

@@ -8,15 +8,25 @@ class ConsolidatedInvoiceRepository {
     async getGRNsForInvoicing(storeId, filters = {}) {
         const { startDate, endDate, supplierId, status = 'all' } = filters;
 
+        console.log('[Repo] getGRNsForInvoicing');
+        console.log(`[Repo] StoreId: ${storeId}`);
+        console.log(`[Repo] Filters:`, filters);
+
         const where = {
             storeId,
             status: 'COMPLETED',
+            // deletedAt: null // Ensure we don't fetch deleted ones if using soft delete
         };
 
         if (startDate || endDate) {
             where.receivedDate = {};
             if (startDate) where.receivedDate.gte = new Date(startDate);
-            if (endDate) where.receivedDate.lte = new Date(endDate);
+            if (endDate) {
+                // If endDate is provided, ensure we cover the entire day by setting to 23:59:59.999
+                const end = new Date(endDate);
+                end.setUTCHours(23, 59, 59, 999);
+                where.receivedDate.lte = end;
+            }
         }
 
         if (supplierId) {
@@ -29,6 +39,8 @@ class ConsolidatedInvoiceRepository {
                 none: {}
             };
         }
+
+        console.log('[Repo] Generated WHERE:', JSON.stringify(where, null, 2));
 
         const grns = await prisma.goodsReceivedNote.findMany({
             where,

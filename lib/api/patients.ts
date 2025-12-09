@@ -19,6 +19,8 @@ export interface Patient {
     allergies?: string[];
     chronicConditions?: string[];
     storeId?: string;
+    currentBalance?: number;
+    creditLimit?: number;
     createdAt: string;
     updatedAt: string;
 }
@@ -217,6 +219,39 @@ export const patientsApi = {
      */
     async getAuditLogs(patientId: string) {
         const response = await apiClient.get(`/patients/${patientId}/audit-logs`);
+        return response.data;
+    },
+
+    getLedger: async (id: string, params?: { page?: number; limit?: number }) => {
+        try {
+            const query = new URLSearchParams();
+            if (params?.page) query.append('page', params.page.toString());
+            if (params?.limit) query.append('limit', params.limit.toString());
+
+            const response = await apiClient.get(`/patients/${id}/ledger?${query.toString()}`);
+            return response;
+        } catch (error) {
+            throw error;
+        }
+    },
+
+    getDebtors: async (params?: { page?: number; limit?: number; search?: string; sort?: string }) => {
+        try {
+            const query = new URLSearchParams();
+            if (params?.page) query.append('page', params.page.toString());
+            if (params?.limit) query.append('limit', params.limit.toString());
+            if (params?.search) query.append('search', params.search);
+            if (params?.sort) query.append('sort', params.sort);
+
+            const response = await apiClient.get(`/patients/debtors?${query.toString()}`);
+            return response;
+        } catch (error) {
+            throw error;
+        }
+    },
+
+    syncBalance: async (id: string) => {
+        const response = await apiClient.post(`/patients/${id}/sync-balance`);
         return response.data;
     }
 };

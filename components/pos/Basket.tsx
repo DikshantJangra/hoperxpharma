@@ -45,9 +45,9 @@ export default function Basket({ items, onUpdateItem, onRemoveItem, onClear }: a
                     {/* Premium Metadata Badges */}
                     <div className="flex flex-wrap gap-1.5 mt-1.5">
                       {/* Batch */}
-                      <div className="flex items-center gap-1 px-1.5 py-0.5 bg-gray-100 border border-gray-200 rounded text-[10px] text-gray-600 font-medium" title="Batch Number">
+                      <div className={`flex items-center gap-1 px-1.5 py-0.5 border rounded text-[10px] font-medium ${!item.batchId ? 'bg-red-50 border-red-200 text-red-700' : 'bg-gray-100 border-gray-200 text-gray-600'}`} title="Batch Number">
                         <span className="opacity-70">Batch:</span>
-                        <span className="text-gray-900">{item.batchNumber || item.batchId}</span>
+                        <span className="text-gray-900 font-bold">{item.batchNumber || (item.batchId ? '...' + item.batchId.slice(-4) : 'MISSING')}</span>
                       </div>
 
                       {/* Location */}

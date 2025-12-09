@@ -25,6 +25,7 @@ router.use(requireStoreAccess);
 router.get('/search', patientController.searchPatients);
 router.get('/', validate(patientQuerySchema, 'query'), patientController.getPatients);
 router.get('/stats', patientController.getPatientStats);
+router.get('/debtors', patientController.getDebtors);
 
 /**
  * Refills routes (MUST be before /:id to avoid conflict)
@@ -59,6 +60,10 @@ router.get('/:id/consents', patientController.getPatientConsents);
 router.post('/:id/refills', requirePharmacist, patientController.processRefill);
 router.get('/:id/adherence', patientController.getAdherence);
 router.post('/:id/adherence', patientController.recordAdherence);
+router.get('/:id/ledger', patientController.getLedger);
+router.get('/:id/invoices/unpaid', patientController.getUnpaidInvoices);
+router.post('/:id/sync-balance', patientController.syncBalance);
+router.post('/:id/payments', requirePharmacist, auditLogger.logActivity('CUSTOMER_PAYMENT', 'customer_ledger'), patientController.processPayment);
 
 // Create patient (after specific routes)
 router.post('/', validate(patientCreateSchema), auditLogger.logActivity('PATIENT_CREATED', 'patient'), patientController.createPatient);

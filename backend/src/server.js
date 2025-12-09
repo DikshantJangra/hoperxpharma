@@ -4,9 +4,10 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 console.log('Starting HopeRxPharma Backend...');
-console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
-console.log(`Port: ${process.env.PORT || 8000}`);
-console.log(`Database URL configured: ${process.env.DATABASE_URL ? 'Yes' : 'No'}`);
+console.log(`Environment: ${process.env.NODE_ENV} `);
+console.log(`[System] Backend restarts applied. DB Stability & Dashboard Fixes ENABLED.`);
+console.log(`Port: ${process.env.PORT || 8000} `);
+console.log(`Database URL configured: ${process.env.DATABASE_URL ? 'Yes' : 'No'} `);
 
 try {
     var app = require('./app');
@@ -56,6 +57,14 @@ database.connect().then(() => {
     // Handle shutdown signals
     process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
     process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+    // Handle Nodemon restart signal
+    process.once('SIGUSR2', () => {
+        logger.info('SIGUSR2 received (Nodemon restart). Closing database...');
+        database.disconnect().then(() => {
+            process.kill(process.pid, 'SIGUSR2');
+        });
+    });
 
     // Handle uncaught exceptions
     process.on('uncaughtException', (error) => {

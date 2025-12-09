@@ -82,6 +82,7 @@ enum PaymentMethod {
   CARD
   UPI
   WALLET
+  CREDIT
 }
 
 enum InvoiceType {
@@ -431,6 +432,7 @@ model Store {
   updatedAt           DateTime              @updatedAt
   deletedAt           DateTime?
   ConsolidatedInvoice ConsolidatedInvoice[]
+  ledger              CustomerLedger[]
 
   @@index([email])
   @@index([deletedAt])
@@ -624,6 +626,11 @@ model Patient {
   insurance     PatientInsurance[]
   adherence     PatientAdherence[]
   auditLogs     PatientAudit[]
+  ledger        CustomerLedger[]
+
+  // Financials
+  currentBalance Decimal @default(0.00) @db.Decimal(10, 2) // Positive = Due from customer
+  creditLimit    Decimal @default(0.00) @db.Decimal(10, 2) // 0 = No limit or not set
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
@@ -712,6 +719,47 @@ model InteractionCheckLog {
   createdAt DateTime @default(now())
 
   @@index([storeId, prescriptionId])
+}
+
+// ============================================================================
+// CUSTOMER FINANCIALS
+// ============================================================================
+
+enum LedgerType {
+  DEBIT // Increase in debt (Buy on Credit)
+  CREDIT // Decrease in debt (Payment)
+}
+
+enum LedgerReferenceType {
+  SALE
+  PAYMENT
+  RETURN
+  OPENING_BALANCE
+  ADJUSTMENT
+}
+
+model CustomerLedger {
+  id          String   @id @default(cuid())
+  storeId     String
+  patientId   String
+  type        LedgerType
+  amount      Decimal  @db.Decimal(10, 2)
+  balanceAfter Decimal @db.Decimal(10, 2)
+
+  referenceType LedgerReferenceType
+  referenceId   String? // Sale ID, Return ID, or Payment ID
+  notes         String?
+
+  createdBy   String? // User ID
+  createdAt   DateTime @default(now())
+
+  patient     Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  store       Store   @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  allocations InvoiceAllocation[]
+
+  @@index([patientId])
+  @@index([storeId])
+  @@index([createdAt])
 }
 
 // ============================================================================
@@ -1643,6 +1691,11 @@ model Sale {
   paymentSplits PaymentSplit[]
   refunds       SaleRefund[]
 
+  // NEW: Bill-wise settlement fields
+  balance       Decimal       @default(0.00) @db.Decimal(10, 2)
+  paymentStatus PaymentStatus @default(PAID) // Default to PAID for migration safety, new credit sales will be UNPAID
+  allocations   InvoiceAllocation[]
+
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
@@ -1652,6 +1705,14 @@ model Sale {
   @@index([storeId, status])
   @@index([invoiceNumber])
   @@index([storeId, deletedAt])
+  @@index([paymentStatus])
+}
+
+enum PaymentStatus {
+  PAID
+  PARTIAL
+  UNPAID
+  OVERDUE
 }
 
 model SaleItem {
@@ -1696,6 +1757,21 @@ model PaymentSplit {
   createdAt DateTime @default(now())
 
   @@index([saleId])
+}
+
+model InvoiceAllocation {
+  id         String   @id @default(cuid())
+  saleId     String
+  ledgerId   String
+  amount     Decimal  @db.Decimal(10, 2)
+  
+  sale       Sale           @relation(fields: [saleId], references: [id])
+  ledger     CustomerLedger @relation(fields: [ledgerId], references: [id], onDelete: Cascade)
+  
+  createdAt  DateTime @default(now())
+
+  @@index([saleId])
+  @@index([ledgerId])
 }
 
 model SaleDraft {

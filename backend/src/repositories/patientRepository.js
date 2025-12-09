@@ -54,10 +54,87 @@ class PatientRepository {
     }
 
     /**
+     * Find patients with outstanding debt (Debtors)
+     */
+    async findDebtors({ storeId, page = 1, limit = 20, search = '', sortConfig }) {
+        const skip = (page - 1) * limit;
+
+        const where = {
+            storeId,
+            deletedAt: null,
+            currentBalance: { gt: 0 }, // Only those who owe money
+            ...(search && {
+                OR: [
+                    { firstName: { contains: search, mode: 'insensitive' } },
+                    { lastName: { contains: search, mode: 'insensitive' } },
+                    { phoneNumber: { contains: search } },
+                ],
+            }),
+        };
+
+        // Default sort by highest balance first
+        const orderBy = sortConfig ? buildOrderBy(sortConfig) : { currentBalance: 'desc' };
+
+        const [rawDebtors, total, totalOutstandingStats] = await Promise.all([
+            prisma.patient.findMany({
+                where,
+                skip,
+                take: limit,
+                orderBy,
+                select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                    phoneNumber: true,
+                    email: true,
+                    currentBalance: true,
+                    creditLimit: true,
+                    updatedAt: true,
+                    sales: {
+                        take: 1,
+                        orderBy: { createdAt: 'desc' },
+                        select: { createdAt: true }
+                    }
+                },
+            }),
+            prisma.patient.count({ where }),
+            // Calculate total outstanding for the entire store (not just this page)
+            prisma.patient.aggregate({
+                where: {
+                    storeId,
+                    deletedAt: null,
+                    currentBalance: { gt: 0 }
+                },
+                _sum: {
+                    currentBalance: true
+                },
+                _count: {
+                    id: true
+                }
+            })
+        ]);
+
+        // Convert Decimal fields to numbers for JSON serialization
+        const debtors = rawDebtors.map(debtor => ({
+            ...debtor,
+            currentBalance: Number(debtor.currentBalance),
+            creditLimit: Number(debtor.creditLimit)
+        }));
+
+        return {
+            debtors,
+            total,
+            totalOutstanding: Number(totalOutstandingStats._sum.currentBalance || 0),
+            totalDebtors: totalOutstandingStats._count.id || 0
+        };
+    }
+
+
+    /**
      * Find patient by ID
      */
     async findById(id) {
-        return await prisma.patient.findUnique({
+        const patient = await prisma.patient.findUnique({
             where: { id, deletedAt: null },
             include: {
                 consents: true,
@@ -72,6 +149,15 @@ class PatientRepository {
                 },
             },
         });
+
+        if (!patient) return null;
+
+        // Convert Decimal fields to numbers for JSON serialization
+        return {
+            ...patient,
+            currentBalance: Number(patient.currentBalance),
+            creditLimit: Number(patient.creditLimit)
+        };
     }
 
     /**
@@ -85,6 +171,42 @@ class PatientRepository {
                 deletedAt: null,
             },
         });
+    }
+
+    /**
+     * Recalculate and update patient balance based on unpaid sales
+     */
+    async recalculatePatientBalance(patientId) {
+        // Optional: Repair legacy data where balance might be 0 but status is UNPAID
+        // This is a safety measure for migrated data.
+        // We can check if any UNPAID sales have 0 balance and fix them? 
+        // Or simply trust the aggregate. 
+        // Let's assume the user wants the aggregate of current "valid" sales.
+
+        const result = await prisma.sale.aggregate({
+            where: {
+                patientId,
+                paymentStatus: { in: ['UNPAID', 'PARTIAL', 'OVERDUE'] },
+                deletedAt: null
+            },
+            _sum: {
+                balance: true
+            }
+        });
+
+        const newBalance = Number(result._sum.balance || 0);
+
+        const updatedPatient = await prisma.patient.update({
+            where: { id: patientId },
+            data: { currentBalance: newBalance }
+        });
+
+        // Convert Decimal to number for response
+        return {
+            ...updatedPatient,
+            currentBalance: Number(updatedPatient.currentBalance),
+            creditLimit: Number(updatedPatient.creditLimit)
+        };
     }
 
     /**
@@ -600,6 +722,118 @@ class PatientRepository {
         ]);
 
         return { consents, total };
+    }
+
+    /**
+     * Get patient ledger history
+     */
+    async getLedger({ patientId, page = 1, limit = 20 }) {
+        const skip = (page - 1) * limit;
+
+        const [ledger, total] = await Promise.all([
+            prisma.customerLedger.findMany({
+                where: { patientId },
+                skip,
+                take: limit,
+                orderBy: { createdAt: 'desc' },
+                include: {
+                    allocations: {
+                        include: {
+                            sale: {
+                                select: {
+                                    invoiceNumber: true
+                                }
+                            }
+                        }
+                    }
+                }
+            }),
+            prisma.customerLedger.count({ where: { patientId } }),
+        ]);
+
+        return { ledger, total };
+    }
+
+    /**
+     * Process Customer Payment (Debt Settlement)
+     */
+    async customerPayment(storeId, patientId, amount, paymentMethod, notes, allocations = []) {
+        console.log(`Processing payment for ${patientId}: Amount=${amount}, Allocations=${JSON.stringify(allocations)}`);
+
+        return await prisma.$transaction(async (tx) => {
+            const patient = await tx.patient.findUnique({
+                where: { id: patientId }
+            });
+
+            if (!patient) throw new Error("Patient not found");
+
+            // 1. Update Patient Balance (Decrease Debt)
+            const updatedPatient = await tx.patient.update({
+                where: { id: patientId },
+                data: {
+                    currentBalance: {
+                        decrement: amount
+                    }
+                }
+            });
+
+            // 2. Add to Ledger
+            const ledgerEntry = await tx.customerLedger.create({
+                data: {
+                    storeId,
+                    patientId,
+                    type: 'CREDIT', // Decreasing debt
+                    amount: amount,
+                    balanceAfter: updatedPatient.currentBalance,
+                    referenceType: 'PAYMENT',
+                    notes: notes || `Payment via ${paymentMethod}`,
+                    // Link allocations implicitly via the InvoiceAllocation table
+                }
+            });
+
+            // 3. Process Allocations (if any)
+            if (allocations && allocations.length > 0) {
+                for (const allocation of allocations) {
+                    const { saleId, amount: allocatedAmount } = allocation;
+                    const allocValue = parseFloat(allocatedAmount);
+
+                    if (allocValue > 0) {
+                        // Create Allocation Record
+                        await tx.invoiceAllocation.create({
+                            data: {
+                                saleId,
+                                ledgerId: ledgerEntry.id,
+                                amount: allocValue
+                            }
+                        });
+
+                        // Update Sale Balance and Status
+                        const sale = await tx.sale.findUnique({ where: { id: saleId } });
+                        if (sale) {
+                            const currentBalance = parseFloat(sale.balance);
+                            const newBalance = Math.max(0, currentBalance - allocValue);
+                            let newStatus = sale.paymentStatus;
+
+                            if (newBalance <= 0.01) { // Floating point tolerance
+                                newStatus = 'PAID';
+                            } else {
+                                newStatus = 'PARTIAL';
+                            }
+
+                            await tx.sale.update({
+                                where: { id: saleId },
+                                data: {
+                                    balance: newBalance,
+                                    paymentStatus: newStatus
+                                }
+                            });
+                        }
+                    }
+                }
+            }
+
+            return ledgerEntry;
+        });
     }
 }
 

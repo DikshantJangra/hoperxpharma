@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { FiUser, FiCreditCard, FiSmartphone, FiDollarSign, FiUserPlus } from 'react-icons/fi';
+import { FiUser, FiCreditCard, FiSmartphone, FiDollarSign, FiUserPlus, FiClock } from 'react-icons/fi';
 import { BsWallet2 } from 'react-icons/bs';
 
 export default function PaymentPanel({
@@ -11,16 +11,18 @@ export default function PaymentPanel({
   onCustomerChange,
   onFinalize,
   onOpenCustomer,
+  onOpenLedger, // New Prop
   onSplitPayment,
   onClear,
   onApplyDiscount,
   totals // Receive calculated totals from parent
 }: any) {
   const [invoiceType, setInvoiceType] = useState<'RECEIPT' | 'GST_INVOICE' | 'ESTIMATE'>('RECEIPT');
-  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'upi' | 'wallet'>('cash');
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'upi' | 'wallet' | 'credit'>('cash');
   const [showFinalizeModal, setShowFinalizeModal] = useState(false);
   const [overallDiscount, setOverallDiscount] = useState(0);
   const [discountType, setDiscountType] = useState<'amount' | 'percentage'>('amount');
+  const [processing, setProcessing] = useState(false);
 
   // Use passed totals or fallback to safe defaults
   const safeTotals = totals || {
@@ -45,6 +47,13 @@ export default function PaymentPanel({
       onOpenCustomer();
       return;
     }
+
+    // Validation: Credit Sales require Customer
+    if (paymentMethod === 'credit' && !customer) {
+      toast.error('Customer Details Required for Credit/Pay Later!');
+      onOpenCustomer();
+      return;
+    }
     // Warn but allow for regular receipts
     if (!customer && invoiceType !== 'RECEIPT') {
       toast.error('Customer required for this invoice type');
@@ -65,10 +74,17 @@ export default function PaymentPanel({
     setShowFinalizeModal(true);
   };
 
-  const confirmFinalize = () => {
-    setShowFinalizeModal(false);
-    // Pass invoice type along with payment method
-    onFinalize(paymentMethod.toUpperCase(), undefined, invoiceType);
+  const confirmFinalize = async () => {
+    try {
+      setProcessing(true);
+      setShowFinalizeModal(false);
+      // Pass invoice type along with payment method
+      await onFinalize(paymentMethod.toUpperCase(), undefined, invoiceType);
+    } catch {
+      // Error handled in parent
+    } finally {
+      setProcessing(false);
+    }
   };
 
   return (
@@ -85,12 +101,30 @@ export default function PaymentPanel({
             </div>
             {customer ? (
               <div className="flex items-center gap-2" role="button" onClick={onOpenCustomer}>
-                <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold">
+                <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold shrink-0">
                   {customer.firstName[0]}
                 </div>
-                <div className="overflow-hidden">
-                  <div className="font-semibold text-gray-900 truncate">{customer.firstName} {customer.lastName}</div>
-                  <div className="text-xs text-gray-500">{customer.phoneNumber}</div>
+                <div className="overflow-hidden flex-1">
+                  <div className="flex justify-between items-center">
+                    <div className="font-semibold text-gray-900 truncate text-sm">{customer.firstName} {customer.lastName}</div>
+                    {Number(customer.currentBalance) > 0 && (
+                      <div className="text-[10px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded">
+                        Due: ₹{Number(customer.currentBalance).toFixed(0)}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex items-center justify-between gap-2 mt-0.5">
+                    <div className="text-[11px] text-gray-500">{customer.phoneNumber}</div>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onOpenLedger(); }}
+                      className={`text-[10px] px-2 py-0.5 rounded border font-medium transition-colors ${Number(customer.currentBalance) > 0
+                        ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100'
+                        : 'bg-indigo-50 text-indigo-600 border-indigo-100 hover:bg-indigo-100'
+                        }`}
+                    >
+                      {Number(customer.currentBalance) > 0 ? 'Pay Dues' : 'History'}
+                    </button>
+                  </div>
                 </div>
               </div>
             ) : (
@@ -235,14 +269,44 @@ export default function PaymentPanel({
 
       {/* Bottom Actions */}
       <div className="border-t border-gray-200 p-4 bg-white space-y-3 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-        <button
-          onClick={handleFinalize}
-          disabled={basketItems.length === 0}
-          className="w-full py-4 bg-teal-600 text-white rounded-xl font-bold text-lg hover:bg-teal-700 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-teal-600/20 flex items-center justify-center gap-2"
-        >
-          <span>Collect</span>
-          <span>₹{safeTotals.total}</span>
-        </button>
+        <div className="grid grid-cols-[1fr,1fr] gap-3">
+          <button
+            onClick={async () => {
+              if (!customer) {
+                toast.error('Customer Required for Pay Later!', { description: 'Please select a customer to add credit.' });
+                onOpenCustomer();
+                return;
+              }
+              setProcessing(true);
+              try {
+                await onFinalize('CREDIT', undefined, invoiceType);
+              } finally {
+                setProcessing(false);
+              }
+            }}
+            disabled={basketItems.length === 0 || processing}
+            className="w-full py-4 bg-indigo-100 text-indigo-700 border border-indigo-200 rounded-xl font-bold text-lg hover:bg-indigo-200 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {processing && paymentMethod === 'credit' ? (
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-700"></div>
+            ) : (
+              <FiClock className="w-5 h-5" />
+            )}
+            <span>{processing && paymentMethod === 'credit' ? 'Processing...' : 'Pay Later'}</span>
+          </button>
+
+          <button
+            onClick={handleFinalize}
+            disabled={basketItems.length === 0 || processing}
+            className="w-full py-4 bg-teal-600 text-white rounded-xl font-bold text-lg hover:bg-teal-700 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-teal-600/20 flex items-center justify-center gap-2"
+          >
+            {processing && paymentMethod !== 'credit' ? (
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+            ) : null}
+            <span>{processing && paymentMethod !== 'credit' ? 'Processing...' : 'Collect'}</span>
+            {!processing && <span>₹{safeTotals.total}</span>}
+          </button>
+        </div>
         <div className="grid grid-cols-2 gap-3">
           <button
             onClick={onSplitPayment}

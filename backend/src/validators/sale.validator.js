@@ -17,7 +17,7 @@ const saleItemSchema = z.object({
  * Payment split schema
  */
 const paymentSplitSchema = z.object({
-    paymentMethod: z.enum(['CASH', 'CARD', 'UPI', 'WALLET']),
+    paymentMethod: z.enum(['CASH', 'CARD', 'UPI', 'WALLET', 'CREDIT']),
     amount: z.number().positive(),
     cardLast4: z.string().optional(),
     cardBrand: z.string().optional(),

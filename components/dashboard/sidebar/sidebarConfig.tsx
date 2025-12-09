@@ -182,6 +182,7 @@ export const sidebarConfig: SidebarSection[] = [
                 label: "Finance",
                 requiredPermission: "report.financial",
                 subItems: [
+                    { label: "Credit / Dues", path: "/finance/credit", requiredPermission: "report.financial" },
                     { label: "Sales", path: "/finance/sales" },
                     { label: "Expenses", path: "/finance/expenses" },
                     { label: "Reconcile", path: "/finance/reconcile" }

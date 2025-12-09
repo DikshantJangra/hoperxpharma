@@ -370,6 +370,81 @@ class PatientService {
 
         return await patientRepository.getAllConsents(storeId, parsedFilters);
     }
+
+    /**
+     * Get Customer Ledger History
+     */
+    async getLedger(patientId, storeId, filters) {
+        // Verify ownership
+        await this.getPatientById(patientId, storeId);
+
+        const parsedFilters = {
+            ...filters,
+            page: filters.page ? parseInt(filters.page) : 1,
+            limit: filters.limit ? parseInt(filters.limit) : 20,
+        };
+
+        return await patientRepository.getLedger(patientId, parsedFilters);
+    }
+
+    /**
+     * Process Customer Payment (Debt Settlement)
+     */
+    async processCustomerPayment(patientId, paymentData, storeId) {
+        // Verify ownership
+        await this.getPatientById(patientId, storeId);
+
+        const { amount, paymentMethod, notes, allocations } = paymentData;
+
+        if (!amount || amount <= 0) {
+            throw ApiError.badRequest('Invalid payment amount');
+        }
+
+        const ledgerEntry = await patientRepository.customerPayment(
+            storeId,
+            patientId,
+            amount,
+            paymentMethod || 'CASH',
+            notes,
+            allocations
+        );
+
+        logger.info(`Customer Payment processed: ${amount} for Patient ${patientId}`);
+        return ledgerEntry;
+    }
+
+    /**
+     * Get Debtors (Patients with outstanding balance)
+     */
+    async getDebtors(storeId, { page, limit, search, sort }) {
+        const pageNum = parseInt(page) || 1;
+        const limitNum = parseInt(limit) || 20;
+
+        return await patientRepository.findDebtors({
+            storeId,
+            page: pageNum,
+            limit: limitNum,
+            search,
+            sortConfig: sort
+        });
+    }
+
+    /**
+     * Get Unpaid Invoices for Patient
+     */
+    async getUnpaidInvoices(patientId, storeId) {
+        // Verify ownership
+        await this.getPatientById(patientId, storeId);
+
+        const saleRepository = require('../../repositories/saleRepository');
+        return await saleRepository.getUnpaidInvoices(patientId);
+    }
+
+    async syncPatientBalance(patientId, storeId) {
+        await this.getPatientById(patientId, storeId); // Verify ownership
+        return await patientRepository.recalculatePatientBalance(patientId);
+    }
 }
 
 module.exports = new PatientService();
+

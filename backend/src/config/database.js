@@ -14,6 +14,11 @@ class Database {
                     { level: 'error', emit: 'event' },
                     { level: 'warn', emit: 'event' },
                 ],
+                datasources: {
+                    db: {
+                        url: process.env.DATABASE_URL + (process.env.DATABASE_URL.includes('?') ? '&connection_limit=10' : '?connection_limit=10'),
+                    },
+                },
             });
 
             // Log queries in development
