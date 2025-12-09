@@ -57,7 +57,8 @@ class GRNController {
      */
     async getGRNs(req, res, next) {
         try {
-            const { storeId, status, limit, offset } = req.query;
+            const { status, limit, offset } = req.query;
+            const storeId = req.storeId; // Use validated store access provided by middleware
 
             const grns = await grnService.getGRNs({
                 storeId,

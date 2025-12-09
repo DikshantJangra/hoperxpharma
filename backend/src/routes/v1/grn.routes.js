@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const grnController = require('../../controllers/grn/grnController');
 const { authenticate } = require('../../middlewares/auth');
+const { requireStoreAccess } = require('../../middlewares/rbac');
 const validate = require('../../middlewares/validate');
 const {
     createGRNSchema,
@@ -19,7 +20,8 @@ const {
 router.post('/', authenticate, validate(createGRNSchema), grnController.createGRN);
 
 // Get GRNs with filters
-router.get('/', authenticate, grnController.getGRNs);
+// FIX: Added requireStoreAccess to scope results to the user's store
+router.get('/', authenticate, requireStoreAccess, grnController.getGRNs);
 
 // Get GRNs by PO
 router.get('/po/:poId', authenticate, grnController.getGRNsByPO);
