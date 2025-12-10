@@ -105,7 +105,7 @@ class PurchaseOrderService {
             items
         );
 
-        logger.info(`Purchase order created: ${poNumber} - Total: ${poInfo.total}`);
+        // logger.info(`Purchase order created: ${poNumber} - Total: ${poInfo.total}`);
 
         return {
             ...result.po,
@@ -180,7 +180,7 @@ class PurchaseOrderService {
         }
 
         const updatedPO = await purchaseOrderRepository.updatePOStatus(id, 'SENT');
-        logger.info(`Purchase order sent: ${po.poNumber}`);
+        // logger.info(`Purchase order sent: ${po.poNumber}`);
 
         return updatedPO;
     }

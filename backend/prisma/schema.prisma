@@ -174,8 +174,7 @@ model User {
   pinAttempts    Int       @default(0) // Failed PIN attempt counter
   pinLockedUntil DateTime? // PIN lockout timestamp
   lastLoginAt    DateTime? // Last login timestamp for activity tracking
-  signatureUrl   String?   // Digital signature for verifying prescriptions/invoices
-
+  signatureUrl   String? // Digital signature for verifying prescriptions/invoices
 
   // HR fields
   faceDataUrl           String? // S3 URL for reference face photos (JSON array)
@@ -198,7 +197,7 @@ model User {
   grns                  GoodsReceivedNote[]
   savedFilters          SavedFilter[]
   avatars               UserAvatar[]
-  preferences           Json?     // User-specific UI preferences (e.g., keyboard shortcuts)
+  preferences           Json? // User-specific UI preferences (e.g., keyboard shortcuts)
   assignedPrescriptions Prescription[]       @relation("AssignedPrescriptions")
 
   // HR Relations
@@ -381,10 +380,9 @@ model Store {
 
   // Professional Invoice Data
   signatureUrl       String? // Authorized Signatory Image
-  bankDetails        Json?   // { bankName, accNo, ifsc, branch, upiId }
+  bankDetails        Json? // { bankName, accNo, ifsc, branch, upiId }
   termsAndConditions String? // Default Invoice Terms
   jurisdiction       String? // Legal Jurisdiction (e.g., "Subject to Mumbai Jurisdiction")
-
 
   // Operations
   is24x7       Boolean @default(false)
@@ -740,22 +738,22 @@ enum LedgerReferenceType {
 }
 
 model CustomerLedger {
-  id          String   @id @default(cuid())
-  storeId     String
-  patientId   String
-  type        LedgerType
-  amount      Decimal  @db.Decimal(10, 2)
-  balanceAfter Decimal @db.Decimal(10, 2)
+  id           String     @id @default(cuid())
+  storeId      String
+  patientId    String
+  type         LedgerType
+  amount       Decimal    @db.Decimal(10, 2)
+  balanceAfter Decimal    @db.Decimal(10, 2)
 
   referenceType LedgerReferenceType
   referenceId   String? // Sale ID, Return ID, or Payment ID
   notes         String?
 
-  createdBy   String? // User ID
-  createdAt   DateTime @default(now())
+  createdBy String? // User ID
+  createdAt DateTime @default(now())
 
-  patient     Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  store       Store   @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  patient     Patient             @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  store       Store               @relation(fields: [storeId], references: [id], onDelete: Cascade)
   allocations InvoiceAllocation[]
 
   @@index([patientId])
@@ -837,9 +835,10 @@ model InventoryBatch {
   dispenseItems DispenseItem[]
   saleItems     SaleItem[]
 
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  deletedAt        DateTime?
+  PrescriptionItem PrescriptionItem[]
 
   @@unique([storeId, batchNumber, drugId])
   @@index([storeId, drugId])
@@ -1002,15 +1001,18 @@ model PrescriptionItem {
   id                 String  @id @default(cuid())
   prescriptionId     String
   drugId             String
+  batchId            String? // Optional: specific batch if prescribed
   quantityPrescribed Int
   sig                String? // Dosage instructions
   daysSupply         Int?
   isControlled       Boolean @default(false)
 
-  prescription Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
-  drug         Drug         @relation(fields: [drugId], references: [id])
+  prescription Prescription    @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  drug         Drug            @relation(fields: [drugId], references: [id])
+  batch        InventoryBatch? @relation(fields: [batchId], references: [id])
 
   @@index([prescriptionId])
+  @@index([batchId])
 }
 
 model Prescriber {
@@ -1197,11 +1199,11 @@ model Supplier {
   paymentTerms String? // Net 30, Net 60
   creditLimit  Decimal? @db.Decimal(12, 2)
 
-  store               Store                 @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  licenses            SupplierLicense[]
-  purchaseOrders      PurchaseOrder[]
-  returns             SupplierReturn[]
-  goodsReceivedNotes  GoodsReceivedNote[]
+  store              Store               @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  licenses           SupplierLicense[]
+  purchaseOrders     PurchaseOrder[]
+  returns            SupplierReturn[]
+  goodsReceivedNotes GoodsReceivedNote[]
 
   createdAt           DateTime              @default(now())
   updatedAt           DateTime              @updatedAt
@@ -1388,11 +1390,11 @@ model GoodsReceivedNote {
 
   notes String? @db.Text
 
-  supplier          Supplier         @relation(fields: [supplierId], references: [id])
-  po                PurchaseOrder    @relation(fields: [poId], references: [id], onDelete: Cascade)
-  items             GRNItem[]
-  discrepancies     GRNDiscrepancy[]
-  attachments       GRNAttachment[]
+  supplier      Supplier         @relation(fields: [supplierId], references: [id])
+  po            PurchaseOrder    @relation(fields: [poId], references: [id], onDelete: Cascade)
+  items         GRNItem[]
+  discrepancies GRNDiscrepancy[]
+  attachments   GRNAttachment[]
 
   completedAt            DateTime?
   createdAt              DateTime                 @default(now())
@@ -1454,13 +1456,13 @@ model GRNItem {
   location String?
 
   // Batch split tracking
-  parentItemId String?  // Points to parent if this is a split
-  isSplit      Boolean @default(false)  // True if this item has been split into children
+  parentItemId String? // Points to parent if this is a split
+  isSplit      Boolean @default(false) // True if this item has been split into children
 
   // Relations
-  grn    GoodsReceivedNote @relation(fields: [grnId], references: [id], onDelete: Cascade)
-  drug   Drug              @relation(fields: [drugId], references: [id])
-  parent GRNItem?          @relation("GRNItemSplit", fields: [parentItemId], references: [id])
+  grn      GoodsReceivedNote @relation(fields: [grnId], references: [id], onDelete: Cascade)
+  drug     Drug              @relation(fields: [drugId], references: [id])
+  parent   GRNItem?          @relation("GRNItemSplit", fields: [parentItemId], references: [id])
   children GRNItem[]         @relation("GRNItemSplit")
 
   @@index([grnId])
@@ -1678,23 +1680,22 @@ model Sale {
   creditReason   String?
 
   soldBy String
-  
+
   attachments Json? // Array of { name, url, type }
 
-
-  store         Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  prescription  Prescription?  @relation(fields: [prescriptionId], references: [id])
-  prescriptionId String?       @unique
-  patient       Patient?       @relation(fields: [patientId], references: [id])
-  originalSale  Sale?          @relation("CreditNotes", fields: [originalSaleId], references: [id])
-  creditNotes   Sale[]         @relation("CreditNotes")
-  items         SaleItem[]
-  paymentSplits PaymentSplit[]
-  refunds       SaleRefund[]
+  store          Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  prescription   Prescription?  @relation(fields: [prescriptionId], references: [id])
+  prescriptionId String?        @unique
+  patient        Patient?       @relation(fields: [patientId], references: [id])
+  originalSale   Sale?          @relation("CreditNotes", fields: [originalSaleId], references: [id])
+  creditNotes    Sale[]         @relation("CreditNotes")
+  items          SaleItem[]
+  paymentSplits  PaymentSplit[]
+  refunds        SaleRefund[]
 
   // NEW: Bill-wise settlement fields
-  balance       Decimal       @default(0.00) @db.Decimal(10, 2)
-  paymentStatus PaymentStatus @default(PAID) // Default to PAID for migration safety, new credit sales will be UNPAID
+  balance       Decimal             @default(0.00) @db.Decimal(10, 2)
+  paymentStatus PaymentStatus       @default(PAID) // Default to PAID for migration safety, new credit sales will be UNPAID
   allocations   InvoiceAllocation[]
 
   createdAt DateTime  @default(now())
@@ -1761,15 +1762,15 @@ model PaymentSplit {
 }
 
 model InvoiceAllocation {
-  id         String   @id @default(cuid())
-  saleId     String
-  ledgerId   String
-  amount     Decimal  @db.Decimal(10, 2)
-  
-  sale       Sale           @relation(fields: [saleId], references: [id])
-  ledger     CustomerLedger @relation(fields: [ledgerId], references: [id], onDelete: Cascade)
-  
-  createdAt  DateTime @default(now())
+  id       String  @id @default(cuid())
+  saleId   String
+  ledgerId String
+  amount   Decimal @db.Decimal(10, 2)
+
+  sale   Sale           @relation(fields: [saleId], references: [id])
+  ledger CustomerLedger @relation(fields: [ledgerId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
 
   @@index([saleId])
   @@index([ledgerId])

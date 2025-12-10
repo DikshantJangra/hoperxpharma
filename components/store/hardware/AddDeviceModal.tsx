@@ -2,13 +2,21 @@
 
 import { useState } from 'react';
 import { FiX } from 'react-icons/fi';
+import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation';
 
 export default function AddDeviceModal({ onClose }: any) {
   const [form, setForm] = useState({ name: '', type: 'printer', model: '', serial: '', connection: 'usb', ip: '', mac: '', location: '' });
 
+  // Enable enhanced keyboard navigation
+  const { handleKeyDown } = useKeyboardNavigation();
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-6">
-      <div className="bg-white rounded-xl w-full max-w-3xl">
+      <div
+        className="bg-white rounded-xl w-full max-w-3xl"
+        onKeyDown={handleKeyDown}
+        data-focus-trap="true"
+      >
         <div className="p-6 border-b border-[#e2e8f0] flex items-center justify-between">
           <h2 className="text-xl font-semibold text-[#0f172a]">Add Device</h2>
           <button onClick={onClose} className="p-1 hover:bg-[#f1f5f9] rounded">

@@ -39,9 +39,9 @@ class GRNService {
                 const grnNumber = await grnRepository.generateGRNNumber(po.storeId);
 
                 // Prepare GRN items from PO items
-                // Use a sentinel date for default expiry (1970-01-01) to indicate "not set" while satisfying DB constraints
-                const defaultExpiry = new Date('1970-01-01T00:00:00.000Z');
-
+                // Use a reasonable default expiry (2 years from now) instead of sentinel date
+                const defaultExpiry = new Date();
+                defaultExpiry.setFullYear(defaultExpiry.getFullYear() + 2);
 
                 const grnItems = po.items.map(poItem => ({
                     poItemId: poItem.id,
@@ -146,7 +146,7 @@ class GRNService {
             await this.autoDetectDiscrepancy(grnId, itemId, item.orderedQty, details.receivedQty);
         }
 
-        logger.info(`GRN item updated: ${itemId} in GRN ${grn.grnNumber}`);
+        // logger.info(`GRN item updated: ${itemId} in GRN ${grn.grnNumber}`);
 
         return updatedItem;
     }
@@ -231,6 +231,70 @@ class GRNService {
         logger.info(`Batch split for item ${itemId} in GRN ${grn.grnNumber} - created ${newItems.length} child items`);
 
         return newItems;
+    }
+
+    /**
+     * Delete GRN item (child batch)
+     */
+    async deleteGRNItem({ grnId, itemId, userId }) {
+        const grn = await grnRepository.getGRNById(grnId);
+
+        if (!grn) {
+            throw ApiError.notFound('GRN not found');
+        }
+
+        if (grn.status === 'COMPLETED' || grn.status === 'CANCELLED') {
+            throw ApiError.badRequest('Cannot delete items from completed or cancelled GRN');
+        }
+
+        // Search in items (including children which might be flattened or nested depending on repo fetch)
+        // Repo returns items with children nested, but we need to find the child item to delete
+        let itemToDelete = null;
+        let parentItem = null;
+
+        for (const item of grn.items) {
+            if (item.id === itemId) {
+                itemToDelete = item;
+                break;
+            }
+            if (item.children) {
+                const child = item.children.find(c => c.id === itemId);
+                if (child) {
+                    itemToDelete = child;
+                    parentItem = item;
+                    break;
+                }
+            }
+        }
+
+        if (!itemToDelete) {
+            throw ApiError.notFound('GRN item not found');
+        }
+
+        if (!itemToDelete.parentItemId) {
+            throw ApiError.badRequest('Only split batch items (child items) can be deleted');
+        }
+
+        await grnRepository.deleteGRNItem(itemId);
+
+        // Check if parent has any children left
+        if (parentItem) {
+            // Need to refresh/check parent to see if it still has children
+            const freshParent = await grnRepository.getGRNById(grnId); // Heavy, but safe
+            const freshParentItem = freshParent.items.find(i => i.id === parentItem.id);
+
+            if (freshParentItem && (!freshParentItem.children || freshParentItem.children.length === 0)) {
+                // No children left, unmark split
+                await grnRepository.updateGRNItem(grnId, parentItem.id, {
+                    isSplit: false
+                });
+            }
+        }
+
+        await this.recalculateGRNTotals(grnId);
+
+        logger.info(`GRN item deleted: ${itemId} in GRN ${grn.grnNumber}`);
+        return { success: true };
     }
 
     /**
@@ -335,7 +399,7 @@ class GRNService {
         // Complete GRN (updates inventory, PO status, creates stock movements)
         const completedGRN = await grnRepository.completeGRN(grnId, userId);
 
-        logger.info(`GRN completed: ${grn.grnNumber} - Inventory updated, PO status: ${completedGRN.po.status}`);
+        // logger.info(`GRN completed: ${grn.grnNumber} - Inventory updated, PO status: ${completedGRN.po.status}`);
 
         return completedGRN;
     }

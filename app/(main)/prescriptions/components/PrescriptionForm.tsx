@@ -4,6 +4,7 @@ import { drugApi } from '@/lib/api/drugs';
 import PatientSearchSelect from '@/components/prescriptions/PatientSearchSelect';
 import PrescriberSelect from './PrescriberSelect';
 import toast from 'react-hot-toast';
+import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation';
 
 // Interfaces
 interface InventoryBatch {
@@ -56,6 +57,9 @@ const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ initialData, onSubm
 
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Enable enhanced keyboard navigation
+    const { handleKeyDown } = useKeyboardNavigation();
 
     // Effect: Handle OCR Data Auto-fill
     useEffect(() => {
@@ -219,7 +223,10 @@ const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ initialData, onSubm
     ];
 
     return (
-        <div className="space-y-6 pb-20">
+        <div
+            className="space-y-6 pb-20"
+            onKeyDown={handleKeyDown}
+        >
             {/* 1. Patient & Prescriber */}
             <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-4">
                 <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
@@ -251,8 +258,8 @@ const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ initialData, onSubm
                                     key={p}
                                     onClick={() => setPriority(p as any)}
                                     className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-all ${priority === p
-                                            ? p === 'Urgent' ? 'bg-red-500 text-white shadow-sm' : 'bg-white text-gray-900 shadow-sm'
-                                            : 'text-gray-500 hover:text-gray-700'
+                                        ? p === 'Urgent' ? 'bg-red-500 text-white shadow-sm' : 'bg-white text-gray-900 shadow-sm'
+                                        : 'text-gray-500 hover:text-gray-700'
                                         }`}
                                 >
                                     {p}
@@ -341,8 +348,8 @@ const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ initialData, onSubm
                                             key={batch.id}
                                             onClick={() => handleSelectBatch(batch)}
                                             className={`flex-shrink-0 px-3 py-1.5 rounded border text-xs text-left transition-all ${currentItem.batchId === batch.id
-                                                    ? 'bg-white border-blue-500 ring-1 ring-blue-500 text-blue-900 shadow-sm'
-                                                    : 'bg-white/50 border-blue-200 text-blue-700 hover:bg-white'
+                                                ? 'bg-white border-blue-500 ring-1 ring-blue-500 text-blue-900 shadow-sm'
+                                                : 'bg-white/50 border-blue-200 text-blue-700 hover:bg-white'
                                                 }`}
                                         >
                                             <div className="font-bold">{batch.batchNumber}</div>

@@ -70,6 +70,9 @@ class GRNRepository {
             where: { id },
             include: {
                 items: {
+                    where: {
+                        parentItemId: null  // Only get top-level items (exclude children)
+                    },
                     orderBy: {
                         id: 'asc'  // Order by ID (insertion order) - GRNItem doesn't have createdAt
                     },
@@ -179,6 +182,7 @@ class GRNRepository {
         });
     }
 
+    // logger.info(`GRN completed: ${completedGRN.grnNumber} - Inventory updated, PO status: ${updatedPO.status}`);
     /**
      * Complete GRN - Update inventory, PO status, create stock movements
      */
@@ -188,7 +192,11 @@ class GRNRepository {
             const grn = await tx.goodsReceivedNote.findUnique({
                 where: { id: grnId },
                 include: {
-                    items: true,
+                    items: {
+                        include: {
+                            children: true
+                        }
+                    },
                     po: {
                         include: {
                             items: true
@@ -206,17 +214,50 @@ class GRNRepository {
             }
 
             // 1. Create inventory batches for each GRN item
-            // Skip parent items (isSplit=true) - only create inventory for actual batches
-            for (const item of grn.items) {
-                // Skip parent items that have been split
-                if (item.isSplit) {
-                    continue;
-                }
+            // Flatten items to include children of split batches
+            console.log('🔍 GRN Items before flattening:', grn.items.length);
+            console.log('🔍 Items:', JSON.stringify(grn.items.map(i => ({
+                id: i.id,
+                batchNumber: i.batchNumber,
+                isSplit: i.isSplit,
+                hasChildren: !!i.children,
+                childrenCount: i.children?.length || 0,
+                receivedQty: i.receivedQty,
+                freeQty: i.freeQty
+            })), null, 2));
 
+            const allItems = grn.items.flatMap(item => {
+                // Skip parent items that are split - only return their children
+                if (item.isSplit) {
+                    console.log(`🔍 Item ${item.batchNumber} is SPLIT, returning ${item.children?.length || 0} children`);
+                    return item.children || [];
+                }
+                // Return non-split items
+                console.log(`🔍 Item ${item.batchNumber} is NOT split, returning itself`);
+                return [item];
+            });
+
+            console.log('🔍 Flattened items count:', allItems.length);
+            console.log('🔍 Flattened items:', JSON.stringify(allItems.map(i => ({
+                id: i.id,
+                batchNumber: i.batchNumber,
+                receivedQty: i.receivedQty,
+                freeQty: i.freeQty
+            })), null, 2));
+
+            // Validate: No TBD batches allowed
+            const tbdItems = allItems.filter(item => item.batchNumber === 'TBD');
+            if (tbdItems.length > 0) {
+                throw new Error(`Cannot complete GRN: ${tbdItems.length} item(s) still have batch number "TBD". Please update all batch numbers before completing.`);
+            }
+
+            for (const item of allItems) {
                 const totalQty = item.receivedQty + item.freeQty;
+                console.log(`🔍 Processing item ${item.batchNumber}, totalQty: ${totalQty}`);
 
                 if (totalQty > 0) {
-                    await tx.inventoryBatch.upsert({
+                    console.log(`🔍 Creating/updating inventory for batch ${item.batchNumber}`);
+                    const batch = await tx.inventoryBatch.upsert({
                         where: {
                             storeId_batchNumber_drugId: {
                                 storeId: grn.storeId,
@@ -247,8 +288,10 @@ class GRNRepository {
                         }
                     });
 
+                    console.log(`✅ Inventory batch ${item.batchNumber} created/updated, qty: ${totalQty}`);
+
                     // Create stock movement
-                    const batch = await tx.inventoryBatch.findFirst({
+                    const createdBatch = await tx.inventoryBatch.findFirst({
                         where: {
                             storeId: grn.storeId,
                             drugId: item.drugId,
@@ -256,10 +299,10 @@ class GRNRepository {
                         }
                     });
 
-                    if (batch) {
+                    if (createdBatch) {
                         await tx.stockMovement.create({
                             data: {
-                                batchId: batch.id,
+                                batchId: createdBatch.id,
                                 movementType: 'IN',
                                 quantity: totalQty,
                                 reason: `GRN ${grn.grnNumber}`,
@@ -326,6 +369,9 @@ class GRNRepository {
             });
 
             return completedGRN;
+        }, {
+            maxWait: 10000, // Wait up to 10s to start transaction
+            timeout: 15000  // Transaction can run for up to 15s
         });
     }
 

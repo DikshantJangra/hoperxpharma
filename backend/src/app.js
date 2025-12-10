@@ -60,8 +60,8 @@ app.use(cookieParser());
 
 // Debug Middleware: Log all request bodies
 app.use((req, res, next) => {
-  if (req.method !== 'GET') {
-    console.log(`[DEBUG] ${req.method} ${req.path} Body:`, JSON.stringify(req.body, null, 2));
+  if (process.env.NODE_ENV === 'development') {
+    // console.log(`[DEBUG] ${req.method} ${req.path} Body:`, JSON.stringify(req.body, null, 2));
   }
   next();
 });

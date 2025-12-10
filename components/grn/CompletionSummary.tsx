@@ -12,6 +12,32 @@ interface CompletionSummaryProps {
 }
 
 export default function CompletionSummary({ grn, po, onConfirm, onCancel, saving }: CompletionSummaryProps) {
+    // Flatten items to only include actual batches (exclude split parents)
+    const actualBatches = React.useMemo(() => {
+        console.log('🔍 CompletionSummary - GRN items:', grn.items.length);
+        console.log('🔍 CompletionSummary - Items structure:', JSON.stringify(grn.items.map((i: any) => ({
+            id: i.id,
+            batchNumber: i.batchNumber,
+            isSplit: i.isSplit,
+            hasChildren: !!i.children,
+            childrenCount: i.children?.length || 0
+        })), null, 2));
+
+        const flattened = grn.items.flatMap((item: any) => {
+            // Skip parent items that are split - only return their children
+            if (item.isSplit) {
+                console.log(`🔍 Item ${item.batchNumber} is split, returning children only (${item.children?.length || 0})`);
+                return item.children || [];
+            }
+            // Return non-split items
+            console.log(`🔍 Item ${item.batchNumber} is NOT split, returning itself`);
+            return [item];
+        });
+
+        console.log('🔍 CompletionSummary - Flattened batches:', flattened.length);
+        return flattened;
+    }, [grn.items]);
+
     // Calculate new PO status
     const calculatePOStatus = () => {
         let allReceived = true;
@@ -29,7 +55,7 @@ export default function CompletionSummary({ grn, po, onConfirm, onCancel, saving
     };
 
     const newPOStatus = calculatePOStatus();
-    const totalItems = grn.items.reduce((sum: number, item: any) => sum + item.receivedQty + item.freeQty, 0);
+    const totalItems = actualBatches.reduce((sum: number, item: any) => sum + item.receivedQty + item.freeQty, 0);
     const discrepancyCount = grn.discrepancies?.length || 0;
 
     const formatCurrency = (amount: any) => {
@@ -83,7 +109,7 @@ export default function CompletionSummary({ grn, po, onConfirm, onCancel, saving
                                 <HiOutlineCheck className="h-5 w-5 text-emerald-600 mt-0.5" />
                                 <div>
                                     <p className="text-sm font-medium text-emerald-900">
-                                        {grn.items.length} batches will be added to inventory
+                                        {actualBatches.length} batches will be added to inventory
                                     </p>
                                     <p className="text-sm text-emerald-700 mt-1">
                                         Total items: {totalItems} units
@@ -93,7 +119,7 @@ export default function CompletionSummary({ grn, po, onConfirm, onCancel, saving
                         </div>
 
                         <div className="mt-3 space-y-2">
-                            {grn.items.map((item: any) => (
+                            {actualBatches.map((item: any) => (
                                 <div key={item.id} className="flex items-center justify-between text-sm bg-gray-50 p-3 rounded">
                                     <div>
                                         <span className="font-medium">Batch {item.batchNumber}</span>

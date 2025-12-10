@@ -169,9 +169,16 @@ export default function InvoiceDrawer({ invoice, onClose, isLoading }: any) {
                 <div key={idx} className="bg-white border border-[#e2e8f0] rounded-lg p-3">
                   <div className="flex justify-between mb-1">
                     <div className="flex-1">
-                      <p className="text-sm font-medium text-[#0f172a]">
-                        {item.name} • {item.strength} • {item.pack}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium text-[#0f172a]">
+                          {item.name} • {item.strength} • {item.pack}
+                        </p>
+                        {item.isRx && (
+                          <span className="px-1.5 py-0.5 bg-purple-100 text-purple-700 text-[10px] font-bold rounded border border-purple-200 uppercase tracking-wide">
+                            RX
+                          </span>
+                        )}
+                      </div>
                       <p className="text-xs text-[#64748b] mt-1">
                         Batch: {item.batch} • Expiry: {item.expiry} • GST: {item.gst}%
                       </p>

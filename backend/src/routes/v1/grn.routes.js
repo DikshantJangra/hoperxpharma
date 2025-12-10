@@ -38,6 +38,9 @@ router.patch('/:id/items/:itemId', authenticate, validate(updateGRNItemSchema), 
 // Split batch
 router.post('/:id/items/:itemId/split', authenticate, validate(splitBatchSchema), grnController.splitBatch);
 
+// Delete GRN item (child batch)
+router.delete('/:id/items/:itemId', authenticate, grnController.deleteGRNItem);
+
 // Record discrepancy
 router.post('/:id/discrepancies', authenticate, validate(recordDiscrepancySchema), grnController.recordDiscrepancy);
 

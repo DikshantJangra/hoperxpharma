@@ -91,7 +91,10 @@ class SaleRepository {
         return await prisma.$transaction(async (tx) => {
             // If prescription ID is linked, fetch it to get attachments
             let attachments = [];
+            console.log('🔍 DEBUG Repository: saleData.prescriptionId =', saleData.prescriptionId);
+
             if (saleData.prescriptionId) {
+                console.log('🔍 DEBUG Repository: Fetching prescription:', saleData.prescriptionId);
                 const rx = await tx.prescription.findUnique({
                     where: { id: saleData.prescriptionId },
                     include: { files: true }
@@ -106,7 +109,8 @@ class SaleRepository {
                 }
 
                 // Update Prescription Status
-                await tx.prescription.update({
+                console.log('🔍 DEBUG Repository: Updating prescription status to COMPLETED');
+                const updatedRx = await tx.prescription.update({
                     where: { id: saleData.prescriptionId },
                     data: {
                         status: 'COMPLETED',
@@ -114,6 +118,9 @@ class SaleRepository {
                         updatedAt: new Date()
                     }
                 });
+                console.log('✅ DEBUG Repository: Prescription updated successfully:', updatedRx.id, 'Status:', updatedRx.status);
+            } else {
+                console.log('⚠️ DEBUG Repository: No prescriptionId in saleData');
             }
 
             // Create sale

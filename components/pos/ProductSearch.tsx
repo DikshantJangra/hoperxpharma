@@ -17,6 +17,7 @@ interface Product {
   batchId?: string;
   batchNumber?: string;
   expiryDate?: string;
+  requiresPrescription?: boolean;
 }
 
 const ProductSkeleton = () => (
@@ -113,7 +114,8 @@ export default function ProductSearch({ onAddProduct, searchFocus, setSearchFocu
       batches: product.batchCount,
       // Explicitly pass batch info if available on the search result (flattened view)
       batchId: product.batchId,
-      batchNumber: product.batchNumber
+      batchNumber: product.batchNumber,
+      type: product.requiresPrescription ? 'RX' : 'OTC'
     });
     setQuery('');
     setResults([]);

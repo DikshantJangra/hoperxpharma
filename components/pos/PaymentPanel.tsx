@@ -128,12 +128,18 @@ export default function PaymentPanel({
                 </div>
               </div>
             ) : (
-              <button onClick={onOpenCustomer} className="w-full flex items-center justify-center gap-2 text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 transition-all py-3 rounded-lg border border-dashed border-gray-300 hover:border-indigo-300 group">
-                <div className="w-6 h-6 rounded-full bg-gray-100 group-hover:bg-white flex items-center justify-center transition-colors">
-                  <FiUserPlus className="w-3.5 h-3.5" />
+              <div className="flex gap-2 h-full">
+                <div className="flex-1 flex flex-col items-center justify-center bg-teal-50 border border-teal-100 rounded-lg p-2 text-center group transition-colors hover:bg-teal-100 cursor-default" title="Current Mode: Walk-in / OTC">
+                  <span className="text-[10px] font-bold text-teal-600 uppercase tracking-widest mb-1">Current Mode</span>
+                  <div className="text-sm font-bold text-teal-800">Walk-in / OTC</div>
                 </div>
-                <span className="text-sm font-semibold">Select Customer</span>
-              </button>
+                <button onClick={onOpenCustomer} className="flex-1 flex flex-col items-center justify-center gap-1 text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 transition-all p-2 rounded-lg border border-dashed border-gray-300 hover:border-indigo-300 group">
+                  <div className="w-6 h-6 rounded-full bg-gray-100 group-hover:bg-white flex items-center justify-center transition-colors">
+                    <FiUserPlus className="w-3.5 h-3.5" />
+                  </div>
+                  <span className="text-xs font-semibold">Add Customer</span>
+                </button>
+              </div>
             )}
           </div>
 
@@ -157,10 +163,10 @@ export default function PaymentPanel({
               {invoiceType === 'ESTIMATE' && <span className="text-blue-600">ℹ Quotation only. Does NOT deduct stock.</span>}
             </div>
           </div>
-        </div>
+        </div >
 
         {/* Financial Summary Card */}
-        <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+        < div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden" >
           <div className="p-4 space-y-3">
 
             {/* 1. Total MRP */}
@@ -239,10 +245,10 @@ export default function PaymentPanel({
           <div className="bg-gray-50 px-4 py-2 text-xs text-center text-gray-500 border-t border-gray-100">
             {safeTotals.roundOff !== 0 && `Rounded off by ₹${safeTotals.roundOff.toFixed(2)}`}
           </div>
-        </div>
+        </div >
 
         {/* Payment Methods */}
-        <div>
+        < div >
           <span className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-2">Payment Mode</span>
           <div className="grid grid-cols-2 gap-2">
             {[
@@ -264,11 +270,11 @@ export default function PaymentPanel({
               </button>
             ))}
           </div>
-        </div>
-      </div>
+        </div >
+      </div >
 
       {/* Bottom Actions */}
-      <div className="border-t border-gray-200 p-4 bg-white space-y-3 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+      < div className="border-t border-gray-200 p-4 bg-white space-y-3 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]" >
         <div className="grid grid-cols-[1fr,1fr] gap-3">
           <button
             onClick={async () => {
@@ -321,50 +327,52 @@ export default function PaymentPanel({
             Draft (F2)
           </button>
         </div>
-      </div>
+      </div >
 
       {/* Finalize Modal */}
-      {showFinalizeModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl scale-100 animate-in zoom-in-95 duration-200">
-            <h3 className="text-xl font-bold text-gray-900 mb-6 text-center">Confirm Sale</h3>
+      {
+        showFinalizeModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] animate-in fade-in duration-200">
+            <div className="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl scale-100 animate-in zoom-in-95 duration-200">
+              <h3 className="text-xl font-bold text-gray-900 mb-6 text-center">Confirm Sale</h3>
 
-            <div className="space-y-4 mb-8">
-              <div className="bg-gray-50 rounded-xl p-4">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-gray-500 text-sm">Customer</span>
-                  <span className="font-medium text-gray-900">{customer ? `${customer.firstName} ${customer.lastName}` : 'Guest (Walk-in)'}</span>
+              <div className="space-y-4 mb-8">
+                <div className="bg-gray-50 rounded-xl p-4">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-gray-500 text-sm">Customer</span>
+                    <span className="font-medium text-gray-900">{customer ? `${customer.firstName} ${customer.lastName}` : 'Guest (Walk-in)'}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500 text-sm">Total Items</span>
+                    <span className="font-medium text-gray-900">{basketItems.length}</span>
+                  </div>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-500 text-sm">Total Items</span>
-                  <span className="font-medium text-gray-900">{basketItems.length}</span>
+
+                <div className="text-center">
+                  <div className="text-sm text-gray-500 uppercase tracking-wider font-semibold mb-1">Total Payable</div>
+                  <div className="text-4xl font-black text-teal-600">₹{safeTotals.total}</div>
+                  <div className="text-sm text-gray-400 mt-1 capitalize">via {paymentMethod}</div>
                 </div>
               </div>
 
-              <div className="text-center">
-                <div className="text-sm text-gray-500 uppercase tracking-wider font-semibold mb-1">Total Payable</div>
-                <div className="text-4xl font-black text-teal-600">₹{safeTotals.total}</div>
-                <div className="text-sm text-gray-400 mt-1 capitalize">via {paymentMethod}</div>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => setShowFinalizeModal(false)}
+                  className="py-3 px-4 border border-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmFinalize}
+                  className="py-3 px-4 bg-teal-600 text-white rounded-xl font-semibold hover:bg-teal-700 transition-colors shadow-lg shadow-teal-600/20"
+                >
+                  Complete
+                </button>
               </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={() => setShowFinalizeModal(false)}
-                className="py-3 px-4 border border-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmFinalize}
-                className="py-3 px-4 bg-teal-600 text-white rounded-xl font-semibold hover:bg-teal-700 transition-colors shadow-lg shadow-teal-600/20"
-              >
-                Complete
-              </button>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+    </div >
   );
 }

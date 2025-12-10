@@ -152,6 +152,30 @@ class GRNController {
     }
 
     /**
+     * Delete GRN item (child batch)
+     * DELETE /api/v1/grn/:id/items/:itemId
+     */
+    async deleteGRNItem(req, res, next) {
+        try {
+            const { id, itemId } = req.params;
+            const userId = req.user.id;
+
+            await grnService.deleteGRNItem({
+                grnId: id,
+                itemId,
+                userId
+            });
+
+            res.json({
+                success: true,
+                message: 'GRN item deleted successfully'
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    /**
      * Record discrepancy
      * POST /api/v1/grn/:id/discrepancies
      */

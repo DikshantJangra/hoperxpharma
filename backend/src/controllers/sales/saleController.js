@@ -35,11 +35,15 @@ const getSaleById = asyncHandler(async (req, res) => {
  * Create sale
  */
 const createSale = asyncHandler(async (req, res) => {
-    const sale = await saleService.createSale({
+    console.log('🔍 DEBUG Controller: req.body.prescriptionId =', req.body.prescriptionId);
+    const saleData = {
         ...req.body,
         storeId: req.storeId,
         soldBy: req.user.id,
-    });
+    };
+    console.log('🔍 DEBUG Controller: saleData.prescriptionId =', saleData.prescriptionId);
+
+    const sale = await saleService.createSale(saleData);
 
     const response = ApiResponse.created(sale, 'Sale created successfully');
     res.status(response.statusCode).json(response);

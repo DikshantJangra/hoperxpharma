@@ -8,6 +8,7 @@ import DrugRow from "./DrugRow"
 import BatchModal from "./BatchModal"
 import PatientDrawer from "./PatientDrawer"
 import LabelModal from "./LabelModal"
+import { useKeyboardNavigation } from "@/hooks/useKeyboardNavigation"
 
 export default function NewPrescriptionPage() {
   const [showBatchModal, setShowBatchModal] = useState(false)
@@ -17,6 +18,9 @@ export default function NewPrescriptionPage() {
   const [verified, setVerified] = useState(false)
   const [showShortcuts, setShowShortcuts] = useState(false)
   const [showUndo, setShowUndo] = useState(false)
+
+  // Enable enhanced keyboard navigation
+  const { handleKeyDown } = useKeyboardNavigation()
 
   useEffect(() => {
     const handleKeyboard = (e: KeyboardEvent) => {
@@ -68,7 +72,10 @@ export default function NewPrescriptionPage() {
   }
 
   return (
-    <div className="h-full bg-gray-50">
+    <div
+      className="h-full bg-gray-50"
+      onKeyDown={handleKeyDown}
+    >
       <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
         <div className="px-6 py-4">
           <div className="flex items-center justify-between">

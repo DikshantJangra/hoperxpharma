@@ -19,26 +19,26 @@ const authenticate = async (req, res, next) => {
         const token = authHeader.substring(7); // Remove 'Bearer ' prefix
 
         // Debug logging for Auth flow
-        console.log('[Auth] Token verification started');
+        // console.log('[Auth] Token verification started');
         const decoded = verifyAccessToken(token);
-        console.log('[Auth] Token decoded, userId:', decoded.userId);
+        // console.log('[Auth] Token decoded, userId:', decoded.userId);
 
         // Get user from database with store information
         const user = await userRepository.findById(decoded.userId);
 
-        if (!user) console.log('[Auth] User not found for ID:', decoded.userId);
-        if (user && !user.isActive) console.log('[Auth] User found but inactive:', decoded.userId);
+        if (!user) // console.log('[Auth] User not found for ID:', decoded.userId);
+            if (user && !user.isActive) // console.log('[Auth] User found but inactive:', decoded.userId);
 
-        if (!user || !user.isActive) {
-            throw ApiError.unauthorized('User not found or inactive');
-        }
+                if (!user || !user.isActive) {
+                    throw ApiError.unauthorized('User not found or inactive');
+                }
 
-        console.log('[Auth] User found:', user.email);
-        console.log('[Auth] StoreUsers:', user.storeUsers?.length);
+        // console.log('[Auth] User found:', user.email);
+        // console.log('[Auth] StoreUsers:', user.storeUsers?.length);
 
         // Find primary store
         const primaryStoreUser = user.storeUsers?.find(su => su.isPrimary);
-        console.log('[Auth] Primary Store:', primaryStoreUser?.store?.id);
+        // console.log('[Auth] Primary Store:', primaryStoreUser?.store?.id);
 
         // Attach user to request with complete store information
         req.user = {
@@ -63,11 +63,11 @@ const authenticate = async (req, res, next) => {
         };
 
 
-        console.log('[Auth] Assigned req.user.storeId:', req.user.storeId);
+        // console.log('[Auth] Assigned req.user.storeId:', req.user.storeId);
 
         // Also set storeId directly for convenience (from primary store or first store)
         req.storeId = primaryStoreUser?.store.id || user.storeUsers?.[0]?.store.id;
-        console.log('[Auth] Assigned req.storeId:', req.storeId);
+        // console.log('[Auth] Assigned req.storeId:', req.storeId);
 
         next();
     } catch (error) {

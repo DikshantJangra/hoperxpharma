@@ -186,7 +186,7 @@ class InventoryRepository {
     /**
      * Find inventory batches for a store
      */
-    async findBatches({ storeId, page = 1, limit = 20, drugId, expiringBefore, search }) {
+    async findBatches({ storeId, page = 1, limit = 20, drugId, expiringBefore, search, minQuantity }) {
         const pageNum = parseInt(page);
         const limitNum = parseInt(limit);
         const skip = (pageNum - 1) * limitNum;
@@ -196,6 +196,7 @@ class InventoryRepository {
             deletedAt: null,
             ...(drugId && { drugId }),
             ...(expiringBefore && { expiryDate: { lte: expiringBefore } }),
+            ...(minQuantity && { quantityInStock: { gte: parseInt(minQuantity) } }),
             ...(search && {
                 OR: [
                     { batchNumber: { contains: search, mode: 'insensitive' } },

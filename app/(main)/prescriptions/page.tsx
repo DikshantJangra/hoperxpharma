@@ -66,6 +66,7 @@ export default function PrescriptionsPage() {
     const [ocrText, setOcrText] = useState<string | null>(null);
     const [selectedPrescriber, setSelectedPrescriber] = useState<any>(null);
     const [drugInventory, setDrugInventory] = useState<{ total: number, batches: InventoryBatch[] } | null>(null);
+    const [selectedBatchIds, setSelectedBatchIds] = useState<string[]>([]);
     const [attachments, setAttachments] = useState<File[]>([]);
 
     // ... existing code ...
@@ -302,6 +303,7 @@ export default function PrescriptionsPage() {
         setErrors({});
         setDrugInventory(null);
         setEditingIndex(null);
+        setSelectedBatchIds([]);
     };
 
     const selectedRx = prescriptions.find(rx => rx.id === selectedId);
@@ -352,14 +354,18 @@ export default function PrescriptionsPage() {
             const response = await drugApi.getDrugById(drug.id);
             if (response.success && response.data.inventory) {
                 const batches = response.data.inventory.items || response.data.inventory;
-                const total = batches.reduce((acc: number, b: any) => acc + b.quantityInStock, 0);
-                const sortedBatches = batches.sort((a: any, b: any) => new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime());
+
+                // Filter out zero-stock batches
+                const validBatches = batches.filter((b: any) => b.quantityInStock > 0);
+                const total = validBatches.reduce((acc: number, b: any) => acc + b.quantityInStock, 0);
+                const sortedBatches = validBatches.sort((a: any, b: any) => new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime());
+
                 setDrugInventory({
                     total,
                     batches: sortedBatches
                 });
 
-                // FEFO: Auto-select first batch
+                // FEFO: Auto-select first valid batch
                 if (sortedBatches.length > 0) {
                     setCurrentItem(prev => ({
                         ...prev,
@@ -368,11 +374,16 @@ export default function PrescriptionsPage() {
                         isControlled: drug.isControlled || false,
                         batchId: sortedBatches[0].id
                     }));
+                    setSelectedBatchIds([sortedBatches[0].id]);
+                } else {
+                    toast.error(`${drug.name} has no stock available`);
+                    setSelectedBatchIds([]);
                 }
             }
         } catch (e) {
             console.error("Failed to fetch inventory", e);
             setDrugInventory(null);
+            setSelectedBatchIds([]);
         }
     };
 
@@ -382,11 +393,14 @@ export default function PrescriptionsPage() {
 
         if (!currentItem.quantity || currentItem.quantity < 1) {
             newErrors.quantity = 'Quantity must be at least 1';
-        } else if (drugInventory) {
-            // Check against selected batch stock
-            const selectedBatch = drugInventory.batches.find(b => b.id === currentItem.batchId);
-            if (selectedBatch && Number(currentItem.quantity) > selectedBatch.quantityInStock) {
-                newErrors.quantity = `Max quantity for this batch is ${selectedBatch.quantityInStock}`;
+        } else if (drugInventory && selectedBatchIds.length > 0) {
+            // Check against total stock of selected batches
+            const totalSelectedStock = drugInventory.batches
+                .filter(b => selectedBatchIds.includes(b.id))
+                .reduce((sum, b) => sum + b.quantityInStock, 0);
+
+            if (Number(currentItem.quantity) > totalSelectedStock) {
+                newErrors.quantity = `Max quantity for selected batch(es) is ${totalSelectedStock}`;
             }
         }
 
@@ -399,19 +413,26 @@ export default function PrescriptionsPage() {
     };
 
     const handleSelectBatch = (batch: InventoryBatch) => {
-        const existingIndex = items.findIndex(item => item.batchId === batch.id && item.drugId === currentItem.drugId);
-
-        if (existingIndex >= 0) {
-            setCurrentItem({ ...items[existingIndex] });
-            setEditingIndex(existingIndex);
-            toast('Loaded existing item for editing', { icon: '📝' });
-        } else {
-            setCurrentItem({ ...currentItem, batchId: batch.id });
-            if (editingIndex !== null) {
-                // If switching batch while editing, we keep editing index (changing batch of same item)
-                // Or we can treat it as 'changing mind' and remaining in edit mode for that slot
+        // Toggle batch selection for multi-select
+        setSelectedBatchIds(prev => {
+            if (prev.includes(batch.id)) {
+                // Deselect
+                const updated = prev.filter(id => id !== batch.id);
+                // Update currentItem.batchId to first selected or null
+                if (updated.length > 0) {
+                    setCurrentItem({ ...currentItem, batchId: updated[0] });
+                } else {
+                    setCurrentItem({ ...currentItem, batchId: undefined });
+                }
+                return updated;
+            } else {
+                // Select
+                const updated = [...prev, batch.id];
+                // Set currentItem.batchId to first selected
+                setCurrentItem({ ...currentItem, batchId: updated[0] });
+                return updated;
             }
-        }
+        });
     };
 
     const handleAddItem = () => {
@@ -427,13 +448,46 @@ export default function PrescriptionsPage() {
             setEditingIndex(null);
             toast.success('Medication updated');
         } else {
-            setItems([...items, currentItem as PrescriptionItem]);
-            toast.success('Medication added');
+            // Multi-batch support: split quantity across selected batches
+            if (selectedBatchIds.length > 1 && drugInventory) {
+                const selectedBatches = drugInventory.batches.filter(b => selectedBatchIds.includes(b.id));
+                let remainingQty = Number(currentItem.quantity) || 1;
+                const newItems: PrescriptionItem[] = [];
+
+                for (const batch of selectedBatches) {
+                    if (remainingQty <= 0) break;
+
+                    const qtyToTake = Math.min(remainingQty, batch.quantityInStock);
+
+                    if (qtyToTake > 0) {
+                        newItems.push({
+                            drugId: currentItem.drugId!,
+                            drugName: currentItem.drugName!,
+                            quantity: qtyToTake,
+                            sig: currentItem.sig!,
+                            daysSupply: currentItem.daysSupply!,
+                            isControlled: currentItem.isControlled || false,
+                            batchId: batch.id
+                        });
+
+                        remainingQty -= qtyToTake;
+                    }
+                }
+
+                setItems([...items, ...newItems]);
+                toast.success(`Medication added (${newItems.length} batch${newItems.length > 1 ? 'es' : ''})`);
+            } else {
+                // Single batch
+                setItems([...items, currentItem as PrescriptionItem]);
+                toast.success('Medication added');
+            }
         }
 
         setCurrentItem({ quantity: 1, sig: "", daysSupply: 30 });
         setDrugSearch("");
         setErrors({});
+        setSelectedBatchIds([]);
+        setDrugInventory(null);
     };
 
     const handleRemoveItem = (index: number) => {
@@ -1177,46 +1231,60 @@ export default function PrescriptionsPage() {
                                         {/* Item Details */}
                                         {currentItem.drugId && (
                                             <>
-                                                {/* Stock & FEFO Display with Batch Selection */}
                                                 {drugInventory && (
                                                     <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                                                         <div className="flex justify-between items-center mb-2">
                                                             <div className="text-sm font-bold text-blue-800">Available Stock: {drugInventory.total}</div>
-                                                            <div className="text-xs text-blue-600 flex items-center gap-1"><FiInfo /> Select a batch (FEFO)</div>
+                                                            <div className="text-xs text-blue-600 flex items-center gap-1"><FiInfo /> Select batch(es) - FEFO</div>
                                                         </div>
                                                         <div className="space-y-1 max-h-32 overflow-y-auto pr-1 custom-scrollbar mb-2">
-                                                            {drugInventory.batches.map(batch => (
-                                                                <div
-                                                                    key={batch.id}
-                                                                    onClick={() => handleSelectBatch(batch)}
-                                                                    className={`flex justify-between text-xs p-2 rounded border cursor-pointer transition-colors ${currentItem.batchId === batch.id
-                                                                        ? 'bg-blue-600 text-white border-blue-600'
-                                                                        : 'bg-white text-gray-700 border-blue-100 hover:border-blue-300'
-                                                                        }`}
-                                                                >
-                                                                    <div className="flex flex-col">
-                                                                        <span className="font-mono font-bold">Batch: {batch.batchNumber}</span>
-                                                                        {batch.location && (
-                                                                            <span className={`text-[10px] flex items-center gap-1 ${currentItem.batchId === batch.id ? 'text-blue-100' : 'text-gray-500'}`}>
-                                                                                <FiMapPin className="w-3 h-3" /> Loc: {batch.location}
-                                                                            </span>
-                                                                        )}
+                                                            {drugInventory.batches.map(batch => {
+                                                                const isSelected = selectedBatchIds.includes(batch.id);
+                                                                return (
+                                                                    <div
+                                                                        key={batch.id}
+                                                                        onClick={() => handleSelectBatch(batch)}
+                                                                        className={`flex items-center gap-2 text-xs p-2 rounded border cursor-pointer transition-colors ${isSelected
+                                                                            ? 'bg-blue-600 text-white border-blue-600'
+                                                                            : 'bg-white text-gray-700 border-blue-100 hover:border-blue-300'
+                                                                            }`}
+                                                                    >
+                                                                        {/* Checkbox */}
+                                                                        <div className={`w-4 h-4 rounded border-2 flex items-center justify-center flex-shrink-0 ${isSelected ? 'bg-white border-white' : 'border-gray-300'}`}>
+                                                                            {isSelected && <FiCheck className="w-3 h-3 text-blue-600" />}
+                                                                        </div>
+
+                                                                        <div className="flex justify-between flex-1">
+                                                                            <div className="flex flex-col">
+                                                                                <span className="font-mono font-bold">Batch: {batch.batchNumber}</span>
+                                                                                {batch.location && (
+                                                                                    <span className={`text-[10px] flex items-center gap-1 ${isSelected ? 'text-blue-100' : 'text-gray-500'}`}>
+                                                                                        <FiMapPin className="w-3 h-3" /> Loc: {batch.location}
+                                                                                    </span>
+                                                                                )}
+                                                                            </div>
+                                                                            <div className="flex flex-col items-end">
+                                                                                <span className={`font-medium ${new Date(batch.expiryDate) < new Date()
+                                                                                    ? (isSelected ? 'text-red-200' : 'text-red-600')
+                                                                                    : (isSelected ? 'text-green-200' : 'text-green-600')
+                                                                                    }`}>
+                                                                                    Exp: {new Date(batch.expiryDate).toLocaleDateString('en-US', { month: '2-digit', year: 'numeric' })}
+                                                                                </span>
+                                                                                <span className="font-bold">Qty: {batch.quantityInStock}</span>
+                                                                            </div>
+                                                                        </div>
                                                                     </div>
-                                                                    <div className="flex flex-col items-end">
-                                                                        <span className={`font-medium ${new Date(batch.expiryDate) < new Date()
-                                                                            ? (currentItem.batchId === batch.id ? 'text-red-200' : 'text-red-600')
-                                                                            : (currentItem.batchId === batch.id ? 'text-green-200' : 'text-green-600')
-                                                                            }`}>
-                                                                            Exp: {new Date(batch.expiryDate).toLocaleDateString('en-US', { month: '2-digit', year: 'numeric' })}
-                                                                        </span>
-                                                                        <span className="font-bold">Qty: {batch.quantityInStock}</span>
-                                                                    </div>
-                                                                </div>
-                                                            ))}
+                                                                );
+                                                            })}
                                                         </div>
-                                                        {drugInventory.batches.find(b => b.id === currentItem.batchId) && Number(currentItem.quantity || 0) > (drugInventory.batches.find(b => b.id === currentItem.batchId)?.quantityInStock || 0) && (
-                                                            <div className="text-xs font-bold text-red-600 flex items-center gap-1">
-                                                                <FiAlertTriangle /> Warning: Quantity exceeds available batch stock!
+                                                        {selectedBatchIds.length > 0 && drugInventory.batches.filter(b => selectedBatchIds.includes(b.id)).length > 0 && (
+                                                            <div className="text-xs text-blue-700 font-medium">
+                                                                {selectedBatchIds.length} batch(es) selected • Total: {drugInventory.batches.filter(b => selectedBatchIds.includes(b.id)).reduce((sum, b) => sum + b.quantityInStock, 0)} units
+                                                            </div>
+                                                        )}
+                                                        {selectedBatchIds.length > 0 && Number(currentItem.quantity || 0) > drugInventory.batches.filter(b => selectedBatchIds.includes(b.id)).reduce((sum, b) => sum + b.quantityInStock, 0) && (
+                                                            <div className="text-xs font-bold text-red-600 flex items-center gap-1 mt-1">
+                                                                <FiAlertTriangle /> Warning: Quantity exceeds total available stock from selected batches!
                                                             </div>
                                                         )}
                                                     </div>

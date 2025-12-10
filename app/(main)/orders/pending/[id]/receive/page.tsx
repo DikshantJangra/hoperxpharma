@@ -575,6 +575,36 @@ export default function ReceiveShipmentPage() {
         }
     };
 
+    const handleDeleteBatch = async (itemId: string) => {
+        try {
+            const token = tokenManager.getAccessToken();
+
+            const response = await fetch(`${apiBaseUrl}/grn/${grn.id}/items/${itemId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (response.ok) {
+                toast.success('Batch deleted successfully');
+                // Refresh GRN data
+                const grnResponse = await fetch(`${apiBaseUrl}/grn/${grn.id}`, {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const grnData = await grnResponse.json();
+                setGrn(grnData.data);
+                grnRef.current = grnData.data; // Sync ref
+            } else {
+                const error = await response.json();
+                toast.error(error.error || error.message || 'Failed to delete batch');
+            }
+        } catch (error) {
+            console.error('Error deleting batch:', error);
+            toast.error('Failed to delete batch');
+        }
+    };
+
     const validateGRN = () => {
         const errors: any[] = [];
         const currentGrn = grnRef.current || grn;
@@ -593,6 +623,17 @@ export default function ReceiveShipmentPage() {
             const allItems = currentGrn.items.flatMap((item: any) =>
                 item.isSplit && item.children ? item.children : [item]
             );
+
+            // Check for TBD batch numbers
+            const tbdItems = allItems.filter((item: any) => item.batchNumber === 'TBD');
+            if (tbdItems.length > 0) {
+                errors.push({
+                    field: 'batchNumber',
+                    message: `${tbdItems.length} item(s) still have batch number "TBD". Please update all batch numbers.`,
+                    itemId: tbdItems[0].id,
+                    drugName: 'Multiple items'
+                });
+            }
 
             allItems.forEach((item: any) => {
                 // Skip validation for parent items that are split (already handled by flatMap logic above, but safety check)
@@ -731,6 +772,11 @@ export default function ReceiveShipmentPage() {
 
 
 
+    const formatCurrency = (amount: any) => {
+        const num = Number(amount);
+        return isNaN(num) ? '0.00' : num.toFixed(2);
+    };
+
     if (loading) {
         return (
             <div className="p-6">
@@ -745,47 +791,6 @@ export default function ReceiveShipmentPage() {
     if (!grn || !po) {
         return null;
     }
-
-    const formatCurrency = (amount: any) => {
-        const num = Number(amount);
-        return isNaN(num) ? '0.00' : num.toFixed(2);
-    };
-
-    const handleDeleteBatch = async (itemId: string) => {
-        try {
-            const token = tokenManager.getAccessToken();
-
-            const response = await fetch(`${apiBaseUrl}/grn/${grn.id}/items/${itemId}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-
-            if (response.ok) {
-                toast.success('Batch deleted successfully');
-
-                // Optimistically remove the item
-                setGrn((prev: any) => ({
-                    ...prev,
-                    items: prev.items.filter((item: any) => item.id !== itemId)
-                }));
-
-                // Refresh GRN data to ensure parent/child state is synced
-                const grnResponse = await fetch(`${apiBaseUrl}/grn/${grn.id}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                const grnData = await grnResponse.json();
-                setGrn(grnData.data);
-            } else {
-                const error = await response.json();
-                toast.error(error.error || error.message || 'Failed to delete batch');
-            }
-        } catch (error) {
-            console.error('Error deleting batch:', error);
-            toast.error('Failed to delete batch');
-        }
-    };
 
     return (
         <div className="p-6">
@@ -961,6 +966,7 @@ export default function ReceiveShipmentPage() {
                                         <div>#{row.batchNumber}</div>
                                         <div className="text-gray-400">Exp: {row.expiryDate ? (() => {
                                             const date = new Date(row.expiryDate);
+                                            if (date.getFullYear() === 1970) return '-';
                                             return `${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
                                         })() : '-'}</div>
                                     </td>

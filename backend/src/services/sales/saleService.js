@@ -2,6 +2,8 @@ const saleRepository = require('../../repositories/saleRepository');
 const inventoryService = require('../inventory/inventoryService');
 const ApiError = require('../../utils/ApiError');
 const logger = require('../../config/logger');
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
 
 /**
  * Sale Service - Business logic for sales management
@@ -67,7 +69,7 @@ class SaleService {
         }
 
         // Create sale with transaction
-        // Repository needs to know NOT to deduct stock if ESTIMATE
+        // Repository handles prescription status update within the transaction
         const result = await saleRepository.createSale(
             { ...saleInfo, invoiceNumber },
             items,

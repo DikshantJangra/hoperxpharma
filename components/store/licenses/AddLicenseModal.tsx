@@ -2,11 +2,15 @@
 
 import { useState } from 'react';
 import { FiX, FiUpload, FiFile } from 'react-icons/fi';
+import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation';
 
 export default function AddLicenseModal({ onClose }: any) {
   const [files, setFiles] = useState<File[]>([]);
   const [dragActive, setDragActive] = useState(false);
   const [meta, setMeta] = useState({ type: '', number: '', authority: '', validFrom: '', validTo: '' });
+
+  // Enable enhanced keyboard navigation
+  const { handleKeyDown } = useKeyboardNavigation();
 
   const handleDrag = (e: any) => {
     e.preventDefault();
@@ -26,7 +30,11 @@ export default function AddLicenseModal({ onClose }: any) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-6">
-      <div className="bg-white rounded-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+      <div
+        className="bg-white rounded-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto"
+        onKeyDown={handleKeyDown}
+        data-focus-trap="true"
+      >
         <div className="p-6 border-b border-[#e2e8f0] flex items-center justify-between">
           <div>
             <h2 className="text-xl font-semibold text-[#0f172a]">Add License</h2>
@@ -40,8 +48,7 @@ export default function AddLicenseModal({ onClose }: any) {
         <div className="p-6 grid grid-cols-2 gap-6">
           <div>
             <label className="block text-sm font-medium text-[#64748b] mb-2">Upload Document</label>
-            <div onDragEnter={handleDrag} onDragLeave={handleDrag} onDragOver={handleDrag} onDrop={handleDrop} className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-                dragActive ? 'border-[#0ea5a3] bg-[#f0fdfa]' : 'border-[#cbd5e1] hover:border-[#0ea5a3]'
+            <div onDragEnter={handleDrag} onDragLeave={handleDrag} onDragOver={handleDrag} onDrop={handleDrop} className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${dragActive ? 'border-[#0ea5a3] bg-[#f0fdfa]' : 'border-[#cbd5e1] hover:border-[#0ea5a3]'
               }`}>
               <FiUpload className="w-12 h-12 text-[#94a3b8] mx-auto mb-3" />
               <p className="text-sm text-[#64748b] mb-2">Drag files here or click to upload</p>

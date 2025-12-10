@@ -179,7 +179,7 @@ export default function InvoiceTable({ searchQuery, onSelectInvoice, selectedInv
                     status: invoice.status,
                     type: invoice.invoiceType === 'GST_INVOICE' ? 'GST' : 'Regular',
                     hasEInvoice: false, // TODO: Add e-invoice support
-                    hasRx: false, // TODO: Add prescription linking
+                    hasRx: !!invoice.prescriptionId,
                     customer: {
                       name: invoice.patient ? `${invoice.patient.firstName} ${invoice.patient.lastName || ''}`.trim() : 'Walk-in Customer',
                       phone: invoice.patient?.phoneNumber || '-',
@@ -198,7 +198,8 @@ export default function InvoiceTable({ searchQuery, onSelectInvoice, selectedInv
                       gst: item.gstRate,
                       qty: item.quantity,
                       price: item.mrp,
-                      total: item.lineTotal
+                      total: item.lineTotal,
+                      isRx: item.drug?.requiresPrescription
                     })) || [],
                     summary: {
                       subtotal: invoice.subtotal,

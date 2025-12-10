@@ -5,6 +5,7 @@ import { useOnboarding } from "@/contexts/OnboardingContext";
 import { useRouter } from "next/navigation";
 import { FiUpload, FiInfo, FiArrowRight, FiArrowLeft, FiShield, FiCalendar, FiFileText } from "react-icons/fi";
 import OnboardingCard from "@/components/onboarding/OnboardingCard";
+import { useKeyboardNavigation } from "@/hooks/useKeyboardNavigation";
 
 export default function Step2Page() {
     const { state, updateLicensing, setCurrentStep, markStepComplete } = useOnboarding();
@@ -21,6 +22,9 @@ export default function Step2Page() {
     });
 
     const [errors, setErrors] = useState<Record<string, string>>({});
+
+    // Enable enhanced keyboard navigation
+    const { handleKeyDown } = useKeyboardNavigation();
 
     useEffect(() => {
         setCurrentStep(2);
@@ -97,7 +101,10 @@ export default function Step2Page() {
             description="Ensure legal compliance with regulatory requirements"
             icon={<FiShield size={28} />}
         >
-            <div className="space-y-6">
+            <div
+                className="space-y-6"
+                onKeyDown={handleKeyDown}
+            >
                 {/* Drug License Number */}
                 <div className="group">
                     <label className="block text-gray-700 text-xs font-semibold mb-1.5 ml-1">

@@ -7,6 +7,7 @@ import { FiUpload, FiInfo, FiArrowRight, FiHome, FiMapPin, FiType, FiImage, FiPh
 import { MdStorefront, MdWarehouse, MdLocalHospital, MdDomain } from "react-icons/md";
 import { ReactNode } from "react";
 import OnboardingCard from "@/components/onboarding/OnboardingCard";
+import { useKeyboardNavigation } from "@/hooks/useKeyboardNavigation";
 
 const INDIAN_STATES = [
     "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
@@ -99,6 +100,9 @@ export default function Step1Page() {
     });
 
     const [errors, setErrors] = useState<Record<string, string>>({});
+
+    // Enable enhanced keyboard navigation
+    const { handleKeyDown } = useKeyboardNavigation();
 
     useEffect(() => {
         setCurrentStep(1);
@@ -205,7 +209,10 @@ export default function Step1Page() {
             description="Let's start by setting up your pharmacy's basic information"
             icon={<FiHome size={28} />}
         >
-            <div className="space-y-6">
+            <div
+                className="space-y-6"
+                onKeyDown={handleKeyDown}
+            >
                 {/* Pharmacy Name */}
                 <div className="group">
                     <label className="block text-gray-700 text-xs font-semibold mb-1.5 ml-1">

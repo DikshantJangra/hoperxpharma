@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { FiX, FiAlertCircle } from 'react-icons/fi';
 import { toast } from 'sonner';
+import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation';
 
 export default function AdjustBatchModal({ batch, onClose, onSuccess }: any) {
   const [delta, setDelta] = useState(0);
@@ -10,6 +11,9 @@ export default function AdjustBatchModal({ batch, onClose, onSuccess }: any) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const currentQty = Number(batch.qtyOnHand) || 0;
   const resultingQty = currentQty + delta;
+
+  // Enable enhanced keyboard navigation
+  const { handleKeyDown } = useKeyboardNavigation();
 
   const handleSubmit = async () => {
     if (!reason || delta === 0) {
@@ -50,7 +54,12 @@ export default function AdjustBatchModal({ batch, onClose, onSuccess }: any) {
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-white rounded-lg w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="bg-white rounded-lg w-full max-w-md mx-4"
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={handleKeyDown}
+        data-focus-trap="true"
+      >
         <div className="flex items-center justify-between p-4 border-b border-[#e2e8f0]">
           <h3 className="text-lg font-bold text-[#0f172a]">Adjust Batch Quantity</h3>
           <button onClick={onClose} className="p-1 hover:bg-[#f8fafc] rounded" disabled={isSubmitting}>

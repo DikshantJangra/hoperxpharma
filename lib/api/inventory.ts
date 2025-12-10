@@ -101,12 +101,13 @@ export const inventoryApi = {
     /**
      * Get batches with pagination and filtering
      */
-    async getBatches(params: { page?: number; limit?: number; search?: string; drugId?: string } = {}) {
+    async getBatches(params: { page?: number; limit?: number; search?: string; drugId?: string; minQuantity?: number } = {}) {
         const query = new URLSearchParams();
         if (params.page) query.append('page', params.page.toString());
         if (params.limit) query.append('limit', params.limit.toString());
         if (params.search) query.append('search', params.search);
         if (params.drugId) query.append('drugId', params.drugId);
+        if (params.minQuantity) query.append('minQuantity', params.minQuantity.toString());
 
         const response = await apiClient.get(`/inventory/batches?${query.toString()}`);
         return response; // Return full response with success, data, message

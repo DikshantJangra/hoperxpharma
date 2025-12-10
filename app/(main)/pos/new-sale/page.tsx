@@ -174,7 +174,7 @@ export default function NewSalePage() {
   // Handle Import from URL (Redirect from Prescriptions page)
   const searchParams = useSearchParams();
   useEffect(() => {
-    const importRxId = searchParams.get('importRx');
+    const importRxId = searchParams?.get('importRx');
     if (importRxId && !linkedPrescriptionId && !isLoadingRx) {
       const fetchAndImport = async () => {
         setIsLoadingRx(true);
@@ -462,7 +462,8 @@ export default function NewSalePage() {
       setShowCustomerModal(false);
     }
 
-    // 2. Set Sale Context
+    // Link this prescription to the sale
+    console.log('🔍 DEBUG: Setting linkedPrescriptionId to:', rx.id);
     setLinkedPrescriptionId(rx.id);
     setActivePrescription(rx);
 
@@ -483,38 +484,84 @@ export default function NewSalePage() {
         if (!drugId) continue;
 
         try {
-          // Fetch batches for this drug
-          const batchResponse = await inventoryApi.getBatches({ drugId: drugId, limit: 10 });
-          // Handle response format variations
-          const batches = (batchResponse as any).data || (batchResponse as any).batches || [];
+          // If prescription specifies a specific batch, use it directly
+          if (item.batchId) {
+            const batchResponse = await inventoryApi.getBatches({ drugId: drugId, limit: 100 });
+            const batches = (batchResponse as any).data || (batchResponse as any).batches || [];
+            const prescribedBatch = batches.find((b: any) => b.id === item.batchId);
 
-          // Filter: active, not expired (optional but recommended), positive stock
-          // Note: batchResponse objects might need type checking
-          const validBatches = Array.isArray(batches) ? batches.filter((b: any) => Number(b.quantityInStock) > 0) : [];
+            if (prescribedBatch && Number(prescribedBatch.quantityInStock) > 0) {
+              const qtyToTake = Math.min(Number(item.quantityPrescribed) || 1, Number(prescribedBatch.quantityInStock));
 
-          // Sort by expiry (FEFO) - earliest expiry first
-          validBatches.sort((a: any, b: any) => new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime());
+              newItems.push({
+                id: item.drug.id,
+                name: item.drug.name,
+                sku: item.drug.sku || item.drug.id,
+                batchId: prescribedBatch.id,
+                batchNumber: prescribedBatch.batchNumber,
+                location: prescribedBatch.location,
+                expiryDate: prescribedBatch.expiryDate,
+                stock: Number(prescribedBatch.quantityInStock),
+                mrp: Number(prescribedBatch.mrp),
+                qty: qtyToTake,
+                discount: 0,
+                gstRate: Number(item.drug.gstRate) || 5,
+                type: 'RX'
+              });
 
-          if (validBatches.length > 0) {
-            const bestBatch = validBatches[0];
-            newItems.push({
-              id: item.drug.id,
-              name: item.drug.name,
-              sku: item.drug.sku || item.drug.id,
-              batchId: bestBatch.id,
-              batchNumber: bestBatch.batchNumber, // Display this!
-              location: bestBatch.location, // Pass location
-              expiryDate: bestBatch.expiryDate,
-              stock: Number(bestBatch.quantityInStock), // Explicitly map stock
-              mrp: Number(bestBatch.mrp),
-              // Use quantity from Rx, default to 1, cap at available stock? No, user might adjust.
-              qty: Number(item.quantityPrescribed) || 1,
-              discount: 0,
-              gstRate: Number(item.drug.gstRate) || 5, // Default to 5% if missing
-              type: 'RX' // Tag as Prescription Item
-            });
-          } else {
-            missingBatches.push(item.drug?.name || 'Unknown Drug');
+              if (qtyToTake < (Number(item.quantityPrescribed) || 1)) {
+                toast.warning(`Prescribed batch for ${item.drug.name} has only ${qtyToTake} units available.`);
+              }
+            } else {
+              toast.error(`Prescribed batch for ${item.drug.name} is no longer available. Using FEFO.`);
+              // Fall through to FEFO logic below
+            }
+          }
+
+          // If no batch specified or prescribed batch unavailable, use FEFO
+          if (!item.batchId || !newItems.find(ni => ni.id === item.drug.id && ni.batchId === item.batchId)) {
+            // Fetch batches for this drug
+            const batchResponse = await inventoryApi.getBatches({ drugId: drugId, limit: 10, minQuantity: 1 });
+            const batches = (batchResponse as any).data || (batchResponse as any).batches || [];
+            const validBatches = Array.isArray(batches) ? batches.filter((b: any) => Number(b.quantityInStock) > 0) : [];
+            validBatches.sort((a: any, b: any) => new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime());
+
+            if (validBatches.length > 0) {
+              let remainingQty = Number(item.quantityPrescribed) || 1;
+
+              for (const batch of validBatches) {
+                if (remainingQty <= 0) break;
+
+                const currentStock = Number(batch.quantityInStock);
+                const qtyToTake = Math.min(remainingQty, currentStock);
+
+                if (qtyToTake > 0) {
+                  newItems.push({
+                    id: item.drug.id,
+                    name: item.drug.name,
+                    sku: item.drug.sku || item.drug.id,
+                    batchId: batch.id,
+                    batchNumber: batch.batchNumber,
+                    location: batch.location,
+                    expiryDate: batch.expiryDate,
+                    stock: currentStock,
+                    mrp: Number(batch.mrp),
+                    qty: qtyToTake,
+                    discount: 0,
+                    gstRate: Number(item.drug.gstRate) || 5,
+                    type: 'RX'
+                  });
+
+                  remainingQty -= qtyToTake;
+                }
+              }
+
+              if (remainingQty > 0) {
+                toast.warning(`Partial stock found for ${item.drug.name}. Missing ${remainingQty} units.`);
+              }
+            } else {
+              missingBatches.push(item.drug?.name || 'Unknown Drug');
+            }
           }
         } catch (err) {
           console.error('Error fetching batches for', item.drug?.name, err);
@@ -557,6 +604,7 @@ export default function NewSalePage() {
   const clearBasket = () => {
     setBasketItems([]);
     setCustomer(null);
+    console.log('🔍 DEBUG: Clearing linkedPrescriptionId (was:', linkedPrescriptionId, ')');
     setLinkedPrescriptionId(null);
     setActivePrescription(null);
     setCurrentDraftId(null); // Clear draft ID when clearing basket
@@ -712,6 +760,8 @@ export default function NewSalePage() {
       };
 
       console.log('Creating sale with data:', saleData);
+      console.log('🔍 DEBUG: linkedPrescriptionId =', linkedPrescriptionId);
+      console.log('🔍 DEBUG: prescriptionId in saleData =', saleData.prescriptionId);
       const response = await salesApi.createSale(saleData);
       console.log('Sale API response:', response);
 
@@ -805,9 +855,8 @@ export default function NewSalePage() {
           <PrescriptionBanner
             prescription={activePrescription}
             onClear={() => {
-              setLinkedPrescriptionId(null);
-              setActivePrescription(null);
-              toast.success('Unlinked prescription from sale');
+              clearBasket();
+              toast.success('Unlinked prescription and cleared basket');
             }}
           />
 
