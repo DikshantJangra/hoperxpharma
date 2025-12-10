@@ -213,37 +213,113 @@ class GRNRepository {
                 throw new Error('Can only complete draft or in-progress GRNs');
             }
 
+            // Ensure all drugs exist in this store (create copies if needed)
+            // This handles the case where a PO was created with drugs from other stores
+            const drugIds = new Set(grn.items.map(item => item.drugId));
+            for (const drugId of drugIds) {
+                const drug = await tx.drug.findUnique({
+                    where: { id: drugId }
+                });
+
+                if (!drug) {
+                    throw new Error(`Drug ${drugId} not found`);
+                }
+
+                // Check if this drug exists in the GRN's store
+                if (drug.storeId !== grn.storeId) {
+                    // Drug belongs to a different store, create a copy for this store
+                    const existingDrugInStore = await tx.drug.findFirst({
+                        where: {
+                            storeId: grn.storeId,
+                            name: drug.name,
+                            strength: drug.strength,
+                            form: drug.form
+                        }
+                    });
+
+                    let storeDrugId;
+                    if (existingDrugInStore) {
+                        // Use existing drug in this store
+                        storeDrugId = existingDrugInStore.id;
+                    } else {
+                        // Create a new drug for this store
+                        const newDrug = await tx.drug.create({
+                            data: {
+                                storeId: grn.storeId,
+                                rxcui: drug.rxcui,
+                                name: drug.name,
+                                genericName: drug.genericName,
+                                strength: drug.strength,
+                                form: drug.form,
+                                manufacturer: drug.manufacturer,
+                                schedule: drug.schedule,
+                                hsnCode: drug.hsnCode,
+                                gstRate: drug.gstRate,
+                                requiresPrescription: drug.requiresPrescription,
+                                defaultUnit: drug.defaultUnit,
+                                lowStockThreshold: drug.lowStockThreshold,
+                                description: drug.description
+                            }
+                        });
+                        storeDrugId = newDrug.id;
+                    }
+
+                    // Update all GRN items that reference the old drug to use the store-specific drug
+                    await tx.gRNItem.updateMany({
+                        where: {
+                            grnId: grn.id,
+                            drugId: drugId
+                        },
+                        data: {
+                            drugId: storeDrugId
+                        }
+                    });
+                }
+            }
+
+            // Re-fetch GRN with updated drugIds
+            const updatedGrn = await tx.goodsReceivedNote.findUnique({
+                where: { id: grnId },
+                include: {
+                    items: {
+                        where: { parentItemId: null },
+                        include: { children: true }
+                    },
+                    po: true
+                }
+            });
+
             // 1. Create inventory batches for each GRN item
             // Flatten items to include children of split batches
-            console.log('🔍 GRN Items before flattening:', grn.items.length);
-            console.log('🔍 Items:', JSON.stringify(grn.items.map(i => ({
-                id: i.id,
-                batchNumber: i.batchNumber,
-                isSplit: i.isSplit,
-                hasChildren: !!i.children,
-                childrenCount: i.children?.length || 0,
-                receivedQty: i.receivedQty,
-                freeQty: i.freeQty
-            })), null, 2));
+            // console.log('🔍 GRN Items before flattening:', updatedGrn.items.length);
+            // console.log('🔍 Items:', JSON.stringify(updatedGrn.items.map(i => ({
+            //     id: i.id,
+            //     batchNumber: i.batchNumber,
+            //     isSplit: i.isSplit,
+            //     hasChildren: !!i.children,
+            //     childrenCount: i.children?.length || 0,
+            //     receivedQty: i.receivedQty,
+            //     freeQty: i.freeQty
+            // })), null, 2));
 
-            const allItems = grn.items.flatMap(item => {
+            const allItems = updatedGrn.items.flatMap(item => {
                 // Skip parent items that are split - only return their children
                 if (item.isSplit) {
-                    console.log(`🔍 Item ${item.batchNumber} is SPLIT, returning ${item.children?.length || 0} children`);
+                    // console.log(`🔍 Item ${item.batchNumber} is SPLIT, returning ${item.children?.length || 0} children`);
                     return item.children || [];
                 }
                 // Return non-split items
-                console.log(`🔍 Item ${item.batchNumber} is NOT split, returning itself`);
+                // console.log(`🔍 Item ${item.batchNumber} is NOT split, returning itself`);
                 return [item];
             });
 
-            console.log('🔍 Flattened items count:', allItems.length);
-            console.log('🔍 Flattened items:', JSON.stringify(allItems.map(i => ({
-                id: i.id,
-                batchNumber: i.batchNumber,
-                receivedQty: i.receivedQty,
-                freeQty: i.freeQty
-            })), null, 2));
+            // console.log('🔍 Flattened items count:', allItems.length);
+            // console.log('🔍 Flattened items:', JSON.stringify(allItems.map(i => ({
+            //     id: i.id,
+            //     batchNumber: i.batchNumber,
+            //     receivedQty: i.receivedQty,
+            //     freeQty: i.freeQty
+            // })), null, 2));
 
             // Validate: No TBD batches allowed
             const tbdItems = allItems.filter(item => item.batchNumber === 'TBD');
@@ -253,10 +329,10 @@ class GRNRepository {
 
             for (const item of allItems) {
                 const totalQty = item.receivedQty + item.freeQty;
-                console.log(`🔍 Processing item ${item.batchNumber}, totalQty: ${totalQty}`);
+                // console.log(`🔍 Processing item ${item.batchNumber}, totalQty: ${totalQty}`);
 
                 if (totalQty > 0) {
-                    console.log(`🔍 Creating/updating inventory for batch ${item.batchNumber}`);
+                    // console.log(`🔍 Creating/updating inventory for batch ${item.batchNumber}`);
                     const batch = await tx.inventoryBatch.upsert({
                         where: {
                             storeId_batchNumber_drugId: {
@@ -288,7 +364,7 @@ class GRNRepository {
                         }
                     });
 
-                    console.log(`✅ Inventory batch ${item.batchNumber} created/updated, qty: ${totalQty}`);
+                    // console.log(`✅ Inventory batch ${item.batchNumber} created/updated, qty: ${totalQty}`);
 
                     // Create stock movement
                     const createdBatch = await tx.inventoryBatch.findFirst({

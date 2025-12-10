@@ -22,7 +22,7 @@ class InventoryRepository {
         const skip = (pageNum - 1) * limitNum;
 
         const where = {
-            storeId, // ← CRITICAL: Filter drugs by store
+            storeId,
             ...(search && {
                 OR: [
                     { name: { contains: search, mode: 'insensitive' } },
