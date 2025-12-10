@@ -32,14 +32,17 @@ class PDFService {
 
             // 4. Generate PDF with Puppeteer
             const browser = await puppeteer.launch({
-                headless: 'new',
+                executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+                headless: true,
                 args: [
                     '--no-sandbox',
                     '--disable-setuid-sandbox',
-                    '--disable-dev-shm-usage', // For production/Docker
+                    '--disable-dev-shm-usage',
                     '--disable-gpu',
                     '--disable-software-rasterizer',
-                    '--disable-web-security' // Allow external images
+                    '--disable-web-security',
+                    '--disable-dev-tools',
+                    '--no-zygote'
                 ]
             });
             const page = await browser.newPage();
@@ -235,8 +238,18 @@ class PDFService {
 
             // Generate PDF
             const browser = await puppeteer.launch({
-                headless: 'new',
-                args: ['--no-sandbox', '--disable-setuid-sandbox']
+                executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
+                headless: true,
+                args: [
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-dev-shm-usage',
+                    '--disable-gpu',
+                    '--disable-software-rasterizer',
+                    '--disable-web-security',
+                    '--disable-dev-tools',
+                    '--no-zygote'
+                ]
             });
             const page = await browser.newPage();
 
