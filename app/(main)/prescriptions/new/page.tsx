@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { FiSearch, FiPlus, FiX, FiUser, FiPackage, FiSave, FiAlertCircle, FiCheckCircle } from "react-icons/fi";
 import { prescriptionApi } from "@/lib/api/prescriptions";
 import { drugApi, patientApi } from "@/lib/api/drugs";
+import { prescribersApi } from "@/lib/api/prescribers";
+import { useAuthStore } from "@/lib/store/auth-store";
 import toast, { Toaster } from 'react-hot-toast';
 
 interface PrescriptionItem {
@@ -41,9 +43,15 @@ export default function NewPrescriptionPage() {
   });
 
   // Form state
+  const { primaryStore } = useAuthStore();
   const [priority, setPriority] = useState<'Normal' | 'Urgent'>('Normal');
   const [source, setSource] = useState<'manual' | 'e-Rx'>('manual');
-  const [prescriberName, setPrescriberName] = useState("");
+  // Prescriber selection
+  const [prescriberSearch, setPrescriberSearch] = useState("");
+  const [prescriberResults, setPrescriberResults] = useState<any[]>([]);
+  const [selectedPrescriber, setSelectedPrescriber] = useState<any>(null);
+  const [showPrescriberResults, setShowPrescriberResults] = useState(false);
+  const [searchingPrescribers, setSearchingPrescribers] = useState(false);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -99,6 +107,34 @@ export default function NewPrescriptionPage() {
     return () => clearTimeout(timer);
   }, [drugSearch]);
 
+  // Search prescribers
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      if (prescriberSearch.length >= 2 && !selectedPrescriber && primaryStore?.id) {
+        try {
+          setSearchingPrescribers(true);
+          const response = await prescribersApi.getPrescribers({
+            search: prescriberSearch,
+            storeId: primaryStore.id
+          });
+          if (response.success) {
+            setPrescriberResults(response.data || []);
+            setShowPrescriberResults(true);
+          }
+        } catch (error) {
+          console.error('[NewRx] Prescriber search error:', error);
+        } finally {
+          setSearchingPrescribers(false);
+        }
+      } else {
+        setPrescriberResults([]);
+        setShowPrescriberResults(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [prescriberSearch, selectedPrescriber]);
+
   const handleSelectPatient = (patient: any) => {
     setSelectedPatient(patient);
     setPatientSearch(`${patient.firstName} ${patient.lastName}`);
@@ -116,6 +152,17 @@ export default function NewPrescriptionPage() {
     setDrugSearch(drug.name);
     setShowDrugResults(false);
     setErrors({ ...errors, drug: '' });
+  };
+
+  const handleSelectPrescriber = (prescriber: any) => {
+    setSelectedPrescriber(prescriber);
+    setPrescriberSearch(prescriber.name);
+    setShowPrescriberResults(false);
+  };
+
+  const clearPrescriber = () => {
+    setSelectedPrescriber(null);
+    setPrescriberSearch("");
   };
 
   const validateItem = (): boolean => {
@@ -176,7 +223,7 @@ export default function NewPrescriptionPage() {
       setSaving(true);
       const response = await prescriptionApi.createPrescription({
         patientId: selectedPatient.id,
-        prescriberId: undefined, // Optional - for walk-ins
+        prescriberId: selectedPrescriber?.id, // Optional - for walk-ins
         source,
         priority,
         items: items.map(item => ({
@@ -369,13 +416,60 @@ export default function NewPrescriptionPage() {
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-700 mb-1.5">Prescriber (Optional)</label>
-                <input
-                  type="text"
-                  value={prescriberName}
-                  onChange={(e) => setPrescriberName(e.target.value)}
-                  placeholder="Dr. Name (for walk-ins)"
-                  className="w-full px-3 py-2 text-sm border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500"
-                />
+                <div className="relative">
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={prescriberSearch}
+                      onChange={(e) => {
+                        setPrescriberSearch(e.target.value);
+                        if (selectedPrescriber) setSelectedPrescriber(null);
+                      }}
+                      placeholder="Search Dr. Name..."
+                      className="w-full px-3 py-2 text-sm border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 pr-8"
+                    />
+                    {selectedPrescriber ? (
+                      <button
+                        onClick={clearPrescriber}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      >
+                        <FiX className="w-4 h-4" />
+                      </button>
+                    ) : searchingPrescribers ? (
+                      <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                        <div className="animate-spin h-3 w-3 border-2 border-teal-600 rounded-full border-t-transparent" />
+                      </div>
+                    ) : null}
+                  </div>
+
+                  {showPrescriberResults && (
+                    <div className="absolute z-50 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                      {prescriberResults.length > 0 ? (
+                        prescriberResults.map((doc) => (
+                          <div
+                            key={doc.id}
+                            onClick={() => handleSelectPrescriber(doc)}
+                            className="p-2 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-0"
+                          >
+                            <div className="font-medium text-gray-900 text-sm">{doc.name}</div>
+                            <div className="text-xs text-gray-500">{doc.clinic || doc.specialty || 'General'}</div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="p-3 text-center">
+                          <p className="text-xs text-gray-500 mb-2">No prescribers found</p>
+                          <button
+                            onClick={() => router.push('/prescribers?new=true&returnUrl=/prescriptions/new')}
+                            className="text-xs bg-emerald-50 text-emerald-600 px-3 py-1.5 rounded-md font-medium hover:bg-emerald-100 transition-colors w-full flex items-center justify-center gap-1"
+                          >
+                            <FiPlus className="w-3 h-3" />
+                            Add New Prescriber
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>

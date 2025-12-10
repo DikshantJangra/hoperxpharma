@@ -9,13 +9,19 @@ import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation';
 interface ReceivingTableProps {
     items: any[];
     poItems: any[];
+    discrepancies?: any[];
     onItemUpdate: (itemId: string, updates: any) => void;
     onBatchSplit: (itemId: string, splitData: any[]) => void;
     onDiscrepancy: (itemId: string, discrepancyData: any) => void;
     onDeleteBatch: (itemId: string) => void;
 }
 
-export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSplit, onDiscrepancy, onDeleteBatch }: ReceivingTableProps) {
+export default function ReceivingTable({ items, poItems, discrepancies = [], onItemUpdate, onBatchSplit, onDiscrepancy, onDeleteBatch }: ReceivingTableProps) {
+    // ... existing state ...
+
+    // ... existing functions ...
+
+
     const [editingItem, setEditingItem] = useState<string | null>(null);
     const [splitItem, setSplitItem] = useState<any | null>(null);
     const [discrepancyItem, setDiscrepancyItem] = useState<any | null>(null);
@@ -23,9 +29,12 @@ export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSp
     const { handleKeyDown } = useKeyboardNavigation();
 
     const getStatus = (item: any) => {
-        if (item.receivedQty === item.orderedQty) {
+        const received = parseFloat(item.receivedQty) || 0;
+        const ordered = parseFloat(item.orderedQty) || 0;
+
+        if (received === ordered) {
             return { label: 'Matched', color: 'text-emerald-600', icon: HiOutlineCheck };
-        } else if (item.receivedQty < item.orderedQty) {
+        } else if (received < ordered) {
             return { label: 'Short', color: 'text-amber-600', icon: HiOutlineExclamationCircle };
         } else {
             return { label: 'Over', color: 'text-blue-600', icon: HiOutlineArrowUp };
@@ -168,8 +177,10 @@ export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSp
                                                 key={`expiry-${item.id}-${item.expiryDate}`}
                                                 defaultValue={item.expiryDate ? (() => {
                                                     const date = new Date(item.expiryDate);
-                                                    if (date.getFullYear() === 1970) return '';
-                                                    return `${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+                                                    const year = date.getFullYear();
+                                                    // Treat 1970 (epoch/invalid dates) as empty
+                                                    if (year === 1970) return '';
+                                                    return `${String(date.getMonth() + 1).padStart(2, '0')}/${year}`;
                                                 })() : ''}
                                                 onInput={(e) => {
                                                     const inputType = (e.nativeEvent as any).inputType;
@@ -180,24 +191,53 @@ export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSp
 
                                                     let value = e.currentTarget.value.replace(/[^0-9/]/g, '');
 
-                                                    // Case 1: Exactly 2 digits, no slash -> Default 20 logic
-                                                    if (value.length === 2 && !value.includes('/')) {
-                                                        value = value + '/20';
-                                                    }
-                                                    // Case 2: More than 2 digits, no slash -> Insert slash
-                                                    else if (value.length > 2 && !value.includes('/')) {
-                                                        value = value.substring(0, 2) + '/' + value.substring(2);
+                                                    // Smart month formatting:
+                                                    // - If first digit is 2, auto-format to "02/" immediately
+                                                    // - If first digit is > 2, auto-format to "0X/"
+                                                    // - If first digit is 0 or 1, wait for second digit
+                                                    if (value.length === 1 && !value.includes('/')) {
+                                                        const firstDigit = parseInt(value);
+                                                        if (firstDigit === 2) {
+                                                            value = '02/';
+                                                            e.currentTarget.value = value;
+                                                            return;
+                                                        } else if (firstDigit > 2) {
+                                                            value = '0' + value + '/';
+                                                            e.currentTarget.value = value;
+                                                            return;
+                                                        }
+                                                        // For 0 or 1, just continue (wait for second digit)
                                                     }
 
-                                                    // Validate month (can't be > 12)
-                                                    if (value.length >= 2 && !value.includes('/')) {
-                                                        const month = parseInt(value.substring(0, 2));
+                                                    // Add slash after valid 2-digit month
+                                                    if (value.length === 2 && !value.includes('/')) {
+                                                        const month = parseInt(value);
                                                         if (month > 12) {
-                                                            value = '12' + value.substring(2);
+                                                            value = '12';
+                                                        }
+                                                        value = value + '/';
+                                                    }
+                                                    // Insert slash after MM if user types more
+                                                    else if (value.length > 2 && !value.includes('/')) {
+                                                        const monthPart = value.substring(0, 2);
+                                                        const month = parseInt(monthPart);
+                                                        if (month > 12) {
+                                                            value = '12/' + value.substring(2);
+                                                        } else {
+                                                            value = monthPart + '/' + value.substring(2);
                                                         }
                                                     }
 
-                                                    // Limit to MM/YYYY format
+                                                    // Limit year to 4 digits
+                                                    if (value.includes('/')) {
+                                                        const parts = value.split('/');
+                                                        if (parts[1] && parts[1].length > 4) {
+                                                            parts[1] = parts[1].substring(0, 4);
+                                                            value = parts[0] + '/' + parts[1];
+                                                        }
+                                                    }
+
+                                                    // Limit to MM/YYYY format (7 chars)
                                                     if (value.length > 7) {
                                                         value = value.substring(0, 7);
                                                     }
@@ -207,14 +247,7 @@ export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSp
                                                 onBlur={(e) => {
                                                     let value = e.currentTarget.value.trim();
 
-                                                    // Auto-expand YY to 20YY
-                                                    // This allows users to type "12/25" for "12/2025"
-                                                    if (value && value.match(/^(0?[1-9]|1[0-2])\/(\d{2})$/)) {
-                                                        const parts = value.split('/');
-                                                        value = `${parts[0]}/20${parts[1]}`;
-                                                    }
-
-                                                    // Validate and save only on blur
+                                                    // Only save if we have a complete MM/YYYY format with 4-digit year
                                                     if (value && value.match(/^(0?[1-9]|1[0-2])\/(\d{4})$/)) {
                                                         const [month, year] = value.split('/');
                                                         const paddedMonth = month.padStart(2, '0');
@@ -226,6 +259,7 @@ export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSp
 
                                                         handleFieldUpdate(item.id, 'expiryDate', fullDate);
                                                     }
+                                                    // If incomplete (e.g., "12/" or "12/20"), don't save - just leave it in the field
                                                 }}
                                                 onFocus={(e) => e.target.select()}
                                                 className="w-32 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm"
@@ -427,35 +461,64 @@ export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSp
                                                             }
 
                                                             let value = e.currentTarget.value.replace(/[^0-9/]/g, '');
-                                                            // Case 1: Exactly 2 digits, no slash -> Default 20 logic
-                                                            if (value.length === 2 && !value.includes('/')) {
-                                                                value = value + '/20';
-                                                            }
-                                                            // Case 2: More than 2 digits, no slash -> Insert slash
-                                                            else if (value.length > 2 && !value.includes('/')) {
-                                                                value = value.substring(0, 2) + '/' + value.substring(2);
+
+                                                            // Smart month formatting:
+                                                            // - If first digit is 2, auto-format to "02/" immediately
+                                                            // - If first digit is > 2, auto-format to "0X/"
+                                                            // - If first digit is 0 or 1, wait for second digit
+                                                            if (value.length === 1 && !value.includes('/')) {
+                                                                const firstDigit = parseInt(value);
+                                                                if (firstDigit === 2) {
+                                                                    value = '02/';
+                                                                    e.currentTarget.value = value;
+                                                                    return;
+                                                                } else if (firstDigit > 2) {
+                                                                    value = '0' + value + '/';
+                                                                    e.currentTarget.value = value;
+                                                                    return;
+                                                                }
+                                                                // For 0 or 1, just continue (wait for second digit)
                                                             }
 
-                                                            if (value.length >= 2 && !value.includes('/')) {
-                                                                const month = parseInt(value.substring(0, 2));
+                                                            // Add slash after valid 2-digit month
+                                                            if (value.length === 2 && !value.includes('/')) {
+                                                                const month = parseInt(value);
                                                                 if (month > 12) {
-                                                                    value = '12' + value.substring(2);
+                                                                    value = '12';
+                                                                }
+                                                                value = value + '/';
+                                                            }
+                                                            // Insert slash after MM if user types more
+                                                            else if (value.length > 2 && !value.includes('/')) {
+                                                                const monthPart = value.substring(0, 2);
+                                                                const month = parseInt(monthPart);
+                                                                if (month > 12) {
+                                                                    value = '12/' + value.substring(2);
+                                                                } else {
+                                                                    value = monthPart + '/' + value.substring(2);
                                                                 }
                                                             }
+
+                                                            // Limit year to 4 digits
+                                                            if (value.includes('/')) {
+                                                                const parts = value.split('/');
+                                                                if (parts[1] && parts[1].length > 4) {
+                                                                    parts[1] = parts[1].substring(0, 4);
+                                                                    value = parts[0] + '/' + parts[1];
+                                                                }
+                                                            }
+
+                                                            // Limit to MM/YYYY format (7 chars)
                                                             if (value.length > 7) {
                                                                 value = value.substring(0, 7);
                                                             }
+
                                                             e.currentTarget.value = value;
                                                         }}
                                                         onBlur={(e) => {
                                                             let value = e.currentTarget.value.trim();
 
-                                                            // Auto-expand YY to 20YY
-                                                            if (value && value.match(/^(0?[1-9]|1[0-2])\/(\d{2})$/)) {
-                                                                const parts = value.split('/');
-                                                                value = `${parts[0]}/20${parts[1]}`;
-                                                            }
-
+                                                            // Only save if we have a complete MM/YYYY format with 4-digit year
                                                             if (value && value.match(/^(0?[1-9]|1[0-2])\/(\d{4})$/)) {
                                                                 const [month, year] = value.split('/');
                                                                 const paddedMonth = month.padStart(2, '0');
@@ -464,6 +527,7 @@ export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSp
                                                                 e.currentTarget.value = `${paddedMonth}/${year}`;
                                                                 handleFieldUpdate(child.id, 'expiryDate', fullDate);
                                                             }
+                                                            // If incomplete (e.g., "12/" or "12/20"), don't save - just leave it in the field
                                                         }}
                                                         onFocus={(e) => e.target.select()}
                                                         className="w-32 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm"
@@ -605,6 +669,7 @@ export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSp
                 <DiscrepancyHandler
                     item={discrepancyItem}
                     drugName={getDrugName(discrepancyItem.drugId)}
+                    existingDiscrepancy={discrepancies.find((d: any) => d.grnItemId === discrepancyItem.id)}
                     onResolve={(discrepancyData) => {
                         onDiscrepancy(discrepancyItem.id, discrepancyData);
                         setDiscrepancyItem(null);

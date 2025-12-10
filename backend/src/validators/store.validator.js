@@ -22,6 +22,13 @@ const storeCreateSchema = z.object({
     storeLogo: z.string().optional().nullable(),
     is24x7: z.boolean().optional(),
     homeDelivery: z.boolean().optional(),
+    bankDetails: z.object({
+        upiId: z.string().optional(),
+        bankName: z.string().optional(),
+        accountNumber: z.string().optional(),
+        ifsc: z.string().optional(),
+        branch: z.string().optional()
+    }).optional().nullable(),
     settings: z.object({
         invoiceFormat: z.string().optional(),
         footerText: z.string().optional(),

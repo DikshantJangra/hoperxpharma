@@ -13,6 +13,7 @@
     "@headlessui/react": "^2.2.9",
     "@heroicons/react": "^2.0.18",
     "@hookform/resolvers": "^5.2.2",
+    "@tanstack/react-query": "^5.90.12",
     "@types/react-beautiful-dnd": "^13.1.8",
     "@types/react-input-mask": "^3.0.6",
     "@types/uuid": "^10.0.0",
@@ -27,6 +28,7 @@
     "minisearch": "^7.2.0",
     "next": "15.5.7",
     "pdfjs-dist": "^5.4.449",
+    "qrcode": "^1.5.4",
     "react": "^18.2.0",
     "react-barcode-reader": "^0.0.2",
     "react-beautiful-dnd": "^13.1.1",
@@ -51,6 +53,7 @@
   "devDependencies": {
     "@tailwindcss/typography": "^0.5.19",
     "@types/node": "^20.19.25",
+    "@types/qrcode": "^1.5.6",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "autoprefixer": "^10.4.22",

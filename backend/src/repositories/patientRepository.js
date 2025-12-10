@@ -727,12 +727,17 @@ class PatientRepository {
     /**
      * Get patient ledger history
      */
-    async getLedger({ patientId, page = 1, limit = 20 }) {
+    async getLedger({ patientId, storeId, page = 1, limit = 20 }) {
         const skip = (page - 1) * limit;
+
+        const where = {
+            patientId,
+            ...(storeId && { storeId }), // Optional for now as patientId is unique, but good for safety
+        };
 
         const [ledger, total] = await Promise.all([
             prisma.customerLedger.findMany({
-                where: { patientId },
+                where,
                 skip,
                 take: limit,
                 orderBy: { createdAt: 'desc' },
@@ -748,7 +753,7 @@ class PatientRepository {
                     }
                 }
             }),
-            prisma.customerLedger.count({ where: { patientId } }),
+            prisma.customerLedger.count({ where }),
         ]);
 
         return { ledger, total };
@@ -820,12 +825,19 @@ class PatientRepository {
                                 newStatus = 'PARTIAL';
                             }
 
+                            const updateData = {
+                                balance: newBalance,
+                                paymentStatus: newStatus
+                            };
+
+                            // If fully paid, ensure the main status is COMPLETED
+                            if (newStatus === 'PAID') {
+                                updateData.status = 'COMPLETED';
+                            }
+
                             await tx.sale.update({
                                 where: { id: saleId },
-                                data: {
-                                    balance: newBalance,
-                                    paymentStatus: newStatus
-                                }
+                                data: updateData
                             });
                         }
                     }

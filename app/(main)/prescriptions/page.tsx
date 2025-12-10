@@ -203,6 +203,12 @@ export default function PrescriptionsPage() {
     const [source, setSource] = useState<'manual' | 'e-Rx'>('manual');
     const [saving, setSaving] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
+    const [verifyingId, setVerifyingId] = useState<string | null>(null);
+
+    // Prefetch POS route for faster redirection
+    useEffect(() => {
+        router.prefetch('/pos/new-sale');
+    }, [router]);
 
     useEffect(() => {
         fetchPrescriptions();
@@ -233,6 +239,7 @@ export default function PrescriptionsPage() {
 
     const handleVerify = async (id: string) => {
         try {
+            setVerifyingId(id);
             const response = await prescriptionApi.verifyPrescription(id);
             if (response.success) {
                 toast.success('✅ Prescription verified! Redirecting to POS...');
@@ -240,6 +247,7 @@ export default function PrescriptionsPage() {
             }
         } catch (error: any) {
             toast.error(error.response?.data?.message || 'Failed to verify prescription');
+            setVerifyingId(null);
         }
     };
 
@@ -641,10 +649,15 @@ export default function PrescriptionsPage() {
                                                     e.stopPropagation();
                                                     handleVerify(rx.id);
                                                 }}
-                                                className="p-1.5 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+                                                disabled={verifyingId === rx.id}
+                                                className="p-1.5 bg-green-600 text-white rounded hover:bg-green-700 transition-colors disabled:opacity-75 disabled:cursor-wait"
                                                 title="Verify"
                                             >
-                                                <FiCheck className="w-3 h-3" />
+                                                {verifyingId === rx.id ? (
+                                                    <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                                ) : (
+                                                    <FiCheck className="w-3 h-3" />
+                                                )}
                                             </button>
                                             <button
                                                 onClick={(e) => {
@@ -702,10 +715,11 @@ export default function PrescriptionsPage() {
                                             </button>
                                             <button
                                                 onClick={() => handleVerify(selectedRx.id)}
-                                                className="px-6 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 transition-colors flex items-center gap-2 shadow-sm"
+                                                disabled={verifyingId === selectedRx.id}
+                                                className="px-6 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 transition-colors flex items-center gap-2 shadow-sm disabled:opacity-75 disabled:cursor-wait"
                                             >
                                                 <FiCheck className="w-4 h-4" />
-                                                Verify & Send to Queue
+                                                {verifyingId === selectedRx.id ? 'Verifying...' : 'Verify & Send to Queue'}
                                             </button>
                                         </div>
                                     </div>

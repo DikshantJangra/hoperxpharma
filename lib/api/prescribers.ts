@@ -1,41 +1,36 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1';
+import { apiClient } from './client';
 
-const getAuthHeaders = () => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
-    return {
-        'Content-Type': 'application/json',
-        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-    };
-};
+export interface Prescriber {
+    id: string;
+    storeId: string;
+    name: string;
+    licenseNumber: string;
+    clinic?: string;
+    phoneNumber?: string;
+    email?: string;
+    specialty?: string;
+    createdAt: string;
+    updatedAt: string;
+}
 
-export const prescriberApi = {
-    // Get prescribers with optional search
-    getPrescribers: async (search: string = "") => {
-        try {
-            const response = await fetch(`${API_URL}/prescribers?search=${encodeURIComponent(search)}`, {
-                headers: getAuthHeaders(),
-            });
-            const data = await response.json();
-            return data;
-        } catch (error) {
-            console.error("Failed to fetch prescribers", error);
-            return { success: false, message: "Network error" };
-        }
+export const prescribersApi = {
+    /**
+     * Get all prescribers with optional search
+     */
+    async getPrescribers(params: { search?: string; storeId?: string } = {}) {
+        const query = new URLSearchParams();
+        if (params.search) query.append('search', params.search);
+        if (params.storeId) query.append('storeId', params.storeId);
+
+        const response = await apiClient.get(`/prescribers?${query.toString()}`);
+        return response;
     },
 
-    // Create a new prescriber
-    createPrescriber: async (prescriberData: { name: string; licenseNumber: string; clinicAddress?: string; phoneNumber?: string }) => {
-        const response = await fetch(`${API_URL}/prescribers`, {
-            method: 'POST',
-            headers: getAuthHeaders(),
-            body: JSON.stringify(prescriberData),
-        });
-        const data = await response.json();
-
-        if (!response.ok) {
-            throw new Error(data.message || 'Failed to create prescriber');
-        }
-
-        return data;
+    /**
+     * Create new prescriber
+     */
+    async createPrescriber(data: Partial<Prescriber>) {
+        const response = await apiClient.post('/prescribers', data);
+        return response; // Return full response (axios response object or intercepted response)
     }
 };

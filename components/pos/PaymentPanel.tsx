@@ -94,32 +94,32 @@ export default function PaymentPanel({
         {/* Top Actions Grid */}
         <div className="grid grid-cols-2 gap-3">
           {/* Customer Selector */}
-          <div className={`rounded-lg p-3 border transition-colors ${customer ? 'bg-white border-indigo-200' : 'bg-gray-50 border-dashed border-gray-300'}`}>
+          <div className={`col-span-2 rounded-lg p-3 border transition-colors ${customer ? 'bg-white border-indigo-200' : 'bg-white border-gray-200 hover:border-indigo-300'}`}>
             <div className="flex items-center justify-between mb-1">
               <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Customer</span>
               {customer && <button onClick={() => onCustomerChange(null)} className="text-xs text-red-400 hover:text-red-600">Clear</button>}
             </div>
             {customer ? (
-              <div className="flex items-center gap-2" role="button" onClick={onOpenCustomer}>
-                <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold shrink-0">
+              <div className="flex items-center gap-3 p-1" role="button" onClick={onOpenCustomer}>
+                <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold shrink-0 ring-2 ring-white shadow-sm">
                   {customer.firstName[0]}
                 </div>
                 <div className="overflow-hidden flex-1">
                   <div className="flex justify-between items-center">
                     <div className="font-semibold text-gray-900 truncate text-sm">{customer.firstName} {customer.lastName}</div>
                     {Number(customer.currentBalance) > 0 && (
-                      <div className="text-[10px] font-bold text-red-600 bg-red-50 px-1.5 py-0.5 rounded">
+                      <div className="text-[10px] font-bold text-red-600 bg-red-50 px-2 py-0.5 rounded-full border border-red-100">
                         Due: ₹{Number(customer.currentBalance).toFixed(0)}
                       </div>
                     )}
                   </div>
                   <div className="flex items-center justify-between gap-2 mt-0.5">
-                    <div className="text-[11px] text-gray-500">{customer.phoneNumber}</div>
+                    <div className="text-xs text-gray-500">{customer.phoneNumber}</div>
                     <button
                       onClick={(e) => { e.stopPropagation(); onOpenLedger(); }}
-                      className={`text-[10px] px-2 py-0.5 rounded border font-medium transition-colors ${Number(customer.currentBalance) > 0
-                        ? 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100'
-                        : 'bg-indigo-50 text-indigo-600 border-indigo-100 hover:bg-indigo-100'
+                      className={`text-[10px] px-2 py-0.5 rounded-md font-medium transition-colors ${Number(customer.currentBalance) > 0
+                        ? 'bg-red-50 text-red-600 hover:bg-red-100 border border-red-100'
+                        : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100 border border-indigo-100'
                         }`}
                     >
                       {Number(customer.currentBalance) > 0 ? 'Pay Dues' : 'History'}
@@ -128,23 +128,29 @@ export default function PaymentPanel({
                 </div>
               </div>
             ) : (
-              <div className="flex gap-2 h-full">
-                <div className="flex-1 flex flex-col items-center justify-center bg-teal-50 border border-teal-100 rounded-lg p-2 text-center group transition-colors hover:bg-teal-100 cursor-default" title="Current Mode: Walk-in / OTC">
-                  <span className="text-[10px] font-bold text-teal-600 uppercase tracking-widest mb-1">Current Mode</span>
-                  <div className="text-sm font-bold text-teal-800">Walk-in / OTC</div>
-                </div>
-                <button onClick={onOpenCustomer} className="flex-1 flex flex-col items-center justify-center gap-1 text-gray-600 hover:text-indigo-600 hover:bg-indigo-50 transition-all p-2 rounded-lg border border-dashed border-gray-300 hover:border-indigo-300 group">
-                  <div className="w-6 h-6 rounded-full bg-gray-100 group-hover:bg-white flex items-center justify-center transition-colors">
-                    <FiUserPlus className="w-3.5 h-3.5" />
+              <div
+                onClick={onOpenCustomer}
+                className="group cursor-pointer flex items-center justify-between p-2 hover:bg-gray-50 rounded-lg transition-all duration-200"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-teal-50 flex items-center justify-center text-teal-600 ring-4 ring-teal-50/50 group-hover:bg-teal-100 group-hover:scale-105 transition-all duration-200">
+                    <FiUser className="w-5 h-5" />
                   </div>
-                  <span className="text-xs font-semibold">Add Customer</span>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-bold text-gray-800 group-hover:text-indigo-600 transition-colors">Walk-in Customer</span>
+                    <span className="text-[11px] text-gray-400 font-medium">Standard Retail / OTC</span>
+                  </div>
+                </div>
+
+                <button className="text-xs font-semibold bg-white border border-gray-200 text-gray-600 px-3 py-1.5 rounded-md group-hover:border-indigo-200 group-hover:text-indigo-600 shadow-sm transition-all">
+                  Select Customer
                 </button>
               </div>
             )}
           </div>
 
           {/* Invoice Type Selector */}
-          <div className="bg-white rounded-lg p-3 border border-gray-200">
+          <div className="col-span-2 bg-white rounded-lg p-3 border border-gray-200">
             <span className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-2">Invoice Type</span>
             <select
               value={invoiceType}

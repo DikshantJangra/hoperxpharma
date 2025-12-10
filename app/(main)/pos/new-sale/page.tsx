@@ -16,7 +16,7 @@ import QuickAddGrid from '@/components/pos/QuickAddGrid';
 import DraftRestoreModal from '@/components/pos/DraftRestoreModal';
 import CustomerLedgerPanel from '@/components/customers/CustomerLedgerPanel';
 import PrescriptionBanner from '@/components/pos/PrescriptionBanner';
-import { salesApi } from '@/lib/api/sales';
+import { salesApi, Sale } from '@/lib/api/sales';
 import { prescriptionApi } from '@/lib/api/prescriptions';
 import PrescriptionImportModal from '@/components/pos/PrescriptionImportModal';
 import { inventoryApi } from '@/lib/api/inventory';
@@ -463,9 +463,13 @@ export default function NewSalePage() {
     }
 
     // Link this prescription to the sale
-    console.log('🔍 DEBUG: Setting linkedPrescriptionId to:', rx.id);
-    setLinkedPrescriptionId(rx.id);
-    setActivePrescription(rx);
+    if (rx?.id) {
+      setLinkedPrescriptionId(rx.id);
+      setActivePrescription(rx);
+    } else {
+      toast.error('Import failed: Invalid prescription data (ID missing)');
+      return;
+    }
 
     // 3. Process Items
     const newItems: any[] = [];
@@ -604,7 +608,6 @@ export default function NewSalePage() {
   const clearBasket = () => {
     setBasketItems([]);
     setCustomer(null);
-    console.log('🔍 DEBUG: Clearing linkedPrescriptionId (was:', linkedPrescriptionId, ')');
     setLinkedPrescriptionId(null);
     setActivePrescription(null);
     setCurrentDraftId(null); // Clear draft ID when clearing basket
@@ -759,11 +762,13 @@ export default function NewSalePage() {
         invoiceNumber, // Pass the invoice number (manually edited or auto-fetched)
       };
 
-      console.log('Creating sale with data:', saleData);
-      console.log('🔍 DEBUG: linkedPrescriptionId =', linkedPrescriptionId);
-      console.log('🔍 DEBUG: prescriptionId in saleData =', saleData.prescriptionId);
-      const response = await salesApi.createSale(saleData);
-      console.log('Sale API response:', response);
+      // Ensure prescriptionId is undefined if null to match interface
+      const payload: Partial<Sale> = {
+        ...saleData,
+        prescriptionId: saleData.prescriptionId || undefined
+      };
+
+      const response = await salesApi.createSale(payload);
 
       // Check if sale was created successfully (response has id and invoiceNumber)
       if (response && (response.id || response.invoiceNumber)) {

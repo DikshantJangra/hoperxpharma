@@ -2,16 +2,18 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { FiX, FiShoppingCart, FiEdit, FiSend, FiClock, FiPackage, FiAlertCircle, FiCheck, FiTrash2, FiEdit2 } from 'react-icons/fi';
+import { FiX, FiShoppingCart, FiEdit, FiSend, FiClock, FiPackage, FiAlertCircle, FiCheck, FiTrash2, FiEdit2, FiPlus } from 'react-icons/fi';
 import { BsSnow, BsQrCode } from 'react-icons/bs';
 import { toast } from 'sonner';
 import AdjustStockModal from './AdjustStockModal';
+import AddBatchModal from './AddBatchModal';
 import DeleteInventoryModal from './DeleteInventoryModal';
 import EditDrugModal from './EditDrugModal';
 import { mapDrugToDetailPanel } from '@/lib/utils/drugMapper';
 
 export default function StockDetailPanel({ item, onClose }: any) {
   const [showAdjustModal, setShowAdjustModal] = useState(false);
+  const [showAddBatchModal, setShowAddBatchModal] = useState(false);
   const [showEditDrugModal, setShowEditDrugModal] = useState(false);
   const [batchesWithSuppliers, setBatchesWithSuppliers] = useState<any[]>([]);
   const [isLoadingBatches, setIsLoadingBatches] = useState(true);
@@ -372,6 +374,14 @@ export default function StockDetailPanel({ item, onClose }: any) {
               <FiEdit className="w-4 h-4" />
               Adjust
             </button>
+            <button
+              onClick={() => setShowAddBatchModal(true)}
+              className="py-2 border border-[#cbd5e1] rounded-lg hover:bg-[#f8fafc] flex items-center justify-center gap-2 text-sm"
+              title="Add new batch directly"
+            >
+              <FiPlus className="w-4 h-4" />
+              Add Stock
+            </button>
             <button className="py-2 border border-[#cbd5e1] rounded-lg hover:bg-[#f8fafc] flex items-center justify-center gap-2 text-sm">
               <FiSend className="w-4 h-4" />
               Transfer
@@ -420,6 +430,18 @@ export default function StockDetailPanel({ item, onClose }: any) {
           onSuccess={() => {
             fetchSupplierInfo(item.inventory || []); // Refresh data
             toast.success('Drug information updated');
+          }}
+        />
+      )}
+
+      {showAddBatchModal && (
+        <AddBatchModal
+          drugId={mappedItem.id}
+          drugName={mappedItem.name}
+          onClose={() => setShowAddBatchModal(false)}
+          onSuccess={() => {
+            fetchBatchesWithSuppliers(); // Refresh batches
+            toast.success('Batch added successfully');
           }}
         />
       )}

@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const handlebars = require('handlebars');
 const moment = require('moment');
+const UPIQRCode = require('upiqrcode').default; // Module exports as { default: Function }
 
 class PDFService {
     constructor() {
@@ -32,7 +33,14 @@ class PDFService {
             // 4. Generate PDF with Puppeteer
             const browser = await puppeteer.launch({
                 headless: 'new',
-                args: ['--no-sandbox', '--disable-setuid-sandbox']
+                args: [
+                    '--no-sandbox',
+                    '--disable-setuid-sandbox',
+                    '--disable-dev-shm-usage', // For production/Docker
+                    '--disable-gpu',
+                    '--disable-software-rasterizer',
+                    '--disable-web-security' // Allow external images
+                ]
             });
             const page = await browser.newPage();
 
@@ -215,7 +223,7 @@ class PDFService {
             console.log('Generating Invoice PDF for:', sale.invoiceNumber);
 
             // Prepare data for template
-            const data = this.mapSaleToTemplateData(sale);
+            const data = await this.mapSaleToTemplateData(sale);
 
             // Read invoice template
             const templatePath = path.join(__dirname, '../../templates/sale-invoice-template.html');
@@ -257,7 +265,7 @@ class PDFService {
     /**
      * Map Sale data to invoice template format
      */
-    mapSaleToTemplateData(sale) {
+    async mapSaleToTemplateData(sale) {
         const formatCurrency = (amount) => {
             return new Intl.NumberFormat('en-IN', {
                 minimumFractionDigits: 2,
@@ -266,7 +274,7 @@ class PDFService {
         };
 
         const formatDate = (date) => {
-            return date ? moment(date).format('DD-MMM-YYYY') : '';
+            return date ? moment(date).format('DD-MM-YY') : '';
         };
 
         const formatTime = (date) => {
@@ -277,12 +285,17 @@ class PDFService {
         let cgstTotal = 0;
         let sgstTotal = 0;
         let igstTotal = 0;
+        let totalMrp = 0;
+        let totalSaving = 0;
 
         // Map items
         const items = sale.items.map((item, index) => {
             const gstRate = Number(item.gstRate) || 0;
             const lineTotal = Number(item.lineTotal) || 0;
             const discount = Number(item.discount) || 0;
+            const mrp = Number(item.mrp) || 0;
+            const quantity = Number(item.quantity) || 0;
+            // const unitPrice = Number(item.price) || 0; // This is the selling price per unit
 
             // Calculate tax amount for this item
             const taxableAmount = lineTotal / (1 + gstRate / 100);
@@ -296,110 +309,191 @@ class PDFService {
             cgstTotal += cgst;
             sgstTotal += sgst;
 
+            const itemTotalMrp = mrp * quantity;
+            totalMrp += itemTotalMrp;
+
+            // Discounted Price (D.Price) is the effective unit price after discount
+            // If item.price is already the discounted price, use it.
+            // If item.price is base price and discount is separate, we need to calculate.
+            // Assuming item.price IS the final selling price per unit.
+            // const dPrice = unitPrice;
+
             return {
                 srNo: index + 1,
                 drugName: item.drug?.name || 'Item',
                 manufacturer: item.drug?.manufacturer || '',
                 packSize: item.drug?.packSize || '1s',
-                hsnCode: item.drug?.hsnCode || '-',
+                hsnCode: item.drug?.hsnCode || '3004', // Default HSN if missing
                 batchNumber: item.batch?.batchNumber || '',
-                expiryDate: item.batch?.expiryDate ? formatDate(item.batch.expiryDate) : '',
-                quantity: item.quantity,
-                mrp: formatCurrency(item.mrp),
-                discount: discount > 0 ? formatCurrency(discount) : null,
-                gstRate: gstRate.toFixed(2),
+                expiryDate: item.batch?.expiryDate ? moment(item.batch.expiryDate).format('MM/YY') : '',
+                quantity: quantity,
+                mrp: formatCurrency(mrp),
+                prevMrp: null, // Placeholder as per plan
+                // dPrice: formatCurrency(dPrice),
+                gstPercent: gstRate + '%',
                 lineTotal: formatCurrency(lineTotal)
             };
         });
 
-        // Invoice type label
-        const invoiceTypeLabels = {
-            RECEIPT: 'RECEIPT',
-            GST_INVOICE: 'TAX INVOICE',
-            CREDIT_NOTE: 'CREDIT NOTE'
-        };
+        // Calculate Global Totals
+        // Total Saving = Total MRP - Grand Total
+        // Note: Grand Total might include Round Off, so we should use sale.total
+        totalSaving = totalMrp - Number(sale.total);
+        if (totalSaving < 0) totalSaving = 0; // Should not happen usually
+
+        // Extract Licenses
+        // Assuming store.licenses is an array of objects { type: 'DL'|'GSTIN'|'FSSAI', number: '...' }
+        // For now, mapping from specific fields or mocking if structure differs
+        // As per previous code, we had store.gstin, store.dlNumber.
+        // We will try to format them nicely.
+
+        const licenses = [];
+        if (sale.store?.dlNumber) {
+            // Check if there are multiple DLs separated by comma
+            const dls = sale.store.dlNumber.split(',');
+            dls.forEach((dl, idx) => {
+                licenses.push({ name: dls.length > 1 ? `LICENSE 2${idx}` : 'LICENSE 20/21', number: dl.trim() });
+            });
+        }
+        // Add specific licenses if available in a 'licenses' array (if schema supports it)
+        // Check `sale.store.licenses` if it exists.
+
+        let fssai = sale.store?.fssai || ''; // If schema has it
+        let pan = sale.store?.pan || '';     // If schema has it
 
         return {
             invoiceNumber: sale.invoiceNumber,
-            invoiceTypeLabel: invoiceTypeLabels[sale.invoiceType] || 'INVOICE',
             invoiceDate: formatDate(sale.createdAt),
             invoiceTime: formatTime(sale.createdAt),
 
             store: {
-                displayName: sale.store?.displayName || sale.store?.name || '',
+                displayName: sale.store?.displayName || sale.store?.name || 'Store Name',
+                subtitle: '', // Removed dummy subtitle
                 addressLine1: sale.store?.addressLine1 || '',
-                addressLine2: sale.store?.addressLine2 || '',
                 city: sale.store?.city || '',
                 state: sale.store?.state || '',
                 pinCode: sale.store?.pinCode || '',
+                phone: sale.store?.phoneNumber || '',
+                licenses: licenses,
+                fssai: fssai,
                 gstin: sale.store?.gstin || '',
-                dlNumber: sale.store?.dlNumber || '',
-                phoneNumber: sale.store?.phoneNumber || '',
-                email: sale.store?.email || '',
+                pan: pan,
                 logoUrl: sale.store?.logoUrl || '',
-                is24x7: sale.store?.is24x7 || false,
-                // New Professional Fields
-                signatureUrl: sale.store?.signatureUrl,
-                jurisdiction: sale.store?.jurisdiction || 'Subject to local jurisdiction',
                 terms: sale.store?.termsAndConditions
                     ? sale.store.termsAndConditions.split('\n')
                     : [
-                        'Medicines once sold will not be taken back or exchanged.',
-                        'Prescription medicines are sold only against valid prescription.',
-                        'Please check the expiry date before use.',
-                        'Interest @18% p.a. will be charged if bill is not paid on due date.'
+                        'Goods once sold will not be taken back.',
+                        'Prescription drugs are sold against valid prescription only.'
                     ],
-                // Bank details removed as per user request
-                bank: null
+                jurisdiction: sale.store?.jurisdiction || ''
             },
 
-            patient: sale.patient ? {
-                firstName: sale.patient.firstName,
-                lastName: sale.patient.lastName,
-                phoneNumber: sale.patient.phoneNumber,
-                email: sale.patient.email,
-                addressLine1: sale.patient.addressLine1,
-                addressLine2: sale.patient.addressLine2,
-                city: sale.patient.city,
-                state: sale.patient.state,
-                pinCode: sale.patient.pinCode,
-                dateOfBirth: sale.patient.dateOfBirth ? formatDate(sale.patient.dateOfBirth) : null,
-                gender: sale.patient.gender,
-                bloodGroup: sale.patient.bloodGroup,
-                gstin: sale.patient.gstin // Added patient GSTIN
-            } : null,
+            patient: {
+                name: sale.patient ? `${sale.patient.firstName} ${sale.patient.lastName}`.trim() : 'Walk-in Customer',
+                gender: sale.patient?.gender ? sale.patient.gender[0].toUpperCase() : '', // M/F
+                phone: sale.patient?.phoneNumber || '',
+                refBy: sale.doctorName || 'Dr. Pravesh' // Default or actual
+            },
 
             items: items,
+            totalItems: items.length,
 
-            paymentSplits: sale.paymentSplits?.map(split => ({
-                paymentMethod: split.paymentMethod,
-                amount: formatCurrency(split.amount),
-                upiTransactionId: split.upiTransactionId,
-                cardLast4: split.cardLast4
-            })) || [],
-
-            soldByName: sale.soldByUser?.firstName + ' ' + sale.soldByUser?.lastName || 'Staff',
-            soldBySignature: sale.soldByUser?.signatureUrl, // Staff signature
-
-            subtotal: formatCurrency(sale.subtotal),
-            discountAmount: Number(sale.discountAmount) > 0 ? formatCurrency(sale.discountAmount) : null,
-            taxAmount: formatCurrency(sale.taxAmount),
-            cgst: cgstTotal > 0 ? formatCurrency(cgstTotal) : null,
-            sgst: sgstTotal > 0 ? formatCurrency(sgstTotal) : null,
-            igst: igstTotal > 0 ? formatCurrency(igstTotal) : null,
-            roundOff: Number(sale.roundOff) !== 0 ? formatCurrency(sale.roundOff) : null,
-            total: formatCurrency(sale.total),
-            amountInWords: this.convertNumberToWords(Math.round(Number(sale.total))), // Fixed to invoke method
-
-            branding: {
-                primaryColor: '#0ea5a3', // Can be dynamic from store settings
-                secondaryColor: '#f0fdfa'
+            totals: {
+                subtotal: formatCurrency(sale.subtotal),
+                discountAmount: Number(sale.discountAmount) > 0 ? formatCurrency(sale.discountAmount) : null,
+                taxAmount: formatCurrency(sale.taxAmount),
+                cgst: formatCurrency(cgstTotal),
+                sgst: formatCurrency(sgstTotal),
+                totalMrp: formatCurrency(totalMrp),
+                totalSaving: formatCurrency(totalSaving),
+                roundOff: Math.abs(Number(sale.roundOff)).toFixed(2),
+                grandTotal: formatCurrency(sale.total)
             },
 
-            generatedAt: moment().format('DD-MMM-YYYY hh:mm A'),
+            billedBy: await this.getSoldByUserName(sale.soldBy), // Fetch user name from soldBy ID
+            soldBySignature: sale.store?.signatureUrl || '', // Store signature for authorized signatory
+            footerText: sale.store?.settings?.footerText || '', // Custom footer text from invoice design
 
-            upiQrCode: null // TODO: Generate QR code for UPI payments
+            generatedAt: moment().format('DD-MM-YY hh:mm A'),
+
+            // For QR Code (can be an image URL or text to generate)
+            qrCodeUrl: await this.generateUPIQRCode(sale.store, sale.total)
         };
+    }
+
+    /**
+     * Get user name from soldBy ID
+     */
+    async getSoldByUserName(soldByUserId) {
+        if (!soldByUserId) return 'Owner';
+
+        try {
+            const prisma = require('../config/database').getClient();
+            const user = await prisma.user.findUnique({
+                where: { id: soldByUserId },
+                select: { firstName: true, lastName: true }
+            });
+
+            if (user) {
+                return user.firstName + (user.lastName ? ' ' + user.lastName : '');
+            }
+            return 'Owner';
+        } catch (error) {
+            console.error('Error fetching user name for soldBy:', error);
+            return 'Owner';
+        }
+    }
+
+    /**
+     * Generate UPI QR Code for payment
+     * @param {Object} store - Store object with bankDetails
+     * @param {number} amount - Payment amount
+     * @returns {Promise<string>} - Base64 data URL of QR code
+     */
+    async generateUPIQRCode(store, amount) {
+        try {
+            console.log('=== QR CODE GENERATION ===');
+            console.log('Store object:', JSON.stringify({
+                id: store?.id,
+                name: store?.name,
+                bankDetails: store?.bankDetails
+            }, null, 2));
+            console.log('Amount:', amount);
+
+            // Check if UPI ID is configured
+            const upiId = store?.bankDetails?.upiId;
+            if (!upiId) {
+                console.log('⚠️ No UPI ID configured, skipping QR code generation');
+                console.log('Store bankDetails:', store?.bankDetails);
+                return '';
+            }
+
+            console.log('✓ UPI ID found:', upiId);
+
+            // Generate QR code - upiqrcode is a function that returns {qr, intent}
+            const result = await UPIQRCode({
+                payeeVPA: upiId,
+                payeeName: store.displayName || store.name,
+                amount: amount.toString(),
+                transactionNote: 'Invoice Payment',
+            });
+
+            console.log('QR Code generated');
+            console.log('Result keys:', Object.keys(result));
+
+            // result.qr contains the base64 PNG data URL
+            const qrDataUrl = result.qr;
+
+            console.log('✓ QR Code generated successfully');
+            console.log('QR Data URL length:', qrDataUrl?.length || 0);
+            console.log('QR Data URL preview:', qrDataUrl?.substring(0, 100));
+
+            return qrDataUrl;
+        } catch (error) {
+            console.error('❌ QR Code Generation Error:', error);
+            console.error('Error stack:', error.stack);
+            return ''; // Return empty string on error, don't crash PDF generation
+        }
     }
 
     convertNumberToWords(amount) {

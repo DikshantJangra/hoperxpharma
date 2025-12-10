@@ -20,6 +20,14 @@ router.patch('/:id', validate(storeUpdateSchema), storeController.updateStore); 
 router.get('/:id/stats', storeController.getStoreStats);
 
 /**
+ * Asset upload routes
+ */
+router.post('/:id/logo/upload-request', storeController.requestLogoUpload);
+router.post('/:id/logo/process', storeController.processLogoUpload);
+router.post('/:id/signature/upload-request', storeController.requestSignatureUpload);
+router.post('/:id/signature/process', storeController.processSignatureUpload);
+
+/**
  * Subscription routes
  */
 router.get('/subscriptions/plans', storeController.getPlans);

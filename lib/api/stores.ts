@@ -9,6 +9,13 @@ export interface Store {
     whatsapp?: string;
     businessType?: string;
     logoUrl?: string;
+    signatureUrl?: string;
+    bankDetails?: {
+        upiId?: string;
+        bankName?: string;
+        accountNumber?: string;
+        ifsc?: string;
+    };
 
     // Address
     addressLine1: string;
@@ -25,6 +32,12 @@ export interface Store {
     // Operations
     is24x7?: boolean;
     homeDelivery?: boolean;
+
+    // Settings
+    settings?: {
+        invoiceFormat?: string;
+        footerText?: string;
+    };
 
     createdAt: string;
 }
@@ -124,6 +137,38 @@ export const storesApi = {
      */
     async getUsage(storeId: string) {
         const response = await apiClient.get(`/stores/${storeId}/subscription/usage`);
+        return response.data;
+    },
+
+    /**
+     * Request logo upload URL
+     */
+    async requestLogoUpload(storeId: string, fileName: string) {
+        const response = await apiClient.post(`/stores/${storeId}/logo/upload-request`, { fileName });
+        return response.data;
+    },
+
+    /**
+     * Process logo upload
+     */
+    async processLogoUpload(storeId: string, tempKey: string, fileName: string) {
+        const response = await apiClient.post(`/stores/${storeId}/logo/process`, { tempKey, fileName });
+        return response.data;
+    },
+
+    /**
+     * Request signature upload URL
+     */
+    async requestSignatureUpload(storeId: string, fileName: string) {
+        const response = await apiClient.post(`/stores/${storeId}/signature/upload-request`, { fileName });
+        return response.data;
+    },
+
+    /**
+     * Process signature upload
+     */
+    async processSignatureUpload(storeId: string, tempKey: string, fileName: string) {
+        const response = await apiClient.post(`/stores/${storeId}/signature/process`, { tempKey, fileName });
         return response.data;
     }
 };

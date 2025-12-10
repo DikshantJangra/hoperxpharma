@@ -41,20 +41,21 @@ const splitBatchSchema = Joi.object({
 });
 
 const recordDiscrepancySchema = Joi.object({
-    grnItemId: Joi.string().optional(),
+    grnItemId: Joi.string().allow(null).optional(),
     reason: Joi.string().valid('SHORTAGE', 'OVERAGE', 'DAMAGED', 'EXPIRED', 'WRONG_ITEM', 'MISSING').required(),
-    resolution: Joi.string().valid('BACKORDER', 'CANCELLED', 'DEBIT_NOTE', 'ACCEPTED').optional(),
+    resolution: Joi.string().valid('BACKORDER', 'CANCELLED', 'DEBIT_NOTE', 'ACCEPTED').allow(null).optional(),
     description: Joi.string().required(),
-    expectedQty: Joi.number().integer().min(0).optional(),
-    actualQty: Joi.number().integer().min(0).optional(),
-    discrepancyQty: Joi.number().integer().min(0).optional(),
-    debitNoteValue: Joi.number().min(0).optional()
+    expectedQty: Joi.number().integer().min(0).allow(null).optional(),
+    actualQty: Joi.number().integer().min(0).allow(null).optional(),
+    discrepancyQty: Joi.number().integer().min(0).allow(null).optional(),
+    debitNoteValue: Joi.number().min(0).allow(null).optional()
 });
 
 const completeGRNSchema = Joi.object({
     supplierInvoiceNo: Joi.string().max(50).optional(),
     supplierInvoiceDate: Joi.date().allow(null, '').optional(),
-    notes: Joi.string().max(1000).optional()
+    notes: Joi.string().max(1000).optional(),
+    targetStatus: Joi.string().valid('COMPLETED', 'PARTIALLY_RECEIVED').optional()
 });
 
 module.exports = {

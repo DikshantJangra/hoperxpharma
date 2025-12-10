@@ -176,7 +176,8 @@ export default function InvoiceTable({ searchQuery, onSelectInvoice, selectedInv
                     id: invoice.invoiceNumber,
                     date: formatDate(invoice.createdAt),
                     time: formatTime(invoice.createdAt),
-                    status: invoice.status,
+                    status: invoice.paymentStatus === 'UNPAID' ? 'PENDING' : invoice.paymentStatus === 'PARTIAL' ? 'PARTIAL' : invoice.status,
+                    paymentStatus: invoice.paymentStatus, // Pass raw payment status too if needed
                     type: invoice.invoiceType === 'GST_INVOICE' ? 'GST' : 'Regular',
                     hasEInvoice: false, // TODO: Add e-invoice support
                     hasRx: !!invoice.prescriptionId,
@@ -253,16 +254,21 @@ export default function InvoiceTable({ searchQuery, onSelectInvoice, selectedInv
                 </td>
                 <td className="px-4 py-3">
                   <span
-                    className={`px-2 py-1 text-xs font-medium rounded-full ${invoice.status === 'COMPLETED'
-                      ? 'bg-[#d1fae5] text-[#065f46]'
-                      : invoice.status === 'PARTIALLY_REFUNDED'
-                        ? 'bg-[#fef3c7] text-[#92400e]'
-                        : invoice.status === 'REFUNDED'
-                          ? 'bg-[#fee2e2] text-[#991b1b]'
-                          : 'bg-[#e0e7ff] text-[#3730a3]'
+                    className={`px-2 py-1 text-xs font-medium rounded-full ${invoice.paymentStatus === 'UNPAID' || invoice.paymentStatus === 'OVERDUE'
+                      ? 'bg-[#fefce8] text-[#a16207]' // Yellow for Pending/Unpaid
+                      : invoice.paymentStatus === 'PARTIAL'
+                        ? 'bg-[#fff7ed] text-[#c2410c]' // Orange for Partial
+                        : invoice.status === 'COMPLETED'
+                          ? 'bg-[#d1fae5] text-[#065f46]' // Green for Paid & Completed
+                          : invoice.status === 'REFUNDED'
+                            ? 'bg-[#fee2e2] text-[#991b1b]'
+                            : 'bg-[#e0e7ff] text-[#3730a3]'
                       }`}
                   >
-                    {invoice.status}
+                    {invoice.paymentStatus === 'UNPAID' ? 'PENDING' :
+                      invoice.paymentStatus === 'PARTIAL' ? 'PARTIAL' :
+                        invoice.paymentStatus === 'OVERDUE' ? 'OVERDUE' :
+                          invoice.status}
                   </span>
                 </td>
                 <td className="px-4 py-3">

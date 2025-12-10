@@ -5,10 +5,19 @@ const ApiResponse = require('../../utils/ApiResponse');
 const ApiError = require('../../utils/ApiError');
 
 const getPrescribers = asyncHandler(async (req, res) => {
-    const { search } = req.query;
+    const { search, storeId } = req.query;
+
+    // Use requested storeId if provided and user has access to it, otherwise default to req.storeId
+    let targetStoreId = req.storeId;
+    if (storeId) {
+        const hasAccess = req.user.stores.some(s => s.id === storeId);
+        if (hasAccess) {
+            targetStoreId = storeId;
+        }
+    }
 
     const where = {
-        storeId: req.storeId // Filter by current store
+        storeId: targetStoreId
     };
 
     if (search) {
@@ -31,22 +40,32 @@ const getPrescribers = asyncHandler(async (req, res) => {
 });
 
 const createPrescriber = asyncHandler(async (req, res) => {
-    const { name, licenseNumber, clinic, phoneNumber, email, specialty } = req.body;
+    const { name, licenseNumber, clinic, phoneNumber, email, specialty, storeId } = req.body;
 
     if (!name || !licenseNumber) {
         throw ApiError.badRequest('Name and License Number are required');
     }
 
+    // Determine target store ID
+    let targetStoreId = req.storeId;
+    if (storeId) {
+        const hasAccess = req.user.stores.some(s => s.id === storeId);
+        if (!hasAccess) {
+            throw ApiError.forbidden('You do not have access to this store');
+        }
+        targetStoreId = storeId;
+    }
+
     // Check if prescriber with same license exists in THIS store
     const existing = await prisma.prescriber.findFirst({
         where: {
-            storeId: req.storeId,
+            storeId: targetStoreId,
             licenseNumber
         }
     });
 
     console.log('Existing prescriber check:', {
-        searchedStoreId: req.storeId,
+        searchedStoreId: targetStoreId,
         searchedLicense: licenseNumber,
         found: existing ? {
             id: existing.id,
@@ -61,7 +80,7 @@ const createPrescriber = asyncHandler(async (req, res) => {
     }
 
     console.log('Creating prescriber with data:', {
-        storeId: req.storeId,
+        storeId: targetStoreId,
         name,
         licenseNumber,
         clinic,
@@ -73,7 +92,7 @@ const createPrescriber = asyncHandler(async (req, res) => {
     try {
         const prescriber = await prisma.prescriber.create({
             data: {
-                storeId: req.storeId,
+                storeId: targetStoreId,
                 name,
                 licenseNumber,
                 clinic,

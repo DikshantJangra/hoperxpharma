@@ -384,7 +384,11 @@ class PatientService {
             limit: filters.limit ? parseInt(filters.limit) : 20,
         };
 
-        return await patientRepository.getLedger(patientId, parsedFilters);
+        return await patientRepository.getLedger({
+            patientId,
+            storeId,
+            ...parsedFilters
+        });
     }
 
     /**

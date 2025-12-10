@@ -63,7 +63,11 @@ class SaleRepository {
             where: { id, deletedAt: null },
             include: {
                 patient: true,
-                store: true, // Fix: Include store details
+                store: {
+                    include: {
+                        settings: true // Include settings which contains invoiceFormat and footerText
+                    }
+                },
                 items: {
                     include: {
                         drug: true,
@@ -91,10 +95,8 @@ class SaleRepository {
         return await prisma.$transaction(async (tx) => {
             // If prescription ID is linked, fetch it to get attachments
             let attachments = [];
-            console.log('🔍 DEBUG Repository: saleData.prescriptionId =', saleData.prescriptionId);
 
             if (saleData.prescriptionId) {
-                console.log('🔍 DEBUG Repository: Fetching prescription:', saleData.prescriptionId);
                 const rx = await tx.prescription.findUnique({
                     where: { id: saleData.prescriptionId },
                     include: { files: true }
@@ -109,8 +111,7 @@ class SaleRepository {
                 }
 
                 // Update Prescription Status
-                console.log('🔍 DEBUG Repository: Updating prescription status to COMPLETED');
-                const updatedRx = await tx.prescription.update({
+                await tx.prescription.update({
                     where: { id: saleData.prescriptionId },
                     data: {
                         status: 'COMPLETED',
@@ -118,12 +119,10 @@ class SaleRepository {
                         updatedAt: new Date()
                     }
                 });
-                console.log('✅ DEBUG Repository: Prescription updated successfully:', updatedRx.id, 'Status:', updatedRx.status);
-            } else {
-                console.log('⚠️ DEBUG Repository: No prescriptionId in saleData');
             }
 
             // Create sale
+
             const sale = await tx.sale.create({
                 data: {
                     ...saleData,
@@ -162,8 +161,11 @@ class SaleRepository {
             );
 
             // Calculate total credit amount used in this sale
-            const creditPayment = paymentSplits.find(p => p.paymentMethod === 'CREDIT');
+            // FIX: Case-insensitive check for CREDIT
+            const creditPayment = paymentSplits.find(p => p.paymentMethod && p.paymentMethod.toUpperCase() === 'CREDIT');
             const creditAmount = creditPayment ? parseFloat(creditPayment.amount) : 0;
+
+            console.log(`[SaleRepository] Creating Sale: PatientID=${saleData.patientId}, CreditAmount=${creditAmount}, Splits=${JSON.stringify(paymentSplits)}`);
 
             // Set initial balance and status
             let saleBalance = 0;

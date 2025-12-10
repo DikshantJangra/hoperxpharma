@@ -40,8 +40,28 @@ const statusConfig: Record<OrderStatus, { label: string; bgColor: string; textCo
     }
 };
 
-export default function OrderStatusBadge({ status, className = '' }: OrderStatusBadgeProps) {
-    const config = statusConfig[status];
+// Helper to normalize status string
+const normalizeStatus = (status: string | undefined | null): OrderStatus => {
+    if (!status) return 'draft';
+
+    const lowerStatus = status.toLowerCase();
+
+    // Map backend statuses to frontend badge statuses
+    if (lowerStatus === 'completed') return 'received';
+    if (lowerStatus === 'partially_received') return 'partial';
+    if (lowerStatus === 'in_progress') return 'pending';
+
+    // Check if it's a valid key
+    if (statusConfig[lowerStatus as OrderStatus]) {
+        return lowerStatus as OrderStatus;
+    }
+
+    return 'draft'; // Fallback
+};
+
+export default function OrderStatusBadge({ status, className = '' }: { status: string; className?: string }) {
+    const normalizedStatus = normalizeStatus(status);
+    const config = statusConfig[normalizedStatus] || statusConfig.draft;
 
     return (
         <span

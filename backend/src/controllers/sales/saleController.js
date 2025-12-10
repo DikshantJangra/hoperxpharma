@@ -41,7 +41,6 @@ const createSale = asyncHandler(async (req, res) => {
         storeId: req.storeId,
         soldBy: req.user.id,
     };
-    console.log('🔍 DEBUG Controller: saleData.prescriptionId =', saleData.prescriptionId);
 
     const sale = await saleService.createSale(saleData);
 

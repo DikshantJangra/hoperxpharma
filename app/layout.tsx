@@ -4,6 +4,7 @@ import { AuthProvider } from "@/components/providers/AuthProvider";
 import { ToastProvider } from "@/components/providers/ToastProvider";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Toaster } from 'sonner';
+import QueryProvider from '@/components/providers/QueryProvider';
 import "./globals.css";
 import { KeyboardProvider } from "@/contexts/KeyboardContext";
 
@@ -34,12 +35,14 @@ export default function RootLayout({
         suppressHydrationWarning
       >
         <ErrorBoundary>
-          <AuthProvider>
-            <KeyboardProvider>
-              <ToastProvider />
-              {children}
-            </KeyboardProvider>
-          </AuthProvider>
+          <QueryProvider>
+            <AuthProvider>
+              <KeyboardProvider>
+                <ToastProvider />
+                {children}
+              </KeyboardProvider>
+            </AuthProvider>
+          </QueryProvider>
         </ErrorBoundary>
       </body>
     </html>

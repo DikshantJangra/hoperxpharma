@@ -7,13 +7,14 @@ import ReceivingTable from '@/components/grn/ReceivingTable';
 import CompletionSummary from '@/components/grn/CompletionSummary';
 import AttachmentUploader from '@/components/orders/AttachmentUploader';
 import ValidationModal from '@/components/grn/ValidationModal';
+import StatusConfirmationModal from '@/components/grn/StatusConfirmationModal';
 import { HiOutlineArrowLeft, HiOutlineCheck, HiOutlineXMark } from 'react-icons/hi2';
 import { toast } from 'sonner';
 
 export default function ReceiveShipmentPage() {
     const params = useParams();
     const router = useRouter();
-    const poId = params.id as string;
+    const poId = params?.id as string;
 
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -24,6 +25,7 @@ export default function ReceiveShipmentPage() {
     const [lastSaved, setLastSaved] = useState<Date | null>(null);
     const [validationErrors, setValidationErrors] = useState<any[]>([]);
     const [showValidationModal, setShowValidationModal] = useState(false);
+    const [showStatusModal, setShowStatusModal] = useState(false);
 
     // Invoice details
     const [invoiceNo, setInvoiceNo] = useState('');
@@ -706,20 +708,62 @@ export default function ReceiveShipmentPage() {
         return `${poItem.drug.name}${poItem.drug.strength ? ` ${poItem.drug.strength}` : ''}`;
     };
 
+    // Calculate recommended status based on quantities
+    const calculateRecommendedStatus = (): 'COMPLETED' | 'PARTIALLY_RECEIVED' => {
+        if (!grn || !grn.items) return 'PARTIALLY_RECEIVED';
+
+        const allFullyReceived = grn.items.every((item: any) => {
+            // For split items, check children
+            if (item.isSplit && item.children) {
+                const totalChildReceived = item.children.reduce((sum: number, child: any) =>
+                    sum + (Number(child.receivedQty) || 0), 0
+                );
+                return totalChildReceived === item.orderedQty;
+            }
+            // For regular items
+            return Number(item.receivedQty) === item.orderedQty;
+        });
+
+        return allFullyReceived ? 'COMPLETED' : 'PARTIALLY_RECEIVED';
+    };
+
+    // Calculate total quantities
+    const calculateTotals = () => {
+        if (!grn || !grn.items) return { totalOrdered: 0, totalReceived: 0 };
+
+        let totalOrdered = 0;
+        let totalReceived = 0;
+
+        grn.items.forEach((item: any) => {
+            totalOrdered += item.orderedQty || 0;
+
+            if (item.isSplit && item.children) {
+                totalReceived += item.children.reduce((sum: number, child: any) =>
+                    sum + (Number(child.receivedQty) || 0), 0
+                );
+            } else {
+                totalReceived += Number(item.receivedQty) || 0;
+            }
+        });
+
+        return { totalOrdered, totalReceived };
+    };
+
     const handleCompleteClick = () => {
-        // Validate before showing summary
+        // Validate before showing status modal
         const errors = validateGRN();
         if (errors.length > 0) {
             setValidationErrors(errors);
             setShowValidationModal(true);
             return;
         }
-        // If validation passes, show summary
-        setShowSummary(true);
+        // If validation passes, show status selection modal
+        setShowStatusModal(true);
     };
 
-    const handleComplete = async () => {
+    const handleComplete = async (targetStatus?: 'COMPLETED' | 'PARTIALLY_RECEIVED') => {
         setSaving(true);
+        setShowStatusModal(false);
         try {
             const token = tokenManager.getAccessToken();
 
@@ -732,6 +776,7 @@ export default function ReceiveShipmentPage() {
                 body: JSON.stringify({
                     supplierInvoiceNo: invoiceNo,
                     supplierInvoiceDate: invoiceDate || null,
+                    targetStatus,
                     ...(notes.trim() ? { notes: notes.trim() } : {})  // Only include if not empty
                 })
             });
@@ -741,7 +786,14 @@ export default function ReceiveShipmentPage() {
                 setTimeout(() => router.push('/orders/received'), 1000);
             } else {
                 const error = await response.json();
-                toast.error(error.error || error.message || 'Failed to complete GRN');
+                const errorMessage = error.error || error.message || 'Failed to complete GRN';
+
+                if (errorMessage.toLowerCase().includes('already completed')) {
+                    toast.success('GRN is already completed. Redirecting...');
+                    setTimeout(() => router.push('/orders/received'), 1000);
+                } else {
+                    toast.error(errorMessage);
+                }
             }
         } catch (error) {
             console.error('Error completing GRN:', error);
@@ -751,22 +803,40 @@ export default function ReceiveShipmentPage() {
         }
     };
 
-    const handleCancel = async () => {
-        if (!confirm('Are you sure you want to cancel this receiving process?')) {
+    const handleCancel = async (skipConfirm = false) => {
+        if (!skipConfirm && !confirm('Are you sure you want to cancel this receiving process?')) {
             return;
         }
 
         try {
             const token = tokenManager.getAccessToken();
 
-            await fetch(`${apiBaseUrl}/grn/${grn.id}`, {
+            // Send invoice data even when cancelling so it's preserved
+            const payload: any = {};
+            if (invoiceNo) payload.supplierInvoiceNo = invoiceNo;
+            if (invoiceDate) payload.supplierInvoiceDate = new Date(invoiceDate).toISOString();
+            if (notes) payload.notes = notes;
+
+            const response = await fetch(`${apiBaseUrl}/grn/${grn.id}`, {
                 method: 'DELETE',
-                headers: { 'Authorization': `Bearer ${token}` }
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
             });
 
-            router.push('/orders/pending');
+            if (response.ok) {
+                toast.success('Draft discarded successfully');
+                router.push('/orders/pending');
+            } else {
+                const error = await response.json();
+                console.error('Failed to discard draft:', error);
+                toast.error(error.message || 'Failed to discard draft');
+            }
         } catch (error) {
             console.error('Error cancelling GRN:', error);
+            toast.error('Failed to discard draft');
         }
     };
 
@@ -797,7 +867,13 @@ export default function ReceiveShipmentPage() {
             {/* Header */}
             <div className="mb-6">
                 <button
-                    onClick={() => router.push('/orders/pending')}
+                    onClick={() => {
+                        if (confirm('Do you want to discard this draft? Click OK to Discard (Delete), Cancel to Keep Draft.')) {
+                            handleCancel(true);
+                        } else {
+                            router.push('/orders/pending');
+                        }
+                    }}
                     className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
                 >
                     <HiOutlineArrowLeft className="h-5 w-5" />
@@ -819,11 +895,11 @@ export default function ReceiveShipmentPage() {
 
                     <div className="flex items-center gap-3">
                         <button
-                            onClick={handleCancel}
-                            className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                            onClick={() => handleCancel(false)}
+                            className="px-4 py-2 border border-gray-300 rounded-lg text-red-600 hover:bg-red-50 flex items-center gap-2"
                         >
                             <HiOutlineXMark className="h-5 w-5" />
-                            Cancel
+                            Discard Draft
                         </button>
                         <button
                             onClick={() => handleSaveDraft(false)}
@@ -930,7 +1006,8 @@ export default function ReceiveShipmentPage() {
             {/* Receiving Table */}
             <ReceivingTable
                 items={grn.items}
-                poItems={po.items}
+                poItems={po?.items || []}
+                discrepancies={grn.discrepancies || []}
                 onItemUpdate={handleItemUpdate}
                 onBatchSplit={handleBatchSplit}
                 onDiscrepancy={handleDiscrepancy}
@@ -1111,6 +1188,28 @@ export default function ReceiveShipmentPage() {
                 />
             )}
 
+            {/* Status Confirmation Modal */}
+            {showStatusModal && (() => {
+                const { totalOrdered, totalReceived } = calculateTotals();
+                const recommendedStatus = calculateRecommendedStatus();
+                const hasShortages = totalReceived < totalOrdered;
+
+                return (
+                    <StatusConfirmationModal
+                        isOpen={showStatusModal}
+                        onClose={() => setShowStatusModal(false)}
+                        onConfirm={handleComplete}
+                        currentStatus={grn?.status || 'DRAFT'}
+                        recommendedStatus={recommendedStatus}
+                        invoiceNo={invoiceNo}
+                        invoiceDate={invoiceDate}
+                        totalOrdered={totalOrdered}
+                        totalReceived={totalReceived}
+                        hasShortages={hasShortages}
+                        isSubmitting={saving}
+                    />
+                );
+            })()}
 
         </div>
     );

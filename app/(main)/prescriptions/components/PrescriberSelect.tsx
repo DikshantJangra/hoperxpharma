@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { FiSearch, FiPlus, FiUser, FiX, FiCheck } from 'react-icons/fi';
-import { prescriberApi } from '@/lib/api/prescribers';
+import { prescribersApi } from '@/lib/api/prescribers';
+import { useAuthStore } from '@/lib/store/auth-store';
 import toast from 'react-hot-toast';
 
 interface Prescriber {
@@ -16,6 +17,7 @@ interface PrescriberSelectProps {
 }
 
 export default function PrescriberSelect({ onSelect, selectedPrescriber }: PrescriberSelectProps) {
+    const { primaryStore } = useAuthStore();
     const [isOpen, setIsOpen] = useState(false);
     const [search, setSearch] = useState('');
     const [results, setResults] = useState<Prescriber[]>([]);
@@ -25,12 +27,17 @@ export default function PrescriberSelect({ onSelect, selectedPrescriber }: Presc
     // Debounced search
     useEffect(() => {
         const timer = setTimeout(async () => {
-            if (isOpen || search.length > 0) {
+            if ((isOpen || search.length > 0) && primaryStore?.id) {
                 setLoading(true);
                 try {
-                    const response = await prescriberApi.getPrescribers(search);
+                    const response = await prescribersApi.getPrescribers({
+                        search,
+                        storeId: primaryStore.id
+                    });
+
+                    // The apiClient returns the parsed body directly { success, data, message }
                     if (response.success) {
-                        setResults(response.data);
+                        setResults(response.data || []);
                     }
                 } catch (error) {
                     console.error('Failed to search prescribers', error);
@@ -40,19 +47,27 @@ export default function PrescriberSelect({ onSelect, selectedPrescriber }: Presc
             }
         }, 300);
         return () => clearTimeout(timer);
-    }, [search, isOpen]);
+    }, [search, isOpen, primaryStore?.id]);
 
     const handleQuickAdd = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
+        if (!primaryStore?.id) {
+            toast.error('Store context missing');
+            return;
+        }
+
         const formData = new FormData(e.currentTarget);
         try {
             const newPrescriber = {
                 name: formData.get('name') as string || '',
                 licenseNumber: formData.get('licenseNumber') as string || '',
-                clinicAddress: formData.get('clinic') as string || undefined,
-                phoneNumber: formData.get('phone') as string || undefined
+                clinic: formData.get('clinic') as string || undefined,
+                phoneNumber: formData.get('phone') as string || undefined,
+                storeId: primaryStore.id
             };
-            const response = await prescriberApi.createPrescriber(newPrescriber);
+            const response = await prescribersApi.createPrescriber(newPrescriber);
+
+            // apiClient returns the body directly
             if (response.success) {
                 toast.success('Prescriber added');
                 onSelect(response.data);
@@ -60,7 +75,7 @@ export default function PrescriberSelect({ onSelect, selectedPrescriber }: Presc
                 setSearch('');
             }
         } catch (error: any) {
-            const errorMessage = error.response?.data?.message
+            const errorMessage = error.data?.message
                 || error.message
                 || 'Failed to add prescriber';
             toast.error(errorMessage);

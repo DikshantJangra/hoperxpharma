@@ -5,521 +5,462 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Invoice - {{invoiceNumber}}</title>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
-        /* Traditional Boxy Invoice Style */
-        *,
-        *::before,
-        *::after {
-            box-sizing: border-box;
-        }
-
-        body {
-            margin: 0;
-            padding: 0;
-            font-family: 'Roboto', Arial, sans-serif;
-            font-size: 9px;
-            color: #000;
-            line-height: 1.3;
-            -webkit-print-color-adjust: exact;
-            print-color-adjust: exact;
-        }
-
         @page {
             size: A4;
             margin: 10mm;
         }
 
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 10px;
+            color: #000;
+            line-height: 1.2;
+            -webkit-print-color-adjust: exact;
+        }
+
         .container {
             width: 100%;
-            margin: 0 auto;
-            border: 1px solid #000;
         }
 
-        /* Helper Classes */
-        .w-full {
-            width: 100%;
+        /* Helpers */
+        .flex {
+            display: flex;
         }
 
-        .h-full {
-            height: 100%;
+        .flex-col {
+            flex-direction: column;
         }
 
-        .text-center {
-            text-align: center;
+        .justify-between {
+            justify-content: space-between;
+        }
+
+        .items-center {
+            align-items: center;
+        }
+
+        .items-end {
+            align-items: flex-end;
+        }
+
+        .font-bold {
+            font-weight: bold;
         }
 
         .text-right {
             text-align: right;
         }
 
-        .text-left {
-            text-align: left;
-        }
-
-        .font-bold {
-            font-weight: 700;
+        .text-center {
+            text-align: center;
         }
 
         .uppercase {
             text-transform: uppercase;
         }
 
-        .border-b {
-            border-bottom: 1px solid #000;
+        .w-full {
+            width: 100%;
         }
 
-        .border-r {
-            border-right: 1px solid #000;
-        }
-
+        /* Borders */
         .border-t {
             border-top: 1px solid #000;
         }
 
-        .p-1 {
-            padding: 4px;
-        }
-
-        .p-2 {
-            padding: 8px;
-        }
-
-        /* Header Grid */
-        .header-grid {
-            display: flex;
+        .border-b {
             border-bottom: 1px solid #000;
         }
 
-        .store-info {
-            flex: 1.5;
-            padding: 8px;
+        .border-x {
+            border-left: 1px solid #000;
             border-right: 1px solid #000;
         }
 
-        .invoice-meta {
-            flex: 1;
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+
+        .logo-section {
+            width: 100px;
+            margin-right: 10px;
+            margin-top: 0;
             padding: 0;
         }
 
-        .meta-row {
-            display: flex;
-            border-bottom: 1px solid #000;
+        .store-details {
+            flex: 1;
         }
 
-        .meta-row:last-child {
-            border-bottom: none;
-        }
-
-        .meta-label {
-            width: 40%;
-            padding: 4px;
-            background: #f0f0f0;
-            border-right: 1px solid #000;
-            font-weight: 700;
-        }
-
-        .meta-value {
-            padding: 4px;
-            width: 60%;
-        }
-
-        /* Store Details */
         .store-name {
-            font-size: 18px;
-            font-weight: 700;
-            margin-bottom: 6px;
-            text-transform: uppercase;
-        }
-
-        .store-addr {
-            margin-bottom: 6px;
-            font-size: 10px;
-        }
-
-        .store-details-line {
-            font-size: 10px;
+            font-size: 20px;
+            font-weight: 900;
+            color: #000;
+            /* Changed to Black as per user request */
             margin-bottom: 2px;
         }
 
-        /* Patient / Receiver */
-        .patient-section {
+        .store-subtitle {
+            font-size: 9px;
+            margin-bottom: 2px;
+        }
+
+        .store-address {
+            font-size: 10px;
+            margin-bottom: 4px;
+        }
+
+        .store-contact {
+            font-weight: bold;
+            font-size: 10px;
+            margin-bottom: 4px;
+        }
+
+        .license-grid {
             display: flex;
-            border-bottom: 1px solid #000;
+            gap: 15px;
+            font-size: 8px;
+            margin-top: 4px;
         }
 
-        .patient-box {
-            flex: 1;
-            padding: 0;
+        .license-item {
+            border-right: 1px solid #ccc;
+            padding-right: 10px;
         }
 
-        .section-header {
-            background: #f0f0f0;
-            font-weight: 700;
-            padding: 4px;
-            border-bottom: 1px solid #000;
-            text-transform: uppercase;
+        .license-item:last-child {
+            border: none;
         }
 
-        .patient-content {
-            padding: 6px;
-            min-height: 40px;
+        .invoice-meta {
+            text-align: right;
+            min-width: 150px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
         }
 
-        /* Invoice Title Bar */
-        .invoice-title-bar {
-            text-align: center;
+        .invoice-title {
             font-size: 14px;
-            font-weight: 700;
-            background: #f0f0f0;
-            padding: 4px;
-            border-bottom: 1px solid #000;
-            letter-spacing: 1px;
+            font-weight: bold;
         }
 
-        /* Items Table */
+        .qr-placeholder {
+            width: 50px;
+            height: 50px;
+            background: #eee;
+            margin-top: 5px;
+        }
+
+        /* Patient Bar */
+        .patient-bar {
+            border-top: 1px solid #000;
+            border-bottom: 1px solid #000;
+            padding: 4px 0;
+            display: flex;
+            font-weight: bold;
+            font-size: 10px;
+        }
+
+        .patient-label {
+            margin-right: 5px;
+            font-weight: bold;
+        }
+
+        .patient-val {
+            margin-right: 15px;
+            font-weight: normal;
+        }
+
+        /* Table */
         .items-table {
             width: 100%;
             border-collapse: collapse;
-            table-layout: fixed;
-            /* Essential for alignment with gradient */
+            margin-top: 5px;
         }
 
         .items-table th {
             border-bottom: 1px solid #000;
-            /* Vertical borders handled by container overlay */
             padding: 4px 2px;
-            background: #f0f0f0;
+            text-align: left;
             font-size: 9px;
-            font-weight: 700;
-            overflow: hidden;
-            white-space: nowrap;
+            font-weight: bold;
         }
 
         .items-table td {
-            /* Vertical borders handled by container overlay */
-            padding: 4px 2px;
+            padding: 3px 2px;
+            border-bottom: 1px dotted #999;
             font-size: 9px;
-            vertical-align: top;
-            border-bottom: 1px solid #eee;
-            /* Light divider for rows */
-            word-wrap: break-word;
-            /* Ensure clear text wrapping */
+            valign: top;
         }
 
-        .items-container {
-            min-height: 400px;
-            /* Scalable height min */
-            border-bottom: 1px solid #000;
-            position: relative;
-            /* For absolute overlay */
+        /* Footer */
+        .watermark {
+            text-align: center;
+            margin: 20px 0;
+            opacity: 0.1;
         }
 
-        /* The Grid Overlay - Drawings lines top to bottom */
-        .items-container::after {
-            content: "";
-            position: absolute;
-            top: 0;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            pointer-events: none;
-            z-index: 10;
-            /* Gradient stops match the TH widths: 4%, 30%, 8%, 8%, 10%, 7%, 6%, 9%, 9%, 9% */
-            /* Cumulative: 4, 34, 42, 50, 60, 67, 73, 82, 91 */
-            background: linear-gradient(to right,
-                    transparent 4%, #000 4%, #000 calc(4% + 1px), transparent calc(4% + 1px),
-                    transparent 34%, #000 34%, #000 calc(34% + 1px), transparent calc(34% + 1px),
-                    transparent 42%, #000 42%, #000 calc(42% + 1px), transparent calc(42% + 1px),
-                    transparent 50%, #000 50%, #000 calc(50% + 1px), transparent calc(50% + 1px),
-                    transparent 60%, #000 60%, #000 calc(60% + 1px), transparent calc(60% + 1px),
-                    transparent 67%, #000 67%, #000 calc(67% + 1px), transparent calc(67% + 1px),
-                    transparent 73%, #000 73%, #000 calc(73% + 1px), transparent calc(73% + 1px),
-                    transparent 82%, #000 82%, #000 calc(82% + 1px), transparent calc(82% + 1px),
-                    transparent 91%, #000 91%, #000 calc(91% + 1px), transparent calc(91% + 1px));
+        .watermark img {
+            width: 100px;
         }
 
-        .items-table tr:last-child td {
-            border-bottom: none;
-        }
-
-        /* Bottom Section Grid */
-        .bottom-grid {
+        .footer-grid {
             display: flex;
+            border-top: 2px solid #000;
+            margin-top: 10px;
         }
 
-        .bottom-left {
-            flex: 1.5;
+        .terms-col {
+            flex: 1;
+            padding-top: 5px;
+            font-size: 9px;
+            padding-right: 10px;
+        }
+
+        .sign-col {
+            width: 100px;
             border-right: 1px solid #000;
-            display: flex;
-            flex-direction: column;
-        }
-
-        .bottom-right {
-            flex: 1;
-        }
-
-        /* Totals Table */
-        .totals-table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .totals-table td {
-            padding: 4px;
-            border-bottom: 1px solid #000;
-        }
-
-        .totals-table td:first-child {
-            font-weight: 700;
-            border-right: 1px solid #000;
-        }
-
-        .totals-table tr:last-child td {
-            border-bottom: none;
-            background: #f0f0f0;
-            font-weight: 700;
-        }
-
-        /* Terms */
-        .terms-box {
-            flex: 1;
-            padding: 6px;
-            font-size: 8px;
-        }
-
-        .amount-words {
-            padding: 6px;
-            font-weight: 700;
-            border-bottom: 1px solid #000;
-            background: #f0f0f0;
-        }
-
-        /* Footer Signatures */
-        .footer-sigs {
-            display: flex;
-            border-top: 1px solid #000;
-        }
-
-        .sig-box {
-            flex: 1;
-            height: 70px;
-            padding: 6px;
             display: flex;
             flex-direction: column;
             justify-content: flex-end;
             align-items: center;
+            padding-bottom: 5px;
         }
 
-        .sig-box:first-child {
+        .stats-col {
+            width: 250px;
+            display: flex;
+        }
+
+        .tax-box {
+            flex: 1;
             border-right: 1px solid #000;
-            align-items: flex-start;
+            padding: 5px;
+            font-size: 9px;
         }
 
-        .sig-box:last-child {
-            align-items: flex-end;
+        .totals-box {
+            flex: 1.5;
+            padding: 5px;
+            font-size: 10px;
+        }
+
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 2px;
+        }
+
+        .net-payable {
+            font-size: 12px;
+            font-weight: bold;
+            border-top: 1px solid #000;
+            border-bottom: 1px solid #000;
+            margin: 5px 0;
+            padding: 2px 0;
+        }
+
+        .saving-row {
+            font-size: 9px;
+            text-align: right;
+        }
+
+        .bottom-bar {
+            border-top: 2px solid #000;
+            margin-top: 5px;
+            padding-top: 4px;
+            text-align: right;
+            font-size: 9px;
         }
     </style>
 </head>
 
 <body>
     <div class="container">
-        <!-- 1. Header Section -->
-        <div class="header-grid">
-            <div class="store-info">
-                {{#if store.displayName}}
+        <!-- Header -->
+        <div class="header">
+            <div class="logo-section">
+                {{#if store.logoUrl}}
+                <img src="{{store.logoUrl}}" style="width: 100%;" alt="Logo">
+                {{/if}}
+            </div>
+            <div class="store-details">
                 <div class="store-name">{{store.displayName}}</div>
-                {{else}}
-                <!-- Fallback logic removed, should be empty if data missing -->
-                <div class="store-name" style="color:red;">STORE NAME MISSING</div>
+                {{#if store.subtitle}}
+                <div class="store-subtitle">{{store.subtitle}}</div>
                 {{/if}}
-
-                <div class="store-addr">
-                    {{#if store.addressLine1}}{{store.addressLine1}}, {{/if}}
-                    {{#if store.addressLine2}}{{store.addressLine2}}, {{/if}}
-                    {{#if store.city}}{{store.city}}, {{/if}}
-                    {{#if store.state}}{{store.state}} - {{store.pinCode}}{{/if}}
+                <div class="store-address">{{store.addressLine1}} {{store.city}}-{{store.pinCode}}</div>
+                {{#if store.phone}}
+                <div class="store-contact">M.{{store.phone}}</div>
+                {{/if}}
+                <div class="license-grid">
+                    {{#each store.licenses}}
+                    <div class="license-item">
+                        <span style="color:#666">{{this.name}} :</span> <strong>{{this.number}}</strong>
+                    </div>
+                    {{/each}}
+                    {{#if store.fssai}}
+                    <div class="license-item"><span style="color:#666">FSSAI :</span> <strong>{{store.fssai}}</strong>
+                    </div>
+                    {{/if}}
+                    {{#if store.gstin}}
+                    <div class="license-item"><span style="color:#666">GSTIN :</span> <strong>{{store.gstin}}</strong>
+                    </div>
+                    {{/if}}
+                    {{#if store.pan}}
+                    <div class="license-item"><span style="color:#666">PAN :</span> <strong>{{store.pan}}</strong></div>
+                    {{/if}}
                 </div>
-
-                {{#if store.phoneNumber}}
-                <div class="store-details-line"><strong>Ph:</strong> {{store.phoneNumber}}</div>
-                {{/if}}
-
-                {{#if store.gstin}}
-                <div class="store-details-line"><strong>GSTIN:</strong> {{store.gstin}}</div>
-                {{/if}}
-
-                {{#if store.dlNumber}}
-                <div class="store-details-line"><strong>DL No:</strong> {{store.dlNumber}}</div>
-                {{/if}}
-
-                {{#if store.email}}
-                <div class="store-details-line"><strong>Email:</strong> {{store.email}}</div>
-                {{/if}}
             </div>
             <div class="invoice-meta">
-                <div class="meta-row">
-                    <div class="meta-label">INV NO</div>
-                    <div class="meta-value font-bold">{{invoiceNumber}}</div>
-                </div>
-                <div class="meta-row">
-                    <div class="meta-label">Date</div>
-                    <div class="meta-value">{{invoiceDate}}</div>
-                </div>
-                <div class="meta-row">
-                    <div class="meta-label">Time</div>
-                    <div class="meta-value">{{invoiceTime}}</div>
-                </div>
-                <div class="meta-row">
-                    <div class="meta-label">Pay Mode</div>
-                    <div class="meta-value">
-                        {{#each paymentSplits}}{{this.paymentMethod}} {{/each}}
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 2. Patient Section -->
-        <div class="patient-section">
-            <div class="patient-box">
-                <div class="section-header">Receiver / Patient Details</div>
-                <div class="patient-content">
-                    {{#if patient}}
-                    <div class="font-bold uppercase">{{patient.firstName}} {{patient.lastName}}</div>
-                    {{#if patient.addressLine1}}
-                    <div>{{patient.addressLine1}}, {{patient.city}}</div>
-                    {{/if}}
-                    {{#if patient.phoneNumber}}<div>Ph: {{patient.phoneNumber}}</div>{{/if}}
-                    {{#if patient.gstin}}<div>GSTIN: {{patient.gstin}}</div>{{/if}}
-                    {{else}}
-                    <div class="font-bold">Walk-in Customer</div>
+                <div class="invoice-title">Invoice</div>
+                <div><b>Bill No: {{invoiceNumber}}</b></div>
+                <div>Payment: Mixed/Cash</div>
+                <div>{{invoiceDate}} {{invoiceTime}}</div>
+                <div class="qr-placeholder">
+                    {{#if qrCodeUrl}}<img src="{{qrCodeUrl}}" width="50" height="50">{{/if}}
+                    {{#if qrCodeUrl}}
+                    <div style="font-size:6px; text-align:center; padding-top:2px; color:#000; font-weight:bold;">Scan
+                        to Pay</div>
                     {{/if}}
                 </div>
             </div>
         </div>
 
-        <!-- 3. Items Section -->
-        <div class="invoice-title-bar">{{invoiceTypeLabel}}</div>
+        <!-- Patient Info -->
+        <div class="patient-bar">
+            <span class="patient-label">PATIENT NAME</span>
+            <span class="patient-val uppercase">{{patient.name}}</span>
+            {{#if patient.gender}}<span class="patient-val"><strong>{{patient.gender}}</strong></span>{{/if}}
+            {{#if patient.phone}}<span class="patient-val">{{patient.phone}}</span>{{/if}}
 
-        <div class="items-container">
-            <table class="items-table">
-                <thead>
-                    <tr>
-                        <th width="4%">SN</th>
-                        <th width="30%">Product Name</th>
-                        <th width="8%">HSN</th>
-                        <th width="8%">Pack</th>
-                        <th width="10%">Batch</th>
-                        <th width="7%">Exp</th>
-                        <th width="6%">Qty</th>
-                        <th width="9%" class="text-right">MRP</th>
-                        <th width="9%" class="text-right">Rate</th>
-                        <th width="9%" class="text-right">Total</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {{#each items}}
-                    <tr>
-                        <td class="text-center">{{srNo}}</td>
-                        <td>
-                            <div class="font-bold">{{drugName}}</div>
-                            <div style="font-size: 7px; color: #444;">{{manufacturer}}</div>
-                        </td>
-                        <td class="text-center">{{hsnCode}}</td>
-                        <td class="text-center">{{packSize}}</td>
-                        <td class="text-center">{{batchNumber}}</td>
-                        <td class="text-center">{{expiryDate}}</td>
-                        <td class="text-center font-bold">{{quantity}}</td>
-                        <td class="text-right">{{mrp}}</td>
-                        <td class="text-right">{{#if discount}}{{discount}}{{else}}-{{/if}}</td>
-                        <td class="text-right font-bold">{{lineTotal}}</td>
-                    </tr>
+            <span class="patient-label" style="margin-left:auto;">Ref. By.</span>
+            <span class="patient-val">{{patient.refBy}}</span>
+        </div>
+
+        <!-- Table -->
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th width="5%">Sr.</th>
+                    <th width="35%">Medicines</th>
+                    <th width="10%">HSN</th>
+                    <th width="10%">Packing</th>
+                    <th width="10%">Batch</th>
+                    <th width="8%">Exp</th>
+                    <th width="10%" class="text-right">MRP</th>
+                    <!-- Removed Prev.MRP -->
+                    <th width="6%" class="text-center">QTY.</th>
+                    <!-- Removed D.Price -->
+                    <th width="6%" class="text-center">GST</th>
+                    <th width="10%" class="text-right">Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{#each items}}
+                <tr>
+                    <td>{{srNo}}</td>
+                    <td>
+                        <div class="font-bold">{{drugName}}</div>
+                    </td>
+                    <td>{{hsnCode}}</td>
+                    <td>{{packSize}}</td>
+                    <td>{{batchNumber}}</td>
+                    <td>{{expiryDate}}</td>
+                    <td class="text-right">{{mrp}}</td>
+                    <td class="text-center font-bold">{{quantity}}</td>
+                    <td class="text-center">{{gstPercent}}</td>
+                    <td class="text-right font-bold">{{lineTotal}}</td>
+                </tr>
+                {{/each}}
+            </tbody>
+        </table>
+
+        <!-- Watermark/Center Logo -->
+        {{#if store.logoUrl}}
+        <div class="watermark">
+            <img src="{{store.logoUrl}}" style="filter: grayscale(100%);">
+        </div>
+        {{/if}}
+
+        <!-- Footer -->
+        <div class="footer-grid">
+            <div class="terms-col">
+                <div class="font-bold border-b" style="margin-bottom: 4px;">Terms & Conditions</div>
+                <ul style="padding-left: 12px; margin: 0; list-style-type: decimal; color: #444;">
+                    {{#each store.terms}}
+                    <li>{{this}}</li>
                     {{/each}}
-                </tbody>
-            </table>
-        </div>
+                </ul>
+            </div>
 
-        <!-- 4. Bottom Grid (Terms, Totals) -->
-        <div class="bottom-grid">
-            <div class="bottom-left">
-                <!-- Amount in Words -->
-                <div class="amount-words">
-                    Amount (in words): {{amountInWords}}
-                </div>
+            <div class="sign-col">
+                {{#if soldBySignature}}
+                <img src="{{soldBySignature}}" height="80" style="margin-bottom: 2px;">
+                {{else}}
+                <div style="height: 80px;"></div>
+                {{/if}}
+                <div class="font-bold">Sign</div>
+            </div>
 
-                <!-- Terms -->
-                <div class="terms-box">
-                    <div style="text-decoration: underline; margin-bottom: 2px;"><strong>Terms & Conditions:</strong>
+            <div class="stats-col">
+                <div class="tax-box">
+                    <div class="total-row">
+                        <span>CGST</span>
+                        <span>{{totals.cgst}}</span>
                     </div>
-                    <ul style="margin: 0; padding-left: 12px; list-style-type: decimal;">
-                        {{#each store.terms}}
-                        <li>{{this}}</li>
-                        {{/each}}
-                        <li>Subject to {{store.jurisdiction}} jurisdiction.</li>
-                    </ul>
+                    <div class="total-row">
+                        <span>SGST</span>
+                        <span>{{totals.sgst}}</span>
+                    </div>
+                    <div class="total-row border-t" style="margin-top: 20px; font-weight: bold;">
+                        <span>Total GST</span>
+                        <span>{{totals.taxAmount}}</span>
+                    </div>
                 </div>
-            </div>
+                <div class="totals-box">
+                    <div class="total-row">
+                        <span>Total Item(s)</span>
+                        <span>{{totalItems}}</span>
+                    </div>
+                    <div class="total-row">
+                        <span>Total MRP</span>
+                        <span>{{totals.totalMrp}}</span>
+                    </div>
+                    <div class="total-row">
+                        <span>Round off.</span>
+                        <span>{{totals.roundOff}}</span>
+                    </div>
 
-            <div class="bottom-right">
-                <table class="totals-table">
-                    <tr>
-                        <td>Total Amount</td>
-                        <td class="text-right">{{subtotal}}</td>
-                    </tr>
-                    {{#if discountAmount}}
-                    <tr>
-                        <td>Discount</td>
-                        <td class="text-right">- {{discountAmount}}</td>
-                    </tr>
-                    {{/if}}
-                    <tr>
-                        <td>GST Amount</td>
-                        <td class="text-right">{{taxAmount}}</td>
-                    </tr>
-                    {{#if cgst}}
-                    <tr>
-                        <td style="font-size: 8px; padding-left: 10px;">CGST</td>
-                        <td class="text-right" style="font-size: 8px;">{{cgst}}</td>
-                    </tr>
-                    <tr>
-                        <td style="font-size: 8px; padding-left: 10px;">SGST</td>
-                        <td class="text-right" style="font-size: 8px;">{{sgst}}</td>
-                    </tr>
-                    {{/if}}
-                    {{#if roundOff}}
-                    <tr>
-                        <td>Round Off</td>
-                        <td class="text-right">{{roundOff}}</td>
-                    </tr>
-                    {{/if}}
-                    <tr>
-                        <td>GRAND TOTAL</td>
-                        <td class="text-right">{{total}}</td>
-                    </tr>
-                </table>
-            </div>
-        </div>
+                    <div class="net-payable flex justify-between">
+                        <span>Net Payable</span>
+                        <span>Rs. {{totals.grandTotal}}</span>
+                    </div>
 
-        <!-- 5. Footer Signatures -->
-        <div class="footer-sigs">
-            <div class="sig-box">
-                <div style="font-size: 10px;"><strong>Customer Signature</strong></div>
-                <!-- Space for customer signature -->
-            </div>
-            <div class="sig-box">
-                <div style="text-align: right; width: 100%;">
-                    <div style="margin-bottom: 20px;">For <strong>{{store.displayName}}</strong></div>
-                    {{#if store.signatureUrl}}
-                    <img src="{{store.signatureUrl}}"
-                        style="height: 35px; position: absolute; margin-top: -30px; right: 20px;" />
-                    {{/if}}
-                    <div><strong>Authorized Signatory</strong></div>
+                    <div class="saving-row">
+                        Total Saving: <span style="font-weight: bold;">Rs. {{totals.totalSaving}}</span>
+                    </div>
+                    <div class="saving-row" style="margin-top:2px;">
+                        Billed By: {{billedBy}}
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
-    <div style="text-align: center; font-size: 8px; margin-top: 5px;">
-        This is a computer generated invoice. E.&O.E.
+
+        <div class="bottom-bar">
+            {{#if footerText}}
+            <div style="text-align: center; font-size: 9px; color: #666; padding: 5px 0;">
+                {{footerText}}
+            </div>
+            {{/if}}
+        </div>
     </div>
 </body>
 

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { FiDollarSign, FiClock, FiX, FiPrinter, FiCheckCircle, FiRefreshCw, FiList, FiFileText } from 'react-icons/fi';
@@ -25,13 +26,32 @@ export default function CustomerLedgerPanel({
 }: CustomerLedgerPanelProps) {
     const [activeTab, setActiveTab] = useState<Tab>('unpaid');
     const [loading, setLoading] = useState(false);
-    const [customer, setCustomer] = useState<Patient | null>(null);
+
+    const queryClient = useQueryClient();
+
+    // FIX: Force refresh of patient data when panel opens to show latest balance
+    useEffect(() => {
+        if (customerId) {
+            console.log(`[CustomerLedgerPanel] Invalidating patient query for ${customerId}`);
+            queryClient.invalidateQueries({ queryKey: ['patient', customerId] });
+            // Also invalidate ledger
+            queryClient.invalidateQueries({ queryKey: ['customer-ledger', customerId] });
+        }
+    }, [customerId, queryClient]);
+
+    const { data: customer, isLoading: isLoadingCustomer } = useQuery<Patient | null>({
+        queryKey: ['patient', customerId],
+        queryFn: () => patientsApi.getPatientById(customerId),
+        enabled: !!customerId,
+    });
+
     const [ledger, setLedger] = useState<CustomerLedgerEntry[]>([]);
     const [unpaidInvoices, setUnpaidInvoices] = useState<UnpaidInvoice[]>([]);
 
     // Selection State
     const [selectedInvoiceIds, setSelectedInvoiceIds] = useState<Set<string>>(new Set());
-
+    const [amountByType, setAmountByType] = useState<Record<string, number>>({});
+    const [isManualAmount, setIsManualAmount] = useState(false); // Track if user manually edited amount
     const [showPaymentForm, setShowPaymentForm] = useState(false);
     const [successPayment, setSuccessPayment] = useState<{ amount: number, previousBalance: number } | null>(null);
 
@@ -57,12 +77,11 @@ export default function CustomerLedgerPanel({
     const fetchData = async () => {
         try {
             setLoading(true);
-            const [patientData, ledgerData, invoicesData] = await Promise.all([
-                patientsApi.getPatientById(customerId),
+            const [ledgerData, invoicesData] = await Promise.all([
                 customerLedgerApi.getLedger(customerId),
                 customerLedgerApi.getUnpaidInvoices(customerId)
             ]);
-            setCustomer(patientData.data);
+            // setCustomer(patientData.data); // Handled by useQuery
             setLedger(ledgerData.data || []);
             setUnpaidInvoices(invoicesData || []);
         } catch (error) {
@@ -82,19 +101,20 @@ export default function CustomerLedgerPanel({
         }
         setSelectedInvoiceIds(newSet);
 
-        // Auto-calculate payment amount based on selection
-        const totalSelected = unpaidInvoices
-            .filter(inv => newSet.has(inv.id))
-            .reduce((sum, inv) => sum + Number(inv.balance), 0);
+        // Auto-calculate payment amount based on selection ONLY if user hasn't manually edited
+        if (!isManualAmount) {
+            const totalSelected = unpaidInvoices
+                .filter(inv => newSet.has(inv.id))
+                .reduce((sum, inv) => sum + Number(inv.balance), 0);
 
-        if (totalSelected > 0) {
-            setPaymentAmount(totalSelected.toFixed(2));
-            setShowPaymentForm(true);
+            if (totalSelected > 0) {
+                setPaymentAmount(totalSelected.toFixed(2));
+                setShowPaymentForm(true);
+            } else {
+                if (!showPaymentForm) setPaymentAmount('');
+            }
         } else {
-            // If nothing selected, maybe keep form open but reset amount? 
-            // Or only close if user explicitly closes. 
-            // Let's explicitly set amount to check against.
-            if (!showPaymentForm) setPaymentAmount('');
+            setShowPaymentForm(true);
         }
     };
 
@@ -131,6 +151,13 @@ export default function CustomerLedgerPanel({
             setSubmitting(true);
             const previousBalance = Number(customer?.currentBalance || 0);
 
+            // New Requirement: Mandatory Invoice Selection
+            if (selectedInvoiceIds.size === 0) {
+                toast.error("Please select at least one invoice to pay against.");
+                setSubmitting(false);
+                return;
+            }
+
             // Prepare Allocations
             let allocations: { saleId: string; amount: number }[] | undefined;
 
@@ -164,7 +191,7 @@ export default function CustomerLedgerPanel({
                 }));
                 // The backend should handle the remaining amount as unallocated credit.
             }
-            // If no invoices are selected, allocations remain undefined, and it's a general payment.
+            // Logic guarantees selectedInvoiceIds.size > 0 here because of the early return above.
 
             await customerLedgerApi.makePayment(customerId, {
                 amount: amountToPay,
@@ -194,6 +221,7 @@ export default function CustomerLedgerPanel({
             setShowPaymentForm(false);
             setPaymentAmount('');
             setPaymentNotes('');
+            setIsManualAmount(false);
         } catch (error) {
             console.error("Payment failed:", error);
             toast.error("Failed to process payment.");
@@ -204,13 +232,22 @@ export default function CustomerLedgerPanel({
 
     const handleSettleFull = () => {
         const totalUnpaid = unpaidInvoices.reduce((sum, inv) => sum + Number(inv.balance), 0);
-        const balanceToSettle = Number(customer?.currentBalance) > 0 ? Number(customer?.currentBalance) : totalUnpaid;
+        // Prioritize total unpaid invoices for "Settle Full" behavior, 
+        // regardless of current balance (which might include credits/overpayments separately)
+        // OR should we stick to balance? The user said "Settle Full should actually select all the invoices"
 
-        if (balanceToSettle > 0) {
-            setPaymentAmount(balanceToSettle.toFixed(2));
+        // Auto-select ALL unpaid invoices
+        const allInvoiceIds = new Set(unpaidInvoices.map(inv => inv.id));
+        setSelectedInvoiceIds(allInvoiceIds);
+        setIsManualAmount(false); // Reset manual flag for explicit settle full
+
+        const amountToSettle = totalUnpaid;
+
+        if (amountToSettle > 0) {
+            setPaymentAmount(amountToSettle.toFixed(2));
             setShowPaymentForm(true);
         } else {
-            toast.error("No outstanding balance to settle.");
+            toast.error("No outstanding invoices to settle.");
         }
     };
 
@@ -269,10 +306,11 @@ export default function CustomerLedgerPanel({
         try {
             const toastId = toast.loading("Syncing balance...");
             const response = await patientsApi.syncBalance(customerId);
-            
+
             // Immediately update local state from response
             if (response.data && typeof response.data.currentBalance !== 'undefined') {
-                setCustomer(prev => prev ? { ...prev, currentBalance: response.data.currentBalance } : null);
+                // Invalidate to refresh UI
+                queryClient.invalidateQueries({ queryKey: ['patient', customerId] });
                 if (onBalanceUpdate) onBalanceUpdate(Number(response.data.currentBalance));
             }
 
@@ -374,30 +412,25 @@ export default function CustomerLedgerPanel({
                                         type="number"
                                         required
                                         min="1"
-                                        max={selectedInvoiceIds.size > 0 ? undefined : currentBalance} // Only cap if paying general balance? Or always cap?
+                                        // max={selectedInvoiceIds.size > 0 ? undefined : currentBalance} // Allow overpayment or partial payment freely
                                         step="0.01"
                                         value={paymentAmount}
                                         onChange={(e) => {
-                                            if (selectedInvoiceIds.size === 0) {
-                                                const val = parseFloat(e.target.value);
-                                                if (val > currentBalance) {
-                                                    toast.error(`Amount cannot exceed outstanding balance of ₹${currentBalance}`);
-                                                    // Optional: Don't set state, or let them type but block submit
-                                                }
-                                                setPaymentAmount(e.target.value);
-                                            }
+                                            // Allow editing regardless of selection
+                                            const val = e.target.value;
+                                            setPaymentAmount(val);
+                                            setIsManualAmount(true);
                                         }}
-                                        readOnly={selectedInvoiceIds.size > 0}
-                                        className={`w-full p-2.5 border rounded-lg font-bold text-lg ${selectedInvoiceIds.size > 0 ? 'bg-gray-100/50 text-gray-500 cursor-not-allowed' : 'bg-white border-gray-300 focus:ring-2 focus:ring-indigo-500'}`}
+                                        // readOnly={selectedInvoiceIds.size > 0} // REMOVED: Allow partial payment
+                                        className="w-full p-2.5 border rounded-lg font-bold text-lg bg-white border-gray-300 focus:ring-2 focus:ring-indigo-500"
                                     />
-                                    {selectedInvoiceIds.size > 0 ? (
-                                        <p className="text-xs text-gray-500 mt-1">Deselect invoices to edit amount manually.</p>
-                                    ) : (
-                                        parseFloat(paymentAmount) > currentBalance && (
-                                            <p className="text-xs text-red-500 mt-1 font-medium">
-                                                Warning: Amount exceeds total outstanding balance.
-                                            </p>
-                                        )
+                                    {selectedInvoiceIds.size > 0 && parseFloat(paymentAmount) < unpaidInvoices.filter(i => selectedInvoiceIds.has(i.id)).reduce((sum, i) => sum + Number(i.balance), 0) && (
+                                        <p className="text-xs text-amber-600 mt-1">Partial payment: Amount will be allocated to oldest invoices first.</p>
+                                    )}
+                                    {parseFloat(paymentAmount) > currentBalance && (
+                                        <p className="text-xs text-red-500 mt-1 font-medium">
+                                            Warning: Amount exceeds outstanding balance.
+                                        </p>
                                     )}
                                 </div>
                                 <div>

@@ -39,9 +39,9 @@ class GRNService {
                 const grnNumber = await grnRepository.generateGRNNumber(po.storeId);
 
                 // Prepare GRN items from PO items
-                // Use a reasonable default expiry (2 years from now) instead of sentinel date
-                const defaultExpiry = new Date();
-                defaultExpiry.setFullYear(defaultExpiry.getFullYear() + 2);
+                // Use 1 year from now as placeholder (user must update during receiving)
+                const placeholderExpiry = new Date();
+                placeholderExpiry.setFullYear(placeholderExpiry.getFullYear() + 1);
 
                 const grnItems = po.items.map(poItem => ({
                     poItemId: poItem.id,
@@ -51,7 +51,7 @@ class GRNService {
                     freeQty: 0,
                     rejectedQty: 0,
                     batchNumber: 'TBD', // To be filled by user
-                    expiryDate: defaultExpiry, // Default expiry (sentinel), to be updated by user
+                    expiryDate: null, // Empty - user will fill during receiving
                     mrp: poItem.drug?.mrp || 0, // Get from drug master or to be filled by user
                     unitPrice: poItem.unitPrice,
                     discountPercent: poItem.discountPercent,
@@ -342,7 +342,7 @@ class GRNService {
     /**
      * Complete GRN
      */
-    async completeGRN({ grnId, userId, supplierInvoiceNo, supplierInvoiceDate, notes }) {
+    async completeGRN({ grnId, userId, supplierInvoiceNo, supplierInvoiceDate, notes, targetStatus }) {
         const grn = await grnRepository.getGRNById(grnId);
 
         if (!grn) {
@@ -358,15 +358,13 @@ class GRNService {
 
         // Validate all items have batch and expiry
         for (const item of latestGrn.items) {
-            // Skip parent items that have been split - they don't need batch/expiry as children have them
-            if (item.isSplit) {
-                continue;
-            }
+            // Skip parent items that are split
+            if (item.isSplit) continue;
 
             const poItem = latestGrn.po.items.find(pi => pi.id === item.poItemId);
             const drugName = poItem?.drug ? `${poItem.drug.name}${poItem.drug.strength ? ` ${poItem.drug.strength}` : ''}` : 'Unknown Drug';
 
-            if (!item.batchNumber || !item.batchNumber.trim()) {
+            if (!item.batchNumber || item.batchNumber === 'TBD') {
                 throw ApiError.badRequest(`${drugName}: Batch number is required`);
             }
 
@@ -376,10 +374,6 @@ class GRNService {
 
             if (!item.mrp || item.mrp === 0) {
                 throw ApiError.badRequest(`${drugName}: MRP is required`);
-            }
-
-            if (item.receivedQty === 0 && item.freeQty === 0) {
-                throw ApiError.badRequest(`${drugName}: Received quantity cannot be zero`);
             }
         }
 
@@ -396,12 +390,44 @@ class GRNService {
         // This ensures updated prices during receiving are reflected in the final GRN
         await this.recalculateGRNTotals(grnId);
 
-        // Complete GRN (updates inventory, PO status, creates stock movements)
-        const completedGRN = await grnRepository.completeGRN(grnId, userId);
+        // Calculate recommended status based on quantities
+        const calculatedStatus = this.calculateGRNStatus(latestGrn);
 
-        // logger.info(`GRN completed: ${grn.grnNumber} - Inventory updated, PO status: ${completedGRN.po.status}`);
+        // Use target status if provided and valid, otherwise use calculated
+        // User can override to COMPLETED even with shortages if discrepancies resolved
+        const finalStatus = targetStatus || calculatedStatus;
+
+        // Complete the GRN with the determined status
+        const completedGRN = await grnRepository.completeGRN(grnId, finalStatus, userId);
+
+        // Create inventory batches from received items
+        // NOTE: Inventory creation is now handled inside grnRepository.completeGRN transaction
+        // await this.createInventoryFromGRN(completedGRN);
+
+        // Update PO status is handled inside grnRepository.completeGRN
+
+        logger.info(`GRN completed: ${completedGRN.grnNumber} with status ${finalStatus} by user ${userId}`);
 
         return completedGRN;
+    }
+
+    /**
+     * Calculate appropriate status based on quantities
+     */
+    calculateGRNStatus(grn) {
+        const allFullyReceived = grn.items.every(item => {
+            // For split items, check children
+            if (item.isSplit && item.children) {
+                const totalChildReceived = item.children.reduce((sum, child) =>
+                    sum + (Number(child.receivedQty) || 0), 0
+                );
+                return totalChildReceived === item.orderedQty;
+            }
+            // For regular items
+            return Number(item.receivedQty) === item.orderedQty;
+        });
+
+        return allFullyReceived ? 'COMPLETED' : 'PARTIALLY_RECEIVED';
     }
 
     /**
@@ -415,7 +441,10 @@ class GRNService {
         }
 
         if (grn.status === 'COMPLETED' || grn.status === 'CANCELLED') {
-            throw ApiError.badRequest('Cannot update completed or cancelled GRN');
+            // Instead of erroring, just ignore the update.
+            // This happens if frontend auto-saves while/after completion.
+            logger.info(`Ignored update for ${grn.status} GRN: ${grn.grnNumber}`);
+            return grn;
         }
 
         const updatedGRN = await grnRepository.updateGRN(grnId, updates);
@@ -428,7 +457,7 @@ class GRNService {
     /**
      * Cancel GRN
      */
-    async cancelGRN({ grnId, userId }) {
+    async cancelGRN({ grnId, userId, supplierInvoiceNo, supplierInvoiceDate, notes }) {
         const grn = await grnRepository.getGRNById(grnId);
 
         if (!grn) {
@@ -439,6 +468,15 @@ class GRNService {
             throw ApiError.badRequest('Cannot cancel completed GRN');
         }
 
+        // If it's a draft or in-progress, perform hard delete (Discard)
+        // This ensures clean state for re-receiving
+        if (grn.status === 'DRAFT' || grn.status === 'IN_PROGRESS') {
+            const deletedGRN = await grnRepository.deleteGRN(grnId);
+            logger.info(`GRN discarded (deleted): ${grn.grnNumber} by user ${userId}`);
+            return { ...deletedGRN, status: 'DELETED' };
+        }
+
+        // For other cases (fallback), soft cancel
         const cancelledGRN = await grnRepository.cancelGRN(grnId);
 
         logger.info(`GRN cancelled: ${grn.grnNumber} by user ${userId}`);
@@ -485,11 +523,36 @@ class GRNService {
         let taxAmount = 0;
 
         for (const item of grn.items) {
-            // Skip parent items that have been split (only count actual batches)
-            if (item.isSplit) {
-                continue;
+            // If item is split, process children instead of parent
+            if (item.isSplit && item.children && item.children.length > 0) {
+                // Process each child batch
+                for (const child of item.children) {
+                    const discountType = child.discountType || 'BEFORE_GST';
+
+                    if (discountType === 'AFTER_GST') {
+                        // After GST: Calculate gross + tax, then apply discount
+                        const grossAmount = child.receivedQty * child.unitPrice;
+                        const tax = grossAmount * (child.gstPercent / 100);
+                        const subtotalWithTax = grossAmount + tax;
+
+                        // For totals, we need to separate base and tax
+                        // Approximate: distribute discount proportionally
+                        const discountRatio = 1 - ((child.discountPercent || 0) / 100);
+                        subtotal += grossAmount * discountRatio;
+                        taxAmount += tax * discountRatio;
+                    } else {
+                        // Before GST: Apply discount first, then GST
+                        const netAmount = child.receivedQty * child.unitPrice * (1 - (child.discountPercent || 0) / 100);
+                        const tax = netAmount * (child.gstPercent / 100);
+
+                        subtotal += netAmount;
+                        taxAmount += tax;
+                    }
+                }
+                continue; // Skip to next item after processing children
             }
 
+            // Process non-split items normally
             const discountType = item.discountType || 'BEFORE_GST';
 
             if (discountType === 'AFTER_GST') {

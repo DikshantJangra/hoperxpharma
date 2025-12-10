@@ -1441,7 +1441,7 @@ model GRNItem {
 
   // Batch Details (critical for pharma)
   batchNumber String
-  expiryDate  DateTime
+  expiryDate  DateTime?
 
   // Pricing (actual from invoice)
   mrp             Decimal @db.Decimal(10, 2)

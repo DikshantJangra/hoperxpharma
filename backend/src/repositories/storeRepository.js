@@ -31,6 +31,9 @@ class StoreRepository {
         console.log('findUserStores found:', stores.length, 'stores');
         if (stores.length > 0) {
             console.log('Primary store settings:', JSON.stringify(stores[0].settings, null, 2));
+            console.log('Primary store bankDetails:', JSON.stringify(stores[0].bankDetails, null, 2));
+            console.log('Primary store logoUrl:', stores[0].logoUrl);
+            console.log('Primary store signatureUrl:', stores[0].signatureUrl);
         }
         return stores;
     }
@@ -108,15 +111,14 @@ class StoreRepository {
                 console.log('Upsert Success:', upserted);
             } catch (upsertError) {
                 console.error('Upsert Failed Detailed Error:', upsertError);
-                // We don't throw here to allow the main store update to proceed, 
-                // but we should probably throw in a real scenario. 
-                // For debugging, we want to see the error.
                 throw upsertError;
             }
         } else {
             console.log('WARNING: No settings object found in update payload. Keys:', Object.keys(storeData));
         }
 
+        // Update store fields (including bankDetails JSON field)
+        console.log('Updating store with data:', JSON.stringify(rest, null, 2));
         await prisma.store.update({
             where: { id },
             data: rest

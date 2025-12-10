@@ -24,7 +24,16 @@ export default function AddDrugModal({ isOpen, onClose, onSuccess }: AddDrugModa
         requiresPrescription: false,
         defaultUnit: 'Strip',
         lowStockThreshold: '10',
-        schedule: ''
+        lowStockThreshold: '10',
+        schedule: '',
+        addOpeningStock: false,
+        initialStock: {
+            batchNumber: '',
+            expiryDate: '',
+            quantity: '',
+            mrp: '',
+            purchaseRate: ''
+        }
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -40,7 +49,14 @@ export default function AddDrugModal({ isOpen, onClose, onSuccess }: AddDrugModa
             const response = await inventoryApi.createDrug({
                 ...formData,
                 gstRate: parseFloat(formData.gstRate),
-                lowStockThreshold: parseInt(formData.lowStockThreshold)
+                lowStockThreshold: parseInt(formData.lowStockThreshold),
+                // Only include initialStock if the checkbox is checked
+                initialStock: formData.addOpeningStock ? {
+                    ...formData.initialStock,
+                    quantity: parseFloat(formData.initialStock.quantity),
+                    mrp: parseFloat(formData.initialStock.mrp),
+                    purchaseRate: parseFloat(formData.initialStock.purchaseRate || '0')
+                } : undefined
             });
 
             if (response.success) {
@@ -246,8 +262,8 @@ export default function AddDrugModal({ isOpen, onClose, onSuccess }: AddDrugModa
                         />
                     </div>
 
-                    {/* Requires Prescription */}
-                    <div className="col-span-2">
+                    {/* Requirements */}
+                    <div className="col-span-2 space-y-4">
                         <label className="flex items-center gap-2 cursor-pointer">
                             <input
                                 type="checkbox"
@@ -257,6 +273,116 @@ export default function AddDrugModal({ isOpen, onClose, onSuccess }: AddDrugModa
                             />
                             <span className="text-sm font-medium text-gray-700">Requires Prescription</span>
                         </label>
+
+                        {/* Opening Stock Section */}
+                        <div className="border-t border-gray-200 pt-4 mt-4">
+                            <label className="flex items-center gap-2 cursor-pointer mb-4">
+                                <input
+                                    type="checkbox"
+                                    checked={formData.addOpeningStock}
+                                    onChange={(e) => setFormData({ ...formData, addOpeningStock: e.target.checked })}
+                                    className="w-4 h-4 text-[#0ea5a3] rounded focus:ring-[#0ea5a3]"
+                                />
+                                <span className="font-bold text-gray-800">Add Opening Stock</span>
+                            </label>
+
+                            {formData.addOpeningStock && (
+                                <div className="grid grid-cols-2 gap-4 bg-gray-50 p-4 rounded-lg border border-gray-200 animate-in fade-in slide-in-from-top-2">
+                                    {/* Batch Number */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Batch Number <span className="text-red-500">*</span>
+                                        </label>
+                                        <input
+                                            type="text"
+                                            required={formData.addOpeningStock}
+                                            value={formData.initialStock?.batchNumber || ''}
+                                            onChange={(e) => setFormData({
+                                                ...formData,
+                                                initialStock: { ...formData.initialStock!, batchNumber: e.target.value }
+                                            })}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0ea5a3]"
+                                            placeholder="BATCH001"
+                                        />
+                                    </div>
+
+                                    {/* Expiry Date */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Expiry Date <span className="text-red-500">*</span>
+                                        </label>
+                                        <input
+                                            type="date"
+                                            required={formData.addOpeningStock}
+                                            value={formData.initialStock?.expiryDate || ''}
+                                            onChange={(e) => setFormData({
+                                                ...formData,
+                                                initialStock: { ...formData.initialStock!, expiryDate: e.target.value }
+                                            })}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0ea5a3]"
+                                        />
+                                    </div>
+
+                                    {/* Quantity */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Quantity <span className="text-red-500">*</span>
+                                        </label>
+                                        <input
+                                            type="number"
+                                            required={formData.addOpeningStock}
+                                            min="1"
+                                            value={formData.initialStock?.quantity || ''}
+                                            onChange={(e) => setFormData({
+                                                ...formData,
+                                                initialStock: { ...formData.initialStock!, quantity: e.target.value }
+                                            })}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0ea5a3]"
+                                            placeholder="0"
+                                        />
+                                    </div>
+
+                                    {/* MRP */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            MRP (₹) <span className="text-red-500">*</span>
+                                        </label>
+                                        <input
+                                            type="number"
+                                            required={formData.addOpeningStock}
+                                            step="0.01"
+                                            min="0"
+                                            value={formData.initialStock?.mrp || ''}
+                                            onChange={(e) => setFormData({
+                                                ...formData,
+                                                initialStock: { ...formData.initialStock!, mrp: e.target.value }
+                                            })}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0ea5a3]"
+                                            placeholder="0.00"
+                                        />
+                                    </div>
+
+                                    {/* Purchase Rate */}
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Purchase Rate (₹)
+                                        </label>
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            min="0"
+                                            value={formData.initialStock?.purchaseRate || ''}
+                                            onChange={(e) => setFormData({
+                                                ...formData,
+                                                initialStock: { ...formData.initialStock!, purchaseRate: e.target.value }
+                                            })}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0ea5a3]"
+                                            placeholder="0.00"
+                                        />
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             </form>

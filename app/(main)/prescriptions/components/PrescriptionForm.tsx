@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiSearch, FiPlus, FiTrash2, FiSave, FiAlertCircle, FiCheck, FiX, FiPackage, FiInfo, FiAlertTriangle } from 'react-icons/fi';
+import { FiSearch, FiPlus, FiTrash2, FiSave, FiAlertCircle, FiCheck, FiX, FiPackage, FiInfo, FiAlertTriangle, FiEdit2 } from 'react-icons/fi';
 import { drugApi } from '@/lib/api/drugs';
 import PatientSearchSelect from '@/components/prescriptions/PatientSearchSelect';
 import PrescriberSelect from './PrescriberSelect';
@@ -185,8 +185,23 @@ const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ initialData, onSubm
         setDrugInventory(null);
     };
 
+
+
+    const handleCancelEdit = () => {
+        setEditingIndex(null);
+        setCurrentItem({ quantity: 1, sig: "", daysSupply: 30 });
+        setDrugSearch("");
+        setErrors({});
+        setDrugInventory(null);
+    };
+
     const handleRemoveItem = (index: number) => {
         setItems(items.filter((_, i) => i !== index));
+        if (editingIndex === index) {
+            handleCancelEdit();
+        } else if (editingIndex !== null && editingIndex > index) {
+            setEditingIndex(editingIndex - 1);
+        }
     };
 
     const handleFormSubmit = async () => {
@@ -288,6 +303,8 @@ const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ initialData, onSubm
                     <FiPackage className="w-4 h-4 text-purple-600" />
                     Add Medication
                 </h3>
+
+                <div id="add-medication-form"></div>
 
                 {/* Drug Search */}
                 <div className="relative">
@@ -416,6 +433,15 @@ const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ initialData, onSubm
                             {editingIndex !== null ? <FiCheck className="w-4 h-4" /> : <FiPlus className="w-4 h-4" />}
                             {editingIndex !== null ? 'Update Medication' : 'Add Medication'}
                         </button>
+                        {editingIndex !== null && (
+                            <button
+                                onClick={handleCancelEdit}
+                                className="w-full py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg font-semibold text-sm shadow-sm transition-colors flex items-center justify-center gap-2"
+                            >
+                                <FiX className="w-4 h-4" />
+                                Cancel Edit
+                            </button>
+                        )}
                     </div>
                 )}
             </div>
@@ -444,10 +470,13 @@ const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ initialData, onSubm
                                         onClick={() => {
                                             setCurrentItem(item);
                                             setEditingIndex(idx);
+                                            // Scroll to add form
+                                            const formElement = document.getElementById('add-medication-form');
+                                            if (formElement) formElement.scrollIntoView({ behavior: 'smooth' });
                                         }}
                                         className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"
                                     >
-                                        <FiInfo className="w-3 h-3" /> {/* Using Info icon as edit for now */}
+                                        <FiEdit2 className="w-3 h-3" />
                                     </button>
                                     <button
                                         onClick={() => handleRemoveItem(idx)}

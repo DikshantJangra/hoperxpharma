@@ -43,6 +43,8 @@ const saleCreateSchema = z.object({
     roundOff: z.number().default(0),
     total: z.number().positive(),
     soldBy: z.string().cuid().optional(), // Added by middleware
+    prescriptionId: z.string().optional().nullable(),
+    invoiceNumber: z.string().optional(), // Allow manual override or auto-generated
 });
 
 /**

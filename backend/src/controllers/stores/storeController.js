@@ -1,7 +1,9 @@
 const storeService = require('../../services/stores/storeService');
 const subscriptionService = require('../../services/subscriptions/subscriptionService');
+const storeAssetService = require('../../services/stores/storeAssetService');
 const asyncHandler = require('../../middlewares/asyncHandler');
 const ApiResponse = require('../../utils/ApiResponse');
+const ApiError = require('../../utils/ApiError');
 
 /**
  * Get current user's primary store
@@ -85,6 +87,68 @@ const getUsage = asyncHandler(async (req, res) => {
     res.status(response.statusCode).json(response);
 });
 
+/**
+ * Request logo upload URL
+ */
+const requestLogoUpload = asyncHandler(async (req, res) => {
+    const { fileName } = req.body;
+    const result = await storeAssetService.requestLogoUpload(req.params.id, fileName);
+
+    const response = ApiResponse.success(result);
+    res.status(response.statusCode).json(response);
+});
+
+/**
+ * Process logo upload
+ */
+const processLogoUpload = asyncHandler(async (req, res) => {
+    const { tempKey, fileName } = req.body;
+    const result = await storeAssetService.processLogoUpload(
+        req.params.id,
+        tempKey,
+        req.user.id,
+        fileName
+    );
+
+    if (!result.success) {
+        throw ApiError.badRequest(result.error);
+    }
+
+    const response = ApiResponse.success(result, 'Logo uploaded successfully');
+    res.status(response.statusCode).json(response);
+});
+
+/**
+ * Request signature upload URL
+ */
+const requestSignatureUpload = asyncHandler(async (req, res) => {
+    const { fileName } = req.body;
+    const result = await storeAssetService.requestSignatureUpload(req.params.id, fileName);
+
+    const response = ApiResponse.success(result);
+    res.status(response.statusCode).json(response);
+});
+
+/**
+ * Process signature upload
+ */
+const processSignatureUpload = asyncHandler(async (req, res) => {
+    const { tempKey, fileName } = req.body;
+    const result = await storeAssetService.processSignatureUpload(
+        req.params.id,
+        tempKey,
+        req.user.id,
+        fileName
+    );
+
+    if (!result.success) {
+        throw ApiError.badRequest(result.error);
+    }
+
+    const response = ApiResponse.success(result, 'Signature uploaded successfully');
+    res.status(response.statusCode).json(response);
+});
+
 module.exports = {
     getMyStore,
     getUserStores,
@@ -94,4 +158,8 @@ module.exports = {
     getPlans,
     getStoreSubscription,
     getUsage,
+    requestLogoUpload,
+    processLogoUpload,
+    requestSignatureUpload,
+    processSignatureUpload,
 };

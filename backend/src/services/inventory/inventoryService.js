@@ -30,8 +30,33 @@ class InventoryService {
      * Create new drug
      */
     async createDrug(drugData) {
-        const drug = await inventoryRepository.createDrug(drugData);
+        // Extract initial stock data if present
+        const { initialStock, ...drugDetails } = drugData;
+
+        // Create the drug
+        const drug = await inventoryRepository.createDrug(drugDetails);
         logger.info(`Drug created: ${drug.name} (ID: ${drug.id})`);
+
+        // If initial stock is provided, create the batch immediately
+        if (initialStock && initialStock.quantity > 0) {
+            try {
+                await this.createBatch({
+                    drugId: drug.id,
+                    storeId: drugDetails.storeId, // Ensure storeId is passed from controller
+                    batchNumber: initialStock.batchNumber,
+                    quantityInStock: parseFloat(initialStock.quantity),
+                    expiryDate: new Date(initialStock.expiryDate),
+                    mrp: parseFloat(initialStock.mrp),
+                    purchaseRate: parseFloat(initialStock.purchaseRate || 0),
+                    supplierId: initialStock.supplierId // Optional
+                });
+                logger.info(`Initial stock added for drug: ${drug.name}`);
+            } catch (error) {
+                logger.error(`Failed to add initial stock for drug ${drug.id}:`, error);
+                // We don't fail the drug creation if stock fails, but we should probably alert
+            }
+        }
+
         return drug;
     }
 

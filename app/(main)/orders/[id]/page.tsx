@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { HiOutlineArrowLeft, HiOutlinePrinter, HiOutlineDownload, HiOutlineMail, HiOutlineLocationMarker, HiOutlinePhone, HiOutlineIdentification, HiOutlineDocumentText } from 'react-icons/hi';
+import { HiOutlineArrowLeft, HiOutlinePrinter, HiOutlineDownload, HiOutlineMail, HiOutlineLocationMarker, HiOutlinePhone, HiOutlineIdentification, HiOutlineDocumentText, HiOutlineExclamationCircle } from 'react-icons/hi';
 import { FiPackage } from 'react-icons/fi';
 
 interface OrderItem {
@@ -70,6 +70,19 @@ export default function OrderDetailsPage() {
             }
 
             const data = await response.json();
+
+            // Transform supplier data to match frontend expectations
+            if (data.data && data.data.supplier) {
+                data.data.supplier.phone = data.data.supplier.phoneNumber || '';
+                data.data.supplier.address = [
+                    data.data.supplier.addressLine1,
+                    data.data.supplier.addressLine2,
+                    data.data.supplier.city,
+                    data.data.supplier.state,
+                    data.data.supplier.pinCode
+                ].filter(Boolean).join(', ');
+            }
+
             setOrder(data.data);
 
             // Fetch GRN data if order is received or partially received
@@ -216,32 +229,26 @@ export default function OrderDetailsPage() {
                                 {(order.status === 'RECEIVED' || order.status === 'PARTIALLY_RECEIVED') && grns.length > 0 ? (
                                     // Show GRN items for received orders
                                     grns.flatMap((grn: any) => {
-                                        // 1. Build child map first to identify implicit parents
-                                        const childMap = new Map();
-                                        grn.items.forEach((item: any) => {
-                                            if (item.parentItemId) {
-                                                const existing = childMap.get(item.parentItemId) || [];
-                                                existing.push(item);
-                                                childMap.set(item.parentItemId, existing);
-                                            }
-                                        });
-
-                                        // 2. Identify Parents: Items that are split OR have children mapped to them
-                                        // Must also be a root item (no parent itself)
+                                        // Identify parent and standalone items
+                                        // Parents have isSplit=true or have children array
                                         const parentItems = grn.items.filter((item: any) =>
-                                            !item.parentItemId && (item.isSplit || childMap.has(item.id))
+                                            item.isSplit || (item.children && item.children.length > 0)
                                         );
 
-                                        // 3. Standalone: Root items that are NOT parents
+                                        // Standalone items are not split, have no children, and don't have TBD batch
                                         const standaloneItems = grn.items.filter((item: any) =>
-                                            !item.parentItemId && !item.isSplit && !childMap.has(item.id)
+                                            !item.isSplit &&
+                                            (!item.children || item.children.length === 0) &&
+                                            item.batchNumber !== 'TBD'  // Filter out TBD items
                                         );
 
                                         // Helper to format expiry as MM/YYYY
                                         const formatExpiry = (dateString: string) => {
                                             if (!dateString) return '';
                                             const date = new Date(dateString);
-                                            return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+                                            const month = String(date.getMonth() + 1).padStart(2, '0');
+                                            const year = date.getFullYear();
+                                            return `${month}/${year}`;
                                         };
 
                                         // Function to render a row
@@ -294,14 +301,14 @@ export default function OrderDetailsPage() {
                                                         {item.isSplit ? (
                                                             // For split items, calculate total from children
                                                             <div>
-                                                                {(childMap.get(item.id) || []).reduce((sum: number, child: any) => sum + (Number(child.receivedQty) || 0), 0)} Rec
+                                                                {(item.children || []).reduce((sum: number, child: any) => sum + (Number(child.receivedQty) || 0), 0)} Rec
                                                             </div>
                                                         ) : (
                                                             <div>{item.receivedQty} Rec</div>
                                                         )}
 
                                                         {item.freeQty > 0 && <div className="text-xs text-green-600">+{item.freeQty} Free</div>}
-                                                        {item.isSplit && <div className="text-xs text-gray-400 italic mt-1">{childMap.get(item.id)?.length || 0} batches</div>}
+                                                        {item.isSplit && <div className="text-xs text-gray-400 italic mt-1">{item.children?.length || 0} batches</div>}
                                                     </td>
                                                     <td className="px-6 py-4 text-right text-sm text-gray-900">
                                                         {item.mrp ? formatCurrency(item.mrp) : '-'}
@@ -362,14 +369,56 @@ export default function OrderDetailsPage() {
                                             );
                                         };
 
+                                        // Function to render split batch header
+                                        const renderSplitHeader = (parent: any, children: any[]) => {
+                                            let drugName = parent.drug?.name;
+                                            let drugStrength = parent.drug?.strength;
+                                            let drugType = parent.drug?.type;
+
+                                            if (!drugName) {
+                                                const poItem = order.items.find((poi: any) => poi.drugId === parent.drugId);
+                                                if (poItem && poItem.drug) {
+                                                    drugName = poItem.drug.name;
+                                                    drugStrength = poItem.drug.strength;
+                                                    drugType = poItem.drug.type;
+                                                }
+                                            }
+
+                                            drugName = drugName || 'Unknown Item';
+                                            const totalRecQty = children.reduce((sum: number, child: any) => sum + (Number(child.receivedQty) || 0), 0);
+                                            const totalFreeQty = children.reduce((sum: number, child: any) => sum + (Number(child.freeQty) || 0), 0);
+
+                                            return (
+                                                <tr key={`header-${parent.id}`} className="bg-gray-50/80">
+                                                    <td className="px-6 py-4">
+                                                        <div className="font-medium text-gray-900">
+                                                            {drugName}
+                                                            <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-700">Split Batches</span>
+                                                        </div>
+                                                        <div className="text-sm text-gray-500">{drugStrength} {drugStrength && drugType ? '•' : ''} {drugType}</div>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-right text-sm text-gray-900">
+                                                        <div>{totalRecQty} Rec</div>
+                                                        {totalFreeQty > 0 && <div className="text-xs text-green-600">+{totalFreeQty} Free</div>}
+                                                        <div className="text-xs text-gray-400 italic mt-1">{children.length} batches</div>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-right text-sm text-gray-400">-</td>
+                                                    <td className="px-6 py-4 text-right text-sm text-gray-400">-</td>
+                                                    <td className="px-6 py-4 text-right text-sm text-gray-400">-</td>
+                                                    <td className="px-6 py-4 text-right text-sm text-gray-400">-</td>
+                                                    <td className="px-6 py-4 text-right text-sm text-gray-400">-</td>
+                                                </tr>
+                                            );
+                                        };
+
                                         return [
                                             // Render Standalone Items
                                             ...standaloneItems.map((item: any) => renderRow(item)),
                                             // Render Parent Items with Children
                                             ...parentItems.flatMap((parent: any) => {
-                                                const children = childMap.get(parent.id) || [];
+                                                const children = parent.children || [];
                                                 return [
-                                                    renderRow(parent),
+                                                    renderSplitHeader(parent, children),
                                                     ...children.map((child: any) => renderRow(child, true, parent))
                                                 ];
                                             })
@@ -541,6 +590,48 @@ export default function OrderDetailsPage() {
                                                         </div>
                                                     ))
                                                 )}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Discrepancies Section */}
+                                    {grns[0]?.discrepancies && grns[0].discrepancies.length > 0 && (
+                                        <div className="pt-4 border-t border-gray-100 mt-4">
+                                            <p className="text-xs text-gray-500 uppercase mb-2">Discrepancies</p>
+                                            <div className="space-y-3">
+                                                {grns[0].discrepancies.map((discrepancy: any) => (
+                                                    <div
+                                                        key={discrepancy.id}
+                                                        className="p-3 bg-yellow-50 rounded-lg border border-yellow-200"
+                                                    >
+                                                        <div className="flex items-start gap-2">
+                                                            <HiOutlineExclamationCircle className="h-5 w-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+                                                            <div className="flex-1 min-w-0">
+                                                                <p className="text-sm font-medium text-yellow-900">
+                                                                    {discrepancy.reason}
+                                                                </p>
+                                                                {discrepancy.description && (
+                                                                    <p className="text-sm text-yellow-700 mt-1">
+                                                                        {discrepancy.description}
+                                                                    </p>
+                                                                )}
+                                                                {discrepancy.resolution && (
+                                                                    <div className="mt-2 pt-2 border-t border-yellow-200">
+                                                                        <p className="text-xs text-yellow-600 uppercase">Resolution</p>
+                                                                        <p className="text-sm text-yellow-800 mt-0.5">
+                                                                            {discrepancy.resolution}
+                                                                        </p>
+                                                                    </div>
+                                                                )}
+                                                                {discrepancy.debitNoteValue && (
+                                                                    <p className="text-xs text-yellow-700 mt-2">
+                                                                        Debit Note: ₹{Number(discrepancy.debitNoteValue).toFixed(2)}
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
                                             </div>
                                         </div>
                                     )}

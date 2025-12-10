@@ -1,5 +1,5 @@
 import {
-    MdDashboard, MdInventory, MdPeople, MdShoppingCart, MdReceipt, MdStore, MdIntegrationInstructions, MdKeyboard
+    MdDashboard, MdInventory, MdPeople, MdShoppingCart, MdReceipt, MdStore, MdIntegrationInstructions, MdKeyboard, MdLocalHospital
 } from "react-icons/md"
 import {
     TbPrescription, TbReportAnalytics
@@ -93,6 +93,16 @@ export const sidebarConfig: SidebarSection[] = [
                     { label: "List", path: "/patients/list", requiredPermission: "patient.read" },
                     { label: "Refills", path: "/patients/refills", requiredPermission: "prescription.refill" },
                     { label: "Consents", path: "/patients/consents", requiredPermission: "patient.read" }
+                ]
+            },
+            {
+                icon: <MdLocalHospital size={18} />,
+                label: "Prescribers",
+                requiredPermission: "prescriber.read",
+                featureCode: "prescribers",
+                businessTypes: ["Retail Pharmacy", "Hospital-based Pharmacy", "Multi-store Chain"],
+                subItems: [
+                    { label: "All Prescribers", path: "/prescribers" }
                 ]
             }
         ]

@@ -64,6 +64,7 @@ export interface Sale {
     status: string;
     items: SaleItem[];
     createdAt: string;
+    prescriptionId?: string;
 }
 
 export interface SalesStats {

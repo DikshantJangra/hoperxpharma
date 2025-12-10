@@ -286,11 +286,10 @@ export default function CustomerModal({ onSelect, onClose }: any) {
           <div className="mt-4 flex gap-2">
             <button
               onClick={handleSkip}
-              disabled
-              className="flex-1 py-2 border border-[#cbd5e1] rounded-lg text-sm text-[#94a3b8] bg-[#f8fafc] cursor-not-allowed opacity-50"
-              title="Customer selection is required"
+              className="flex-1 py-2 border border-[#cbd5e1] rounded-lg text-sm text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+              title="Continue as Walk-in Customer"
             >
-              Skip (Disabled)
+              Skip / Walk-in
             </button>
             <button
               onClick={() => setShowAddForm(true)}

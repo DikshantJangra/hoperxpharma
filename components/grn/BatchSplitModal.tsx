@@ -223,8 +223,10 @@ export default function BatchSplitModal({ item, drugName, onSplit, onClose }: Ba
 
                                             defaultValue={split.expiryDate ? (() => {
                                                 const date = new Date(split.expiryDate);
-                                                if (date.getFullYear() === 1970) return '';
-                                                return `${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+                                                const year = date.getFullYear();
+                                                // Treat 1970 (epoch/invalid dates) as empty
+                                                if (year === 1970) return '';
+                                                return `${String(date.getMonth() + 1).padStart(2, '0')}/${year}`;
                                             })() : ''}
                                             onInput={(e) => {
                                                 const inputType = (e.nativeEvent as any).inputType;
@@ -235,28 +237,63 @@ export default function BatchSplitModal({ item, drugName, onSplit, onClose }: Ba
 
                                                 let value = e.currentTarget.value.replace(/[^0-9/]/g, '');
 
-                                                // Case 1: Exactly 2 digits, no slash -> Default 20 logic
-                                                if (value.length === 2 && !value.includes('/')) {
-                                                    value = value + '/20';
-                                                }
-                                                // Case 2: More than 2 digits, no slash (e.g. user typed fast or backspaced) -> Insert slash
-                                                else if (value.length > 2 && !value.includes('/')) {
-                                                    value = value.substring(0, 2) + '/' + value.substring(2);
+                                                // Smart month formatting:
+                                                // - If first digit is 2, auto-format to "02/" immediately
+                                                // - If first digit is > 2, auto-format to "0X/"
+                                                // - If first digit is 0 or 1, wait for second digit
+                                                if (value.length === 1 && !value.includes('/')) {
+                                                    const firstDigit = parseInt(value);
+                                                    if (firstDigit === 2) {
+                                                        value = '02/';
+                                                        e.currentTarget.value = value;
+                                                        return;
+                                                    } else if (firstDigit > 2) {
+                                                        value = '0' + value + '/';
+                                                        e.currentTarget.value = value;
+                                                        return;
+                                                    }
+                                                    // For 0 or 1, just continue (wait for second digit)
                                                 }
 
-                                                if (value.length >= 2 && !value.includes('/')) {
-                                                    const month = parseInt(value.substring(0, 2));
+                                                // Add slash after valid 2-digit month
+                                                if (value.length === 2 && !value.includes('/')) {
+                                                    const month = parseInt(value);
                                                     if (month > 12) {
-                                                        value = '12' + value.substring(2);
+                                                        value = '12';
+                                                    }
+                                                    value = value + '/';
+                                                }
+                                                // Insert slash after MM if user types more
+                                                else if (value.length > 2 && !value.includes('/')) {
+                                                    const monthPart = value.substring(0, 2);
+                                                    const month = parseInt(monthPart);
+                                                    if (month > 12) {
+                                                        value = '12/' + value.substring(2);
+                                                    } else {
+                                                        value = monthPart + '/' + value.substring(2);
                                                     }
                                                 }
+
+                                                // Limit year to 4 digits
+                                                if (value.includes('/')) {
+                                                    const parts = value.split('/');
+                                                    if (parts[1] && parts[1].length > 4) {
+                                                        parts[1] = parts[1].substring(0, 4);
+                                                        value = parts[0] + '/' + parts[1];
+                                                    }
+                                                }
+
+                                                // Limit to MM/YYYY format (7 chars)
                                                 if (value.length > 7) {
                                                     value = value.substring(0, 7);
                                                 }
+
                                                 e.currentTarget.value = value;
                                             }}
                                             onBlur={(e) => {
                                                 let value = e.currentTarget.value.trim();
+
+                                                // Only save if we have a complete MM/YYYY format with 4-digit year
                                                 if (value && value.match(/^(0?[1-9]|1[0-2])\/(\d{4})$/)) {
                                                     const [month, year] = value.split('/');
                                                     const paddedMonth = month.padStart(2, '0');
@@ -265,6 +302,7 @@ export default function BatchSplitModal({ item, drugName, onSplit, onClose }: Ba
                                                     e.currentTarget.value = `${paddedMonth}/${year}`;
                                                     updateSplit(index, 'expiryDate', fullDate);
                                                 }
+                                                // If incomplete (e.g., "12/" or "12/20"), don't save - just leave it in the field
                                             }}
                                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
                                             placeholder="MM/YYYY (e.g., 12/2027)"

@@ -212,7 +212,7 @@ class GRNController {
     async completeGRN(req, res, next) {
         try {
             const { id } = req.params;
-            const { supplierInvoiceNo, supplierInvoiceDate, notes } = req.body;
+            const { supplierInvoiceNo, supplierInvoiceDate, notes, targetStatus } = req.body;
             const userId = req.user.id;
 
             const completedGRN = await grnService.completeGRN({
@@ -220,7 +220,8 @@ class GRNController {
                 userId,
                 supplierInvoiceNo,
                 supplierInvoiceDate,
-                notes
+                notes,
+                targetStatus
             });
 
             res.json({
@@ -266,11 +267,15 @@ class GRNController {
     async cancelGRN(req, res, next) {
         try {
             const { id } = req.params;
+            const { supplierInvoiceNo, supplierInvoiceDate, notes } = req.body;
             const userId = req.user.id;
 
             const cancelledGRN = await grnService.cancelGRN({
                 grnId: id,
-                userId
+                userId,
+                supplierInvoiceNo,
+                supplierInvoiceDate,
+                notes
             });
 
             res.json({

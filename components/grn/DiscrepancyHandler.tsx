@@ -7,16 +7,17 @@ import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation';
 interface DiscrepancyHandlerProps {
     item: any;
     drugName: string;
+    existingDiscrepancy?: any;
     onResolve: (resolution: any) => void;
     onClose: () => void;
 }
 
-export default function DiscrepancyHandler({ item, drugName, onResolve, onClose }: DiscrepancyHandlerProps) {
-    const [reason, setReason] = useState<string>('SHORTAGE');
-    const [resolution, setResolution] = useState<string>('BACKORDER');
-    const [description, setDescription] = useState('');
-    const [rejectedQty, setRejectedQty] = useState(0);
-    const [debitNoteValue, setDebitNoteValue] = useState(0);
+export default function DiscrepancyHandler({ item, drugName, existingDiscrepancy, onResolve, onClose }: DiscrepancyHandlerProps) {
+    const [reason, setReason] = useState<string>(existingDiscrepancy?.reason || 'SHORTAGE');
+    const [resolution, setResolution] = useState<string>(existingDiscrepancy?.resolution || 'BACKORDER');
+    const [description, setDescription] = useState(existingDiscrepancy?.description || '');
+    const [rejectedQty, setRejectedQty] = useState(0); // This might need logic if we store rejectedQty
+    const [debitNoteValue, setDebitNoteValue] = useState(existingDiscrepancy?.debitNoteValue || 0);
 
     // Enable enhanced keyboard navigation
     const { handleKeyDown } = useKeyboardNavigation();

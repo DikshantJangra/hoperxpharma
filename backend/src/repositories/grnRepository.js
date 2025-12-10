@@ -34,7 +34,11 @@ class GRNRepository {
             return await tx.goodsReceivedNote.findUnique({
                 where: { id: grn.id },
                 include: {
-                    items: true,
+                    items: {
+                        include: {
+                            drug: true  // Include drug information on GRN items
+                        }
+                    },
                     discrepancies: true,
                     po: {
                         include: {
@@ -77,9 +81,13 @@ class GRNRepository {
                         id: 'asc'  // Order by ID (insertion order) - GRNItem doesn't have createdAt
                     },
                     include: {
+                        drug: true,  // Include drug information directly on GRN items
                         children: {
                             orderBy: {
                                 id: 'asc'  // Also order child batches by ID
+                            },
+                            include: {
+                                drug: true  // Include drug information on child items too
                             }
                         }
                     }
@@ -153,6 +161,20 @@ class GRNRepository {
      * Record discrepancy
      */
     async recordDiscrepancy(discrepancyData) {
+        // Check if discrepancy already exists for this item
+        if (discrepancyData.grnItemId) {
+            const existing = await prisma.gRNDiscrepancy.findFirst({
+                where: { grnItemId: discrepancyData.grnItemId }
+            });
+
+            if (existing) {
+                return await prisma.gRNDiscrepancy.update({
+                    where: { id: existing.id },
+                    data: discrepancyData
+                });
+            }
+        }
+
         return await prisma.gRNDiscrepancy.create({
             data: discrepancyData
         });
@@ -186,7 +208,7 @@ class GRNRepository {
     /**
      * Complete GRN - Update inventory, PO status, create stock movements
      */
-    async completeGRN(grnId, userId) {
+    async completeGRN(grnId, status, userId) {
         return await prisma.$transaction(async (tx) => {
             // Get GRN with all details
             const grn = await tx.goodsReceivedNote.findUnique({
@@ -419,17 +441,23 @@ class GRNRepository {
                 }
             }
 
+            // Override: If user explicitly marked GRN as COMPLETED, they are accepting the shortages (e.g. resolved with supplier)
+            // So we force the PO status to RECEIVED
+            if (status === 'COMPLETED') {
+                newPOStatus = 'RECEIVED';
+            }
+
             // Update PO status
             await tx.purchaseOrder.update({
                 where: { id: grn.poId },
                 data: { status: newPOStatus }
             });
 
-            // 4. Mark GRN as completed
+            // 4. Mark GRN as completed with the specified status
             const completedGRN = await tx.goodsReceivedNote.update({
                 where: { id: grnId },
                 data: {
-                    status: 'COMPLETED',
+                    status: status || 'COMPLETED',  // Use provided status or default to COMPLETED
                     completedAt: new Date()
                 },
                 include: {
@@ -451,15 +479,21 @@ class GRNRepository {
         });
     }
 
-    /**
-     * Cancel GRN
-     */
     async cancelGRN(grnId) {
         return await prisma.goodsReceivedNote.update({
             where: { id: grnId },
             data: {
                 status: 'CANCELLED'
             }
+        });
+    }
+
+    /**
+     * Delete GRN (Hard Delete)
+     */
+    async deleteGRN(grnId) {
+        return await prisma.goodsReceivedNote.delete({
+            where: { id: grnId }
         });
     }
 
@@ -471,13 +505,20 @@ class GRNRepository {
             where: { poId },
             include: {
                 items: {
+                    where: {
+                        parentItemId: null  // Only get top-level items (exclude children)
+                    },
                     orderBy: {
                         id: 'asc'  // Stable ordering
                     },
                     include: {
+                        drug: true,  // Include drug information directly on GRN items
                         children: {
                             orderBy: {
                                 id: 'asc'  // Also order child batches
+                            },
+                            include: {
+                                drug: true  // Include drug information on child items too
                             }
                         }
                     }
