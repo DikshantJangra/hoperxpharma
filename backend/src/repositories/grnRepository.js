@@ -216,8 +216,25 @@ class GRNRepository {
                 const totalQty = item.receivedQty + item.freeQty;
 
                 if (totalQty > 0) {
-                    await tx.inventoryBatch.create({
-                        data: {
+                    await tx.inventoryBatch.upsert({
+                        where: {
+                            storeId_batchNumber_drugId: {
+                                storeId: grn.storeId,
+                                batchNumber: item.batchNumber,
+                                drugId: item.drugId
+                            }
+                        },
+                        update: {
+                            quantityInStock: {
+                                increment: totalQty
+                            },
+                            // Update price/location if necessary, or keep existing?
+                            // Usually new GRN means new price, so we should update purchasePrice and MRP
+                            mrp: item.mrp,
+                            purchasePrice: item.unitPrice,
+                            location: item.location || undefined // Only update if provided
+                        },
+                        create: {
                             storeId: grn.storeId,
                             drugId: item.drugId,
                             batchNumber: item.batchNumber,

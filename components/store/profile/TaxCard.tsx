@@ -1,5 +1,6 @@
 import React from "react";
 import GSTInput from "./GSTInput";
+import { useKeyboardNavigation } from "@/hooks/useKeyboardNavigation";
 
 interface TaxCardProps {
   profile: any;
@@ -9,8 +10,14 @@ interface TaxCardProps {
 }
 
 export default function TaxCard({ profile, onChange, errors, isEditing }: TaxCardProps) {
+  // Enable enhanced keyboard navigation
+  const { handleKeyDown } = useKeyboardNavigation();
+
   return (
-    <section className="bg-white shadow-sm rounded-lg p-6">
+    <section
+      className="bg-white shadow-sm rounded-lg p-6"
+      onKeyDown={handleKeyDown}
+    >
       <h2 className="text-lg font-semibold text-gray-900 mb-4">Tax & Legal</h2>
 
       <div className="space-y-4">

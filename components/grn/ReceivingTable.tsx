@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { HiOutlineCheck, HiOutlineExclamationCircle, HiOutlineArrowUp, HiOutlineCog, HiOutlineExclamationTriangle, HiOutlineTrash } from 'react-icons/hi2';
 import BatchSplitModal from './BatchSplitModal';
 import DiscrepancyHandler from './DiscrepancyHandler';
+import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation';
 
 interface ReceivingTableProps {
     items: any[];
@@ -18,6 +19,8 @@ export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSp
     const [editingItem, setEditingItem] = useState<string | null>(null);
     const [splitItem, setSplitItem] = useState<any | null>(null);
     const [discrepancyItem, setDiscrepancyItem] = useState<any | null>(null);
+
+    const { handleKeyDown } = useKeyboardNavigation();
 
     const getStatus = (item: any) => {
         if (item.receivedQty === item.orderedQty) {
@@ -46,7 +49,11 @@ export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSp
     };
 
     return (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div
+            className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden"
+            onKeyDown={handleKeyDown}
+            data-focus-trap="true"
+        >
             <div className="overflow-x-auto">
                 <table className="w-full">
                     <thead className="bg-gray-50 border-b border-gray-200">
@@ -161,21 +168,32 @@ export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSp
                                                 key={`expiry-${item.id}-${item.expiryDate}`}
                                                 defaultValue={item.expiryDate ? (() => {
                                                     const date = new Date(item.expiryDate);
+                                                    if (date.getFullYear() === 1970) return '';
                                                     return `${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
                                                 })() : ''}
                                                 onInput={(e) => {
+                                                    const inputType = (e.nativeEvent as any).inputType;
+                                                    // Prevent auto-fill on backspaces
+                                                    if (inputType && inputType.startsWith('delete')) {
+                                                        return;
+                                                    }
+
                                                     let value = e.currentTarget.value.replace(/[^0-9/]/g, '');
 
-                                                    // Auto-add / after 2 digits if not already there
+                                                    // Case 1: Exactly 2 digits, no slash -> Default 20 logic
                                                     if (value.length === 2 && !value.includes('/')) {
-                                                        value = value + '/';
+                                                        value = value + '/20';
+                                                    }
+                                                    // Case 2: More than 2 digits, no slash -> Insert slash
+                                                    else if (value.length > 2 && !value.includes('/')) {
+                                                        value = value.substring(0, 2) + '/' + value.substring(2);
                                                     }
 
                                                     // Validate month (can't be > 12)
                                                     if (value.length >= 2 && !value.includes('/')) {
                                                         const month = parseInt(value.substring(0, 2));
                                                         if (month > 12) {
-                                                            value = '12';
+                                                            value = '12' + value.substring(2);
                                                         }
                                                     }
 
@@ -188,6 +206,13 @@ export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSp
                                                 }}
                                                 onBlur={(e) => {
                                                     let value = e.currentTarget.value.trim();
+
+                                                    // Auto-expand YY to 20YY
+                                                    // This allows users to type "12/25" for "12/2025"
+                                                    if (value && value.match(/^(0?[1-9]|1[0-2])\/(\d{2})$/)) {
+                                                        const parts = value.split('/');
+                                                        value = `${parts[0]}/20${parts[1]}`;
+                                                    }
 
                                                     // Validate and save only on blur
                                                     if (value && value.match(/^(0?[1-9]|1[0-2])\/(\d{4})$/)) {
@@ -391,12 +416,31 @@ export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSp
                                                         key={`expiry-${child.id}-${child.expiryDate}`}
                                                         defaultValue={child.expiryDate ? (() => {
                                                             const date = new Date(child.expiryDate);
+                                                            if (date.getFullYear() === 1970) return '';
                                                             return `${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
                                                         })() : ''}
                                                         onInput={(e) => {
+                                                            const inputType = (e.nativeEvent as any).inputType;
+                                                            // Prevent auto-fill on backspaces
+                                                            if (inputType && inputType.startsWith('delete')) {
+                                                                return;
+                                                            }
+
                                                             let value = e.currentTarget.value.replace(/[^0-9/]/g, '');
+                                                            // Case 1: Exactly 2 digits, no slash -> Default 20 logic
                                                             if (value.length === 2 && !value.includes('/')) {
-                                                                value = value + '/';
+                                                                value = value + '/20';
+                                                            }
+                                                            // Case 2: More than 2 digits, no slash -> Insert slash
+                                                            else if (value.length > 2 && !value.includes('/')) {
+                                                                value = value.substring(0, 2) + '/' + value.substring(2);
+                                                            }
+
+                                                            if (value.length >= 2 && !value.includes('/')) {
+                                                                const month = parseInt(value.substring(0, 2));
+                                                                if (month > 12) {
+                                                                    value = '12' + value.substring(2);
+                                                                }
                                                             }
                                                             if (value.length > 7) {
                                                                 value = value.substring(0, 7);
@@ -405,6 +449,13 @@ export default function ReceivingTable({ items, poItems, onItemUpdate, onBatchSp
                                                         }}
                                                         onBlur={(e) => {
                                                             let value = e.currentTarget.value.trim();
+
+                                                            // Auto-expand YY to 20YY
+                                                            if (value && value.match(/^(0?[1-9]|1[0-2])\/(\d{2})$/)) {
+                                                                const parts = value.split('/');
+                                                                value = `${parts[0]}/20${parts[1]}`;
+                                                            }
+
                                                             if (value && value.match(/^(0?[1-9]|1[0-2])\/(\d{4})$/)) {
                                                                 const [month, year] = value.split('/');
                                                                 const paddedMonth = month.padStart(2, '0');

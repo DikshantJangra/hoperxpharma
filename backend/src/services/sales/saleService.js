@@ -112,6 +112,13 @@ class SaleService {
 
         return sale;
     }
+
+    /**
+     * Get next invoice number
+     */
+    async getNextInvoiceNumber(storeId) {
+        return await saleRepository.generateInvoiceNumber(storeId);
+    }
 }
 
 module.exports = new SaleService();

@@ -1,5 +1,5 @@
 import {
-    MdDashboard, MdInventory, MdPeople, MdShoppingCart, MdReceipt, MdStore, MdIntegrationInstructions
+    MdDashboard, MdInventory, MdPeople, MdShoppingCart, MdReceipt, MdStore, MdIntegrationInstructions, MdKeyboard
 } from "react-icons/md"
 import {
     TbPrescription, TbReportAnalytics
@@ -282,8 +282,8 @@ export const sidebarConfig: SidebarSection[] = [
                     { label: "Profile", path: "/store/profile" },
                     { label: "Invoice Design", path: "/store/invoice-design" },
                     { label: "Licenses", path: "/store/licenses" },
-                    { label: "Hardware", path: "/store/hardware" },
-                    { label: "Timings", path: "/store/timings" }
+                    { label: "Timings", path: "/store/timings" },
+                    { label: "Keyboard Shortcuts", path: "/store/keyboard-shortcuts" }
                 ]
             },
             {

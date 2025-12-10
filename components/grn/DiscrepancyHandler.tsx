@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { HiOutlineXMark, HiOutlineExclamationTriangle, HiOutlineCheckCircle } from 'react-icons/hi2';
+import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation';
 
 interface DiscrepancyHandlerProps {
     item: any;
@@ -16,6 +17,9 @@ export default function DiscrepancyHandler({ item, drugName, onResolve, onClose 
     const [description, setDescription] = useState('');
     const [rejectedQty, setRejectedQty] = useState(0);
     const [debitNoteValue, setDebitNoteValue] = useState(0);
+
+    // Enable enhanced keyboard navigation
+    const { handleKeyDown } = useKeyboardNavigation();
 
     const discrepancyQty = Math.abs(item.orderedQty - item.receivedQty);
     const isShortage = item.receivedQty < item.orderedQty;
@@ -37,7 +41,10 @@ export default function DiscrepancyHandler({ item, drugName, onResolve, onClose 
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            onKeyDown={handleKeyDown}
+        >
             <div className="bg-white rounded-lg shadow-xl max-w-lg w-full">
                 {/* Header */}
                 <div className="p-6 border-b border-gray-200">

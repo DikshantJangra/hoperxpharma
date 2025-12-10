@@ -25,8 +25,8 @@ const OCRUploader = ({ onComplete }: OCRUploaderProps) => {
         const initPdfWorker = async () => {
             if (typeof window !== 'undefined' && !pdfWorkerInitialized) {
                 try {
-                    // Use explicit .js extension
-                    const pdfJS = await import('pdfjs-dist/build/pdf.js');
+                    // Use correct import path
+                    const pdfJS = await import('pdfjs-dist');
 
                     // Set worker to matching version
                     pdfJS.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfJS.version}/pdf.worker.min.js`;
@@ -41,7 +41,7 @@ const OCRUploader = ({ onComplete }: OCRUploaderProps) => {
     }, [pdfWorkerInitialized]);
 
     const renderPdfToImage = async (file: File): Promise<string> => {
-        const pdfJS = await import('pdfjs-dist/build/pdf.js');
+        const pdfJS = await import('pdfjs-dist');
         const arrayBuffer = await file.arrayBuffer();
 
         // Load document
@@ -59,7 +59,8 @@ const OCRUploader = ({ onComplete }: OCRUploaderProps) => {
         if (context) {
             const renderContext = {
                 canvasContext: context,
-                viewport: viewport
+                viewport: viewport,
+                canvas: canvas
             };
             await page.render(renderContext).promise;
             return canvas.toDataURL('image/png');

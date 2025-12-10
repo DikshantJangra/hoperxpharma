@@ -96,6 +96,13 @@ export default function ReceiveShipmentPage() {
     }, [grn?.id]);
     */
 
+    const grnRef = React.useRef<any>(null);
+
+    // Keep ref in sync with state for initialization/reloads
+    useEffect(() => {
+        if (grn) grnRef.current = grn;
+    }, [grn]);
+
     const initializeGRN = async () => {
         setLoading(true);
         try {
@@ -114,6 +121,7 @@ export default function ReceiveShipmentPage() {
             if (response.ok) {
                 const result = await response.json();
                 setGrn(result.data);
+                grnRef.current = result.data; // Sync ref immediately
 
                 // Set PO from GRN response if available, otherwise fetch it
                 if (result.data.po && result.data.po.items) {
@@ -158,6 +166,8 @@ export default function ReceiveShipmentPage() {
             setSaving(true);
         }
 
+        const currentGrn = grnRef.current || grn;
+
         try {
             const token = tokenManager.getAccessToken();
 
@@ -166,7 +176,7 @@ export default function ReceiveShipmentPage() {
             if (invoiceDate) payload.supplierInvoiceDate = new Date(invoiceDate).toISOString();
             if (notes) payload.notes = notes;
 
-            const response = await fetch(`${apiBaseUrl}/grn/${grn.id}`, {
+            const response = await fetch(`${apiBaseUrl}/grn/${currentGrn.id}`, {
                 method: 'PATCH',
                 headers: {
                     'Authorization': `Bearer ${token}`,
@@ -208,10 +218,11 @@ export default function ReceiveShipmentPage() {
         const PROPAGATABLE_FIELDS = ['batchNumber', 'expiryDate', 'mrp', 'unitPrice', 'discountPercent', 'discountType', 'gstPercent', 'location'];
         const isPropagatingUpdate = Object.keys(updates).some(key => PROPAGATABLE_FIELDS.includes(key));
 
-        // Optimistic update (immediate UI feedback)
+        // Optimistic update (immediate UI feedback) with REF update
         setGrn((prevGrn: any) => {
             if (!prevGrn) return null;
 
+            // Use prevGrn to calculate new state
             // Check if this is a parent item that should propagate updates
             const parentItem = prevGrn.items.find((i: any) => i.id === itemId);
             const shouldPropagate = parentItem && parentItem.isSplit && isPropagatingUpdate;
@@ -267,19 +278,23 @@ export default function ReceiveShipmentPage() {
                 return item;
             });
 
-            return { ...prevGrn, items: updatedItems };
+            const newGrnState = { ...prevGrn, items: updatedItems };
+            grnRef.current = newGrnState; // CRITICAL: Update ref synchronously
+            return newGrnState;
         });
 
         // Track pending updates
         pendingUpdatesRef.current.add(itemId);
 
+        const currentGrn = grnRef.current || grn;
+
         // If propagating, find children and add them to pending too
-        // Note: We use the 'grn' from closure which is fresh enough for finding relationships
-        const isParent = grn?.items?.find((i: any) => i.id === itemId)?.isSplit;
+        // Note: We use the 'grnRef' which is fresh enough for finding relationships
+        const isParent = currentGrn?.items?.find((i: any) => i.id === itemId)?.isSplit;
         let childIds: string[] = [];
 
         if (isParent && isPropagatingUpdate) {
-            childIds = grn.items
+            childIds = currentGrn.items
                 .filter((i: any) => i.parentItemId === itemId)
                 .map((i: any) => i.id);
             childIds.forEach((id: string) => pendingUpdatesRef.current.add(id));
@@ -313,7 +328,7 @@ export default function ReceiveShipmentPage() {
                         }
                     }
 
-                    const response = await fetch(`${apiBaseUrl}/grn/${grn.id}/items/${id}`, {
+                    const response = await fetch(`${apiBaseUrl}/grn/${currentGrn.id}/items/${id}`, {
                         method: 'PATCH',
                         headers: {
                             'Authorization': `Bearer ${token}`,
@@ -388,6 +403,7 @@ export default function ReceiveShipmentPage() {
             processedIds.add(item.id);
 
             const receivedQty = parseFloat(item.receivedQty) || 0;
+            const freeQty = parseFloat(item.freeQty) || 0;
             // Skip items with no received quantity if that's the desired behavior, 
             // but usually we want to see even 0 qty items in the list (just with 0 totals)
 
@@ -460,6 +476,7 @@ export default function ReceiveShipmentPage() {
                 batchNumber: item.batchNumber,
                 expiryDate: item.expiryDate,
                 receivedQty,
+                freeQty,
                 unitPrice,
                 mrp: item.mrp,
                 discountPercent,
@@ -520,6 +537,7 @@ export default function ReceiveShipmentPage() {
                 });
                 const grnData = await grnResponse.json();
                 setGrn(grnData.data);
+                grnRef.current = grnData.data; // Sync ref
             } else {
                 const error = await response.json();
                 toast.error(error.error || error.message || 'Failed to split batch');
@@ -550,6 +568,7 @@ export default function ReceiveShipmentPage() {
                 });
                 const grnData = await grnResponse.json();
                 setGrn(grnData.data);
+                grnRef.current = grnData.data; // Sync ref
             }
         } catch (error) {
             console.error('Error recording discrepancy:', error);
@@ -558,6 +577,7 @@ export default function ReceiveShipmentPage() {
 
     const validateGRN = () => {
         const errors: any[] = [];
+        const currentGrn = grnRef.current || grn;
 
         // Invoice validation
         if (!invoiceNo || invoiceNo.trim() === '') {
@@ -568,9 +588,14 @@ export default function ReceiveShipmentPage() {
         }
 
         // Item validation
-        if (grn && grn.items) {
-            grn.items.forEach((item: any) => {
-                // Skip validation for parent items that are split
+        if (currentGrn && currentGrn.items) {
+            // Flatten items to include children of split batches
+            const allItems = currentGrn.items.flatMap((item: any) =>
+                item.isSplit && item.children ? item.children : [item]
+            );
+
+            allItems.forEach((item: any) => {
+                // Skip validation for parent items that are split (already handled by flatMap logic above, but safety check)
                 if (item.isSplit) return;
 
                 const drugName = getDrugName(item.drugId);
@@ -595,7 +620,15 @@ export default function ReceiveShipmentPage() {
                     const expiryDate = new Date(item.expiryDate);
                     const today = new Date();
                     today.setHours(0, 0, 0, 0);
-                    if (expiryDate < today) {
+
+                    if (expiryDate.getFullYear() === 1970) {
+                        errors.push({
+                            field: 'expiryDate',
+                            message: 'Expiry date is required',
+                            itemId: item.id,
+                            drugName
+                        });
+                    } else if (expiryDate < today) {
                         errors.push({
                             field: 'expiryDate',
                             message: 'Expiry date must be in the future',
@@ -616,7 +649,7 @@ export default function ReceiveShipmentPage() {
             });
 
             // At least one item must be received
-            const totalReceived = grn.items.reduce((sum: number, item: any) => sum + (item.receivedQty || 0), 0);
+            const totalReceived = currentGrn.items.reduce((sum: number, item: any) => sum + (item.receivedQty || 0), 0);
             if (totalReceived === 0) {
                 errors.push({ field: 'receivedQty', message: 'At least one item must be received (Received Qty > 0)' });
             }
@@ -909,6 +942,7 @@ export default function ReceiveShipmentPage() {
                                 <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item Details</th>
                                 <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Batch Info</th>
                                 <th scope="col" className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Qty</th>
+                                <th scope="col" className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Free</th>
                                 <th scope="col" className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Rate</th>
                                 <th scope="col" className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Gross</th>
                                 <th scope="col" className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Discount</th>
@@ -931,6 +965,7 @@ export default function ReceiveShipmentPage() {
                                         })() : '-'}</div>
                                     </td>
                                     <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-700 text-right">{row.receivedQty}</td>
+                                    <td className="px-3 py-2 whitespace-nowrap text-sm text-emerald-600 text-right font-medium">{row.freeQty > 0 ? `+${row.freeQty}` : '-'}</td>
                                     <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-700 text-right">₹{formatCurrency(row.unitPrice)}</td>
                                     <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-700 text-right">₹{formatCurrency(row.gross)}</td>
                                     <td className="px-3 py-2 whitespace-nowrap text-sm text-red-600 text-right">
@@ -948,7 +983,7 @@ export default function ReceiveShipmentPage() {
                         </tbody>
                         <tfoot className="bg-gray-50 font-semibold">
                             <tr>
-                                <td colSpan={6} className="px-3 py-2 text-right text-gray-900">Total Taxable Value</td>
+                                <td colSpan={7} className="px-3 py-2 text-right text-gray-900">Total Taxable Value</td>
                                 <td className="px-3 py-2 text-right text-gray-900">₹{formatCurrency(calculatedTotals.taxableAmount)}</td>
                                 <td className="px-3 py-2 text-right text-gray-900">₹{formatCurrency(calculatedTotals.taxAmount)}</td>
                                 <td className="px-3 py-2 text-right text-emerald-700">₹{formatCurrency(calculatedTotals.totalAmount)}</td>

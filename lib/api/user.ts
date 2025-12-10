@@ -95,6 +95,7 @@ export interface UserProfile {
     role: string;
     isActive: boolean;
     storeUsers: StoreUser[];
+    preferences?: any;
     createdAt: string;
     updatedAt: string;
 }
@@ -103,6 +104,7 @@ export interface UpdateUserProfileData {
     firstName?: string;
     lastName?: string;
     phoneNumber?: string;
+    preferences?: any;
 }
 
 export interface OnboardingStatus {

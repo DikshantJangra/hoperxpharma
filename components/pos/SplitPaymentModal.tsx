@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { FiX } from 'react-icons/fi';
+import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation';
 
 export default function SplitPaymentModal({ total = 0, onConfirm, onClose }: any) {
   // Use strings for inputs to allow decimals (e.g. "10.") without forcing parse
@@ -36,6 +37,9 @@ export default function SplitPaymentModal({ total = 0, onConfirm, onClose }: any
 
   }, [cash, card, upi, wallet, total]);
 
+  // Enable enhanced keyboard navigation
+  const { handleKeyDown } = useKeyboardNavigation();
+
   const valCash = safeParse(cash);
   const valCard = safeParse(card);
   const valUpi = safeParse(upi);
@@ -64,7 +68,12 @@ export default function SplitPaymentModal({ total = 0, onConfirm, onClose }: any
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-white rounded-lg w-full max-w-md mx-4" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="bg-white rounded-lg w-full max-w-md mx-4"
+        onClick={(e) => e.stopPropagation()}
+        onKeyDown={handleKeyDown}
+        data-focus-trap="true"
+      >
         <div className="flex items-center justify-between p-4 border-b border-[#e2e8f0]">
           <h3 className="text-lg font-bold text-[#0f172a]">Split Payment</h3>
           <button onClick={onClose} className="text-[#64748b] hover:text-[#0f172a] p-1 rounded hover:bg-[#f8fafc]">

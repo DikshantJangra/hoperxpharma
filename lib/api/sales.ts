@@ -123,6 +123,14 @@ export const salesApi = {
         return response.data;
     },
 
+    /**
+     * Get next invoice number
+     */
+    async getNextInvoiceNumber() {
+        const response = await apiClient.get('/sales/next-invoice');
+        return response.data;
+    },
+
     // ============ Draft Methods ============
 
     /**

@@ -38,6 +38,7 @@ const getStoreById = asyncHandler(async (req, res) => {
  * Update store
  */
 const updateStore = asyncHandler(async (req, res) => {
+    console.log('Controller UpdateStore Body:', JSON.stringify(req.body, null, 2));
     const store = await storeService.updateStore(req.params.id, req.body, req.user.id);
 
     const response = ApiResponse.success(store, 'Store updated successfully');

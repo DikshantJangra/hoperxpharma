@@ -9,6 +9,7 @@ import { BiCheckShield, BiUser } from "react-icons/bi";
 import { RiSecurePaymentFill } from "react-icons/ri";
 import { HiEye, HiEyeOff } from "react-icons/hi";
 import Link from "next/link"
+import { useKeyboardNavigation } from "@/hooks/useKeyboardNavigation";
 
 export default function Signup() {
     const [name, setName] = useState("");
@@ -22,6 +23,9 @@ export default function Signup() {
     const [showConfirmPass, setShowConfirmPass] = useState(false);
     const router = useRouter();
     const [showAnimation, setShowAnimation] = useState(true);
+
+    // Enable enhanced keyboard navigation
+    const { handleKeyDown } = useKeyboardNavigation();
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -78,9 +82,9 @@ export default function Signup() {
                 const { useAuthStore } = await import('@/lib/store/auth-store');
                 const user = response.data.user as any;
                 const hasStore = user.storeUsers && user.storeUsers.length > 0;
-                
+
                 // Set all auth state at once
-                useAuthStore.setState({ 
+                useAuthStore.setState({
                     user,
                     isAuthenticated: false,
                     hasStore,
@@ -147,7 +151,7 @@ export default function Signup() {
                     </p>
                 </div>
 
-                <form onSubmit={signupuser} className="space-y-3.5">
+                <form onSubmit={signupuser} className="space-y-3.5" onKeyDown={handleKeyDown}>
                     <div>
                         <label className="block text-black/70 text-sm font-medium mb-1.5 text-left">
                             Phone Number (India only)

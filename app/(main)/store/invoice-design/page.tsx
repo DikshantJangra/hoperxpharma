@@ -1,113 +1,295 @@
 'use client';
-
-import { FiMove, FiLayout, FiType, FiImage, FiSave, FiAlertCircle } from 'react-icons/fi';
-import { MdDragIndicator } from 'react-icons/md';
+import { useState, useEffect } from 'react';
+import { FiSave, FiRefreshCw, FiAlertCircle, FiCheck, FiLayout, FiInfo, FiTrendingUp, FiCalendar } from 'react-icons/fi';
+import { toast } from 'sonner';
+import { storeApi } from '@/lib/api/store';
 
 export default function InvoiceDesignPage() {
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [storeId, setStoreId] = useState('');
+    const [formData, setFormData] = useState({
+        invoiceFormat: 'INV/{YYYY}/{SEQ:4}',
+        headerText: '',
+        footerText: ''
+    });
+
+    // Analysis state
+    const [analysis, setAnalysis] = useState({
+        preview: '',
+        capacity: 0,
+        resetPeriod: 'Never',
+        isInfinite: false
+    });
+
+    useEffect(() => {
+        const fetchSettings = async () => {
+            try {
+                const response = await storeApi.getMyStore();
+                const store = response.data || response;
+
+                console.log('Frontend: API Response for getMyStore:', store);
+
+                if (store) {
+                    setStoreId(store.id); // Ensure storeId is set from API
+                    if (store.settings) {
+                        console.log('Frontend: Found settings:', store.settings);
+                        setFormData(prev => ({
+                            ...prev,
+                            invoiceFormat: store.settings.invoiceFormat || 'INV/{YYYY}/{SEQ:4}',
+                            footerText: store.settings.footerText || ''
+                        }));
+                    } else {
+                        console.warn('Frontend: No settings found in store object:', store);
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to load settings:', error);
+                toast.error('Failed to load invoice settings');
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchSettings();
+    }, []);
+
+    // Analyze format and generate preview
+    useEffect(() => {
+        const analyzeFormat = () => {
+            const format = formData.invoiceFormat;
+            const now = new Date();
+            const year = now.getFullYear().toString();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+
+            // Generate Preview
+            let preview = format
+                .replace('{YYYY}', year)
+                .replace('{MM}', month)
+                .replace('{DD}', day);
+
+            // Handle SEQ and limit analysis
+            const seqMatch = preview.match(/{SEQ(?::(\d+))?}/);
+            let seqDigits = 4;
+            let capacity = 9999;
+            let isInfinite = false;
+
+            if (seqMatch) {
+                seqDigits = seqMatch[1] ? parseInt(seqMatch[1]) : 4;
+                capacity = Math.pow(10, seqDigits) - 1;
+                preview = preview.replace(seqMatch[0], '1'.padStart(seqDigits, '0'));
+            } else {
+                // If no SEQ, it's problematic unless purely time based (collisions likely)
+                capacity = 1;
+            }
+
+            // Determine Reset Period
+            let resetPeriod = 'Never (Continuous)';
+            if (format.includes('{DD}')) {
+                resetPeriod = 'Daily';
+            } else if (format.includes('{MM}')) {
+                resetPeriod = 'Monthly';
+            } else if (format.includes('{YYYY}')) {
+                resetPeriod = 'Yearly';
+            }
+
+            setAnalysis({
+                preview,
+                capacity,
+                resetPeriod,
+                isInfinite
+            });
+        };
+
+        analyzeFormat();
+    }, [formData.invoiceFormat]);
+
+    const handleSave = async () => {
+        if (!storeId) {
+            toast.error('Store ID missing. Please refresh the page.');
+            return;
+        }
+
+        setSaving(true);
+        try {
+            await storeApi.updateStore(storeId, {
+                settings: {
+                    invoiceFormat: formData.invoiceFormat,
+                    footerText: formData.footerText
+                }
+            });
+            toast.success('Invoice settings saved successfully');
+        } catch (error) {
+            console.error('Failed to save:', error);
+            toast.error('Failed to save settings');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    if (loading) {
+        return <div className="p-8 flex items-center justify-center">Loading settings...</div>;
+    }
+
     return (
-        <div className="h-[calc(100vh-64px)] overflow-y-auto bg-gray-50 p-8">
-            <div className="max-w-4xl mx-auto">
+        <div className="h-[calc(100vh-64px)] overflow-y-auto bg-gray-50 p-6 md:p-8">
+            <div className="max-w-5xl mx-auto">
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                     {/* Header */}
-                    <div className="border-b border-gray-100 p-8 text-center bg-gradient-to-b from-teal-50/50 to-white">
-                        <div className="w-16 h-16 bg-teal-100 text-teal-600 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                            <FiLayout className="w-8 h-8" />
-                        </div>
-                        <h1 className="text-3xl font-bold text-gray-900 mb-2">Invoice Template Builder</h1>
-                        <p className="text-gray-500 max-w-lg mx-auto">
-                            Design professional, feature-rich invoices that match your brand identity perfectly.
-                            Drag, drop, and customize every element.
-                        </p>
-                        <div className="mt-6 inline-flex items-center gap-2 px-4 py-2 bg-amber-50 text-amber-700 rounded-full text-sm font-medium border border-amber-100">
-                            <span className="relative flex h-2.5 w-2.5 mr-1">
-                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500"></span>
-                            </span>
-                            Coming Soon
-                        </div>
-                    </div>
-
-                    {/* Features Grid */}
-                    <div className="p-8">
-                        <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider mb-6">Planned Features</h3>
-
-                        <div className="grid md:grid-cols-2 gap-6">
-                            {/* Feature 1 */}
-                            <div className="flex gap-4 p-4 rounded-xl border border-gray-100 hover:border-teal-100 hover:bg-teal-50/30 transition-colors group">
-                                <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-lg flex items-center justify-center shrink-0 group-hover:bg-blue-100 transition-colors">
-                                    <FiMove className="w-5 h-5" />
+                    <div className="border-b border-gray-100 p-8 bg-gradient-to-r from-teal-50 to-white">
+                        <div className="flex items-start justify-between">
+                            <div className="flex gap-4">
+                                <div className="w-12 h-12 bg-teal-100 text-teal-600 rounded-xl flex items-center justify-center shrink-0">
+                                    <FiLayout className="w-6 h-6" />
                                 </div>
                                 <div>
-                                    <h4 className="font-semibold text-gray-900 mb-1">Drag & Drop Builder</h4>
-                                    <p className="text-sm text-gray-500">
-                                        Easily rearrange sections anywhere on the page. Move your logo, address, or totals block with simple drag gestures.
-                                    </p>
+                                    <h1 className="text-2xl font-bold text-gray-900">Invoice Customization</h1>
+                                    <p className="text-gray-500 mt-1">Design your invoice numbering scheme and content.</p>
                                 </div>
                             </div>
-
-                            {/* Feature 2 */}
-                            <div className="flex gap-4 p-4 rounded-xl border border-gray-100 hover:border-teal-100 hover:bg-teal-50/30 transition-colors group">
-                                <div className="w-10 h-10 bg-purple-50 text-purple-600 rounded-lg flex items-center justify-center shrink-0 group-hover:bg-purple-100 transition-colors">
-                                    <FiType className="w-5 h-5" />
-                                </div>
-                                <div>
-                                    <h4 className="font-semibold text-gray-900 mb-1">Custom Typography & Labels</h4>
-                                    <p className="text-sm text-gray-500">
-                                        Rename fields (e.g., "Bill To" &rarr; "Client"), change fonts, sizes, and colors to align with your brand guidelines.
-                                    </p>
-                                </div>
-                            </div>
-
-                            {/* Feature 3 */}
-                            <div className="flex gap-4 p-4 rounded-xl border border-gray-100 hover:border-teal-100 hover:bg-teal-50/30 transition-colors group">
-                                <div className="w-10 h-10 bg-rose-50 text-rose-600 rounded-lg flex items-center justify-center shrink-0 group-hover:bg-rose-100 transition-colors">
-                                    <FiImage className="w-5 h-5" />
-                                </div>
-                                <div>
-                                    <h4 className="font-semibold text-gray-900 mb-1">Asset Management</h4>
-                                    <p className="text-sm text-gray-500">
-                                        Upload and position logos, watermarks, and digital signatures. Integration with secure Cloud Storage (R2).
-                                    </p>
-                                </div>
-                            </div>
-
-                            {/* Feature 4 */}
-                            <div className="flex gap-4 p-4 rounded-xl border border-gray-100 hover:border-teal-100 hover:bg-teal-50/30 transition-colors group">
-                                <div className="w-10 h-10 bg-emerald-50 text-emerald-600 rounded-lg flex items-center justify-center shrink-0 group-hover:bg-emerald-100 transition-colors">
-                                    <FiSave className="w-5 h-5" />
-                                </div>
-                                <div>
-                                    <h4 className="font-semibold text-gray-900 mb-1">Save Multiple Templates</h4>
-                                    <p className="text-sm text-gray-500">
-                                        Create specific templates for different needs: "GST Invoice", "Estimate", "Delivery Challan", or "Export Invoice".
-                                    </p>
-                                </div>
-                            </div>
+                            <button
+                                onClick={handleSave}
+                                disabled={saving}
+                                className="px-6 py-2.5 bg-teal-600 text-white rounded-lg font-medium hover:bg-teal-700 transition-colors flex items-center gap-2 disabled:opacity-70 shadow-sm"
+                            >
+                                {saving ? <FiRefreshCw className="animate-spin" /> : <FiSave />}
+                                {saving ? 'Saving...' : 'Save Settings'}
+                            </button>
                         </div>
                     </div>
 
-                    {/* Interactive Preview (Mockup) */}
-                    <div className="bg-gray-50 border-t border-gray-100 p-8">
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-sm font-semibold text-gray-900">Builder Preview</h3>
-                            <span className="text-xs text-gray-400 italic">Concept Interaction</span>
-                        </div>
-
-                        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 relative min-h-[300px] flex flex-col items-center justify-center border-dashed">
-                            <div className="absolute inset-0 bg-grid-slate-100 [mask-image:linear-gradient(0deg,white,rgba(255,255,255,0.6))]"></div>
-
-                            <div className="relative z-10 text-center animate-pulse">
-                                <div className="w-64 h-32 bg-gray-100 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center mx-auto mb-4">
-                                    <span className="text-gray-400 text-sm flex items-center gap-2">
-                                        <MdDragIndicator /> Drop Header Component
-                                    </span>
+                    <div className="p-8 grid gap-10 lg:grid-cols-2">
+                        {/* Settings Form */}
+                        <div className="space-y-8">
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-900 mb-2">
+                                        Invoice Number Pattern
+                                    </label>
+                                    <div className="relative">
+                                        <input
+                                            type="text"
+                                            value={formData.invoiceFormat}
+                                            onChange={(e) => setFormData({ ...formData, invoiceFormat: e.target.value })}
+                                            className="w-full pl-4 pr-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all font-mono text-gray-700"
+                                            placeholder="INV/{YYYY}/{SEQ:4}"
+                                        />
+                                    </div>
+                                    <div className="mt-3 flex flex-wrap gap-2">
+                                        {[
+                                            { token: '{YYYY}', desc: 'Year (2025)' },
+                                            { token: '{MM}', desc: 'Month (12)' },
+                                            { token: '{DD}', desc: 'Day (10)' },
+                                            { token: '{SEQ:4}', desc: 'Sequence (0001)' }
+                                        ].map((item) => (
+                                            <button
+                                                key={item.token}
+                                                onClick={() => setFormData(prev => ({ ...prev, invoiceFormat: prev.invoiceFormat + item.token }))}
+                                                className="px-2 py-1 bg-gray-100 hover:bg-gray-200 text-xs text-gray-600 rounded-md border border-gray-200 transition-colors font-mono"
+                                                title={`Add ${item.desc}`}
+                                            >
+                                                {item.token}
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
-                                <div className="w-full h-4 bg-gray-100 rounded w-96 mx-auto mb-2"></div>
-                                <div className="w-full h-4 bg-gray-100 rounded w-64 mx-auto"></div>
+
+                                {/* Analysis Cards */}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-100">
+                                        <div className="flex items-center gap-2 text-indigo-800 mb-1">
+                                            <FiTrendingUp className="w-4 h-4" />
+                                            <span className="text-xs font-bold uppercase tracking-wider">Capacity</span>
+                                        </div>
+                                        <div className="text-indigo-900 font-semibold text-sm">
+                                            {analysis.capacity.toLocaleString()} invites
+                                        </div>
+                                        <div className="text-xs text-indigo-600 mt-1">
+                                            per {analysis.resetPeriod.toLowerCase()}
+                                        </div>
+                                    </div>
+
+                                    <div className="p-4 bg-purple-50 rounded-xl border border-purple-100">
+                                        <div className="flex items-center gap-2 text-purple-800 mb-1">
+                                            <FiCalendar className="w-4 h-4" />
+                                            <span className="text-xs font-bold uppercase tracking-wider">Reset Period</span>
+                                        </div>
+                                        <div className="text-purple-900 font-semibold text-sm">
+                                            {analysis.resetPeriod}
+                                        </div>
+                                        <div className="text-xs text-purple-600 mt-1">
+                                            Sequence restarts
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
 
-                            <div className="absolute bottom-4 right-4 bg-gray-900 text-white text-xs px-3 py-1.5 rounded-md opacity-50">
-                                Editor Mode: Active
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-900 mb-2">
+                                    Invoice Footer Note
+                                </label>
+                                <textarea
+                                    value={formData.footerText}
+                                    onChange={(e) => setFormData({ ...formData, footerText: e.target.value })}
+                                    rows={4}
+                                    className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500/20 focus:border-teal-500 transition-all resize-none"
+                                    placeholder="Enter terms, thank you message, or payment details..."
+                                />
+                            </div>
+                        </div>
+
+                        {/* Preview Panel */}
+                        <div className="bg-gray-50 rounded-2xl border border-gray-200 p-8 flex flex-col h-full">
+                            <h3 className="text-sm font-bold text-gray-900 mb-6 flex items-center gap-2 uppercase tracking-wide">
+                                <FiCheck className="text-teal-500" /> Live Preview
+                            </h3>
+
+                            <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-200 flex-1 flex flex-col relative overflow-hidden group">
+                                <div className="absolute top-0 right-0 p-4 opacity-5 pointer-events-none group-hover:opacity-10 transition-opacity">
+                                    <FiLayout className="w-32 h-32" />
+                                </div>
+
+                                <div className="border-b-2 border-dashed border-gray-100 pb-6 mb-6 flex justify-between items-start z-10">
+                                    <div>
+                                        <div className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1.5">Invoice No</div>
+                                        <div className="text-2xl font-mono font-bold text-gray-900 bg-gray-50 px-3 py-1 -ml-3 rounded-lg border border-transparent group-hover:border-gray-200 group-hover:bg-gray-100 transition-all inline-block">
+                                            {analysis.preview}
+                                        </div>
+                                        <div className="text-xs text-gray-400 mt-1">Date: {new Date().toLocaleDateString()}</div>
+                                    </div>
+                                    <div className="px-3 py-1 bg-green-100 text-green-700 rounded text-xs font-bold uppercase tracking-wide">
+                                        Paid
+                                    </div>
+                                </div>
+
+                                <div className="space-y-4 opacity-40 z-10 flex-1">
+                                    <div className="flex justify-between">
+                                        <div className="h-4 bg-gray-200 rounded w-1/3"></div>
+                                        <div className="h-4 bg-gray-200 rounded w-1/6"></div>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <div className="h-4 bg-gray-100 rounded w-1/4"></div>
+                                        <div className="h-4 bg-gray-100 rounded w-1/6"></div>
+                                    </div>
+                                    <div className="h-4 bg-gray-50 rounded w-1/2 mt-4"></div>
+                                </div>
+
+                                <div className="mt-8 pt-6 border-t border-gray-100 text-center z-10">
+                                    {formData.footerText ? (
+                                        <p className="text-sm text-gray-600 whitespace-pre-wrap">{formData.footerText}</p>
+                                    ) : (
+                                        <p className="text-sm text-gray-400 italic">Footer text will appear here...</p>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="mt-6 flex gap-3 text-xs text-gray-500 bg-white/50 p-3 rounded-lg border border-gray-100">
+                                <FiInfo className="w-4 h-4 shrink-0 mt-0.5 text-blue-500" />
+                                <p>
+                                    Changes apply to <strong>new invoices only</strong>.
+                                    Historical records remain unchanged for audit compliance.
+                                </p>
                             </div>
                         </div>
                     </div>

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { FiX, FiSearch, FiUser, FiPhone, FiArrowLeft } from 'react-icons/fi';
 import { toast } from 'sonner';
+import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation';
 
 const CustomerCardSkeleton = () => (
   <div className="p-3 border border-[#e2e8f0] rounded-lg animate-pulse">
@@ -29,6 +30,9 @@ export default function CustomerModal({ onSelect, onClose }: any) {
     phoneNumber: '',
     gender: 'MALE',
   });
+
+  // Enable enhanced keyboard navigation
+  const { handleKeyDown } = useKeyboardNavigation();
 
   // Search patients from API with debounce
   useEffect(() => {
@@ -138,7 +142,7 @@ export default function CustomerModal({ onSelect, onClose }: any) {
             </button>
           </div>
 
-          <form onSubmit={handleAddCustomer} className="p-4 space-y-4">
+          <form onSubmit={handleAddCustomer} className="p-4 space-y-4" onKeyDown={handleKeyDown}>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">

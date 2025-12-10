@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { FiX, FiSave } from 'react-icons/fi';
 import { toast } from 'sonner';
 import { drugApi } from '@/lib/api/drugs';
+import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation';
 
 interface EditDrugModalProps {
     drugId: string;
@@ -46,6 +47,9 @@ export default function EditDrugModal({ drugId, isOpen, onClose, onSuccess }: Ed
         lowStockThreshold: 10,
         description: '',
     });
+
+    // Enable enhanced keyboard navigation
+    const { handleKeyDown } = useKeyboardNavigation();
 
     // Load drug data when modal opens
     useEffect(() => {
@@ -140,7 +144,7 @@ export default function EditDrugModal({ drugId, isOpen, onClose, onSuccess }: Ed
                                 <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
                             </div>
                         ) : (
-                            <form onSubmit={handleSubmit} className="space-y-6">
+                            <form onSubmit={handleSubmit} className="space-y-6" onKeyDown={handleKeyDown}>
                                 {/* Basic Information */}
                                 <div>
                                     <h3 className="text-sm font-semibold text-gray-700 mb-3">Basic Information</h3>

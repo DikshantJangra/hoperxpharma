@@ -8,6 +8,7 @@ import { PiPassword } from "react-icons/pi";
 import { HiEye, HiEyeOff } from "react-icons/hi";
 import { BiCheckShield } from "react-icons/bi";
 import { RiSecurePaymentFill } from "react-icons/ri";
+import { useKeyboardNavigation } from "@/hooks/useKeyboardNavigation";
 
 export default function Login() {
     const [email, setEmail] = useState("");
@@ -17,6 +18,9 @@ export default function Login() {
     const [showPass, setShowPass] = useState(false);
     const router = useRouter();
     const [showAnimation, setShowAnimation] = useState(true);
+
+    // Enable enhanced keyboard navigation
+    const { handleKeyDown } = useKeyboardNavigation();
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -104,7 +108,7 @@ export default function Login() {
                     </p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit} className="space-y-4" onKeyDown={handleKeyDown}>
                     <div>
                         <label className="block text-black/70 text-sm font-medium mb-1.5 text-left">
                             Email Address

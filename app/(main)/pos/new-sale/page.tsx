@@ -43,6 +43,7 @@ export default function NewSalePage() {
   const [linkedPrescriptionId, setLinkedPrescriptionId] = useState<string | null>(null);
   const [activePrescription, setActivePrescription] = useState<any>(null);
   const [isLoadingRx, setIsLoadingRx] = useState(false);
+  const [invoiceNumber, setInvoiceNumber] = useState('');
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Get storeId from localStorage
@@ -56,6 +57,22 @@ export default function NewSalePage() {
         console.error('Failed to parse user data:', error);
       }
     }
+  }, []);
+
+  // Fetch next invoice number
+  useEffect(() => {
+    const fetchNextInvoice = async () => {
+      try {
+        const response = await salesApi.getNextInvoiceNumber();
+        if (response && response.nextInvoiceNumber) {
+          setInvoiceNumber(response.nextInvoiceNumber);
+        }
+      } catch (error) {
+        console.error('Failed to fetch next invoice number:', error);
+      }
+    };
+
+    fetchNextInvoice();
   }, []);
 
   // Handle draft restore from modal
@@ -691,6 +708,7 @@ export default function NewSalePage() {
         items,
         paymentSplits,
         prescriptionId: linkedPrescriptionId, // Link to prescription if imported
+        invoiceNumber, // Pass the invoice number (manually edited or auto-fetched)
       };
 
       console.log('Creating sale with data:', saleData);
@@ -776,6 +794,8 @@ export default function NewSalePage() {
         onOpenCustomer={() => setShowCustomerModal(true)}
         onOpenPrescription={() => setShowPrescriptionModal(true)}
         activePrescription={activePrescription}
+        invoiceNumber={invoiceNumber}
+        setInvoiceNumber={setInvoiceNumber}
       />
 
       <div className="flex-1 flex overflow-hidden">

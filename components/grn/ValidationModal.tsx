@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { HiOutlineXMark, HiOutlineExclamationTriangle } from 'react-icons/hi2';
+import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation';
 
 interface ValidationError {
     field: string;
@@ -21,8 +22,15 @@ export default function ValidationModal({ errors, onClose }: ValidationModalProp
     const itemErrors = errors.filter(e => e.itemId);
     const generalErrors = errors.filter(e => !e.itemId && !['invoiceNo', 'invoiceDate'].includes(e.field));
 
+    // Enable enhanced keyboard navigation
+    const { handleKeyDown } = useKeyboardNavigation();
+
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            onKeyDown={handleKeyDown}
+            data-focus-trap="true"
+        >
             <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] flex flex-col">
                 {/* Header */}
                 <div className="flex items-center justify-between p-6 border-b border-gray-200">

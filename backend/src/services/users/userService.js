@@ -47,7 +47,7 @@ class UserService {
      */
     async updateUserProfile(userId, updateData) {
         // Validate that only allowed fields are being updated
-        const allowedFields = ['firstName', 'lastName', 'phoneNumber'];
+        const allowedFields = ['firstName', 'lastName', 'phoneNumber', 'preferences'];
         const filteredData = {};
 
         for (const field of allowedFields) {

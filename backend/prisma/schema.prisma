@@ -198,6 +198,7 @@ model User {
   grns                  GoodsReceivedNote[]
   savedFilters          SavedFilter[]
   avatars               UserAvatar[]
+  preferences           Json?     // User-specific UI preferences (e.g., keyboard shortcuts)
   assignedPrescriptions Prescription[]       @relation("AssignedPrescriptions")
 
   // HR Relations

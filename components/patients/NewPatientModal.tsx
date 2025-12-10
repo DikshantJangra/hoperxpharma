@@ -1,5 +1,6 @@
 import React from "react";
 import { FiX } from "react-icons/fi";
+import { useKeyboardNavigation } from "@/hooks/useKeyboardNavigation";
 
 interface NewPatientModalProps {
   onClose: () => void;
@@ -12,6 +13,9 @@ export default function NewPatientModal({ onClose, onCreated }: NewPatientModalP
   const [dob, setDob] = React.useState("");
   const [sex, setSex] = React.useState("");
   const [creating, setCreating] = React.useState(false);
+
+  // Enable enhanced keyboard navigation
+  const { handleKeyDown } = useKeyboardNavigation();
 
   const handleSubmit = async () => {
     if (!name) return;
@@ -27,7 +31,10 @@ export default function NewPatientModal({ onClose, onCreated }: NewPatientModalP
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-6">
+    <div
+      className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-6"
+      onKeyDown={handleKeyDown}
+    >
       <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">

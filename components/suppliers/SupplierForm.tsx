@@ -1,7 +1,6 @@
-'use client';
-
 import React, { useState } from 'react';
 import { FiSave, FiX, FiUploadCloud } from 'react-icons/fi';
+import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation';
 
 interface SupplierFormProps {
     initialData?: any;
@@ -31,6 +30,9 @@ export default function SupplierForm({ initialData, onSave, onCancel }: Supplier
     });
 
     const [errors, setErrors] = useState<Record<string, string>>({});
+
+    // Enable enhanced keyboard navigation (Enter key)
+    const { handleKeyDown } = useKeyboardNavigation();
 
     const handleChange = (field: string, value: any) => {
         setFormData((prev: any) => ({ ...prev, [field]: value }));
@@ -132,7 +134,10 @@ export default function SupplierForm({ initialData, onSave, onCancel }: Supplier
     };
 
     return (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 max-w-4xl mx-auto">
+        <div
+            className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 max-w-4xl mx-auto"
+            onKeyDown={handleKeyDown}
+        >
             <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-bold text-gray-800">
                     {initialData ? 'Edit Supplier' : 'Add New Supplier'}

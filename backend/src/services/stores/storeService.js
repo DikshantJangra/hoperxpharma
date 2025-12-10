@@ -72,7 +72,7 @@ class StoreService {
         }
 
         const updatedStore = await storeRepository.updateStore(id, storeData);
-        logger.info(`Store updated: ${updatedStore.name} (ID: ${id})`);
+        logger.info(`Store updated (PATCHED): ${updatedStore.name} (ID: ${id})`);
 
         return updatedStore;
     }

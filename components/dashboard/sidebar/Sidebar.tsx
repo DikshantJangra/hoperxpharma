@@ -56,15 +56,12 @@ function SidebarSection({ section, isOpen, expandedItems, onToggleItem }: any) {
     // ADMIN users see everything - bypass permission checks
     const isAdmin = user?.role === 'ADMIN';
 
-    console.log('[Sidebar] Section:', section.title, 'BusinessType:', businessType, 'IsAdmin:', isAdmin);
-
     // Filter items based on permissions AND business type
     const visibleItems = section.items.filter((item: any) => {
         // Business type filtering (if businessTypes array is defined)
         if (item.businessTypes && Array.isArray(item.businessTypes) && businessType) {
             // If item has businessTypes restriction and user's business type is not in the list, hide it
             const isAllowed = item.businessTypes.includes(businessType);
-            console.log('[Sidebar] Item:', item.label, 'AllowedTypes:', item.businessTypes, 'UserType:', businessType, 'Allowed:', isAllowed);
             if (!isAllowed) {
                 return false;
             }

@@ -10,7 +10,8 @@ class StoreRepository {
      * Find stores for a user
      */
     async findUserStores(userId) {
-        return await prisma.store.findMany({
+        console.log('findUserStores called for user:', userId);
+        const stores = await prisma.store.findMany({
             where: {
                 users: {
                     some: {
@@ -23,9 +24,15 @@ class StoreRepository {
                 operatingHours: true,
                 devices: true,
                 subscription: true,
+                settings: true,
             },
             orderBy: { createdAt: 'desc' },
         });
+        console.log('findUserStores found:', stores.length, 'stores');
+        if (stores.length > 0) {
+            console.log('Primary store settings:', JSON.stringify(stores[0].settings, null, 2));
+        }
+        return stores;
     }
 
     /**
@@ -52,6 +59,7 @@ class StoreRepository {
                         },
                     },
                 },
+                settings: true,
             },
         });
     }
@@ -82,10 +90,43 @@ class StoreRepository {
      * Update store
      */
     async updateStore(id, storeData) {
-        return await prisma.store.update({
+        console.log('UpdateStore Repository Input:', JSON.stringify(storeData, null, 2));
+        const { settings, ...rest } = storeData;
+
+        // Handle settings separately
+        if (settings) {
+            console.log('Upserting settings directly:', settings);
+            try {
+                const upserted = await prisma.storeSettings.upsert({
+                    where: { storeId: id },
+                    create: {
+                        ...settings,
+                        storeId: id
+                    },
+                    update: settings
+                });
+                console.log('Upsert Success:', upserted);
+            } catch (upsertError) {
+                console.error('Upsert Failed Detailed Error:', upsertError);
+                // We don't throw here to allow the main store update to proceed, 
+                // but we should probably throw in a real scenario. 
+                // For debugging, we want to see the error.
+                throw upsertError;
+            }
+        } else {
+            console.log('WARNING: No settings object found in update payload. Keys:', Object.keys(storeData));
+        }
+
+        await prisma.store.update({
             where: { id },
-            data: storeData,
+            data: rest
         });
+
+        // Explicitly fetch the complete store with settings to ensure fresh data
+        const result = await this.findById(id);
+
+        console.log('UpdateStore Result (Refetched):', JSON.stringify(result, null, 2));
+        return result;
     }
 
     /**

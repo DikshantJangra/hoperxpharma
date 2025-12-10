@@ -44,6 +44,7 @@ router.post('/refunds/:id/process', saleRefundController.processRefund);
  */
 router.get('/stats', saleController.getSalesStats);
 router.get('/top-selling', saleController.getTopSellingDrugs);
+router.get('/next-invoice', saleController.getNextInvoiceNumber);
 
 /**
  * Invoice-specific route

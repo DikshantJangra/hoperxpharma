@@ -1,5 +1,6 @@
 import React from "react";
 import { FiMapPin } from "react-icons/fi";
+import { useKeyboardNavigation } from "@/hooks/useKeyboardNavigation";
 
 interface AddressInputProps {
   address: any;
@@ -9,12 +10,18 @@ interface AddressInputProps {
 export default function AddressInput({ address, onChange }: AddressInputProps) {
   const [showMap, setShowMap] = React.useState(false);
 
+  // Enable enhanced keyboard navigation
+  const { handleKeyDown } = useKeyboardNavigation();
+
   const updateField = (field: string, value: string) => {
     onChange({ ...address, [field]: value });
   };
 
   return (
-    <div className="space-y-3">
+    <div
+      className="space-y-3"
+      onKeyDown={handleKeyDown}
+    >
       <label className="block text-sm font-medium text-gray-700">Address</label>
 
       <input

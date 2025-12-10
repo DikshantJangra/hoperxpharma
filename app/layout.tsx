@@ -5,6 +5,7 @@ import { ToastProvider } from "@/components/providers/ToastProvider";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { Toaster } from 'sonner';
 import "./globals.css";
+import { KeyboardProvider } from "@/contexts/KeyboardContext";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -34,9 +35,10 @@ export default function RootLayout({
       >
         <ErrorBoundary>
           <AuthProvider>
-            <ToastProvider />
-            <Toaster position="top-right" richColors />
-            {children}
+            <KeyboardProvider>
+              <ToastProvider />
+              {children}
+            </KeyboardProvider>
           </AuthProvider>
         </ErrorBoundary>
       </body>

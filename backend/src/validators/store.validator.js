@@ -22,6 +22,24 @@ const storeCreateSchema = z.object({
     storeLogo: z.string().optional().nullable(),
     is24x7: z.boolean().optional(),
     homeDelivery: z.boolean().optional(),
+    settings: z.object({
+        invoiceFormat: z.string().optional(),
+        footerText: z.string().optional(),
+        lowStockThreshold: z.number().optional(),
+        nearExpiryThreshold: z.number().optional(),
+        defaultUoM: z.string().optional(),
+        defaultGSTSlab: z.string().optional(),
+        batchTracking: z.boolean().optional(),
+        autoGenerateCodes: z.boolean().optional(),
+        purchaseRounding: z.boolean().optional(),
+        allowNegativeStock: z.boolean().optional(),
+        paymentMethods: z.string().optional(),
+        billingType: z.string().optional(),
+        printFormat: z.string().optional(),
+        autoRounding: z.boolean().optional(),
+        defaultCustomerType: z.string().optional(),
+        enableGSTBilling: z.boolean().optional()
+    }).optional(),
 });
 
 /**

@@ -39,8 +39,9 @@ class GRNService {
                 const grnNumber = await grnRepository.generateGRNNumber(po.storeId);
 
                 // Prepare GRN items from PO items
-                const defaultExpiry = new Date();
-                defaultExpiry.setFullYear(defaultExpiry.getFullYear() + 2); // Default 2 years from now
+                // Use a sentinel date for default expiry (1970-01-01) to indicate "not set" while satisfying DB constraints
+                const defaultExpiry = new Date('1970-01-01T00:00:00.000Z');
+
 
                 const grnItems = po.items.map(poItem => ({
                     poItemId: poItem.id,
@@ -50,7 +51,7 @@ class GRNService {
                     freeQty: 0,
                     rejectedQty: 0,
                     batchNumber: 'TBD', // To be filled by user
-                    expiryDate: defaultExpiry, // Default expiry, to be updated by user
+                    expiryDate: defaultExpiry, // Default expiry (sentinel), to be updated by user
                     mrp: poItem.drug?.mrp || 0, // Get from drug master or to be filled by user
                     unitPrice: poItem.unitPrice,
                     discountPercent: poItem.discountPercent,
@@ -191,8 +192,11 @@ class GRNService {
         for (const split of splitData) {
             // Calculate proportional orderedQty based on receivedQty ratio
             // This prevents false "shortage" discrepancies
-            const qtyRatio = split.receivedQty / originalItem.receivedQty;
-            const proportionalOrderedQty = Math.round(originalItem.orderedQty * qtyRatio);
+            let proportionalOrderedQty = 0;
+            if (originalItem.receivedQty > 0) {
+                const qtyRatio = split.receivedQty / originalItem.receivedQty;
+                proportionalOrderedQty = Math.round(originalItem.orderedQty * qtyRatio);
+            }
 
             const netAmount = split.receivedQty * split.unitPrice * (1 - (split.discountPercent || 0) / 100);
             const taxAmount = netAmount * (split.gstPercent / 100);

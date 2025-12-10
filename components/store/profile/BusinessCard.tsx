@@ -1,5 +1,6 @@
 import React from "react";
 import { FiClock, FiGlobe } from "react-icons/fi";
+import { useKeyboardNavigation } from "@/hooks/useKeyboardNavigation";
 
 interface BusinessCardProps {
   profile: any;
@@ -8,8 +9,14 @@ interface BusinessCardProps {
 }
 
 export default function BusinessCard({ profile, onChange, isEditing }: BusinessCardProps) {
+  // Enable enhanced keyboard navigation
+  const { handleKeyDown } = useKeyboardNavigation();
+
   return (
-    <section className="bg-white shadow-sm rounded-lg p-6">
+    <section
+      className="bg-white shadow-sm rounded-lg p-6"
+      onKeyDown={handleKeyDown}
+    >
       <h2 className="text-lg font-semibold text-gray-900 mb-4">Business Metadata</h2>
 
       <div className="space-y-4">

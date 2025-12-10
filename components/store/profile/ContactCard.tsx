@@ -1,6 +1,7 @@
 import React from "react";
 import { FiPhone, FiMail, FiGlobe, FiMapPin, FiCheckCircle, FiAlertCircle } from "react-icons/fi";
 import AddressInput from "./AddressInput";
+import { useKeyboardNavigation } from "@/hooks/useKeyboardNavigation";
 
 interface ContactCardProps {
   profile: any;
@@ -12,8 +13,14 @@ interface ContactCardProps {
 export default function ContactCard({ profile, onChange, errors, isEditing }: ContactCardProps) {
   const [showOtpModal, setShowOtpModal] = React.useState(false);
 
+  // Enable enhanced keyboard navigation
+  const { handleKeyDown } = useKeyboardNavigation();
+
   return (
-    <section className="bg-white shadow-sm rounded-lg p-6">
+    <section
+      className="bg-white shadow-sm rounded-lg p-6"
+      onKeyDown={handleKeyDown}
+    >
       <h2 className="text-lg font-semibold text-gray-900 mb-4">Contact & Location</h2>
 
       <div className="space-y-4">

@@ -99,6 +99,15 @@ const downloadInvoicePDF = asyncHandler(async (req, res) => {
     res.send(pdfBuffer);
 });
 
+/**
+ * Get next invoice number
+ */
+const getNextInvoiceNumber = asyncHandler(async (req, res) => {
+    const nextInvoiceNumber = await saleService.getNextInvoiceNumber(req.storeId);
+    const response = ApiResponse.success({ nextInvoiceNumber });
+    res.status(response.statusCode).json(response);
+});
+
 module.exports = {
     getSales,
     getSaleById,
@@ -107,4 +116,5 @@ module.exports = {
     getTopSellingDrugs,
     getSaleByInvoiceNumber,
     downloadInvoicePDF,
+    getNextInvoiceNumber,
 };

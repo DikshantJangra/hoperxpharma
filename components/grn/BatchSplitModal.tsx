@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { HiOutlineXMark, HiOutlinePlus, HiOutlineTrash } from 'react-icons/hi2';
+import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation';
 
 interface BatchSplitModalProps {
     item: any;
@@ -39,22 +40,25 @@ export default function BatchSplitModal({ item, drugName, onSplit, onClose }: Ba
         }
     ]);
 
+    // Enable enhanced keyboard navigation
+    const { handleKeyDown } = useKeyboardNavigation();
+
     const totalQty = splits.reduce((sum, split) => sum + parseInt(split.receivedQty.toString()), 0);
     const totalFreeQty = splits.reduce((sum, split) => sum + parseInt(split.freeQty.toString()), 0);
 
     // Validation
     const errors = [];
-    if (totalQty !== item.receivedQty) {
+    if (totalQty !== Number(item.receivedQty)) {
         errors.push(`Split quantities must total ${item.receivedQty} (currently ${totalQty})`);
     }
-    if (totalFreeQty !== (item.freeQty || 0)) {
+    if (totalFreeQty !== Number(item.freeQty || 0)) {
         errors.push(`Free quantities must total ${item.freeQty || 0} (currently ${totalFreeQty})`);
     }
     if (splits.some(s => !s.batchNumber || s.batchNumber.trim() === '')) {
         errors.push('All splits must have batch numbers');
     }
-    if (splits.some(s => !s.expiryDate)) {
-        errors.push('All splits must have expiry dates');
+    if (splits.some(s => !s.expiryDate || new Date(s.expiryDate).getFullYear() === 1970)) {
+        errors.push('All splits must have valid expiry dates');
     }
     if (splits.some(s => s.receivedQty <= 0 && s.freeQty <= 0)) {
         errors.push('Each split must have quantity > 0');
@@ -102,7 +106,10 @@ export default function BatchSplitModal({ item, drugName, onSplit, onClose }: Ba
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            onKeyDown={handleKeyDown}
+        >
             <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
                 {/* Header */}
                 <div className="p-6 border-b border-gray-200">
@@ -213,20 +220,34 @@ export default function BatchSplitModal({ item, drugName, onSplit, onClose }: Ba
                                             Expiry (MM/YYYY) *
                                         </label>
                                         <input
-                                            type="text"
+
                                             defaultValue={split.expiryDate ? (() => {
                                                 const date = new Date(split.expiryDate);
+                                                if (date.getFullYear() === 1970) return '';
                                                 return `${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
                                             })() : ''}
                                             onInput={(e) => {
-                                                let value = e.currentTarget.value.replace(/[^0-9/]/g, '');
-                                                if (value.length === 2 && !value.includes('/')) {
-                                                    value = value + '/';
+                                                const inputType = (e.nativeEvent as any).inputType;
+                                                // Prevent auto-fill on backspaces
+                                                if (inputType && inputType.startsWith('delete')) {
+                                                    return;
                                                 }
+
+                                                let value = e.currentTarget.value.replace(/[^0-9/]/g, '');
+
+                                                // Case 1: Exactly 2 digits, no slash -> Default 20 logic
+                                                if (value.length === 2 && !value.includes('/')) {
+                                                    value = value + '/20';
+                                                }
+                                                // Case 2: More than 2 digits, no slash (e.g. user typed fast or backspaced) -> Insert slash
+                                                else if (value.length > 2 && !value.includes('/')) {
+                                                    value = value.substring(0, 2) + '/' + value.substring(2);
+                                                }
+
                                                 if (value.length >= 2 && !value.includes('/')) {
                                                     const month = parseInt(value.substring(0, 2));
                                                     if (month > 12) {
-                                                        value = '12';
+                                                        value = '12' + value.substring(2);
                                                     }
                                                 }
                                                 if (value.length > 7) {
