@@ -224,14 +224,12 @@ export default function InvoiceDrawer({ invoice, onClose, isLoading }: any) {
             <div className="bg-[#dbeafe] rounded-lg p-4">
               <h3 className="text-sm font-semibold text-[#1e40af] mb-2">Prescription Linked</h3>
               <p className="text-sm text-[#1e40af]">ID: {invoice.prescriptionId?.substring(0, 12)}...</p>
-              {invoice.prescriptionId && (
-                <button
-                  onClick={() => window.open(`/prescriptions/${invoice.prescriptionId}`, '_blank')}
-                  className="text-xs text-[#1e40af] hover:underline mt-1 flex items-center gap-1"
-                >
-                  View Prescription →
-                </button>
-              )}
+              <button
+                onClick={() => router.push(`/prescriptions`)}
+                className="text-xs text-[#1e40af] hover:underline mt-1 flex items-center gap-1"
+              >
+                View in Prescriptions →
+              </button>
             </div>
           )}
 
