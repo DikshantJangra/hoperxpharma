@@ -1,7 +1,30 @@
 # Render Deployment Guide - PDF Generation Fix
 
-## ✅ The Issue
-Puppeteer requires Chromium to generate PDFs. Render's default Node environment doesn't include Chromium.
+## 🚨 CRITICAL: Puppeteer-core Issue
+
+**Your logs show you're using `puppeteer-core`** which doesn't bundle Chrome!
+
+### Quick Fix Option 1: Switch to `puppeteer`
+
+In `package.json`, change:
+```json
+"puppeteer-core": "^X.X.X"
+```
+To:
+```json
+"puppeteer": "^23.0.0"
+```
+
+Then remove `PUPPETEER_EXECUTABLE_PATH` and `PUPPETEER_SKIP_CHROMIUM_DOWNLOAD` from Render env variables.
+
+### Quick Fix Option 2: Keep puppeteer-core + Use Dockerfile
+
+If you keep `puppeteer-core`, you MUST:
+1. Deploy using the Dockerfile (installs Chromium)
+2. Set env variable: `PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium`
+3. **Verify Render is using Docker**, not buildpack
+
+---
 
 ## ✅ Solution: Deploy with Docker
 

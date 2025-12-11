@@ -427,7 +427,30 @@ class GRNService {
             return Number(item.receivedQty) === item.orderedQty;
         });
 
-        return allFullyReceived ? 'COMPLETED' : 'PARTIALLY_RECEIVED';
+        // GRN status is either COMPLETED or IN_PROGRESS (if not fully received)
+        // PARTIALLY_RECEIVED is a PO status, not GRN status.
+        return allFullyReceived ? 'COMPLETED' : 'IN_PROGRESS';
+    }
+
+    _determineTargetPOStatus(items) {
+        // For all items in this GRN, check if the TOTAL received quantity
+        // (across all GRNs for that PO) matches the ordered quantity.
+        // This logic determines if the related PO should be RECEIVED or PARTIALLY_RECEIVED (not COMPLETED).
+        // NOTE: GRN status is separate - GRNs only use DRAFT, IN_PROGRESS, COMPLETED, CANCELLED
+
+        if (!items || items.length === 0) {
+            return 'SENT'; // No items processed, keep as SENT
+        }
+
+        const allFullyReceived = items.every(item => {
+            const orderedQty = item.poItem?.orderedQty || 0;
+            const totalReceived = (item.poItem?.totalReceivedQty || 0) + (item.receivedQty || 0);
+            return totalReceived >= orderedQty;
+        });
+
+        // If all items are fully received, mark PO as RECEIVED
+        // Otherwise, mark as PARTIALLY_RECEIVED (still a PO status)
+        return allFullyReceived ? 'RECEIVED' : 'PARTIALLY_RECEIVED';
     }
 
     /**

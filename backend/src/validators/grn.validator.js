@@ -55,7 +55,7 @@ const completeGRNSchema = Joi.object({
     supplierInvoiceNo: Joi.string().max(50).optional(),
     supplierInvoiceDate: Joi.date().allow(null, '').optional(),
     notes: Joi.string().max(1000).optional(),
-    targetStatus: Joi.string().valid('COMPLETED', 'PARTIALLY_RECEIVED').optional()
+    targetStatus: Joi.string().valid('COMPLETED', 'IN_PROGRESS').optional() // Only valid GRN statuses
 });
 
 module.exports = {

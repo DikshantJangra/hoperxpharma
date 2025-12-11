@@ -32,17 +32,11 @@ class PDFService {
 
             // 4. Generate PDF with Puppeteer
             const browser = await puppeteer.launch({
-                executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
-                headless: true,
+                headless: 'new',
                 args: [
                     '--no-sandbox',
                     '--disable-setuid-sandbox',
-                    '--disable-dev-shm-usage',
-                    '--disable-gpu',
-                    '--disable-software-rasterizer',
-                    '--disable-web-security',
-                    '--disable-dev-tools',
-                    '--no-zygote'
+                    '--disable-dev-shm-usage'
                 ]
             });
             const page = await browser.newPage();
@@ -238,17 +232,11 @@ class PDFService {
 
             // Generate PDF
             const browser = await puppeteer.launch({
-                executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || undefined,
-                headless: true,
+                headless: 'new',
                 args: [
                     '--no-sandbox',
                     '--disable-setuid-sandbox',
-                    '--disable-dev-shm-usage',
-                    '--disable-gpu',
-                    '--disable-software-rasterizer',
-                    '--disable-web-security',
-                    '--disable-dev-tools',
-                    '--no-zygote'
+                    '--disable-dev-shm-usage'
                 ]
             });
             const page = await browser.newPage();
@@ -441,7 +429,7 @@ class PDFService {
         if (!soldByUserId) return 'Owner';
 
         try {
-            const prisma = require('../config/database').getClient();
+            const prisma = require('../../config/database').getClient();
             const user = await prisma.user.findUnique({
                 where: { id: soldByUserId },
                 select: { firstName: true, lastName: true }
