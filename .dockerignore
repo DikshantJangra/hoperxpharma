@@ -1,0 +1,78 @@
+# Frontend files (not needed for backend Docker image)
+app/
+components/
+contexts/
+hooks/
+lib/
+pages/
+public/
+scripts/
+types/
+utils/
+.next/
+next.config.ts
+tsconfig.json
+tailwind.config.ts
+postcss.config.mjs
+middleware.ts
+*.tsx
+*.ts
+!backend/**/*.ts
+
+# Backend - Ignore node_modules
+backend/node_modules/
+
+# Backend - Ignore build artifacts
+backend/dist/
+backend/build/
+
+# Backend - Ignore local environment files
+backend/.env
+backend/.env.local
+backend/.env.*.local
+
+# Backend - Ignore logs
+backend/logs/
+backend/*.log
+
+# Backend - Ignore test files
+backend/test/
+backend/*.test.js
+
+# Backend - Ignore database files
+backend/*.db
+backend/*.sqlite
+
+# Backend - Ignore uploads (if they should not be in the image)
+backend/uploads/
+
+# Ignore git
+.git/
+.gitignore
+
+# Ignore IDE files
+.vscode/
+.idea/
+
+# Ignore OS files
+.DS_Store
+Thumbs.db
+
+# Backend - Ignore docs and scripts
+backend/*.md
+backend/exports/
+
+# Backend - Ignore all the debugging and test scripts
+backend/check*.js
+backend/debug*.js
+backend/test*.js
+backend/fix*.js
+backend/find*.js
+backend/apply*.js
+backend/verify*.js
+backend/add*.js
+backend/gen-token.js
+backend/reset*.js
+backend/*.sql
+backend/*.pdf
+

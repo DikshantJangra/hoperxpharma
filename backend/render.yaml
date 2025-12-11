@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: hoperxpharma-backend
+    env: node
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+    # CRITICAL: Install Chrome as a system package
+    # This ensures Chrome is available at /usr/bin/google-chrome-stable
+    nativeEnvironments:
+      - name: chrome
+        version: stable

@@ -28,28 +28,51 @@ class PDFService {
 
         // In production (Render), explicitly set the executable path
         if (process.env.NODE_ENV === 'production') {
-            try {
-                // Try to use Puppeteer's built-in executable path first
-                options.executablePath = puppeteer.executablePath();
-            } catch (error) {
-                console.warn('Puppeteer executablePath() failed, using fallback:', error.message);
-                // Fallback: Common Chrome locations on Linux (Render uses Linux)
-                const possiblePaths = [
-                    '/usr/bin/google-chrome-stable',
-                    '/usr/bin/google-chrome',
-                    '/usr/bin/chromium-browser',
-                    '/usr/bin/chromium'
-                ];
+            console.log('🔍 Detecting Chrome installation for production...');
 
-                const fs = require('fs');
-                for (const chromePath of possiblePaths) {
-                    if (fs.existsSync(chromePath)) {
-                        options.executablePath = chromePath;
-                        console.log('Using Chrome at:', chromePath);
-                        break;
-                    }
+            // List of possible Chrome locations to check
+            const possiblePaths = [
+                '/usr/bin/google-chrome-stable',
+                '/usr/bin/google-chrome',
+                '/usr/bin/chromium-browser',
+                '/usr/bin/chromium',
+                '/snap/bin/chromium'
+            ];
+
+            // Try Puppeteer's built-in path first, but validate it exists
+            try {
+                const puppeteerPath = puppeteer.executablePath();
+                console.log('Puppeteer suggested path:', puppeteerPath);
+
+                if (fs.existsSync(puppeteerPath)) {
+                    options.executablePath = puppeteerPath;
+                    console.log('✅ Using Puppeteer installed Chrome at:', puppeteerPath);
+                    console.log('Puppeteer launch options:', JSON.stringify(options, null, 2));
+                    return options;
+                } else {
+                    console.warn('⚠️ Puppeteer path does not exist, trying system Chrome...');
+                }
+            } catch (error) {
+                console.warn('⚠️ Puppeteer executablePath() failed:', error.message);
+            }
+
+            // Fallback: Check common Chrome locations
+            for (const chromePath of possiblePaths) {
+                console.log('Checking:', chromePath);
+                if (fs.existsSync(chromePath)) {
+                    options.executablePath = chromePath;
+                    console.log('✅ Using system Chrome at:', chromePath);
+                    console.log('Puppeteer launch options:', JSON.stringify(options, null, 2));
+                    return options;
                 }
             }
+
+            // If we get here, no Chrome was found
+            console.error('❌ No Chrome installation found! Checked paths:', possiblePaths);
+            throw new Error(
+                'Chrome not found on system. Please ensure Chrome is installed via system packages. ' +
+                'For Render, add "google-chrome-stable" to Native Environment in the Render dashboard.'
+            );
         }
 
         console.log('Puppeteer launch options:', JSON.stringify(options, null, 2));

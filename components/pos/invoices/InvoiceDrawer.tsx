@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { FiX, FiPrinter, FiMail, FiMessageSquare, FiRotateCcw, FiDownload, FiClock } from 'react-icons/fi';
 import { BsQrCode } from 'react-icons/bs';
 import { salesApi } from '@/lib/api/sales';
@@ -33,6 +34,7 @@ const DrawerSkeleton = () => (
 )
 
 export default function InvoiceDrawer({ invoice, onClose, isLoading }: any) {
+  const router = useRouter();
   const [showAuditLog, setShowAuditLog] = useState(false);
   const [showReturnModal, setShowReturnModal] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
