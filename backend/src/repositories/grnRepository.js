@@ -414,20 +414,21 @@ class GRNRepository {
             }
 
             // 2. Update PO item received quantities
+            // IMPORTANT: Only count receivedQty, NOT freeQty for shortage detection
+            // Free items are bonus from supplier, not part of the ordered quantity
             for (const grnItem of grn.items) {
-                const totalReceived = grnItem.receivedQty + grnItem.freeQty;
-
+                // Update receivedQty with ONLY the actual received quantity (not free)
                 await tx.purchaseOrderItem.update({
                     where: { id: grnItem.poItemId },
                     data: {
                         receivedQty: {
-                            increment: totalReceived
+                            increment: grnItem.receivedQty  // Only actual received, NOT including freeQty
                         }
                     }
                 });
             }
 
-            // 3. Determine PO status
+            // 3. Determine PO status based on received quantities
             const updatedPO = await tx.purchaseOrder.findUnique({
                 where: { id: grn.poId },
                 include: { items: true }
@@ -435,13 +436,14 @@ class GRNRepository {
 
             let newPOStatus = 'RECEIVED';
             for (const poItem of updatedPO.items) {
+                // Check if receivedQty (not including free qty) meets orderedQty
                 if (poItem.receivedQty < poItem.quantity) {
                     newPOStatus = 'PARTIALLY_RECEIVED';
                     break;
                 }
             }
 
-            // Override: If user explicitly marked GRN as COMPLETED, they are accepting the shortages (e.g. resolved with supplier)
+            // Override: If user explicitly marked GRN as COMPLETED, accept shortages
             // So we force the PO status to RECEIVED
             if (status === 'COMPLETED') {
                 newPOStatus = 'RECEIVED';
@@ -594,7 +596,7 @@ class GRNRepository {
      */
     async generateGRNNumber(storeId) {
         const today = new Date();
-        const prefix = `GRN${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}`;
+        const prefix = `GRN${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')} `;
 
         // Try up to 5 times to generate a unique GRN number
         for (let attempt = 0; attempt < 5; attempt++) {
@@ -614,7 +616,7 @@ class GRNRepository {
                 sequence = lastSequence + 1;
             }
 
-            const grnNumber = `${prefix}${String(sequence).padStart(4, '0')}`;
+            const grnNumber = `${prefix}${String(sequence).padStart(4, '0')} `;
 
             // Check if this number already exists
             const existing = await prisma.goodsReceivedNote.findUnique({
@@ -632,7 +634,7 @@ class GRNRepository {
 
         // Fallback: use timestamp-based unique number
         const timestamp = Date.now().toString().slice(-6);
-        return `${prefix}${timestamp}`;
+        return `${prefix}${timestamp} `;
     }
 }
 

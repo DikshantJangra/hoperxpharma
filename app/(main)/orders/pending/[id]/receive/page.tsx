@@ -1192,7 +1192,7 @@ export default function ReceiveShipmentPage() {
             {showStatusModal && (() => {
                 const { totalOrdered, totalReceived } = calculateTotals();
                 const recommendedStatus = calculateRecommendedStatus();
-                const hasShortages = totalReceived < totalOrdered;
+                const hasShortages = totalReceived !== totalOrdered; // Mismatch in EITHER direction
 
                 return (
                     <StatusConfirmationModal

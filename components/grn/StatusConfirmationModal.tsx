@@ -53,7 +53,7 @@ export default function StatusConfirmationModal({
         {
             value: 'PARTIALLY_RECEIVED',
             label: 'Partially Received',
-            description: 'Some items have shortages or discrepancies',
+            description: 'Some items have discrepancies (shortages or overages)',
             icon: <HiExclamationCircle className="h-5 w-5 text-yellow-500" />,
             recommended: recommendedStatus === 'PARTIALLY_RECEIVED'
         }
@@ -103,7 +103,10 @@ export default function StatusConfirmationModal({
                         {hasShortages && (
                             <div className="mt-3 pt-3 border-t border-gray-200">
                                 <p className="text-sm text-yellow-700 font-medium">
-                                    ⚠️ Shortage: {totalOrdered - totalReceived} units
+                                    ⚠️ {totalReceived > totalOrdered
+                                        ? `Overage: ${totalReceived - totalOrdered} extra units received`
+                                        : `Shortage: ${totalOrdered - totalReceived} units short`
+                                    }
                                 </p>
                             </div>
                         )}
