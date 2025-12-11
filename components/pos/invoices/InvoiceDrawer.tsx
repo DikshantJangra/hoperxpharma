@@ -223,11 +223,7 @@ export default function InvoiceDrawer({ invoice, onClose, isLoading }: any) {
           {invoice.hasRx && (
             <div className="bg-[#dbeafe] rounded-lg p-4">
               <h3 className="text-sm font-semibold text-[#1e40af] mb-2">Prescription Linked</h3>
-              {invoice.prescriptionNumber ? (
-                <p className="text-sm text-[#1e40af] font-medium">{invoice.prescriptionNumber}</p>
-              ) : (
-                <p className="text-sm text-[#1e40af]">Prescription ID: {invoice.prescriptionId?.substring(0, 8)}...</p>
-              )}
+              <p className="text-sm text-[#1e40af]">ID: {invoice.prescriptionId?.substring(0, 12)}...</p>
               {invoice.prescriptionId && (
                 <button
                   onClick={() => window.open(`/prescriptions/${invoice.prescriptionId}`, '_blank')}
@@ -264,13 +260,13 @@ export default function InvoiceDrawer({ invoice, onClose, isLoading }: any) {
               <div className="space-y-2">
                 {invoice.attachments.map((file: any, index: number) => (
                   <div key={index} className={`flex items-center justify-between p-2 rounded border ${file.type === 'prescription'
-                      ? 'bg-blue-50 border-blue-200'
-                      : 'bg-white border-[#e0f2fe]'
+                    ? 'bg-blue-50 border-blue-200'
+                    : 'bg-white border-[#e0f2fe]'
                     }`}>
                     <div className="flex items-center gap-2 overflow-hidden">
                       <div className={`p-1.5 rounded ${file.type === 'prescription'
-                          ? 'bg-blue-200 text-blue-700'
-                          : 'bg-[#e0f2fe] text-[#0284c7]'
+                        ? 'bg-blue-200 text-blue-700'
+                        : 'bg-[#e0f2fe] text-[#0284c7]'
                         }`}>
                         <span className="text-[10px] font-bold uppercase">
                           {file.type === 'prescription' ? 'RX' : (file.type?.substring(0, 3) || 'DOC')}

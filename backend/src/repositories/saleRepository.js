@@ -42,8 +42,6 @@ class SaleRepository {
                     prescription: {
                         select: {
                             id: true,
-                            prescriptionNumber: true,
-                            attachmentUrl: true,
                         },
                     },
                     items: {

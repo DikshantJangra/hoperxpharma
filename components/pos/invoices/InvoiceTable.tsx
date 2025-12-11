@@ -182,8 +182,6 @@ export default function InvoiceTable({ searchQuery, onSelectInvoice, selectedInv
                     hasEInvoice: false, // TODO: Add e-invoice support
                     hasRx: !!invoice.prescriptionId,
                     prescriptionId: invoice.prescriptionId,
-                    prescriptionNumber: invoice.prescription?.prescriptionNumber,
-                    prescriptionAttachment: invoice.prescription?.attachmentUrl,
                     customer: {
                       name: invoice.patient ? `${invoice.patient.firstName} ${invoice.patient.lastName || ''}`.trim() : 'Walk-in Customer',
                       phone: invoice.patient?.phoneNumber || '-',
@@ -212,16 +210,7 @@ export default function InvoiceTable({ searchQuery, onSelectInvoice, selectedInv
                       roundOff: invoice.roundOff
                     },
                     amount: invoice.total,
-                    attachments: [
-                      // Add prescription attachment if exists
-                      ...(invoice.prescription?.attachmentUrl ? [{
-                        name: 'Prescription Attachment',
-                        url: invoice.prescription.attachmentUrl,
-                        type: 'prescription',
-                      }] : []),
-                      // Add other attachments
-                      ...(invoice.attachments || [])
-                    ],
+                    attachments: invoice.attachments || [],
                     auditLog: [] // TODO: Add audit logs
                   };
                   onSelectInvoice(mappedInvoice);
