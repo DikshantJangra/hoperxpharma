@@ -39,6 +39,13 @@ class SaleRepository {
                             phoneNumber: true,
                         },
                     },
+                    prescription: {
+                        select: {
+                            id: true,
+                            prescriptionNumber: true,
+                            attachmentUrl: true,
+                        },
+                    },
                     items: {
                         include: {
                             drug: true,
@@ -227,6 +234,23 @@ class SaleRepository {
             // Update inventory and create stock movements (SKIP for ESTIMATES)
             if (saleData.invoiceType !== 'ESTIMATE') {
                 for (const item of items) {
+                    // Validate stock availability before decrement (race condition protection)
+                    const currentBatch = await tx.inventoryBatch.findUnique({
+                        where: { id: item.batchId },
+                        select: { quantityInStock: true, batchNumber: true, drug: { select: { name: true } } }
+                    });
+
+                    if (!currentBatch) {
+                        throw new Error(`Batch ${item.batchId} not found`);
+                    }
+
+                    if (currentBatch.quantityInStock < item.quantity) {
+                        throw new Error(
+                            `Insufficient stock for ${currentBatch.drug.name} (Batch: ${currentBatch.batchNumber}). ` +
+                            `Available: ${currentBatch.quantityInStock}, Required: ${item.quantity}`
+                        );
+                    }
+
                     // Deduct from batch
                     await tx.inventoryBatch.update({
                         where: { id: item.batchId },

@@ -276,6 +276,10 @@ class InventoryRepository {
      * Update batch quantity
      */
     async updateBatchQuantity(id, quantity) {
+        if (quantity < 0) {
+            throw new Error('Batch quantity cannot be negative');
+        }
+
         return await prisma.inventoryBatch.update({
             where: { id },
             data: { quantityInStock: quantity },

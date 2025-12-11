@@ -11,6 +11,52 @@ class PDFService {
     }
 
     /**
+     * Get Puppeteer launch options based on environment
+     * Handles Chrome executable path detection for production (Render) deployment
+     * @returns {Object} - Puppeteer launch options
+     */
+    getPuppeteerLaunchOptions() {
+        const options = {
+            headless: 'new',
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-gpu'
+            ]
+        };
+
+        // In production (Render), explicitly set the executable path
+        if (process.env.NODE_ENV === 'production') {
+            try {
+                // Try to use Puppeteer's built-in executable path first
+                options.executablePath = puppeteer.executablePath();
+            } catch (error) {
+                console.warn('Puppeteer executablePath() failed, using fallback:', error.message);
+                // Fallback: Common Chrome locations on Linux (Render uses Linux)
+                const possiblePaths = [
+                    '/usr/bin/google-chrome-stable',
+                    '/usr/bin/google-chrome',
+                    '/usr/bin/chromium-browser',
+                    '/usr/bin/chromium'
+                ];
+
+                const fs = require('fs');
+                for (const chromePath of possiblePaths) {
+                    if (fs.existsSync(chromePath)) {
+                        options.executablePath = chromePath;
+                        console.log('Using Chrome at:', chromePath);
+                        break;
+                    }
+                }
+            }
+        }
+
+        console.log('Puppeteer launch options:', JSON.stringify(options, null, 2));
+        return options;
+    }
+
+    /**
      * Generate Purchase Order PDF
      * @param {Object} po - Purchase Order object with supplier and items
      * @returns {Promise<Buffer>} - PDF buffer
@@ -31,14 +77,7 @@ class PDFService {
             const html = template(data);
 
             // 4. Generate PDF with Puppeteer
-            const browser = await puppeteer.launch({
-                headless: 'new',
-                args: [
-                    '--no-sandbox',
-                    '--disable-setuid-sandbox',
-                    '--disable-dev-shm-usage'
-                ]
-            });
+            const browser = await puppeteer.launch(this.getPuppeteerLaunchOptions());
             const page = await browser.newPage();
 
             // Set content
@@ -231,14 +270,7 @@ class PDFService {
             const html = template(data);
 
             // Generate PDF
-            const browser = await puppeteer.launch({
-                headless: 'new',
-                args: [
-                    '--no-sandbox',
-                    '--disable-setuid-sandbox',
-                    '--disable-dev-shm-usage'
-                ]
-            });
+            const browser = await puppeteer.launch(this.getPuppeteerLaunchOptions());
             const page = await browser.newPage();
 
             await page.setContent(html, { waitUntil: 'networkidle0' });
