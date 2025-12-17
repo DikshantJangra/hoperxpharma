@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { useRouter, usePathname } from 'next/navigation';
 import { onboardingApi } from '@/lib/api/onboarding';
+import { LoadingScreen } from '@/components/LoadingScreen';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const { checkAuth, isAuthenticated, isLoading, hasStore, user } = useAuthStore();
@@ -11,9 +12,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null);
 
+    // Only check auth on non-public routes
     useEffect(() => {
-        checkAuth();
-    }, [checkAuth]);
+        if (!pathname) return;
+
+        const publicRoutes = ['/', '/login', '/signup'];
+        const isPublicRoute = publicRoutes.includes(pathname);
+
+        if (!isPublicRoute) {
+            checkAuth();
+        }
+    }, [checkAuth, pathname]);
 
     // Check onboarding completion status
     useEffect(() => {
@@ -53,7 +62,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Monitor authentication state and redirect to login when logged out
     useEffect(() => {
-        if (!isLoading && !isAuthenticated) {
+        if (!isLoading && !isAuthenticated && pathname) {
             const publicRoutes = ['/login', '/signup', '/'];
             const isPublicRoute = publicRoutes.includes(pathname);
 
@@ -75,7 +84,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             userRole: user?.role
         });
 
-        if (!isLoading && onboardingComplete !== null) {
+        if (!isLoading && onboardingComplete !== null && pathname) {
             if (isAuthenticated) {
                 const isPublicRoute = ['/login', '/signup', '/'].includes(pathname);
                 const isOnboardingRoute = pathname.startsWith('/onboarding');
@@ -111,12 +120,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     }, [isAuthenticated, hasStore, onboardingComplete, isLoading, pathname, router, user]);
 
-    if (isLoading || (isAuthenticated && onboardingComplete === null)) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-gray-50">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-emerald-500"></div>
-            </div>
-        );
+    // Skip loading screen for public routes
+    const publicRoutes = ['/', '/login', '/signup'];
+    const isPublicRoute = publicRoutes.includes(pathname || '');
+
+    if (!isPublicRoute && (isLoading || (isAuthenticated && onboardingComplete === null))) {
+        return <LoadingScreen />;
     }
 
     return <>{children}</>;

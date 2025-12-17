@@ -31,7 +31,7 @@ const Hero = () => {
                     <FadeInItem>
                         <h1 className="text-5xl md:text-7xl font-bold text-slate-900 tracking-tight mb-8 leading-[1.1]">
                             Manage Your Entire Pharmacy in <br className="hidden md:block" />
-                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-blue-600">
+                            <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-500">
                                 One Powerful Dashboard
                             </span>
                         </h1>

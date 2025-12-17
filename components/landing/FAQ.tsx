@@ -42,7 +42,7 @@ const FAQ = () => {
     ];
 
     return (
-        <section className="py-20 bg-white">
+        <section id="faq" className="py-20 bg-white">
             <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="text-center mb-12">
                     <h2 className="text-4xl sm:text-5xl font-bold text-slate-900 mb-4">
@@ -87,7 +87,7 @@ const FAQ = () => {
                         Still have questions?
                     </p>
                     <a
-                        href="/contact"
+                        href="#contact"
                         className="inline-flex items-center gap-2 text-emerald-600 hover:text-emerald-700 font-semibold"
                     >
                         Contact our team →

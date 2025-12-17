@@ -4,7 +4,7 @@ import Logo from '@/components/ui/Logo';
 
 const Footer = () => {
     return (
-        <footer className="bg-slate-900 text-slate-300 py-16">
+        <footer id="contact" className="bg-slate-900 text-slate-300 py-16">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12">
                     {/* Brand */}
@@ -27,10 +27,8 @@ const Footer = () => {
                     <div>
                         <h3 className="text-white font-semibold mb-4">Product</h3>
                         <ul className="space-y-2 text-sm">
-                            <li><Link href="#" className="hover:text-emerald-400 transition-colors">Features</Link></li>
-                            <li><Link href="#" className="hover:text-emerald-400 transition-colors">Pricing</Link></li>
-                            <li><Link href="#" className="hover:text-emerald-400 transition-colors">Security</Link></li>
-                            <li><Link href="#" className="hover:text-emerald-400 transition-colors">Roadmap</Link></li>
+                            <li><Link href="#features" className="hover:text-emerald-400 transition-colors">Features</Link></li>
+                            <li><Link href="#pricing" className="hover:text-emerald-400 transition-colors">Pricing</Link></li>
                         </ul>
                     </div>
 
@@ -39,9 +37,7 @@ const Footer = () => {
                         <h3 className="text-white font-semibold mb-4">Company</h3>
                         <ul className="space-y-2 text-sm">
                             <li><Link href="#" className="hover:text-emerald-400 transition-colors">About Us</Link></li>
-                            <li><Link href="#" className="hover:text-emerald-400 transition-colors">Careers</Link></li>
-                            <li><Link href="#" className="hover:text-emerald-400 transition-colors">Blog</Link></li>
-                            <li><Link href="#" className="hover:text-emerald-400 transition-colors">Contact</Link></li>
+                            <li><Link href="#contact" className="hover:text-emerald-400 transition-colors">Contact</Link></li>
                         </ul>
                     </div>
 
@@ -51,8 +47,6 @@ const Footer = () => {
                         <ul className="space-y-2 text-sm">
                             <li><Link href="#" className="hover:text-emerald-400 transition-colors">Privacy Policy</Link></li>
                             <li><Link href="#" className="hover:text-emerald-400 transition-colors">Terms of Service</Link></li>
-                            <li><Link href="#" className="hover:text-emerald-400 transition-colors">HIPAA Compliance</Link></li>
-                            <li><Link href="#" className="hover:text-emerald-400 transition-colors">Cookie Policy</Link></li>
                         </ul>
                     </div>
                 </div>

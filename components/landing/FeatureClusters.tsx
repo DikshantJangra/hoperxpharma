@@ -97,7 +97,7 @@ const FeatureClusters = () => {
                                         {cluster.features.map((feature, idx) => (
                                             <li key={idx} className="flex items-start gap-3 group/item">
                                                 <div className="mt-1 w-5 h-5 rounded-full bg-slate-50 border border-slate-200 flex items-center justify-center flex-shrink-0 group-hover/item:border-emerald-200 group-hover/item:bg-emerald-50 transition-colors">
-                                                    <FiCheck className="w-3 h-3 text-emerald-500 opacity-0 group-hover/item:opacity-100 transition-opacity" />
+                                                    <FiCheck className="w-3 h-3 text-emerald-500 transition-opacity" />
                                                 </div>
                                                 <div>
                                                     <span className="font-semibold text-slate-900 block text-sm group-hover/item:text-emerald-700 transition-colors">

@@ -10,16 +10,30 @@ const Navbar = () => {
     const [isOpen, setIsOpen] = useState(false);
     const [showStickyCTA, setShowStickyCTA] = useState(false);
     const [scrolled, setScrolled] = useState(false);
+    const [ctaDismissed, setCtaDismissed] = useState(false);
 
     // Handle scroll effects
     useEffect(() => {
+        // Check if previously dismissed
+        const dismissed = localStorage.getItem('sticky-cta-dismissed');
+        if (dismissed) {
+            setCtaDismissed(true);
+        }
+
         const handleScroll = () => {
+            if (localStorage.getItem('sticky-cta-dismissed')) return;
             setShowStickyCTA(window.scrollY > 600);
             setScrolled(window.scrollY > 20);
         };
         window.addEventListener('scroll', handleScroll);
         return () => window.removeEventListener('scroll', handleScroll);
     }, []);
+
+    const dismissCTA = () => {
+        setShowStickyCTA(false);
+        setCtaDismissed(true);
+        localStorage.setItem('sticky-cta-dismissed', 'true');
+    };
 
     return (
         <>
@@ -34,13 +48,13 @@ const Navbar = () => {
                         {/* Logo */}
                         <div className="flex-shrink-0 flex items-center">
                             <Link href="/" className="flex items-center gap-2">
-                                <Logo size="xl" />
+                                <Logo size="lg" />
                             </Link>
                         </div>
 
                         {/* Desktop Menu */}
                         <div className="hidden md:flex space-x-8 items-center">
-                            {['Product', 'Solutions', 'Resources', 'Pricing', 'Testimonials', 'Blog', 'Contact'].map((item) => (
+                            {['Features', 'Pricing', 'FAQ'].map((item) => (
                                 <Link
                                     key={item}
                                     href={`#${item.toLowerCase()}`}
@@ -64,7 +78,7 @@ const Navbar = () => {
                             >
                                 <span className="flex items-center gap-1">
                                     Start Free
-                                    <FiArrowRight className="opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+                                    <FiArrowRight className="text-emerald-500 group-hover:text-white transition-colors duration-200" />
                                 </span>
                             </Link>
                         </div>
@@ -92,7 +106,7 @@ const Navbar = () => {
                             className="md:hidden bg-white border-t border-slate-200 absolute w-full shadow-xl overflow-hidden"
                         >
                             <div className="px-4 pt-2 pb-6 space-y-2">
-                                {['Product', 'Solutions', 'Resources', 'Pricing', 'Testimonials'].map((item) => (
+                                {['Features', 'Pricing', 'FAQ'].map((item) => (
                                     <Link
                                         key={item}
                                         href={`#${item.toLowerCase()}`}
@@ -113,7 +127,7 @@ const Navbar = () => {
                                     >
                                         <span className="flex items-center gap-1">
                                             Start Free Trial
-                                            <FiArrowRight className="opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+                                            <FiArrowRight className="text-emerald-600 group-hover:text-white transition-colors duration-200" />
                                         </span>
                                     </Link>
                                 </div>
@@ -125,7 +139,7 @@ const Navbar = () => {
 
             {/* Sticky CTA Bar - CRO Tactic #1 */}
             <AnimatePresence>
-                {showStickyCTA && (
+                {showStickyCTA && !ctaDismissed && (
                     <motion.div
                         initial={{ y: 100 }}
                         animate={{ y: 0 }}
@@ -149,7 +163,7 @@ const Navbar = () => {
                                         Start Free →
                                     </Link>
                                     <button
-                                        onClick={() => setShowStickyCTA(false)}
+                                        onClick={dismissCTA}
                                         className="text-white/80 hover:text-white p-1 rounded-full hover:bg-emerald-700 transition-colors"
                                     >
                                         <FiX size={20} />

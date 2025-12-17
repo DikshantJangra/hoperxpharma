@@ -1,6 +1,6 @@
 'use client';
 
-import { FiStar } from 'react-icons/fi';
+import { FiStar, FiShield, FiCheck, FiLock, FiCloud, FiClock } from 'react-icons/fi';
 
 const SocialProofSection = () => {
     const stats = [
@@ -11,34 +11,42 @@ const SocialProofSection = () => {
 
     const testimonials = [
         {
-            name: "Rajesh Kumar",
-            pharmacy: "Care Plus Pharmacy, Mumbai",
-            image: "https://i.pravatar.cc/150?img=12",
-            quote: "Stock accuracy went up 94%. No more manual counting or surprise shortages.",
-            result: "₹18,000 saved monthly"
+            name: "Rajesh Gupta",
+            initials: "RG",
+            color: "bg-blue-500",
+            pharmacy: "Gupta Medicos, Delhi",
+            quote: "I was using marg initially but shifted to HopeRx. Best decision. The mobile app is very fast and I can check my sales from home.",
+            result: "Saved ₹2 Lakhs in 6 months"
         },
         {
-            name: "Priya Sharma",
-            pharmacy: "HealthFirst Pharmacy, Delhi",
-            image: "https://i.pravatar.cc/150?img=5",
-            quote: "Expiry loss reduced by ₹15,000/month. The smart alerts are a game-changer.",
-            result: "95% less waste"
+            name: "Sneha Reddy",
+            initials: "SR",
+            color: "bg-purple-500",
+            pharmacy: "Apollo Pharmacy Franchise, Hyderabad",
+            quote: "Expiry management is superb. Earlier I used to throw medicines worth 10-15k every month. Now the system alerts me well in advance.",
+            result: "Zero expiry loss since April"
         },
         {
             name: "Amit Patel",
-            pharmacy: "MediCare Pharmacy, Bangalore",
-            image: "https://i.pravatar.cc/150?img=33",
-            quote: "GST filing takes 5 minutes now. It used to take my entire Sunday.",
-            result: "30 hours saved/month"
+            initials: "AP",
+            color: "bg-emerald-500",
+            pharmacy: "Shiv Shakti Medical, Ahmedabad",
+            quote: "Billing is super fast. Even during peak evening hours, we clear the crowd quickly. My staff learned it in just 1 day.",
+            result: "Billing time cut by 50%"
         }
     ];
 
     const badges = [
-        "🔒 Bank-Level Security",
-        "✓ DPDPA Compliant",
-        "✓ ISO Certified",
-        "☁️ WhatsApp Cloud API",
-        "⚡ 24/7 Support"
+        { icon: FiLock, text: "Bank-Level Security", color: "text-blue-600" },
+        { icon: FiShield, text: "DPDPA Compliant", color: "text-emerald-600" },
+        { icon: FiCheck, text: "ISO Certified", color: "text-purple-600" },
+        { icon: FiCloud, text: "WhatsApp Cloud API", color: "text-green-600" },
+        { icon: FiClock, text: "24/7 Support", color: "text-orange-600" },
+        { icon: FiShield, text: "GST Compliant", color: "text-indigo-600" },
+        { icon: FiLock, text: "AES-256 Encryption", color: "text-red-600" },
+        { icon: FiCloud, text: "Daily Auto Backups", color: "text-teal-600" },
+        { icon: FiCheck, text: "99.9% Uptime SLA", color: "text-blue-600" },
+        { icon: FiShield, text: "HIPAA Ready", color: "text-emerald-600" }
     ];
 
     return (
@@ -93,13 +101,11 @@ const SocialProofSection = () => {
                                     {testimonial.result}
                                 </div>
 
-                                {/* Author */}
+                                {/* Author with Initials Avatar */}
                                 <div className="flex items-center gap-3">
-                                    <img
-                                        src={testimonial.image}
-                                        alt={testimonial.name}
-                                        className="w-12 h-12 rounded-full"
-                                    />
+                                    <div className={`w-12 h-12 rounded-full ${testimonial.color} flex items-center justify-center text-white font-bold text-lg shadow-md`}>
+                                        {testimonial.initials}
+                                    </div>
                                     <div>
                                         <div className="font-semibold text-slate-900">{testimonial.name}</div>
                                         <div className="text-sm text-slate-600">{testimonial.pharmacy}</div>
@@ -114,16 +120,21 @@ const SocialProofSection = () => {
                 <div className="bg-slate-50 rounded-2xl p-8 border border-slate-200">
                     <div className="text-center mb-6">
                         <h3 className="text-2xl font-bold text-slate-900">Trusted & Secure</h3>
+                        <p className="text-slate-600 mt-2">Enterprise-grade security and compliance</p>
                     </div>
-                    <div className="flex flex-wrap justify-center gap-6">
-                        {badges.map((badge, index) => (
-                            <div
-                                key={index}
-                                className="bg-white px-4 py-2 rounded-lg border border-slate-200 text-sm font-medium text-slate-700"
-                            >
-                                {badge}
-                            </div>
-                        ))}
+                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                        {badges.map((badge, index) => {
+                            const Icon = badge.icon;
+                            return (
+                                <div
+                                    key={index}
+                                    className="bg-white px-4 py-3 rounded-lg border border-slate-200 text-sm font-medium text-slate-700 flex items-center gap-2 hover:shadow-md transition-shadow"
+                                >
+                                    <Icon className={`w-4 h-4 ${badge.color} flex-shrink-0`} />
+                                    <span className="text-xs">{badge.text}</span>
+                                </div>
+                            );
+                        })}
                     </div>
                 </div>
             </div>
