@@ -1,82 +1,12 @@
-const puppeteer = require('puppeteer');
+const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const path = require('path');
-const handlebars = require('handlebars');
 const moment = require('moment');
-const UPIQRCode = require('upiqrcode').default; // Module exports as { default: Function }
+const UPIQRCode = require('upiqrcode').default;
 
 class PDFService {
     constructor() {
-        this.templatePath = path.join(__dirname, '../../templates/po-template.html');
-    }
-
-    /**
-     * Get Puppeteer launch options based on environment
-     * Handles Chrome executable path detection for production (Render) deployment
-     * @returns {Object} - Puppeteer launch options
-     */
-    getPuppeteerLaunchOptions() {
-        const options = {
-            headless: 'new',
-            args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-gpu'
-            ]
-        };
-
-        // In production (Render), explicitly set the executable path
-        if (process.env.NODE_ENV === 'production') {
-            console.log('🔍 Detecting Chrome installation for production...');
-
-            // List of possible Chrome locations to check
-            const possiblePaths = [
-                '/usr/bin/google-chrome-stable',
-                '/usr/bin/google-chrome',
-                '/usr/bin/chromium-browser',
-                '/usr/bin/chromium',
-                '/snap/bin/chromium'
-            ];
-
-            // Try Puppeteer's built-in path first, but validate it exists
-            try {
-                const puppeteerPath = puppeteer.executablePath();
-                console.log('Puppeteer suggested path:', puppeteerPath);
-
-                if (fs.existsSync(puppeteerPath)) {
-                    options.executablePath = puppeteerPath;
-                    console.log('✅ Using Puppeteer installed Chrome at:', puppeteerPath);
-                    console.log('Puppeteer launch options:', JSON.stringify(options, null, 2));
-                    return options;
-                } else {
-                    console.warn('⚠️ Puppeteer path does not exist, trying system Chrome...');
-                }
-            } catch (error) {
-                console.warn('⚠️ Puppeteer executablePath() failed:', error.message);
-            }
-
-            // Fallback: Check common Chrome locations
-            for (const chromePath of possiblePaths) {
-                console.log('Checking:', chromePath);
-                if (fs.existsSync(chromePath)) {
-                    options.executablePath = chromePath;
-                    console.log('✅ Using system Chrome at:', chromePath);
-                    console.log('Puppeteer launch options:', JSON.stringify(options, null, 2));
-                    return options;
-                }
-            }
-
-            // If we get here, no Chrome was found
-            console.error('❌ No Chrome installation found! Checked paths:', possiblePaths);
-            throw new Error(
-                'Chrome not found on system. Please ensure Chrome is installed via system packages. ' +
-                'For Render, add "google-chrome-stable" to Native Environment in the Render dashboard.'
-            );
-        }
-
-        console.log('Puppeteer launch options:', JSON.stringify(options, null, 2));
-        return options;
+        // No template needed for PDFKit - we'll generate programmatically
     }
 
     /**
@@ -85,191 +15,157 @@ class PDFService {
      * @returns {Promise<Buffer>} - PDF buffer
      */
     async generatePOPdf(po) {
-        try {
-            // 1. Prepare Data (Canonical JSON)
-            console.log('Generating PDF for PO:', po.poNumber);
-            console.log('Store Data:', JSON.stringify(po.store, null, 2));
-            const data = this.mapPOToTemplateData(po);
-            console.log('Mapped Template Data:', JSON.stringify(data.company, null, 2));
+        return new Promise((resolve, reject) => {
+            try {
+                console.log('Generating PDF for PO:', po.poNumber);
 
-            // 2. Read Template
-            const templateHtml = fs.readFileSync(this.templatePath, 'utf8');
+                const doc = new PDFDocument({
+                    size: 'A4',
+                    margin: 50,
+                    bufferPages: true
+                });
 
-            // 3. Compile Template
-            const template = handlebars.compile(templateHtml);
-            const html = template(data);
+                const chunks = [];
+                doc.on('data', chunk => chunks.push(chunk));
+                doc.on('end', () => resolve(Buffer.concat(chunks)));
+                doc.on('error', reject);
 
-            // 4. Generate PDF with Puppeteer
-            const browser = await puppeteer.launch(this.getPuppeteerLaunchOptions());
-            const page = await browser.newPage();
+                // Helper functions
+                const formatCurrency = (amount) => {
+                    return new Intl.NumberFormat('en-IN', {
+                        style: 'currency',
+                        currency: 'INR',
+                        minimumFractionDigits: 2
+                    }).format(amount || 0);
+                };
 
-            // Set content
-            await page.setContent(html, { waitUntil: 'networkidle0' });
+                const formatDate = (date) => {
+                    return date ? moment(date).format('DD-MMM-YYYY') : '';
+                };
 
-            // Generate PDF
-            const pdfBuffer = await page.pdf({
-                format: 'A4',
-                printBackground: true,
-                margin: {
-                    top: '0px',
-                    right: '0px',
-                    bottom: '0px',
-                    left: '0px'
+                // Colors
+                const primaryColor = '#2563eb';
+                const textColor = '#1f2937';
+                const lightGray = '#f3f4f6';
+
+                // Header
+                doc.fontSize(20).fillColor(primaryColor).text('PURCHASE ORDER', { align: 'center' });
+                doc.moveDown(0.5);
+                doc.fontSize(10).fillColor(textColor).text(`PO Number: ${po.poNumber}`, { align: 'center' });
+                doc.text(`Date: ${formatDate(po.orderDate)}`, { align: 'center' });
+                doc.moveDown(1);
+
+                // Company Info (Left) and Supplier Info (Right)
+                const leftX = 50;
+                const rightX = 320;
+                let currentY = doc.y;
+
+                // From Section
+                doc.fontSize(12).fillColor(primaryColor).text('From:', leftX, currentY);
+                doc.fontSize(10).fillColor(textColor);
+                doc.text(po.store?.displayName || po.store?.name || 'HopeRx', leftX, doc.y);
+                doc.text(`${po.store?.addressLine1 || ''}`, leftX, doc.y);
+                doc.text(`${po.store?.city || ''}, ${po.store?.state || ''} ${po.store?.pinCode || ''}`, leftX, doc.y);
+                if (po.store?.phoneNumber) doc.text(`Ph: ${po.store.phoneNumber}`, leftX, doc.y);
+                if (po.store?.gstin) doc.text(`GSTIN: ${po.store.gstin}`, leftX, doc.y);
+
+                // To Section (Supplier)
+                doc.fontSize(12).fillColor(primaryColor).text('To:', rightX, currentY);
+                doc.fontSize(10).fillColor(textColor);
+                doc.text(po.supplier.name, rightX, doc.y - 12);
+                doc.text(`${po.supplier.addressLine1 || ''}`, rightX, doc.y);
+                doc.text(`${po.supplier.city || ''}`, rightX, doc.y);
+                if (po.supplier.phoneNumber) doc.text(`Ph: ${po.supplier.phoneNumber}`, rightX, doc.y);
+                if (po.supplier.gstin) doc.text(`GSTIN: ${po.supplier.gstin}`, rightX, doc.y);
+
+                doc.moveDown(2);
+
+                // Table Headers
+                const tableTop = doc.y;
+                const itemX = 50;
+                const qtyX = 280;
+                const rateX = 330;
+                const gstX = 390;
+                const amountX = 450;
+
+                doc.fontSize(9).fillColor(primaryColor);
+                doc.text('Item', itemX, tableTop, { width: 220 });
+                doc.text('Qty', qtyX, tableTop, { width: 40 });
+                doc.text('Rate', rateX, tableTop, { width: 50 });
+                doc.text('GST%', gstX, tableTop, { width: 50 });
+                doc.text('Amount', amountX, tableTop, { width: 90, align: 'right' });
+
+                doc.moveTo(50, doc.y + 5).lineTo(545, doc.y + 5).stroke();
+                doc.moveDown(0.5);
+
+                // Table Rows
+                let subtotal = 0;
+                doc.fontSize(8).fillColor(textColor);
+
+                po.items.forEach((item, index) => {
+                    const qty = item.quantity;
+                    const rate = Number(item.unitPrice);
+                    const discount = item.discountPercent || 0;
+                    const gstRate = Number(item.gstPercent) || 0;
+
+                    const lineAmount = qty * rate * (1 - discount / 100);
+                    subtotal += lineAmount;
+
+                    const y = doc.y;
+
+                    // Item name (with wrapping)
+                    doc.text(item.drug?.name || 'Item', itemX, y, { width: 220, lineGap: 2 });
+                    const itemHeight = doc.y - y;
+
+                    // Other columns
+                    doc.text(qty.toString(), qtyX, y, { width: 40 });
+                    doc.text(formatCurrency(rate), rateX, y, { width: 50 });
+                    doc.text(`${gstRate}%`, gstX, y, { width: 50 });
+                    doc.text(formatCurrency(lineAmount), amountX, y, { width: 90, align: 'right' });
+
+                    doc.y = y + Math.max(itemHeight, 15);
+
+                    // Add page break if needed
+                    if (doc.y > 700) {
+                        doc.addPage();
+                    }
+                });
+
+                doc.moveTo(50, doc.y + 5).lineTo(545, doc.y + 5).stroke();
+                doc.moveDown(1);
+
+                // Totals
+                const totalsX = 380;
+                doc.fontSize(9).fillColor(textColor);
+                doc.text('Subtotal:', totalsX, doc.y);
+                doc.text(formatCurrency(subtotal), amountX, doc.y, { width: 90, align: 'right' });
+                doc.moveDown(0.5);
+
+                const totalTax = subtotal * 0.18; // Simplified - should calculate from items
+                doc.text('Tax:', totalsX, doc.y);
+                doc.text(formatCurrency(totalTax), amountX, doc.y, { width: 90, align: 'right' });
+                doc.moveDown(0.5);
+
+                doc.fontSize(11).fillColor(primaryColor);
+                doc.text('Grand Total:', totalsX, doc.y);
+                doc.text(formatCurrency(subtotal + totalTax), amountX, doc.y, { width: 90, align: 'right' });
+
+                // Footer
+                doc.fontSize(8).fillColor(textColor);
+                doc.moveDown(2);
+                if (po.paymentTerms) {
+                    doc.text(`Payment Terms: ${po.paymentTerms}`, 50);
                 }
-            });
 
-            await browser.close();
+                doc.moveDown(1);
+                doc.text('This is a computer-generated document.', { align: 'center' });
 
-            return pdfBuffer;
-        } catch (error) {
-            console.error('PDF Generation Error:', error);
-            throw error;
-        }
-    }
-
-    mapPOToTemplateData(po) {
-        const formatCurrency = (amount) => {
-            return new Intl.NumberFormat('en-IN', {
-                style: 'currency',
-                currency: 'INR',
-                minimumFractionDigits: 2
-            }).format(amount || 0);
-        };
-
-        const formatDate = (date) => {
-            return date ? moment(date).format('DD-MMM-YYYY') : '';
-        };
-
-        // Calculate totals and tax splits
-        let taxableSubTotal = 0;
-        let cgstTotal = 0;
-        let sgstTotal = 0;
-        let igstTotal = 0;
-
-        const items = po.items.map((item, index) => {
-            const qty = item.quantity;
-            const rate = Number(item.unitPrice);
-            const discount = item.discountPercent || 0;
-
-            // Taxable value per item (after discount)
-            const taxableValue = qty * rate * (1 - discount / 100);
-
-            // Tax calculation
-            const gstRate = Number(item.gstPercent) || 0;
-            const taxAmount = taxableValue * (gstRate / 100);
-
-            // Split tax (Assuming intra-state for now, so CGST + SGST)
-            // TODO: Add logic for inter-state (IGST) based on state comparison
-            const isInterState = false; // Placeholder
-
-            let cgst = 0, sgst = 0, igst = 0;
-            if (isInterState) {
-                igst = taxAmount;
-            } else {
-                cgst = taxAmount / 2;
-                sgst = taxAmount / 2;
+                doc.end();
+            } catch (error) {
+                console.error('PDF Generation Error:', error);
+                reject(error);
             }
-
-            taxableSubTotal += taxableValue;
-            cgstTotal += cgst;
-            sgstTotal += sgst;
-            igstTotal += igst;
-
-            return {
-                sr_no: index + 1,
-                description: item.drug?.name || 'Item',
-                hsn: item.drug?.hsnCode || '-',
-                qty: qty,
-                uom: item.drug?.defaultUnit || 'Unit',
-                rate: formatCurrency(rate),
-                taxable_value: formatCurrency(taxableValue),
-                tax: {
-                    cgst: formatCurrency(cgst),
-                    sgst: formatCurrency(sgst),
-                    igst: formatCurrency(igst)
-                },
-                discount: discount
-            };
         });
-
-        const totalTax = cgstTotal + sgstTotal + igstTotal;
-        const grandTotal = taxableSubTotal + totalTax;
-
-        return {
-            invoice_id: po.poNumber,
-            invoice_date: formatDate(po.orderDate),
-            supply_date: formatDate(po.expectedDeliveryDate || po.orderDate),
-            place_of_supply: po.store?.state || '',
-            financial_year: '2025-26', // TODO: Calculate dynamic FY
-            irn: null, // Placeholder
-            status: po.status,
-
-            company: {
-                legal_name: po.store?.displayName || po.store?.name || 'HopeRx Pharmaceuticals',
-                trade_name: po.store?.name || 'HopeRx',
-                address: `${po.store?.addressLine1 || ''}, ${po.store?.city || ''}`,
-                city: po.store?.city || '',
-                state: po.store?.state || '',
-                pincode: po.store?.pinCode || '',
-                gstin: po.store?.licenses?.find(l => l.type === 'GSTIN')?.number || 'N/A',
-                phone: po.store?.phoneNumber || '',
-                email: po.store?.email || '',
-                logo_url: po.store?.logoUrl || '', // Ensure this is a valid URL or base64
-                bank: {
-                    account_name: po.store?.displayName || 'HopeRx',
-                    account_no: 'XXXXXXXXXXXX', // Placeholder
-                    ifsc: 'XXXX0000000' // Placeholder
-                }
-            },
-
-            customer: { // In PO context, the "Customer" is the Supplier (Vendor) we are buying from? 
-                // WAIT: A Purchase Order is sent TO a Supplier. 
-                // So "Bill To" in a PO is usually US (The Store).
-                // But the user's template says "Bill To: {{customer.name}}".
-                // In an Invoice, "Bill To" is the Buyer.
-                // In a PO, we are the Buyer.
-                // So "Bill To" should be the Store.
-                // And "Vendor" is the Supplier.
-                // Let's map "customer" to the Supplier for now as per the user's JSON example?
-                // User JSON: "customer": { "name": "ABC Pharmacy" ... } -> This looks like the BUYER.
-                // User JSON: "company": { "legal_name": "HopeRx" ... } -> This looks like the ISSUER.
-                // If this is a PO generated by HopeRx sent to a Supplier:
-                // Issuer = HopeRx. Recipient = Supplier.
-                // BUT usually a PO says "Vendor: [Supplier]" and "Ship To: [Us]".
-                // The user's template has "Bill To" and "Ship To".
-                // This template looks like a SALES INVOICE template.
-                // For a PO, we need to adapt it.
-                // Let's map "customer" to the Supplier so it shows up in the "Bill To" slot?
-                // No, "Bill To" in a PO is US.
-                // Let's map "customer" to the Store (Us).
-
-                name: po.supplier.name,
-                billing_address: `${po.supplier.addressLine1}, ${po.supplier.city}`,
-                shipping_address: `${po.store?.addressLine1}, ${po.store?.city}`, // Ship to Store
-                gstin: po.supplier.gstin || 'N/A',
-                contact: po.supplier.phoneNumber
-            },
-
-            items: items,
-
-            totals: {
-                taxable_sub_total: formatCurrency(taxableSubTotal),
-                cgst_total: formatCurrency(cgstTotal),
-                sgst_total: formatCurrency(sgstTotal),
-                igst_total: formatCurrency(igstTotal),
-                total_tax: formatCurrency(totalTax),
-                round_off: formatCurrency(0), // TODO
-                grand_total: formatCurrency(grandTotal),
-                amount_in_words: this.convertNumberToWords(grandTotal)
-            },
-
-            payment_terms: {
-                due_date: formatDate(moment(po.orderDate).add(30, 'days')),
-                terms_text: po.paymentTerms || 'Payment due within 30 days',
-                upi_vpa: 'hoperx@hdfcbank', // Placeholder
-                upi_qr_url: '' // Placeholder
-            }
-        };
     }
 
     /**
@@ -278,203 +174,187 @@ class PDFService {
      * @returns {Promise<Buffer>} - PDF buffer
      */
     async generateSaleInvoicePdf(sale) {
-        try {
-            console.log('Generating Invoice PDF for:', sale.invoiceNumber);
+        return new Promise(async (resolve, reject) => {
+            try {
+                console.log('Generating Invoice PDF for:', sale.invoiceNumber);
 
-            // Prepare data for template
-            const data = await this.mapSaleToTemplateData(sale);
+                const doc = new PDFDocument({
+                    size: 'A4',
+                    margin: 40,
+                    bufferPages: true
+                });
 
-            // Read invoice template
-            const templatePath = path.join(__dirname, '../../templates/sale-invoice-template.html');
-            const templateHtml = fs.readFileSync(templatePath, 'utf8');
+                const chunks = [];
+                doc.on('data', chunk => chunks.push(chunk));
+                doc.on('end', () => resolve(Buffer.concat(chunks)));
+                doc.on('error', reject);
 
-            // Compile template
-            const template = handlebars.compile(templateHtml);
-            const html = template(data);
+                // Helper functions
+                const formatCurrency = (amount) => {
+                    return new Intl.NumberFormat('en-IN', {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2
+                    }).format(amount || 0);
+                };
 
-            // Generate PDF
-            const browser = await puppeteer.launch(this.getPuppeteerLaunchOptions());
-            const page = await browser.newPage();
+                const formatDate = (date) => {
+                    return date ? moment(date).format('DD-MM-YY') : '';
+                };
 
-            await page.setContent(html, { waitUntil: 'networkidle0' });
+                const formatTime = (date) => {
+                    return date ? moment(date).format('hh:mm A') : '';
+                };
 
-            const pdfBuffer = await page.pdf({
-                format: 'A4',
-                printBackground: true,
-                margin: {
-                    top: '0px',
-                    right: '0px',
-                    bottom: '0px',
-                    left: '0px'
+                // Colors
+                const primaryColor = '#1e40af';
+                const textColor = '#111827';
+                const accentColor = '#3b82f6';
+
+                // Header Section
+                doc.fontSize(18).fillColor(primaryColor).text(sale.store?.displayName || sale.store?.name || 'Store Name', { align: 'center' });
+                doc.fontSize(9).fillColor(textColor);
+                doc.text(sale.store?.addressLine1 || '', { align: 'center' });
+                doc.text(`${sale.store?.city || ''}, ${sale.store?.state || ''} - ${sale.store?.pinCode || ''}`, { align: 'center' });
+                doc.text(`Phone: ${sale.store?.phoneNumber || ''}`, { align: 'center' });
+                if (sale.store?.gstin) doc.text(`GSTIN: ${sale.store.gstin}`, { align: 'center' });
+
+                doc.moveDown(0.5);
+                doc.fontSize(14).fillColor(primaryColor).text('INVOICE', { align: 'center' });
+                doc.moveDown(0.5);
+
+                // Invoice Details
+                doc.fontSize(9).fillColor(textColor);
+                const leftX = 40;
+                const rightX = 350;
+                doc.text(`Invoice #: ${sale.invoiceNumber}`, leftX, doc.y);
+                doc.text(`Date: ${formatDate(sale.createdAt)} ${formatTime(sale.createdAt)}`, rightX, doc.y, { align: 'right' });
+                doc.moveDown(0.5);
+
+                // Patient Info
+                if (sale.patient) {
+                    doc.text(`Patient: ${sale.patient.firstName} ${sale.patient.lastName || ''}`, leftX);
+                    if (sale.patient.phoneNumber) doc.text(`Phone: ${sale.patient.phoneNumber}`, leftX);
                 }
-            });
+                if (sale.doctorName) {
+                    doc.text(`Prescribed by: ${sale.doctorName}`, leftX);
+                }
+                doc.moveDown(1);
 
-            await browser.close();
+                // Items Table Header
+                const tableTop = doc.y;
+                doc.fontSize(8).fillColor(primaryColor);
+                doc.rect(leftX, tableTop - 5, 515, 15).fill('#e0e7ff');
 
-            return pdfBuffer;
-        } catch (error) {
-            console.error('Invoice PDF Generation Error:', error);
-            throw error;
-        }
-    }
+                doc.fillColor(textColor);
+                doc.text('Item', leftX + 5, tableTop);
+                doc.text('Batch', 220, tableTop);
+                doc.text('Exp', 280, tableTop);
+                doc.text('Qty', 330, tableTop);
+                doc.text('MRP', 370, tableTop);
+                doc.text('GST', 420, tableTop);
+                doc.text('Total', 480, tableTop, { align: 'right' });
 
-    /**
-     * Map Sale data to invoice template format
-     */
-    async mapSaleToTemplateData(sale) {
-        const formatCurrency = (amount) => {
-            return new Intl.NumberFormat('en-IN', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2
-            }).format(amount || 0);
-        };
+                doc.moveDown(0.8);
 
-        const formatDate = (date) => {
-            return date ? moment(date).format('DD-MM-YY') : '';
-        };
+                // Items
+                let totalMrp = 0;
+                doc.fontSize(8).fillColor(textColor);
 
-        const formatTime = (date) => {
-            return date ? moment(date).format('hh:mm A') : '';
-        };
+                sale.items.forEach((item, index) => {
+                    const y = doc.y;
+                    const quantity = Number(item.quantity) || 0;
+                    const mrp = Number(item.mrp) || 0;
+                    const gstRate = Number(item.gstRate) || 0;
+                    const lineTotal = Number(item.lineTotal) || 0;
 
-        // Calculate tax breakdown
-        let cgstTotal = 0;
-        let sgstTotal = 0;
-        let igstTotal = 0;
-        let totalMrp = 0;
-        let totalSaving = 0;
+                    totalMrp += mrp * quantity;
 
-        // Map items
-        const items = sale.items.map((item, index) => {
-            const gstRate = Number(item.gstRate) || 0;
-            const lineTotal = Number(item.lineTotal) || 0;
-            const discount = Number(item.discount) || 0;
-            const mrp = Number(item.mrp) || 0;
-            const quantity = Number(item.quantity) || 0;
-            // const unitPrice = Number(item.price) || 0; // This is the selling price per unit
+                    doc.text(item.drug?.name || 'Item', leftX + 5, y, { width: 200 });
+                    doc.text(item.batch?.batchNumber || '-', 220, y, { width: 50 });
+                    doc.text(item.batch?.expiryDate ? moment(item.batch.expiryDate).format('MM/YY') : '-', 280, y);
+                    doc.text(quantity.toString(), 330, y);
+                    doc.text(formatCurrency(mrp), 370, y);
+                    doc.text(`${gstRate}%`, 420, y);
+                    doc.text(formatCurrency(lineTotal), 480, y, { align: 'right' });
 
-            // Calculate tax amount for this item
-            const taxableAmount = lineTotal / (1 + gstRate / 100);
-            const taxAmount = lineTotal - taxableAmount;
+                    doc.moveDown(0.7);
 
-            // Split tax (CGST + SGST for intra-state)
-            // TODO: Add inter-state logic based on store and customer state
-            const cgst = taxAmount / 2;
-            const sgst = taxAmount / 2;
+                    // Page break if needed
+                    if (doc.y > 700) {
+                        doc.addPage();
+                    }
+                });
 
-            cgstTotal += cgst;
-            sgstTotal += sgst;
+                doc.moveTo(leftX, doc.y).lineTo(555, doc.y).stroke();
+                doc.moveDown(1);
 
-            const itemTotalMrp = mrp * quantity;
-            totalMrp += itemTotalMrp;
+                // Totals Section
+                const totalsX = 380;
+                doc.fontSize(9);
 
-            // Discounted Price (D.Price) is the effective unit price after discount
-            // If item.price is already the discounted price, use it.
-            // If item.price is base price and discount is separate, we need to calculate.
-            // Assuming item.price IS the final selling price per unit.
-            // const dPrice = unitPrice;
+                doc.text('Subtotal:', totalsX, doc.y);
+                doc.text('₹ ' + formatCurrency(sale.subtotal), 480, doc.y, { align: 'right' });
+                doc.moveDown(0.5);
 
-            return {
-                srNo: index + 1,
-                drugName: item.drug?.name || 'Item',
-                manufacturer: item.drug?.manufacturer || '',
-                packSize: item.drug?.packSize || '1s',
-                hsnCode: item.drug?.hsnCode || '3004', // Default HSN if missing
-                batchNumber: item.batch?.batchNumber || '',
-                expiryDate: item.batch?.expiryDate ? moment(item.batch.expiryDate).format('MM/YY') : '',
-                quantity: quantity,
-                mrp: formatCurrency(mrp),
-                prevMrp: null, // Placeholder as per plan
-                // dPrice: formatCurrency(dPrice),
-                gstPercent: gstRate + '%',
-                lineTotal: formatCurrency(lineTotal)
-            };
+                if (sale.discountAmount && Number(sale.discountAmount) > 0) {
+                    doc.text('Discount:', totalsX, doc.y);
+                    doc.text('- ₹ ' + formatCurrency(sale.discountAmount), 480, doc.y, { align: 'right' });
+                    doc.moveDown(0.5);
+                }
+
+                doc.text('Tax:', totalsX, doc.y);
+                doc.text('₹ ' + formatCurrency(sale.taxAmount), 480, doc.y, { align: 'right' });
+                doc.moveDown(0.5);
+
+                if (sale.roundOff) {
+                    doc.text('Round Off:', totalsX, doc.y);
+                    doc.text((Number(sale.roundOff) >= 0 ? '+ ' : '- ') + '₹ ' + Math.abs(Number(sale.roundOff)).toFixed(2), 480, doc.y, { align: 'right' });
+                    doc.moveDown(0.5);
+                }
+
+                doc.fontSize(11).fillColor(primaryColor);
+                doc.text('Grand Total:', totalsX, doc.y);
+                doc.text('₹ ' + formatCurrency(sale.total), 480, doc.y, { align: 'right' });
+                doc.moveDown(0.5);
+
+                const totalSaving = totalMrp - Number(sale.total);
+                if (totalSaving > 0) {
+                    doc.fontSize(9).fillColor('#059669');
+                    doc.text(`You Saved: ₹ ${formatCurrency(totalSaving)}`, totalsX, doc.y);
+                }
+
+                doc.moveDown(1.5);
+
+                // Add UPI QR Code if available
+                try {
+                    const qrCodeDataUrl = await this.generateUPIQRCode(sale.store, sale.total);
+                    if (qrCodeDataUrl) {
+                        // Extract base64 data
+                        const base64Data = qrCodeDataUrl.replace(/^data:image\/png;base64,/, '');
+                        const imgBuffer = Buffer.from(base64Data, 'base64');
+
+                        // Add QR code to PDF
+                        doc.image(imgBuffer, 450, doc.y, { width: 80, height: 80 });
+                        doc.fontSize(7).fillColor(textColor);
+                        doc.text('Scan to Pay', 460, doc.y + 85, { width: 60, align: 'center' });
+                    }
+                } catch (qrError) {
+                    console.error('Failed to add QR code to PDF:', qrError);
+                }
+
+                // Footer
+                doc.fontSize(8).fillColor(textColor);
+                const footerY = 750;
+                doc.text(sale.store?.settings?.footerText || 'Thank you for your business!', leftX, footerY, { align: 'center', width: 515 });
+                doc.fontSize(7);
+                doc.text(`Billed by: ${await this.getSoldByUserName(sale.soldBy)}`, leftX, footerY + 15, { align: 'center', width: 515 });
+
+                doc.end();
+            } catch (error) {
+                console.error('Invoice PDF Generation Error:', error);
+                reject(error);
+            }
         });
-
-        // Calculate Global Totals
-        // Total Saving = Total MRP - Grand Total
-        // Note: Grand Total might include Round Off, so we should use sale.total
-        totalSaving = totalMrp - Number(sale.total);
-        if (totalSaving < 0) totalSaving = 0; // Should not happen usually
-
-        // Extract Licenses
-        // Assuming store.licenses is an array of objects { type: 'DL'|'GSTIN'|'FSSAI', number: '...' }
-        // For now, mapping from specific fields or mocking if structure differs
-        // As per previous code, we had store.gstin, store.dlNumber.
-        // We will try to format them nicely.
-
-        const licenses = [];
-        if (sale.store?.dlNumber) {
-            // Check if there are multiple DLs separated by comma
-            const dls = sale.store.dlNumber.split(',');
-            dls.forEach((dl, idx) => {
-                licenses.push({ name: dls.length > 1 ? `LICENSE 2${idx}` : 'LICENSE 20/21', number: dl.trim() });
-            });
-        }
-        // Add specific licenses if available in a 'licenses' array (if schema supports it)
-        // Check `sale.store.licenses` if it exists.
-
-        let fssai = sale.store?.fssai || ''; // If schema has it
-        let pan = sale.store?.pan || '';     // If schema has it
-
-        return {
-            invoiceNumber: sale.invoiceNumber,
-            invoiceDate: formatDate(sale.createdAt),
-            invoiceTime: formatTime(sale.createdAt),
-
-            store: {
-                displayName: sale.store?.displayName || sale.store?.name || 'Store Name',
-                subtitle: '', // Removed dummy subtitle
-                addressLine1: sale.store?.addressLine1 || '',
-                city: sale.store?.city || '',
-                state: sale.store?.state || '',
-                pinCode: sale.store?.pinCode || '',
-                phone: sale.store?.phoneNumber || '',
-                licenses: licenses,
-                fssai: fssai,
-                gstin: sale.store?.gstin || '',
-                pan: pan,
-                logoUrl: sale.store?.logoUrl || '',
-                terms: sale.store?.termsAndConditions
-                    ? sale.store.termsAndConditions.split('\n')
-                    : [
-                        'Goods once sold will not be taken back.',
-                        'Prescription drugs are sold against valid prescription only.'
-                    ],
-                jurisdiction: sale.store?.jurisdiction || ''
-            },
-
-            patient: {
-                name: sale.patient ? `${sale.patient.firstName} ${sale.patient.lastName}`.trim() : 'Walk-in Customer',
-                gender: sale.patient?.gender ? sale.patient.gender[0].toUpperCase() : '', // M/F
-                phone: sale.patient?.phoneNumber || '',
-                refBy: sale.doctorName || 'Dr. Pravesh' // Default or actual
-            },
-
-            items: items,
-            totalItems: items.length,
-
-            totals: {
-                subtotal: formatCurrency(sale.subtotal),
-                discountAmount: Number(sale.discountAmount) > 0 ? formatCurrency(sale.discountAmount) : null,
-                taxAmount: formatCurrency(sale.taxAmount),
-                cgst: formatCurrency(cgstTotal),
-                sgst: formatCurrency(sgstTotal),
-                totalMrp: formatCurrency(totalMrp),
-                totalSaving: formatCurrency(totalSaving),
-                roundOff: Math.abs(Number(sale.roundOff)).toFixed(2),
-                grandTotal: formatCurrency(sale.total)
-            },
-
-            billedBy: await this.getSoldByUserName(sale.soldBy), // Fetch user name from soldBy ID
-            soldBySignature: sale.store?.signatureUrl || '', // Store signature for authorized signatory
-            footerText: sale.store?.settings?.footerText || '', // Custom footer text from invoice design
-
-            generatedAt: moment().format('DD-MM-YY hh:mm A'),
-
-            // For QR Code (can be an image URL or text to generate)
-            qrCodeUrl: await this.generateUPIQRCode(sale.store, sale.total)
-        };
     }
 
     /**
@@ -526,7 +406,7 @@ class PDFService {
 
             console.log('✓ UPI ID found:', upiId);
 
-            // Generate QR code - upiqrcode is a function that returns {qr, intent}
+            // Generate QR code
             const result = await UPIQRCode({
                 payeeVPA: upiId,
                 payeeName: store.displayName || store.name,
@@ -534,46 +414,12 @@ class PDFService {
                 transactionNote: 'Invoice Payment',
             });
 
-            console.log('QR Code generated');
-            console.log('Result keys:', Object.keys(result));
-
-            // result.qr contains the base64 PNG data URL
-            const qrDataUrl = result.qr;
-
             console.log('✓ QR Code generated successfully');
-            console.log('QR Data URL length:', qrDataUrl?.length || 0);
-            console.log('QR Data URL preview:', qrDataUrl?.substring(0, 100));
-
-            return qrDataUrl;
+            return result.qr;
         } catch (error) {
             console.error('❌ QR Code Generation Error:', error);
-            console.error('Error stack:', error.stack);
-            return ''; // Return empty string on error, don't crash PDF generation
+            return '';
         }
-    }
-
-    convertNumberToWords(amount) {
-        // Simple placeholder for now, can use a library like 'number-to-words' if needed
-        const num = parseInt(amount, 10);
-        if (isNaN(num)) return '';
-
-        const a = ['', 'One ', 'Two ', 'Three ', 'Four ', 'Five ', 'Six ', 'Seven ', 'Eight ', 'Nine ', 'Ten ', 'Eleven ', 'Twelve ', 'Thirteen ', 'Fourteen ', 'Fifteen ', 'Sixteen ', 'Seventeen ', 'Eighteen ', 'Nineteen '];
-        const b = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
-
-        const inWords = (n) => {
-            if ((n = n.toString()).length > 9) return 'overflow';
-            const n_array = ('000000000' + n).slice(-9).match(/^(\d{2})(\d{2})(\d{2})(\d{1})(\d{2})$/);
-            if (!n_array) return;
-            let str = '';
-            str += (n_array[1] != 0) ? (a[Number(n_array[1])] || b[n_array[1][0]] + ' ' + a[n_array[1][1]]) + 'Crore ' : '';
-            str += (n_array[2] != 0) ? (a[Number(n_array[2])] || b[n_array[2][0]] + ' ' + a[n_array[2][1]]) + 'Lakh ' : '';
-            str += (n_array[3] != 0) ? (a[Number(n_array[3])] || b[n_array[3][0]] + ' ' + a[n_array[3][1]]) + 'Thousand ' : '';
-            str += (n_array[4] != 0) ? (a[Number(n_array[4])] || b[n_array[4][0]] + ' ' + a[n_array[4][1]]) + 'Hundred ' : '';
-            str += (n_array[5] != 0) ? ((str != '') ? 'and ' : '') + (a[Number(n_array[5])] || b[n_array[5][0]] + ' ' + a[n_array[5][1]]) : '';
-            return str;
-        }
-
-        return inWords(num) + 'Rupees Only';
     }
 }
 
