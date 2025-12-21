@@ -188,10 +188,6 @@ function cleanupCache() {
             cleaned++;
         }
     }
-
-    if (cleaned > 0) {
-        console.log(`[Geolocation] Cleaned ${cleaned} expired cache entries`);
-    }
 }
 
 // Run cleanup every hour
