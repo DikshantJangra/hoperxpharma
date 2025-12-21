@@ -16,6 +16,10 @@ validateEnv();
 
 const app = express();
 
+// Trust proxy - Required for production deployment behind reverse proxy (Render, etc.)
+// This allows Express to correctly read X-Forwarded-* headers
+app.set('trust proxy', true);
+
 // Security middleware
 app.use(helmet());
 
