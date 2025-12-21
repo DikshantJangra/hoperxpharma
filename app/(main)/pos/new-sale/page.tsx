@@ -471,9 +471,10 @@ export default function NewSalePage() {
       return;
     }
 
-    // 3. Process Items
+    // 3. Process Items with detailed tracking
     const newItems: any[] = [];
     const missingBatches: string[] = [];
+    const substitutions: Array<{ drug: string; reason: string; originalBatch?: string; newBatch?: string }> = [];
 
     // Show loading toast since this might take a moment
     const loadingToast = toast.loading('Importing prescription items...');
@@ -488,25 +489,25 @@ export default function NewSalePage() {
         if (!drugId) continue;
 
         try {
-          // If prescription specifies a specific batch, use it directly
-          if (item.batchId) {
-            const batchResponse = await inventoryApi.getBatches({ drugId: drugId, limit: 100 });
-            const batches = (batchResponse as any).data || (batchResponse as any).batches || [];
-            const prescribedBatch = batches.find((b: any) => b.id === item.batchId);
+          // Extract batchId - backend returns it as an object if included
+          const prescribedBatchId = item.batch?.id || item.batchId;
 
-            if (prescribedBatch && Number(prescribedBatch.quantityInStock) > 0) {
-              const qtyToTake = Math.min(Number(item.quantityPrescribed) || 1, Number(prescribedBatch.quantityInStock));
+          // If prescription specifies a specific batch, use it directly
+          if (prescribedBatchId) {
+            // If we already have the full batch details from the prescription, use them
+            if (item.batch && item.batch.quantityInStock && Number(item.batch.quantityInStock) > 0) {
+              const qtyToTake = Math.min(Number(item.quantityPrescribed) || 1, Number(item.batch.quantityInStock));
 
               newItems.push({
                 id: item.drug.id,
                 name: item.drug.name,
                 sku: item.drug.sku || item.drug.id,
-                batchId: prescribedBatch.id,
-                batchNumber: prescribedBatch.batchNumber,
-                location: prescribedBatch.location,
-                expiryDate: prescribedBatch.expiryDate,
-                stock: Number(prescribedBatch.quantityInStock),
-                mrp: Number(prescribedBatch.mrp),
+                batchId: item.batch.id,
+                batchNumber: item.batch.batchNumber,
+                location: item.batch.location,
+                expiryDate: item.batch.expiryDate,
+                stock: Number(item.batch.quantityInStock),
+                mrp: Number(item.batch.mrp),
                 qty: qtyToTake,
                 discount: 0,
                 gstRate: Number(item.drug.gstRate) || 5,
@@ -514,16 +515,66 @@ export default function NewSalePage() {
               });
 
               if (qtyToTake < (Number(item.quantityPrescribed) || 1)) {
-                toast.warning(`Prescribed batch for ${item.drug.name} has only ${qtyToTake} units available.`);
+                const shortage = (Number(item.quantityPrescribed) || 1) - qtyToTake;
+                substitutions.push({
+                  drug: item.drug.name,
+                  reason: `Partial stock: Only ${qtyToTake} of ${item.quantityPrescribed} units available in prescribed batch ${item.batch.batchNumber}`,
+                  originalBatch: item.batch.batchNumber,
+                });
               }
+
+              // Successfully used prescribed batch, skip FEFO
+              continue;
             } else {
-              toast.error(`Prescribed batch for ${item.drug.name} is no longer available. Using FEFO.`);
-              // Fall through to FEFO logic below
+              // Batch ID exists but need to fetch current stock
+              const batchResponse = await inventoryApi.getBatches({ drugId: drugId, limit: 100 });
+              const batches = (batchResponse as any).data || (batchResponse as any).batches || [];
+              const prescribedBatch = batches.find((b: any) => b.id === prescribedBatchId);
+
+              if (prescribedBatch && Number(prescribedBatch.quantityInStock) > 0) {
+                const qtyToTake = Math.min(Number(item.quantityPrescribed) || 1, Number(prescribedBatch.quantityInStock));
+
+                newItems.push({
+                  id: item.drug.id,
+                  name: item.drug.name,
+                  sku: item.drug.sku || item.drug.id,
+                  batchId: prescribedBatch.id,
+                  batchNumber: prescribedBatch.batchNumber,
+                  location: prescribedBatch.location,
+                  expiryDate: prescribedBatch.expiryDate,
+                  stock: Number(prescribedBatch.quantityInStock),
+                  mrp: Number(prescribedBatch.mrp),
+                  qty: qtyToTake,
+                  discount: 0,
+                  gstRate: Number(item.drug.gstRate) || 5,
+                  type: 'RX'
+                });
+
+                if (qtyToTake < (Number(item.quantityPrescribed) || 1)) {
+                  substitutions.push({
+                    drug: item.drug.name,
+                    reason: `Partial stock: Only ${qtyToTake} of ${item.quantityPrescribed} units available`,
+                    originalBatch: prescribedBatch.batchNumber,
+                  });
+                }
+
+                // Successfully used prescribed batch, skip FEFO
+                continue;
+              } else {
+                // Prescribed batch is out of stock or deleted
+                const batchInfo = item.batch?.batchNumber || 'Unknown';
+                substitutions.push({
+                  drug: item.drug.name,
+                  reason: prescribedBatch ? 'Prescribed batch is out of stock' : 'Prescribed batch no longer exists',
+                  originalBatch: batchInfo,
+                });
+                // Fall through to FEFO logic below
+              }
             }
           }
 
           // If no batch specified or prescribed batch unavailable, use FEFO
-          if (!item.batchId || !newItems.find(ni => ni.id === item.drug.id && ni.batchId === item.batchId)) {
+          if (!prescribedBatchId || !newItems.find(ni => ni.id === item.drug.id && ni.batchId === prescribedBatchId)) {
             // Fetch batches for this drug
             const batchResponse = await inventoryApi.getBatches({ drugId: drugId, limit: 10, minQuantity: 1 });
             const batches = (batchResponse as any).data || (batchResponse as any).batches || [];
@@ -556,12 +607,24 @@ export default function NewSalePage() {
                     type: 'RX'
                   });
 
+                  // Track FEFO substitution if original batch was prescribed
+                  if (prescribedBatchId && substitutions.findIndex(s => s.drug === item.drug.name) === -1) {
+                    substitutions.push({
+                      drug: item.drug.name,
+                      reason: 'Using FEFO batch',
+                      newBatch: batch.batchNumber
+                    });
+                  }
+
                   remainingQty -= qtyToTake;
                 }
               }
 
               if (remainingQty > 0) {
-                toast.warning(`Partial stock found for ${item.drug.name}. Missing ${remainingQty} units.`);
+                substitutions.push({
+                  drug: item.drug.name,
+                  reason: `Insufficient stock: Missing ${remainingQty} units`,
+                });
               }
             } else {
               missingBatches.push(item.drug?.name || 'Unknown Drug');
@@ -576,14 +639,48 @@ export default function NewSalePage() {
       if (newItems.length > 0) {
         setBasketItems(newItems); // Replace with new items since we cleared above
         toast.dismiss(loadingToast);
-        toast.success(`Imported ${newItems.length} items from prescription`);
+
+        // Show detailed summary
+        if (substitutions.length > 0 || missingBatches.length > 0) {
+          const messages = [];
+
+          if (substitutions.length > 0) {
+            messages.push(`⚠️ Batch Substitutions (${substitutions.length}):`);
+            substitutions.forEach(sub => {
+              let msg = `• ${sub.drug}: ${sub.reason}`;
+              if (sub.originalBatch) msg += ` (was: ${sub.originalBatch})`;
+              if (sub.newBatch) msg += ` → (now: ${sub.newBatch})`;
+              messages.push(msg);
+            });
+          }
+
+          if (missingBatches.length > 0) {
+            messages.push(`\n❌ Out of Stock (${missingBatches.length}):`);
+            missingBatches.forEach(drug => messages.push(`• ${drug}`));
+          }
+
+          toast.warning(
+            <div className="text-sm">
+              <div className="font-bold mb-2">Prescription Import Summary</div>
+              <div className="space-y-1 max-h-60 overflow-y-auto">
+                {messages.map((msg, i) => (
+                  <div key={i} className="whitespace-pre-wrap">{msg}</div>
+                ))}
+              </div>
+              <div className="mt-2 text-xs opacity-75">
+                Please review the imported items and adjust quantities if needed.
+              </div>
+            </div>,
+            {
+              duration: 10000, // Show for 10 seconds
+            }
+          );
+        } else {
+          toast.success(`✅ Imported ${newItems.length} items with prescribed batches`);
+        }
       } else {
         toast.dismiss(loadingToast);
         toast.warning('No available batches found for prescription items');
-      }
-
-      if (missingBatches.length > 0) {
-        toast.error(`Could not find stock for: ${missingBatches.join(', ')}`);
       }
 
     } catch (error) {

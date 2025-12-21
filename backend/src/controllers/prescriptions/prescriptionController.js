@@ -158,7 +158,8 @@ class PrescriptionController {
                     prescriber: true,
                     items: {
                         include: {
-                            drug: true
+                            drug: true,
+                            batch: true  // Include batch info for prescribed batches
                         }
                     },
                     files: true,

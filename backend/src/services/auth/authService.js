@@ -15,8 +15,11 @@ class AuthService {
     async signup(userData) {
         const { email, phoneNumber, password, firstName, lastName, role } = userData;
 
+        // Normalize email to lowercase for case-insensitive comparison
+        const normalizedEmail = email.toLowerCase().trim();
+
         // Check if user already exists
-        const existingUser = await userRepository.existsByEmailOrPhone(email, phoneNumber);
+        const existingUser = await userRepository.existsByEmailOrPhone(normalizedEmail, phoneNumber);
         if (existingUser) {
             throw ApiError.conflict(MESSAGES.AUTH.USER_EXISTS);
         }
@@ -36,7 +39,7 @@ class AuthService {
 
         // Create user
         const user = await userRepository.create({
-            email,
+            email: normalizedEmail,
             phoneNumber,
             passwordHash,
             firstName,
@@ -60,8 +63,11 @@ class AuthService {
      * Login user
      */
     async login(email, password) {
+        // Normalize email to lowercase for case-insensitive comparison
+        const normalizedEmail = email.toLowerCase().trim();
+
         // Find user by email
-        const user = await userRepository.findByEmail(email);
+        const user = await userRepository.findByEmail(normalizedEmail);
 
         if (!user) {
             throw ApiError.unauthorized(MESSAGES.AUTH.INVALID_CREDENTIALS);

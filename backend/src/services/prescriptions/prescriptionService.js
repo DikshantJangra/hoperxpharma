@@ -13,13 +13,22 @@ class PrescriptionService {
             priority: priority || 'Normal',
             status: 'DRAFT',
             items: {
-                create: items.map(item => ({
-                    drug: { connect: { id: item.drugId } },
-                    quantityPrescribed: item.quantity,
-                    sig: item.sig,
-                    daysSupply: item.daysSupply,
-                    isControlled: item.isControlled || false
-                }))
+                create: items.map(item => {
+                    const itemData = {
+                        drug: { connect: { id: item.drugId } },
+                        quantityPrescribed: item.quantity,
+                        sig: item.sig,
+                        daysSupply: item.daysSupply,
+                        isControlled: item.isControlled || false
+                    };
+
+                    // Connect batch if specified (for batch-specific prescriptions)
+                    if (item.batchId) {
+                        itemData.batch = { connect: { id: item.batchId } };
+                    }
+
+                    return itemData;
+                })
             }
         };
 
@@ -53,7 +62,8 @@ class PrescriptionService {
             include: {
                 items: {
                     include: {
-                        drug: true
+                        drug: true,
+                        batch: true  // Include batch info for prescribed batches
                     }
                 },
                 patient: true,
@@ -167,7 +177,10 @@ class PrescriptionService {
                 patient: true,
                 prescriber: true,
                 items: {
-                    include: { drug: true }
+                    include: {
+                        drug: true,
+                        batch: true  // Include batch info
+                    }
                 },
                 files: true
             },
@@ -203,7 +216,10 @@ class PrescriptionService {
                 patient: true,
                 prescriber: true,
                 items: {
-                    include: { drug: true }
+                    include: {
+                        drug: true,
+                        batch: true  // Include batch info
+                    }
                 },
                 files: true
             },

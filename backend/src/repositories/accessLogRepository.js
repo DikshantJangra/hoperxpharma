@@ -31,6 +31,12 @@ class AccessLogRepository {
      */
     async getAccessLogs(filters = {}) {
         const {
+            userId,
+            eventType,
+            ipAddress,
+            startDate,
+            endDate,
+            page = 1,
             limit = 50,
             sortBy = 'createdAt',
             sortOrder = 'desc',

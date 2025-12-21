@@ -11,6 +11,8 @@ interface Drug {
     instructions: string;
     stockAvailable: boolean;
     stockLevel?: "high" | "low" | "out";
+    batchNumber?: string;  // Add batch info
+    expiryDate?: string;   // Add expiry info
 }
 
 interface DrugListProps {
@@ -86,6 +88,21 @@ export default function DrugList({ drugs, showStock = true, compact = false }: D
                             <div className="flex-1">
                                 <h4 className="font-semibold text-gray-900 mb-1">{drug.name}</h4>
                                 <p className="text-sm text-gray-600">{drug.dosage}</p>
+                                {/* Display batch information if available */}
+                                {(drug.batchNumber || drug.expiryDate) && (
+                                    <div className="mt-1.5 flex flex-wrap gap-2">
+                                        {drug.batchNumber && (
+                                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                                                <span className="font-semibold mr-1">Batch:</span> {drug.batchNumber}
+                                            </span>
+                                        )}
+                                        {drug.expiryDate && (
+                                            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-50 text-purple-700 border border-purple-200">
+                                                <span className="font-semibold mr-1">Exp:</span> {new Date(drug.expiryDate).toLocaleDateString()}
+                                            </span>
+                                        )}
+                                    </div>
+                                )}
                             </div>
                             <div className="text-right">
                                 <div className="text-lg font-bold text-gray-900">×{drug.quantity}</div>
