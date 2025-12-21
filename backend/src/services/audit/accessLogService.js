@@ -1,27 +1,36 @@
 const accessLogRepository = require('../../repositories/accessLogRepository');
+const geolocationService = require('../geolocationService');
 
 /**
  * Access Log Service - Business logic for access logging
  */
 class AccessLogService {
     /**
-     * Log an access event
+     * Log an access event (login, logout, etc.)
      */
-    async logAccess(accessData) {
-        const { userId, eventType, ipAddress, userAgent, deviceInfo } = accessData;
+    async logAccess({ userId, eventType, ipAddress, userAgent, deviceInfo }) {
+        try {
+            // Lookup geolocation for the IP (async, cached for 24h)
+            let geolocation = null;
+            try {
+                geolocation = await geolocationService.lookupIP(ipAddress);
+            } catch (geoError) {
+                // Don't fail the log creation if geolocation fails
+                console.error('Geolocation lookup failed:', geoError);
+            }
 
-        // Validate required fields
-        if (!userId || !eventType || !ipAddress) {
-            throw new Error('Missing required fields for access log');
+            return await accessLogRepository.createAccessLog({
+                userId,
+                eventType,
+                ipAddress,
+                userAgent: userAgent || null,
+                deviceInfo: deviceInfo || null,
+                geolocation, // Can be null
+            });
+        } catch (error) {
+            console.error('[AccessLogService] Error logging access:', error);
+            throw error;
         }
-
-        return await accessLogRepository.createAccessLog({
-            userId,
-            eventType,
-            ipAddress,
-            userAgent: userAgent || null,
-            deviceInfo: deviceInfo || null,
-        });
     }
 
     /**

@@ -114,12 +114,30 @@ export default function AccessDetailDrawer({ eventId, onClose, isLoading }: Acce
           </div>
         </div>
 
-        <div className="text-xs text-gray-500">
-          <FiClock className="inline mr-1" size={12} />
-          {new Date(event.createdAt).toLocaleString('en-IN', {
-            dateStyle: 'medium',
-            timeStyle: 'medium'
-          })}
+        <div className="text-xs text-gray-500 flex items-center gap-2">
+          <FiClock className="inline" size={12} />
+          {(() => {
+            try {
+              const timestamp = event.timestamp || event.createdAt;
+              console.log('DetailDrawer timestamp:', timestamp, 'event object:', event);
+
+              if (!timestamp) {
+                return 'No timestamp available';
+              }
+
+              const date = new Date(timestamp);
+              if (isNaN(date.getTime())) {
+                return `Invalid Date (${timestamp})`;
+              }
+              return date.toLocaleString('en-IN', {
+                dateStyle: 'medium',
+                timeStyle: 'medium'
+              });
+            } catch (error) {
+              console.error('Date formatting error:', error);
+              return 'Invalid Date';
+            }
+          })()}
         </div>
       </div>
 
@@ -186,10 +204,74 @@ export default function AccessDetailDrawer({ eventId, onClose, isLoading }: Acce
             <div>
               <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">IP Address</h4>
               <p className="text-sm text-gray-900 font-mono">{event.ipAddress}</p>
+              {(event.ipAddress === '127.0.0.1' || event.ipAddress === '::1' || event.ipAddress.startsWith('::ffff:127')) && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Localhost - Development environment
+                </p>
+              )}
             </div>
+
             <div>
-              <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Location</h4>
-              <p className="text-sm text-gray-700">Location data not available yet</p>
+              <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Geolocation</h4>
+              {event.geolocation ? (
+                <div className="bg-green-50 border border-green-200 rounded p-3">
+                  <div className="space-y-2 text-sm">
+                    {event.geolocation.cityName && event.geolocation.countryName && (
+                      <div className="flex items-center gap-2">
+                        <FiMapPin className="text-green-600" size={14} />
+                        <span className="text-gray-900 font-medium">
+                          {event.geolocation.cityName}, {event.geolocation.countryName}
+                          {event.geolocation.countryCode && ` (${event.geolocation.countryCode})`}
+                        </span>
+                      </div>
+                    )}
+
+                    {event.geolocation.regionName && (
+                      <div className="text-xs text-gray-600">
+                        Region: {event.geolocation.regionName}
+                      </div>
+                    )}
+
+                    {event.geolocation.isp && (
+                      <div className="text-xs text-gray-600">
+                        ISP: {event.geolocation.isp}
+                      </div>
+                    )}
+
+                    {event.geolocation.asn && (
+                      <div className="text-xs text-gray-500">
+                        ASN: {event.geolocation.asn}
+                      </div>
+                    )}
+
+                    {event.geolocation.timeZone && (
+                      <div className="text-xs text-gray-500">
+                        Timezone: {event.geolocation.timeZone}
+                      </div>
+                    )}
+
+                    {event.geolocation.latitude && event.geolocation.longitude && (
+                      <div className="text-xs text-gray-400 font-mono">
+                        {event.geolocation.latitude}, {event.geolocation.longitude}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded p-3">
+                  <div className="flex items-start gap-2">
+                    <FiMapPin className="text-gray-400 mt-0.5 flex-shrink-0" size={16} />
+                    <div className="text-xs">
+                      <p className="text-gray-700 mb-1">Geolocation not available</p>
+                      <p className="text-gray-500">
+                        {event.ipAddress === '127.0.0.1' || event.ipAddress === '::1' || event.ipAddress.startsWith('::ffff:127')
+                          ? 'Localhost IPs are not geolocated'
+                          : 'Location data will be available for new login events'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}

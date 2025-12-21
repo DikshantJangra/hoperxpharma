@@ -85,6 +85,7 @@ export default function AccessTable({ searchQuery, isLive, activeFilter, onEvent
                 const transformedLogs = logsData.map((log: any) => {
                     console.log('Transforming log:', log);
                     console.log('User data:', log.user);
+                    console.log('Timestamp value:', log.timestamp, 'CreatedAt value:', log.createdAt);
 
                     // Build user name from firstName and lastName - FIXED
                     let userName = 'Unknown User';
@@ -105,7 +106,7 @@ export default function AccessTable({ searchQuery, isLive, activeFilter, onEvent
 
                     return {
                         id: log.id,
-                        timestamp: log.createdAt,  // Keep as is, will be formatted in display
+                        timestamp: log.timestamp || log.createdAt,  // Backend sends 'timestamp' after formatting
                         user: {
                             id: log.user?.id || log.userId,
                             name: userName,
@@ -135,6 +136,8 @@ export default function AccessTable({ searchQuery, isLive, activeFilter, onEvent
                 });
 
                 console.log('Transformed logs:', transformedLogs);
+                console.log('First log timestamp:', transformedLogs[0]?.timestamp);
+                console.log('First log full object:', transformedLogs[0]);
                 setEvents(transformedLogs);
             } catch (error) {
                 console.error('Failed to fetch access logs:', error);
@@ -200,14 +203,26 @@ export default function AccessTable({ searchQuery, isLive, activeFilter, onEvent
     };
 
     const formatTimestamp = (timestamp: string) => {
-        const date = new Date(timestamp);
-        return date.toLocaleString("en-IN", {
-            month: "short",
-            day: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-            second: "2-digit",
-        });
+        if (!timestamp) return 'Unknown';
+
+        try {
+            const date = new Date(timestamp);
+            if (isNaN(date.getTime())) {
+                console.error('Invalid timestamp:', timestamp);
+                return 'Invalid Date';
+            }
+
+            return date.toLocaleString("en-IN", {
+                month: "short",
+                day: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+            });
+        } catch (error) {
+            console.error('Error formatting timestamp:', timestamp, error);
+            return 'Invalid Date';
+        }
     };
 
     return (
@@ -221,7 +236,6 @@ export default function AccessTable({ searchQuery, isLive, activeFilter, onEvent
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Result</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Device</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">IP & Location</th>
-                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Session</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Method</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Risk</th>
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase w-20">Actions</th>
@@ -246,7 +260,12 @@ export default function AccessTable({ searchQuery, isLive, activeFilter, onEvent
                                 onClick={() => onEventClick(event.id)}
                             >
                                 <td className="px-4 py-3 text-sm text-gray-900 whitespace-nowrap">
-                                    {formatTimestamp(event.timestamp)}
+                                    {(() => {
+                                        console.log('Formatting event timestamp:', event.timestamp, 'for event:', event.id);
+                                        const formatted = formatTimestamp(event.timestamp);
+                                        console.log('Formatted result:', formatted);
+                                        return formatted;
+                                    })()}
                                 </td>
                                 <td className="px-4 py-3">
                                     <div className="flex flex-col">
@@ -317,16 +336,7 @@ export default function AccessTable({ searchQuery, isLive, activeFilter, onEvent
                                         )}
                                     </div>
                                 </td>
-                                <td className="px-4 py-3">
-                                    {event.sessionId ? (
-                                        <button className="text-sm font-mono text-teal-600 hover:text-teal-700 flex items-center gap-1">
-                                            {event.sessionId}
-                                            <FiExternalLink size={12} />
-                                        </button>
-                                    ) : (
-                                        <span className="text-sm text-gray-400">—</span>
-                                    )}
-                                </td>
+
                                 <td className="px-4 py-3">
                                     <div className="flex items-center gap-1">
                                         {event.method.includes("mfa") && <FiShield size={14} className="text-purple-600" />}

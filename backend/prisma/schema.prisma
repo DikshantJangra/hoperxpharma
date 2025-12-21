@@ -2555,12 +2555,13 @@ model AuditLog {
 }
 
 model AccessLog {
-  id         String  @id @default(cuid())
-  userId     String
-  eventType  String // login_success, login_failure, logout
-  ipAddress  String
-  userAgent  String?
-  deviceInfo String?
+  id          String  @id @default(cuid())
+  userId      String
+  eventType   String // login_success, login_failure, logout
+  ipAddress   String
+  userAgent   String?
+  deviceInfo  String?
+  geolocation Json? // Stores: countryCode, countryName, cityName, latitude, longitude, timezone, asn, isp
 
   user User @relation(fields: [userId], references: [id])
 

@@ -102,8 +102,22 @@ const login = asyncHandler(async (req, res) => {
     // Normalize email to lowercase
     const normalizedEmail = email.toLowerCase().trim();
 
-    // Get IP and User Agent info
-    const ipAddress = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+    // Get IP address - handle proxy/load balancer scenarios
+    let ipAddress = req.ip || req.connection.remoteAddress;
+
+    // In production (behind proxy/load balancer), use x-forwarded-for header
+    if (req.headers['x-forwarded-for']) {
+        // x-forwarded-for can be a comma-separated list: "client, proxy1, proxy2"
+        // The first IP is the real client IP
+        const forwardedIps = req.headers['x-forwarded-for'].split(',');
+        ipAddress = forwardedIps[0].trim();
+    }
+
+    // Clean up IPv6-mapped IPv4 addresses
+    if (ipAddress && ipAddress.startsWith('::ffff:')) {
+        ipAddress = ipAddress.substring(7);
+    }
+
     const userAgent = req.headers['user-agent'];
 
     try {
@@ -220,7 +234,18 @@ const logout = asyncHandler(async (req, res) => {
 
     // Log logout if authenticated
     if (req.user) {
-        const ipAddress = req.ip || req.headers['x-forwarded-for'] || req.connection.remoteAddress;
+        // Get IP address - handle proxy/load balancer scenarios
+        let ipAddress = req.ip || req.connection.remoteAddress;
+
+        if (req.headers['x-forwarded-for']) {
+            const forwardedIps = req.headers['x-forwarded-for'].split(',');
+            ipAddress = forwardedIps[0].trim();
+        }
+
+        if (ipAddress && ipAddress.startsWith('::ffff:')) {
+            ipAddress = ipAddress.substring(7);
+        }
+
         const userAgent = req.headers['user-agent'];
 
         await accessLogService.logAccess({
