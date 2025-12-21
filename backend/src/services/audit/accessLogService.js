@@ -13,13 +13,15 @@ class AccessLogService {
             // Lookup geolocation for the IP (async, cached for 24h)
             let geolocation = null;
             try {
+                console.log('[AccessLog] Looking up geolocation for IP:', ipAddress);
                 geolocation = await geolocationService.lookupIP(ipAddress);
+                console.log('[AccessLog] Geolocation result:', geolocation);
             } catch (geoError) {
                 // Don't fail the log creation if geolocation fails
                 console.error('Geolocation lookup failed:', geoError);
             }
 
-            return await accessLogRepository.createAccessLog({
+            const result = await accessLogRepository.createAccessLog({
                 userId,
                 eventType,
                 ipAddress,
@@ -27,6 +29,9 @@ class AccessLogService {
                 deviceInfo: deviceInfo || null,
                 geolocation, // Can be null
             });
+
+            console.log('[AccessLog] Created with geolocation:', result.geolocation ? 'YES' : 'NO');
+            return result;
         } catch (error) {
             console.error('[AccessLogService] Error logging access:', error);
             throw error;
@@ -117,6 +122,7 @@ class AccessLogService {
             ipAddress: log.ipAddress,
             userAgent: log.userAgent,
             deviceInfo: log.deviceInfo,
+            geolocation: log.geolocation, // Include geolocation data
             status: this.getEventStatus(log.eventType),
             risk: this.calculateRisk(log),
         };

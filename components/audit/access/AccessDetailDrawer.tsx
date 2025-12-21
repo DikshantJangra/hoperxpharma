@@ -36,7 +36,7 @@ const DetailSkeleton = () => (
 )
 
 export default function AccessDetailDrawer({ eventId, onClose, isLoading }: AccessDetailDrawerProps) {
-  const [activeTab, setActiveTab] = useState<"details" | "device" | "network" | "session">("details");
+  const [activeTab, setActiveTab] = useState<"details" | "device" | "network" | "debug">("details");
   const [event, setEvent] = useState<any>(null);
   const [loading, setLoading] = useState(false);
 
@@ -147,6 +147,7 @@ export default function AccessDetailDrawer({ eventId, onClose, isLoading }: Acce
           { id: "details", label: "Details" },
           { id: "device", label: "Device" },
           { id: "network", label: "Network" },
+          { id: "debug", label: "Debug" },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -270,6 +271,31 @@ export default function AccessDetailDrawer({ eventId, onClose, isLoading }: Acce
                       </p>
                     </div>
                   </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'debug' && (
+          <div className="space-y-4">
+            <div>
+              <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Raw API Response</h4>
+              <div className="bg-gray-900 text-green-400 p-4 rounded font-mono text-xs overflow-auto max-h-96">
+                <pre>{JSON.stringify(event, null, 2)}</pre>
+              </div>
+            </div>
+
+            <div>
+              <h4 className="text-xs font-semibold text-gray-500 uppercase mb-2">Geolocation Data</h4>
+              {event.geolocation ? (
+                <div className="bg-gray-900 text-green-400 p-4 rounded font-mono text-xs overflow-auto">
+                  <pre>{JSON.stringify(event.geolocation, null, 2)}</pre>
+                </div>
+              ) : (
+                <div className="text-sm text-gray-600 bg-yellow-50 border border-yellow-200 rounded p-3">
+                  <p className="text-yellow-800">⚠️ No geolocation data in API response</p>
+                  <p className="text-xs text-yellow-700 mt-1">This might be an old log entry or geolocation service failed</p>
                 </div>
               )}
             </div>
