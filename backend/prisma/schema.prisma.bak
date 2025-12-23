@@ -434,9 +434,6 @@ model Store {
   ConsolidatedInvoice ConsolidatedInvoice[]
   ledger              CustomerLedger[]
 
-  // Email System
-  emailAccounts EmailAccount[]
-
   @@index([email])
   @@index([deletedAt])
 }
@@ -2810,9 +2807,6 @@ model EmailTemplate {
   subject        String
   bodyHtml       String   @db.Text
   variables      String[]
-  category       String   @default("general")
-  tags           String[] @default([])
-  isBuiltIn      Boolean  @default(false)
   
   emailAccount EmailAccount @relation(fields: [emailAccountId], references: [id], onDelete: Cascade)
   
@@ -2820,7 +2814,6 @@ model EmailTemplate {
   updatedAt DateTime @updatedAt
   
   @@index([emailAccountId])
-  @@index([emailAccountId, category])
 }
 
 model EmailLog {

@@ -14,28 +14,38 @@ const ENCRYPTED_POSITION = TAG_POSITION + TAG_LENGTH;
 
 /**
  * Derives encryption key from environment secret
+ * Supports both SMTP and WhatsApp encryption
+ * @param {string} keyType - Type of key ('smtp' or 'whatsapp')
  * @returns {Buffer} 32-byte encryption key
  */
-function getEncryptionKey() {
-    const secret = process.env.WHATSAPP_ENCRYPTION_KEY;
+function getEncryptionKey(keyType = 'whatsapp') {
+    let secret;
+
+    if (keyType === 'smtp') {
+        secret = process.env.SMTP_ENCRYPTION_KEY || process.env.WHATSAPP_ENCRYPTION_KEY;
+    } else {
+        secret = process.env.WHATSAPP_ENCRYPTION_KEY;
+    }
 
     if (!secret) {
-        throw new Error('WHATSAPP_ENCRYPTION_KEY environment variable is required');
+        throw new Error(`${keyType.toUpperCase()}_ENCRYPTION_KEY environment variable is required`);
     }
 
     // Use PBKDF2 to derive a proper 256-bit key
-    return crypto.pbkdf2Sync(secret, 'whatsapp-salt', 100000, 32, 'sha512');
+    const salt = keyType === 'smtp' ? 'smtp-salt' : 'whatsapp-salt';
+    return crypto.pbkdf2Sync(secret, salt, 100000, 32, 'sha512');
 }
 
 /**
- * Encrypts a  plaintext token
+ * Encrypts a plaintext token
  * @param {string} plaintext - The token to encrypt
+ * @param {string} keyType - Type of key to use ('smtp' or 'whatsapp')
  * @returns {string} Base64-encoded encrypted data (salt + IV + tag + ciphertext)
  */
-function encryptToken(plaintext) {
+function encryptToken(plaintext, keyType = 'whatsapp') {
     if (!plaintext) return null;
 
-    const key = getEncryptionKey();
+    const key = getEncryptionKey(keyType);
     const iv = crypto.randomBytes(IV_LENGTH);
     const salt = crypto.randomBytes(SALT_LENGTH);
 
@@ -57,12 +67,13 @@ function encryptToken(plaintext) {
 /**
  * Decrypts an encrypted token
  * @param {string} ciphertext - Base64-encoded encrypted data
+ * @param {string} keyType - Type of key to use ('smtp' or 'whatsapp')
  * @returns {string} Decrypted plaintext token
  */
-function decryptToken(ciphertext) {
+function decryptToken(ciphertext, keyType = 'whatsapp') {
     if (!ciphertext) return null;
 
-    const key = getEncryptionKey();
+    const key = getEncryptionKey(keyType);
     const data = Buffer.from(ciphertext, 'base64');
 
     const salt = data.subarray(0, SALT_LENGTH);
@@ -81,7 +92,27 @@ function decryptToken(ciphertext) {
     return decrypted.toString('utf8');
 }
 
+/**
+ * SMTP-specific encryption function
+ * @param {string} password - SMTP password to encrypt
+ * @returns {string} Encrypted password
+ */
+function encryptSMTPPassword(password) {
+    return encryptToken(password, 'smtp');
+}
+
+/**
+ * SMTP-specific decryption function
+ * @param {string} encryptedPassword - Encrypted SMTP password
+ * @returns {string} Decrypted password
+ */
+function decryptSMTPPassword(encryptedPassword) {
+    return decryptToken(encryptedPassword, 'smtp');
+}
+
 module.exports = {
     encryptToken,
     decryptToken,
+    encryptSMTPPassword,
+    decryptSMTPPassword,
 };

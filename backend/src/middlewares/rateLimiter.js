@@ -11,6 +11,9 @@ const generalLimiter = rateLimit({
     message: 'Too many requests from this IP, please try again later',
     standardHeaders: true,
     legacyHeaders: false,
+    validate: {
+        trustProxy: false, // Disable trust proxy validation
+    },
     handler: (req, res, next) => {
         next(ApiError.tooManyRequests('Too many requests, please try again later'));
     },
@@ -26,6 +29,9 @@ const authLimiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
     skipSuccessfulRequests: true,
+    validate: {
+        trustProxy: false, // Disable trust proxy validation
+    },
     handler: (req, res, next) => {
         next(ApiError.tooManyRequests('Too many login attempts, please try again later'));
     },

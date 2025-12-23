@@ -112,3 +112,73 @@ module.exports = {
     getAttachments,
     deleteAttachment,
 };
+
+/**
+ * Upload email attachment (temporary)
+ */
+async function uploadAttachment(req, res) {
+    try {
+        if (!req.file) {
+            return res.status(400).json({
+                success: false,
+                error: 'No file uploaded'
+            });
+        }
+
+        const file = req.file;
+        return res.status(200).json({
+            success: true,
+            data: {
+                file: {
+                    filename: file.filename,
+                    originalName: file.originalname,
+                    size: file.size,
+                    mimeType: file.mimetype,
+                    path: require('path').join(__dirname, '../../uploads/temp', file.filename),
+                    uploadedAt: new Date().toISOString(),
+                }
+            },
+            message: 'File uploaded successfully'
+        });
+    } catch (error) {
+        console.error('[Email Attachment] Upload error:', error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || 'Failed to upload file'
+        });
+    }
+}
+
+/**
+ * Delete email attachment by filename
+ */
+async function deleteEmailAttachment(req, res) {
+    try {
+        const { filename } = req.params;
+        const path = require('path');
+        const fs = require('fs');
+        const filePath = path.join(__dirname, '../../uploads/temp', filename);
+
+        if (!fs.existsSync(filePath)) {
+            return res.status(404).json({
+                success: false,
+                error: 'File not found'
+            });
+        }
+
+        fs.unlinkSync(filePath);
+        return res.status(200).json({
+            success: true,
+            message: 'File deleted successfully'
+        });
+    } catch (error) {
+        console.error('[Email Attachment] Delete error:', error);
+        return res.status(500).json({
+            success: false,
+            error: error.message || 'Failed to delete file'
+        });
+    }
+}
+
+module.exports.uploadAttachment = uploadAttachment;
+module.exports.deleteEmailAttachment = deleteEmailAttachment;

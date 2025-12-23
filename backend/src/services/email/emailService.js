@@ -1,0 +1,481 @@
+const nodemailer = require('nodemailer');
+const emailRepository = require('../../repositories/emailRepository');
+const { encryptSMTPPassword, decryptSMTPPassword } = require('../../utils/encryption');
+const ApiError = require('../../utils/ApiError');
+
+class EmailService {
+    /**
+     * Configure email account for a store (updated for multiple accounts)
+     * @param {string} storeId - Store ID
+     * @param {Object} emailConfig - Email configuration
+     * @param {boolean} setAsPrimary - Set as primary account (default: true if first account)
+     * @returns {Promise<Object>} Created email account (without password)
+     */
+    async configureEmailAccount(storeId, emailConfig, setAsPrimary = null) {
+        const { email, provider, smtpHost, smtpPort, smtpUser, smtpPassword, useTLS = true } = emailConfig;
+
+        // Check if this email already exists for this store
+        const existingAccounts = await emailRepository.getAllEmailAccounts(storeId);
+        const duplicateEmail = existingAccounts.find(acc => acc.email === email);
+        if (duplicateEmail) {
+            throw new ApiError(400, 'This email is already configured for this store');
+        }
+
+        // Determine if this should be primary
+        const accountCount = await emailRepository.countEmailAccounts(storeId);
+        const isPrimary = setAsPrimary !== null ? setAsPrimary : (accountCount === 0);
+
+        // Encrypt the SMTP password
+        const encryptedPassword = encryptSMTPPassword(smtpPassword);
+
+        // If setting as primary, unset current primary first
+        if (isPrimary && accountCount > 0) {
+            const currentPrimary = await emailRepository.getPrimaryEmailAccount(storeId);
+            if (currentPrimary) {
+                await emailRepository.updateEmailAccountById(currentPrimary.id, { isPrimary: false });
+            }
+        }
+
+        // Create email account config
+        const emailAccount = await emailRepository.createEmailAccount({
+            storeId,
+            email,
+            provider,
+            smtpHost,
+            smtpPort,
+            smtpUser,
+            smtpPasswordEncrypted: encryptedPassword,
+            useTLS,
+            isPrimary,
+            isVerified: false,
+        });
+
+        // Return without password
+        return this._maskPassword(emailAccount);
+    }
+
+    /**
+     * Get all email accounts for a store
+     * @param {string} storeId - Store ID
+     * @returns {Promise<Array>} All email accounts (masked passwords, primary first)
+     */
+    async getAllEmailAccounts(storeId) {
+        const accounts = await emailRepository.getAllEmailAccounts(storeId);
+        return accounts.map(account => this._maskPassword(account));
+    }
+
+    /**
+     * Get email account by ID
+     * @param {string} accountId - Account ID
+     * @param {string} storeId - Store ID (for permission check)
+     * @returns {Promise<Object>} Email account (masked password)
+     */
+    async getEmailAccountById(accountId, storeId) {
+        const account = await emailRepository.getEmailAccountById(accountId);
+        if (!account) {
+            throw new ApiError(404, 'Email account not found');
+        }
+        if (account.storeId !== storeId) {
+            throw new ApiError(403, 'Access denied to this email account');
+        }
+        return this._maskPassword(account);
+    }
+
+    /**
+     * Set an email account as primary
+     * @param {string} accountId - Account ID
+     * @param {string} storeId - Store ID (for permission check)
+     * @returns {Promise<Object>} Updated email account
+     */
+    async setPrimaryAccount(accountId, storeId) {
+        // Verify account exists and belongs to store
+        const account = await emailRepository.getEmailAccountById(accountId);
+        if (!account) {
+            throw new ApiError(404, 'Email account not found');
+        }
+        if (account.storeId !== storeId) {
+            throw new ApiError(403, 'Access denied to this email account');
+        }
+
+        const updatedAccount = await emailRepository.setPrimaryAccount(accountId, storeId);
+        return this._maskPassword(updatedAccount);
+    }
+
+    /**
+     * Delete an email account
+     * @param {string} accountId - Account ID
+     * @param {string} storeId - Store ID (for permission check)
+     * @returns {Promise<Object>} Deletion result
+     */
+    async deleteEmailAccountById(accountId, storeId) {
+        // Verify account exists and belongs to store
+        const account = await emailRepository.getEmailAccountById(accountId);
+        if (!account) {
+            throw new ApiError(404, 'Email account not found');
+        }
+        if (account.storeId !== storeId) {
+            throw new ApiError(403, 'Access denied to this email account');
+        }
+
+        // Prevent deleting the only account
+        const accountCount = await emailRepository.countEmailAccounts(storeId);
+        if (accountCount <= 1) {
+            throw new ApiError(400, 'Cannot delete the only email account. Add another account first.');
+        }
+
+        // If deleting primary account, promote another one
+        if (account.isPrimary) {
+            const allAccounts = await emailRepository.getAllEmailAccounts(storeId);
+            const nextAccount = allAccounts.find(acc => acc.id !== accountId);
+            if (nextAccount) {
+                await emailRepository.updateEmailAccountById(nextAccount.id, { isPrimary: true });
+            }
+        }
+
+        await emailRepository.deleteEmailAccountById(accountId);
+        return { success: true, message: 'Email account deleted successfully' };
+    }
+
+    /**
+     * Update email account configuration by ID
+     * @param {string} accountId - Account ID
+     * @param {string} storeId - Store ID (for permission check)
+     * @param {Object} updates - Update data
+     * @returns {Promise<Object>} Updated email account
+     */
+    async updateEmailAccountById(accountId, storeId, updates) {
+        // Verify account exists and belongs to store
+        const account = await emailRepository.getEmailAccountById(accountId);
+        if (!account) {
+            throw new ApiError(404, 'Email account not found');
+        }
+        if (account.storeId !== storeId) {
+            throw new ApiError(403, 'Access denied to this email account');
+        }
+
+        const updateData = { ...updates };
+
+        // Encrypt password if provided
+        if (updates.smtpPassword) {
+            updateData.smtpPasswordEncrypted = encryptSMTPPassword(updates.smtpPassword);
+            delete updateData.smtpPassword;
+        }
+
+        // Don't allow changing isPrimary through this endpoint (use setPrimaryAccount instead)
+        delete updateData.isPrimary;
+
+        const updatedAccount = await emailRepository.updateEmailAccountById(accountId, updateData);
+        return this._maskPassword(updatedAccount);
+    }
+
+    /**
+     * Update email account configuration (DEPRECATED - backward compatibility)
+     * @param {string} storeId - Store ID
+     * @param {Object} updates - Update data
+     * @returns {Promise<Object>} Updated email account
+     */
+    async updateEmailAccount(storeId, updates) {
+        const existingAccount = await emailRepository.getPrimaryEmailAccount(storeId);
+        if (!existingAccount) {
+            throw new ApiError(404, 'Email account not found for this store');
+        }
+
+        const updateData = { ...updates };
+
+        // Encrypt password if provided
+        if (updates.smtpPassword) {
+            updateData.smtpPasswordEncrypted = encryptSMTPPassword(updates.smtpPassword);
+            delete updateData.smtpPassword;
+        }
+
+        const updatedAccount = await emailRepository.updateEmailAccount(storeId, updateData);
+        return this._maskPassword(updatedAccount);
+    }
+
+    /**
+     * Get email account for a store (DEPRECATED - returns primary account for backward compatibility)
+     * @param {string} storeId - Store ID
+     * @returns {Promise<Object|null>} Email account (masked password)
+     */
+    async getEmailAccount(storeId) {
+        const emailAccount = await emailRepository.getPrimaryEmailAccount(storeId);
+        if (!emailAccount) {
+            return null;
+        }
+        return this._maskPassword(emailAccount);
+    }
+
+    /**
+     * Delete email account (DEPRECATED - backward compatibility)
+     * @param {string} storeId - Store ID
+     * @returns {Promise<Object>} Deleted account
+     */
+    async deleteEmailAccount(storeId) {
+        const existingAccount = await emailRepository.getPrimaryEmailAccount(storeId);
+        if (!existingAccount) {
+            throw new ApiError(404, 'Email account not found');
+        }
+
+        return await emailRepository.deleteEmailAccount(storeId);
+    }
+
+    /**
+     * Test SMTP connection for specific account
+     * @param {string} accountId - Account ID to test (optional)
+     * @param {string} storeId - Store ID
+     * @returns {Promise<boolean>} Connection success
+     */
+    async testConnection(accountId, storeId) {
+        let emailAccount;
+        
+        if (accountId) {
+            // Test specific account by ID
+            emailAccount = await emailRepository.getEmailAccountById(accountId);
+            if (!emailAccount || emailAccount.storeId !== storeId) {
+                throw new ApiError(404, 'Email account not found');
+            }
+        } else {
+            // Fallback to primary account
+            emailAccount = await emailRepository.getEmailAccountByStoreId(storeId);
+            if (!emailAccount) {
+                throw new ApiError(404, 'Email account not found');
+            }
+        }
+
+        const decryptedPassword = decryptSMTPPassword(emailAccount.smtpPasswordEncrypted);
+        const transporter = this._createTransporter(emailAccount, decryptedPassword);
+
+        try {
+            await transporter.verify();
+
+            // Update last tested timestamp and verification status
+            await emailRepository.updateEmailAccountById(emailAccount.id, {
+                lastTestedAt: new Date(),
+                isVerified: true,
+                isActive: true,
+            });
+
+            return true;
+        } catch (error) {
+            // Mark as failed
+            await emailRepository.updateEmailAccountById(emailAccount.id, {
+                lastTestedAt: new Date(),
+                isVerified: false,
+                isActive: false,
+            });
+            
+            throw new ApiError(500, `SMTP connection failed: ${error.message}`);
+        }
+    }
+
+    /**
+     * Send a test email
+     * @param {string} storeId - Store ID
+     * @returns {Promise<Object>} Send result
+     */
+    async sendTestEmail(storeId, userId) {
+        const emailAccount = await emailRepository.getEmailAccountByStoreId(storeId);
+        if (!emailAccount) {
+            throw new ApiError(404, 'Email account not found');
+        }
+
+        const emailData = {
+            to: [emailAccount.email],
+            subject: 'Test Email from HopeRx Pharma',
+            bodyHtml: `
+                <html>
+                    <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                        <h2 style="color: #0f172a;">Email Configuration Successful! ✅</h2>
+                        <p>This is a test email to confirm your email configuration is working correctly.</p>
+                        <p>Your pharmacy can now send emails directly from HopeRx Pharma for:</p>
+                        <ul>
+                            <li>Purchase Orders to vendors</li>
+                            <li>Invoices to customers</li>
+                            <li>Reminders to patients</li>
+                            <li>And more!</li>
+                        </ul>
+                        <hr style="border: none; border-top: 1px solid #e2e8f0; margin: 20px 0;">
+                        <p style="font-size: 12px; color: #64748b;">
+                            This email was sent from ${emailAccount.email} via HopeRx Pharma
+                        </p>
+                    </body>
+                </html>
+            `,
+        };
+
+        return await this.sendEmail(storeId, emailData, userId);
+    }
+
+    /**
+     * Send email using store's SMTP configuration
+     * @param {string} storeId - Store ID
+     * @param {Object} emailData - Email data (to, subject, bodyHtml, cc, bcc, attachments, accountId)
+     * @param {string} sentBy - User ID
+     * @param {Object} context - Optional context (type, id)
+     * @returns {Promise<Object>} Send result
+     */
+    async sendEmail(storeId, emailData, sentBy, context = {}) {
+        const { to, subject, bodyHtml, cc = [], bcc = [], attachments = [], accountId } = emailData;
+
+        // Get email account (specific one or primary)
+        let emailAccount;
+        if (accountId) {
+            emailAccount = await emailRepository.getEmailAccountById(accountId);
+            if (!emailAccount || emailAccount.storeId !== storeId) {
+                throw new ApiError(404, 'Email account not found or access denied');
+            }
+        } else {
+            emailAccount = await emailRepository.getPrimaryEmailAccount(storeId);
+            if (!emailAccount) {
+                throw new ApiError(404, 'No email account configured for this store');
+            }
+        }
+
+        if (!emailAccount.isActive) {
+            throw new ApiError(403, 'Email account is inactive');
+        }
+
+        const decryptedPassword = decryptSMTPPassword(emailAccount.smtpPasswordEncrypted);
+        const transporter = this._createTransporter(emailAccount, decryptedPassword);
+
+        // Create log entry with PENDING status
+        const logEntry = await emailRepository.createEmailLog({
+            emailAccountId: emailAccount.id,
+            to: Array.isArray(to) ? to : [to],
+            cc: Array.isArray(cc) ? cc : (cc ? [cc] : []),
+            bcc: Array.isArray(bcc) ? bcc : (bcc ? [bcc] : []),
+            subject,
+            bodyHtml,
+            attachments: attachments.length > 0 ? attachments : null,
+            status: 'PENDING',
+            sentBy,
+            contextType: context.type || null,
+            contextId: context.id || null,
+        });
+
+        try {
+            // Send email
+            const mailOptions = {
+                from: emailAccount.email,
+                to: Array.isArray(to) ? to.join(', ') : to,
+                cc: cc.length > 0 ? (Array.isArray(cc) ? cc.join(', ') : cc) : undefined,
+                bcc: bcc.length > 0 ? (Array.isArray(bcc) ? bcc.join(', ') : bcc) : undefined,
+                subject,
+                html: bodyHtml,
+                attachments: attachments.map(att => ({
+                    filename: att.filename,
+                    path: att.path || att.content,
+                    contentType: att.contentType,
+                })),
+            };
+
+            const info = await transporter.sendMail(mailOptions);
+
+            // Update log entry to SENT
+            await prisma.emailLog.update({
+                where: { id: logEntry.id },
+                data: { status: 'SENT' },
+            });
+
+            return {
+                success: true,
+                messageId: info.messageId,
+                logId: logEntry.id,
+                sentFrom: emailAccount.email, // Include which account was used
+            };
+        } catch (error) {
+            // Update log entry to FAILED
+            await prisma.emailLog.update({
+                where: { id: logEntry.id },
+                data: {
+                    status: 'FAILED',
+                    errorMessage: error.message,
+                },
+            });
+
+            throw new ApiError(500, `Failed to send email: ${error.message}`);
+        }
+    }
+
+    /**
+     * Get email logs for a store
+     * @param {string} storeId - Store ID
+     * @param {Object} filters - Filter options
+     * @returns {Promise<Array>} Email logs
+     */
+    async getEmailLogs(storeId, filters = {}) {
+        return await emailRepository.getEmailLogs(storeId, filters);
+    }
+
+    /**
+     * Retry a failed email
+     * @param {string} logId - Log ID
+     * @param {string} userId - User ID
+     * @returns {Promise<Object>} Send result
+     */
+    async retryFailedEmail(logId, userId) {
+        const log = await emailRepository.getEmailLogById(logId);
+        if (!log) {
+            throw new ApiError(404, 'Email log not found');
+        }
+
+        if (log.status !== 'FAILED') {
+            throw new ApiError(400, 'Only failed emails can be retried');
+        }
+
+        const emailData = {
+            to: log.to,
+            cc: log.cc,
+            bcc: log.bcc,
+            subject: log.subject,
+            bodyHtml: log.bodyHtml,
+            attachments: log.attachments || [],
+        };
+
+        const context = {
+            type: log.contextType,
+            id: log.contextId,
+        };
+
+        return await this.sendEmail(log.emailAccount.storeId, emailData, userId, context);
+    }
+
+    /**
+     * Create Nodemailer transporter
+     * @private
+     */
+    _createTransporter(emailAccount, decryptedPassword) {
+        return nodemailer.createTransport({
+            host: emailAccount.smtpHost,
+            port: emailAccount.smtpPort,
+            secure: emailAccount.useTLS && emailAccount.smtpPort === 465,
+            auth: {
+                user: emailAccount.smtpUser,
+                pass: decryptedPassword,
+            },
+            tls: {
+                rejectUnauthorized: emailAccount.useTLS,
+            },
+        });
+    }
+
+    /**
+     * Mask password in email account object
+     * @private
+     */
+    _maskPassword(emailAccount) {
+        if (!emailAccount) return null;
+
+        const masked = { ...emailAccount };
+        if (masked.smtpPasswordEncrypted) {
+            masked.smtpPasswordEncrypted = '********';
+        }
+        return masked;
+    }
+}
+
+// Need prisma for updating logs
+const { PrismaClient } = require('@prisma/client');
+const prisma = new PrismaClient();
+
+module.exports = new EmailService();
