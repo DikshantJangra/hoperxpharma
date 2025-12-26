@@ -11,7 +11,7 @@ import DeleteInventoryModal from './DeleteInventoryModal';
 import EditDrugModal from './EditDrugModal';
 import { mapDrugToDetailPanel } from '@/lib/utils/drugMapper';
 
-export default function StockDetailPanel({ item, onClose }: any) {
+export default function StockDetailPanel({ item, onClose, onUpdate }: any) {
   const [showAdjustModal, setShowAdjustModal] = useState(false);
   const [showAddBatchModal, setShowAddBatchModal] = useState(false);
   const [showEditDrugModal, setShowEditDrugModal] = useState(false);
@@ -35,7 +35,7 @@ export default function StockDetailPanel({ item, onClose }: any) {
         fetchBatchesWithSuppliers();
       }
     }
-  }, [mappedItem?.id]);
+  }, [mappedItem?.id, item]);
 
   const fetchSupplierInfo = async (batches: any[]) => {
     try {
@@ -403,7 +403,9 @@ export default function StockDetailPanel({ item, onClose }: any) {
           item={mappedItem}
           onClose={() => setShowAdjustModal(false)}
           onSuccess={() => {
-            fetchSupplierInfo(item.inventory || []); // Refresh batches
+            if (onUpdate) onUpdate();
+            fetchBatchesWithSuppliers();
+            router.refresh();
           }}
         />
       )}
@@ -428,7 +430,8 @@ export default function StockDetailPanel({ item, onClose }: any) {
           isOpen={showEditDrugModal}
           onClose={() => setShowEditDrugModal(false)}
           onSuccess={() => {
-            fetchSupplierInfo(item.inventory || []); // Refresh data
+            if (onUpdate) onUpdate();
+            fetchSupplierInfo(item.inventory || []);
             toast.success('Drug information updated');
           }}
         />
@@ -440,7 +443,8 @@ export default function StockDetailPanel({ item, onClose }: any) {
           drugName={mappedItem.name}
           onClose={() => setShowAddBatchModal(false)}
           onSuccess={() => {
-            fetchBatchesWithSuppliers(); // Refresh batches
+            if (onUpdate) onUpdate();
+            fetchBatchesWithSuppliers();
             toast.success('Batch added successfully');
           }}
         />

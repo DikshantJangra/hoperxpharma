@@ -436,7 +436,18 @@ class PrescriptionService {
                     }
                 },
                 refills: {
-                    orderBy: { refillNumber: 'asc' }
+                    orderBy: { refillNumber: 'asc' },
+                    include: {
+                        items: {
+                            include: {
+                                prescriptionItem: {
+                                    include: {
+                                        drug: true
+                                    }
+                                }
+                            }
+                        }
+                    }
                 },
                 files: true
             }
@@ -450,11 +461,28 @@ class PrescriptionService {
             status: prescription.status
         });
 
-        // Fetch audit logs separately (they use entityId, not a direct relation)
+        // Fetch audit logs for prescription AND related refills
         const auditLogs = await prisma.auditLog.findMany({
             where: {
-                entityType: 'Prescription',
-                entityId: id
+                OR: [
+                    {
+                        entityType: 'Prescription',
+                        entityId: id
+                    },
+                    {
+                        entityType: 'Refill',
+                        entityId: {
+                            in: prescription.refills.map(r => r.id)
+                        }
+                    },
+                    {
+                        entityType: 'PrescriptionRefill', // Legacy action type
+                        changes: {
+                            path: ['prescriptionId'],
+                            equals: id
+                        }
+                    }
+                ]
             },
             orderBy: { createdAt: 'desc' },
             include: {
@@ -485,7 +513,13 @@ class PrescriptionService {
                 id: r.id,
                 refillNumber: r.refillNumber,
                 status: r.status,
-                quantityDispensed: r.quantityDispensed
+                quantityDispensed: r.quantityDispensed,
+                itemsCount: r.items?.length || 0,
+                items: r.items?.map(ri => ({
+                    id: ri.id,
+                    drugId: ri.prescriptionItem?.drugId,
+                    dispensedAt: ri.dispensedAt
+                }))
             }))
         });
 

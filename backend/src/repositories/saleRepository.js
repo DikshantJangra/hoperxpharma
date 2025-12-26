@@ -1,6 +1,6 @@
-const database = require('../config/database');
-
-const prisma = database.getClient();
+const { PrismaClient } = require('@prisma/client');
+const fs = require('fs');
+const prisma = new PrismaClient();
 
 /**
  * Sale Repository - Data access layer for sales operations
@@ -134,6 +134,12 @@ class SaleRepository {
      * Create sale with items and payments (transaction)
      */
     async createSale(saleData, items, paymentSplits) {
+        // DEBUG: Log incoming payload
+        try {
+            const fs = require('fs');
+            fs.appendFileSync('/tmp/sale_repo_debug.log', `[${new Date().toISOString()}] createSale called. PrescID: ${saleData.prescriptionId}, CreateRefill: ${saleData.shouldCreateRefill}\nJSON: ${JSON.stringify(saleData)}\n`);
+        } catch (e) { console.error('Log failed', e); }
+
         return await prisma.$transaction(async (tx) => {
             let attachments = [];
 
@@ -161,189 +167,255 @@ class SaleRepository {
                     data: { status: 'COMPLETED', updatedAt: new Date() }
                 });
 
-                // Update RefillItems for medications actually dispensed
-                // Find the most recent AVAILABLE refill for this prescription
-                const activeRefill = await tx.refill.findFirst({
-                    where: {
-                        prescriptionId: saleData.prescriptionId,
-                        status: { in: ['AVAILABLE', 'PARTIALLY_USED'] }
-                    },
-                    orderBy: { createdAt: 'desc' },
-                    include: {
-                        items: {
-                            include: {
-                                prescriptionItem: {
-                                    select: { drugId: true }
-                                }
-                            }
-                        }
-                    }
-                });
+                // CONDITIONAL: Handle Refill Updates
+                // Note: Creation of NEW refills is handled at the end by _processRefillUpdates
+                // Legacy block removed to rely on unified logic
 
-                if (activeRefill && activeRefill.items.length > 0) {
-                    // Build map of drugId to refillItem for fast lookup
-                    const drugToRefillItem = new Map();
-                    activeRefill.items.forEach(ri => {
-                        if (ri.prescriptionItem?.drugId) {
-                            drugToRefillItem.set(ri.prescriptionItem.drugId, ri);
-                        }
-                    });
+                // Create sale
+                // FIX: Extract non-DB fields to prevent Prisma error
+                const { shouldCreateRefill, ...saleDataForDB } = saleData;
 
-                    // Batch update RefillItems
-                    const updatePromises = items.map(saleItem => {
-                        const refillItem = drugToRefillItem.get(saleItem.drugId);
-                        if (refillItem && !refillItem.dispensedAt) {
-                            return tx.refillItem.update({
-                                where: { id: refillItem.id },
-                                data: {
-                                    quantityDispensed: saleItem.quantity,
-                                    dispensedAt: new Date()
-                                }
-                            });
-                        }
-                        return null;
-                    }).filter(Boolean);
-
-                    await Promise.all(updatePromises);
-
-                    // Check completion and update Refill status
-                    const updatedRefillItems = await tx.refillItem.findMany({
-                        where: { refillId: activeRefill.id },
-                        select: { dispensedAt: true }
-                    });
-
-                    const allDispensed = updatedRefillItems.every(item => item.dispensedAt !== null);
-                    const anyDispensed = updatedRefillItems.some(item => item.dispensedAt !== null);
-
-                    const newRefillStatus = allDispensed ? 'FULLY_USED'
-                        : anyDispensed ? 'PARTIALLY_USED'
-                            : 'AVAILABLE';
-
-                    await tx.refill.update({
-                        where: { id: activeRefill.id },
-                        data: { status: newRefillStatus }
-                    });
-
-                    // Create audit log for refill dispensing
-                    await tx.auditLog.create({
-                        data: {
-                            userId: saleData.soldBy,
-                            storeId: saleData.storeId,
-                            action: 'REFILL_DISPENSE',
-                            entityType: 'Refill',
-                            entityId: activeRefill.id,
-                            changes: {
-                                refillNumber: activeRefill.refillNumber,
-                                status: newRefillStatus,
-                                dispensedMedications: items.map(i => ({ drugId: i.drugId, quantity: i.quantity })),
-                                saleId: null // Will be updated after sale creation
-                            }
-                        }
-                    });
-                }
-            }
-
-            // Create sale
-            const sale = await tx.sale.create({
-                data: {
-                    ...saleData,
-                    attachments: attachments.length > 0 ? attachments : undefined
-                },
-            });
-
-            // Batch create sale items (parallel)
-            const saleItemsPromise = tx.saleItem.createMany({
-                data: items.map(item => ({ ...item, saleId: sale.id }))
-            });
-
-            // Batch create payment splits (parallel)
-            const paymentsPromise = tx.paymentSplit.createMany({
-                data: paymentSplits.map(payment => ({ ...payment, saleId: sale.id }))
-            });
-
-            // Wait for both
-            await Promise.all([saleItemsPromise, paymentsPromise]);
-
-            // Handle credit payments
-            const creditPayment = paymentSplits.find(p => p.paymentMethod?.toUpperCase() === 'CREDIT');
-            const creditAmount = creditPayment ? parseFloat(creditPayment.amount) : 0;
-
-            if (creditAmount > 0) {
-                if (!saleData.patientId) {
-                    throw new Error("Customer required for credit sales");
-                }
-
-                const totalAmount = parseFloat(sale.total);
-                const paymentStatus = creditAmount < totalAmount ? 'PARTIAL' : 'UNPAID';
-
-                // Update sale balance
-                await tx.sale.update({
-                    where: { id: sale.id },
-                    data: { balance: creditAmount, paymentStatus }
-                });
-
-                // Update patient balance and create ledger entry (parallel)
-                const updatedPatient = await tx.patient.update({
-                    where: { id: saleData.patientId },
-                    data: { currentBalance: { increment: creditAmount } }
-                });
-
-                tx.customerLedger.create({
+                const sale = await tx.sale.create({
                     data: {
-                        storeId: saleData.storeId,
-                        patientId: saleData.patientId,
-                        type: 'DEBIT',
-                        amount: creditAmount,
-                        balanceAfter: updatedPatient.currentBalance,
-                        referenceType: 'SALE',
-                        referenceId: sale.id,
-                        notes: `Credit Sale: ${saleData.invoiceNumber}`
-                    }
+                        ...saleDataForDB,
+                        attachments: attachments.length > 0 ? attachments : undefined
+                    },
                 });
-            }
 
-            // Update inventory (skip for estimates)
-            if (saleData.invoiceType !== 'ESTIMATE') {
-                // Batch update inventory and create stock movements
-                const inventoryPromises = items.map(async (item) => {
-                    const currentBatch = await tx.inventoryBatch.findUnique({
-                        where: { id: item.batchId },
-                        select: { quantityInStock: true, batchNumber: true, drug: { select: { name: true } } }
+                // Batch create sale items (parallel)
+                const saleItemsPromise = tx.saleItem.createMany({
+                    data: items.map(item => ({ ...item, saleId: sale.id }))
+                });
+
+                // Batch create payment splits (parallel)
+                const paymentsPromise = tx.paymentSplit.createMany({
+                    data: paymentSplits.map(payment => ({ ...payment, saleId: sale.id }))
+                });
+
+                // Wait for both
+                await Promise.all([saleItemsPromise, paymentsPromise]);
+
+                // Handle credit payments
+                const creditPayment = paymentSplits.find(p => p.paymentMethod?.toUpperCase() === 'CREDIT');
+                const creditAmount = creditPayment ? parseFloat(creditPayment.amount) : 0;
+
+                if (creditAmount > 0) {
+                    if (!saleData.patientId) {
+                        throw new Error("Customer required for credit sales");
+                    }
+
+                    const totalAmount = parseFloat(sale.total);
+                    const paymentStatus = creditAmount < totalAmount ? 'PARTIAL' : 'UNPAID';
+
+                    // Update sale balance
+                    await tx.sale.update({
+                        where: { id: sale.id },
+                        data: { balance: creditAmount, paymentStatus }
                     });
 
-                    if (!currentBatch || currentBatch.quantityInStock < item.quantity) {
-                        throw new Error(
-                            `Insufficient stock for ${currentBatch?.drug.name || 'item'} (Batch: ${currentBatch?.batchNumber})`
-                        );
-                    }
+                    // Update patient balance and create ledger entry (parallel)
+                    const updatedPatient = await tx.patient.update({
+                        where: { id: saleData.patientId },
+                        data: { currentBalance: { increment: creditAmount } }
+                    });
 
-                    // Update batch and create movement (parallel)
-                    return Promise.all([
-                        tx.inventoryBatch.update({
+                    tx.customerLedger.create({
+                        data: {
+                            storeId: saleData.storeId,
+                            patientId: saleData.patientId,
+                            type: 'DEBIT',
+                            amount: creditAmount,
+                            balanceAfter: updatedPatient.currentBalance,
+                            referenceType: 'SALE',
+                            referenceId: sale.id,
+                            notes: `Credit Sale: ${saleData.invoiceNumber}`
+                        }
+                    });
+                }
+
+                // Update inventory (skip for estimates)
+                if (saleData.invoiceType !== 'ESTIMATE') {
+                    // Batch update inventory and create stock movements
+                    const inventoryPromises = items.map(async (item) => {
+                        const currentBatch = await tx.inventoryBatch.findUnique({
                             where: { id: item.batchId },
-                            data: { quantityInStock: { decrement: item.quantity } }
-                        }),
-                        tx.stockMovement.create({
-                            data: {
-                                batchId: item.batchId,
-                                movementType: 'OUT',
-                                quantity: item.quantity,
-                                reason: 'Sale',
-                                referenceType: 'sale',
-                                referenceId: sale.id
-                            }
-                        })
-                    ]);
-                });
+                            select: { quantityInStock: true, batchNumber: true, drug: { select: { name: true } } }
+                        });
 
-                await Promise.all(inventoryPromises);
+                        if (!currentBatch || currentBatch.quantityInStock < item.quantity) {
+                            throw new Error(
+                                `Insufficient stock for ${currentBatch?.drug.name || 'item'} (Batch: ${currentBatch?.batchNumber})`
+                            );
+                        }
+
+                        // Update batch and create movement (parallel)
+                        return Promise.all([
+                            tx.inventoryBatch.update({
+                                where: { id: item.batchId },
+                                data: {
+                                    quantityInStock: { decrement: item.quantity }
+                                }
+                            }),
+                            tx.stockMovement.create({
+                                data: {
+                                    // storeId removed as it's not in StockMovement model
+                                    batchId: item.batchId,
+                                    movementType: 'SALE',
+                                    quantity: -item.quantity,
+                                    referenceType: 'SALE', // Explicitly set referenceType
+                                    referenceId: sale.invoiceNumber,
+                                    userId: saleData.soldBy // Mapped from createdBy/soldBy
+                                }
+                            })
+                        ]);
+                    });
+
+                    await Promise.all(inventoryPromises);
+                }
+
+                // 4. Process Refill Updates if linked to a prescription and requested
+                if (saleData.prescriptionId && saleData.shouldCreateRefill) {
+                    await this._processRefillUpdates(tx, sale.id, saleData.prescriptionId, items);
+                }
+
+                return { sale, items: [], payments: [] };
+            }
+        }, {
+            maxWait: 20000,
+            timeout: 20000
+        });
+    }
+
+    /**
+     * Process refill updates and prescription item tracking
+     * @private
+     */
+    async _processRefillUpdates(tx, saleId, prescriptionId, saleItems) {
+        const log = (msg) => fs.appendFileSync('/tmp/refill_debug.log', `[${new Date().toISOString()}] ${msg}\n`);
+        try {
+            log(`START processing refill for Sale ${saleId}, Rx ${prescriptionId}`);
+
+            // 1. Fetch prescription with items to verify
+            const prescription = await tx.prescription.findUnique({
+                where: { id: prescriptionId },
+                include: {
+                    versions: {
+                        orderBy: { versionNumber: 'desc' },
+                        take: 1,
+                        include: { items: true }
+                    }
+                }
+            });
+
+            if (!prescription) {
+                log(`ERROR: Prescription ${prescriptionId} not found`);
+                return;
+            }
+            log(`Prescription found. Versions: ${prescription.versions?.length}`);
+
+            // Flatten items from latest version
+            const prescriptionItems = prescription.versions?.[0]?.items || [];
+            log(`Prescription Items count: ${prescriptionItems.length}`);
+
+            // 2. Identify items that match the prescription
+            // We need to match sale items to prescription items (by drugId)
+            const matchedItems = [];
+
+            for (const soldItem of saleItems) {
+                log(`Checking sold item drugId: ${soldItem.drugId}`);
+                // Find matching prescription item
+                const rxItem = prescriptionItems.find(ri => ri.drugId === soldItem.drugId);
+
+                if (rxItem) {
+                    log(`MATCH FOUND: RxItem ID ${rxItem.id} for Drug ${soldItem.drugId}`);
+                    matchedItems.push({
+                        rxItem,
+                        soldQty: soldItem.quantity
+                    });
+                } else {
+                    log(`NO MATCH for Drug ${soldItem.drugId}`);
+                }
             }
 
-            return { sale, items: [], payments: [] };
-        }, {
-            maxWait: 8000,
-            timeout: 8000
-        });
+            if (matchedItems.length === 0) {
+                log('No matched items found. Exiting.');
+                return;
+            }
+
+            // 3. Create a new Refill Record
+            // Determine next refill number
+            const lastRefill = await tx.refill.findFirst({
+                where: { prescriptionId },
+                orderBy: { refillNumber: 'desc' },
+                select: { refillNumber: true }
+            });
+
+            const nextRefillNumber = (lastRefill?.refillNumber || 0) + 1;
+            log(`Creating Refill #${nextRefillNumber}`);
+
+            // Create the Refill entry
+            const refillQty = matchedItems.reduce((sum, m) => sum + m.soldQty, 0);
+
+            const refill = await tx.refill.create({
+                data: {
+                    prescriptionId,
+                    refillNumber: nextRefillNumber,
+                    authorizedQty: refillQty,
+                    dispensedQty: refillQty,
+                    remainingQty: 0,
+                    status: 'FULLY_USED',
+                    notes: `Dispensed via Sale #${sale.invoiceNumber || saleId}`,
+                }
+            });
+            log(`Refill created with ID: ${refill.id}, Qty: ${refillQty}`);
+
+            // Create RefillItems explicitly using createMany
+            if (matchedItems.length > 0) {
+                await tx.refillItem.createMany({
+                    data: matchedItems.map(m => ({
+                        refillId: refill.id,
+                        prescriptionItemId: m.rxItem.id,
+                        quantityDispensed: m.soldQty,
+                        dispensedAt: new Date()
+                    }))
+                });
+            }
+
+            // 4. Update Prescription Items "quantityUsed"
+            // This is crucial for "Remaining" calculations in frontend
+            for (const match of matchedItems) {
+                await tx.prescriptionItem.update({
+                    where: { id: match.rxItem.id },
+                    data: {
+                        quantityUsed: { increment: match.soldQty }
+                    }
+                });
+            }
+
+            // 5. Create Audit Log
+            await tx.auditLog.create({
+                data: {
+                    userId: 'SYSTEM', // or pass in userId from sale
+                    storeId: prescription.storeId || null, // Context might be needed
+                    action: 'REFILL_DISPENSE',
+                    entityType: 'Refill',
+                    entityId: refill.id,
+                    changes: {
+                        refillNumber: nextRefillNumber,
+                        status: 'FULLY_USED',
+                        dispensedMedications: matchedItems.map(m => ({ drugId: m.rxItem.drugId, quantity: m.soldQty })),
+                        saleId: saleId
+                    }
+                }
+            });
+
+            log(`✅ SUCCESS: Refill #${nextRefillNumber} process completed`);
+
+        } catch (error) {
+            console.error("Failed to process refill updates:", error);
+            // Don't block the sale if refill logic fails, but log it
+            // throw error; // Uncomment if we want strict consistency
+        }
     }
 
     /**

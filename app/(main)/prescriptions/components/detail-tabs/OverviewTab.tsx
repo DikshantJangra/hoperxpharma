@@ -234,27 +234,26 @@ export default function OverviewTab({ prescription }: OverviewTabProps) {
             </div>
 
             <div className="space-y-3">
-              <div className="grid grid-cols-3 gap-3">
+              <div className="flex items-center justify-between">
                 <div>
-                  <label className="text-sm font-medium text-gray-500">Total Allowed</label>
-                  <p className="text-2xl font-bold text-gray-700">{prescription?.totalRefills || 0}</p>
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium text-gray-500">Dispensed</label>
-                  <p className="text-2xl font-bold text-blue-600">{validRefills.length}</p>
-                </div>
-
-                <div>
-                  <label className="text-sm font-medium text-gray-500">Remaining</label>
-                  <p className="text-2xl font-bold text-green-600">
-                    {Math.max(0, (prescription?.totalRefills || 0) - validRefills.length)}
+                  <label className="text-sm font-medium text-gray-500">Refill Capability</label>
+                  <p className="text-lg font-bold text-gray-700">
+                    {prescription?.totalRefills > 0 ? 'Allowed' : 'Not Allowed'}
                   </p>
                 </div>
+                <Badge variant="outline" className={validRefills.length > 0 ? 'bg-blue-50 text-blue-700' : 'bg-gray-50 text-gray-600'}>
+                  {validRefills.length} Dispensed
+                </Badge>
               </div>
 
+              {prescription?.totalRefills > 0 && (
+                <div className="pt-2 text-sm text-gray-500 border-t border-gray-100 mt-2">
+                  Check <span className="font-medium text-blue-600">Refills Tab</span> for detailed per-medication limits and remaining counts.
+                </div>
+              )}
+
               {validRefills.length > 0 && (
-                <div className="pt-3 border-t border-gray-200">
+                <div className="pt-2 border-t border-gray-200 mt-2">
                   <label className="text-sm font-medium text-gray-500">Last Refill</label>
                   <p className="text-sm">
                     {new Date(validRefills[validRefills.length - 1].processedAt || validRefills[validRefills.length - 1].createdAt).toLocaleDateString()}

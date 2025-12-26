@@ -7,7 +7,10 @@ import { toast } from 'sonner';
 import QuarantineModal from './QuarantineModal';
 import AdjustBatchModal from './AdjustBatchModal';
 
+import { useRouter } from 'next/navigation';
+
 export default function BatchDetailDrawer({ batch, onClose }: any) {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'summary' | 'movement' | 'temp'>('summary');
   const [showQuarantine, setShowQuarantine] = useState(false);
   const [showAdjust, setShowAdjust] = useState(false);
@@ -305,6 +308,10 @@ export default function BatchDetailDrawer({ batch, onClose }: any) {
         <AdjustBatchModal
           batch={batch}
           onClose={() => setShowAdjust(false)}
+          onSuccess={() => {
+            router.refresh();
+            // If the parent provided an onSuccess prop, we could call it here too
+          }}
         />
       )}
     </>

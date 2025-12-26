@@ -65,6 +65,7 @@ export interface Sale {
     items: SaleItem[];
     createdAt: string;
     prescriptionId?: string;
+    shouldCreateRefill?: boolean; // Flag to indicate if a new refill should be created
 }
 
 export interface SalesStats {

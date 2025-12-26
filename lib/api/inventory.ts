@@ -110,7 +110,15 @@ export const inventoryApi = {
         if (params.minQuantity) query.append('minQuantity', params.minQuantity.toString());
 
         const response = await apiClient.get(`/inventory/batches?${query.toString()}`);
-        return response; // Return full response with success, data, message
+        return response.data; // Return body with success, data, message
+    },
+
+    /**
+     * Get single batch by ID
+     */
+    async getBatchById(id: string) {
+        const response = await apiClient.get(`/inventory/batches/${id}`);
+        return response.data;
     },
 
     /**
@@ -161,7 +169,7 @@ export const inventoryApi = {
             return { success: true, data: [] };
         }
         const response = await apiClient.get(`/inventory/pos/search?search=${encodeURIComponent(searchTerm)}`);
-        return response; // Return full response with success, data, message
+        return response.data; // Return body with success, data, message
     },
 
     /**

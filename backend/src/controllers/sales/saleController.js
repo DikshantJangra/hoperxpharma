@@ -35,7 +35,6 @@ const getSaleById = asyncHandler(async (req, res) => {
  * Create sale
  */
 const createSale = asyncHandler(async (req, res) => {
-    console.log('🔍 DEBUG Controller: req.body.prescriptionId =', req.body.prescriptionId);
     const saleData = {
         ...req.body,
         storeId: req.storeId,

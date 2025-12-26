@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { FiX, FiAlertCircle } from 'react-icons/fi';
-import { toast } from 'sonner';
+import { toast } from 'react-hot-toast';
 import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation';
 
 export default function AdjustBatchModal({ batch, onClose, onSuccess }: any) {

@@ -118,10 +118,29 @@ export default function StockPage() {
     setSortConfig(null);
   };
 
+  const handleItemUpdate = async () => {
+    // 1. Refresh list
+    setRefreshKey(prev => prev + 1);
+
+    // 2. Refresh selected item details
+    if (selectedItem) {
+      try {
+        const { inventoryApi } = await import('@/lib/api/inventory');
+        const response = await inventoryApi.getDrugById(selectedItem.id);
+        if (response.success && response.data) {
+          setSelectedItem(response.data);
+        }
+      } catch (error) {
+        console.error('Failed to refresh item details:', error);
+      }
+    }
+  };
+
   return (
     <div className="h-screen flex flex-col bg-[#f8fafc]">
       {/* Header */}
       <div className="bg-white border-b border-[#e2e8f0] p-4">
+        {/* ... (header content remains same) ... */}
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-2xl font-bold text-[#0f172a]">Stock</h1>
@@ -200,6 +219,7 @@ export default function StockPage() {
           <StockDetailPanel
             item={selectedItem}
             onClose={() => setSelectedItem(null)}
+            onUpdate={handleItemUpdate}
           />
         )}
       </div>

@@ -31,9 +31,9 @@ export default function PrescriptionDetailPage() {
         fetchPrescription();
     }, [prescriptionId]);
 
-    const fetchPrescription = async () => {
+    const fetchPrescription = async (silent = false) => {
         try {
-            setLoading(true);
+            if (!silent && !prescription) setLoading(true);
             const data = await baseFetch(`/api/v1/prescriptions/${prescriptionId}`);
             setPrescription(data);
         } catch (error: any) {
@@ -97,7 +97,7 @@ export default function PrescriptionDetailPage() {
 
                 <div className="flex items-center gap-2">
                     <StatusBadge status={prescription.status} />
-                    <Button variant="outline" size="sm" onClick={fetchPrescription}>
+                    <Button variant="outline" size="sm" onClick={() => fetchPrescription(false)}>
                         <FiRefreshCw className="h-4 w-4 mr-2" />
                         Refresh
                     </Button>
@@ -138,7 +138,7 @@ export default function PrescriptionDetailPage() {
                 </TabsContent>
 
                 <TabsContent value="refills" className="mt-6">
-                    <RefillsTab prescription={prescription} onUpdate={fetchPrescription} />
+                    <RefillsTab prescription={prescription} onUpdate={() => fetchPrescription(true)} />
                 </TabsContent>
 
                 <TabsContent value="history" className="mt-6">

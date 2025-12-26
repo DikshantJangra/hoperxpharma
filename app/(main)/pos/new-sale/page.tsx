@@ -32,7 +32,8 @@ export default function NewSalePage() {
   const [showSplitPayment, setShowSplitPayment] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [pendingProduct, setPendingProduct] = useState<any>(null);
-  const [saleId] = useState(`S-2025-${Math.floor(Math.random() * 10000).toString().padStart(5, '0')}`);
+  const [editingBasketItemIndex, setEditingBasketItemIndex] = useState<number | null>(null);
+  const [saleId, setSaleId] = useState(`S-2025-${Math.floor(Math.random() * 10000).toString().padStart(5, '0')}`);
   const [currentDraftId, setCurrentDraftId] = useState<string | null>(null);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
@@ -40,10 +41,11 @@ export default function NewSalePage() {
   const [pendingDraft, setPendingDraft] = useState<any>(null);
   const [storeId, setStoreId] = useState<string>('');
   const [showPrescriptionModal, setShowPrescriptionModal] = useState(false);
-  const [linkedPrescriptionId, setLinkedPrescriptionId] = useState<string | null>(null);
+  const [linkedPrescriptionId, setLinkedPrescriptionId] = useState<string | undefined>(undefined);
   const [activePrescription, setActivePrescription] = useState<any>(null);
   const [isLoadingRx, setIsLoadingRx] = useState(false);
   const [invoiceNumber, setInvoiceNumber] = useState('');
+  const [shouldCreateRefill, setShouldCreateRefill] = useState(false); // Track if this sale should create a refill
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Get storeId from localStorage
@@ -121,6 +123,13 @@ export default function NewSalePage() {
           return;
         }
 
+        // FIX: If we are importing a prescription via URL, DO NOT restore drafts
+        const importRxId = searchParams?.get('importRx') || searchParams?.get('prescriptionId');
+        if (importRxId) {
+          console.log('📥 Import detected, skipping draft restoration');
+          return;
+        }
+
         // First check if there's a draft to resume from localStorage
         const resumeDraftStr = localStorage.getItem('resumeDraft');
         if (resumeDraftStr) {
@@ -171,34 +180,74 @@ export default function NewSalePage() {
     return () => clearTimeout(timer);
   }, []);
 
+  // State for loading overlay
+  const [importStatus, setImportStatus] = useState<string | null>(null);
+
   // Handle Import from URL (Redirect from Prescriptions page)
   const searchParams = useSearchParams();
+  const hasImportedRef = useRef(false);
+
   useEffect(() => {
-    const importRxId = searchParams?.get('importRx');
-    if (importRxId && !linkedPrescriptionId && !isLoadingRx) {
+    // Get params with fallbacks
+    const urlPrescriptionId = searchParams?.get('prescriptionId');
+    const importRxId = searchParams?.get('importRx') || urlPrescriptionId;
+    const createRefillParam = searchParams?.get('createRefill');
+    const medicationIdsParam = searchParams?.get('medicationIds');
+
+    console.log('🔗 URL Params detected:', {
+      importRxId,
+      urlPrescriptionId,
+      createRefillParam,
+      medicationIdsParam,
+      currentLinkedRx: linkedPrescriptionId,
+      isLoading: isLoadingRx
+    });
+
+    // Set refill creation flag if present
+    if (createRefillParam === 'true') {
+      if (!shouldCreateRefill) {
+        console.log('🔄 Enabling Refill Creation Mode');
+        setShouldCreateRefill(true);
+      }
+    }
+
+    // Trigger import if we have an ID and haven't imported yet
+    if (importRxId && !linkedPrescriptionId && !isLoadingRx && !hasImportedRef.current) {
+      hasImportedRef.current = true; // Mark as started immediately
       const fetchAndImport = async () => {
         setIsLoadingRx(true);
+        setImportStatus('Initializing prescription import...');
+
         try {
-          console.log("Auto-importing prescription:", importRxId);
+          console.log("🚀 Starting auto-import for:", importRxId);
+          setImportStatus('Fetching prescription details...');
+
           const response = await prescriptionApi.getPrescriptionById(importRxId);
+
           if (response.success && response.data) {
-            await handleImportPrescription(response.data);
+            // Parse medication IDs if present
+            const medicationIdsFilter = medicationIdsParam ? medicationIdsParam.split(',') : undefined;
+            console.log("💊 Filtering medications:", medicationIdsFilter);
+
+            await handleImportPrescription(response.data, medicationIdsFilter);
+
             toast.success('Prescription imported successfully!');
-            // Clear the param from URL without reload to prevent re-import on refresh
+            // Clear the param from URL to prevent re-import loop
             window.history.replaceState({}, '', '/pos/new-sale');
           } else {
-            toast.error('Failed to load prescription for import');
+            toast.error('Failed to load prescription data');
           }
         } catch (error) {
-          console.error("Import error:", error);
-          toast.error('Error importing prescription');
+          console.error('❌ Error importing prescription:', error);
+          toast.error('Failed to import prescription');
         } finally {
           setIsLoadingRx(false);
+          setImportStatus(null);
         }
       };
 
-      // Small delay to ensure everything is ready
-      setTimeout(fetchAndImport, 500);
+      // Run immediately
+      fetchAndImport();
     }
   }, [searchParams, linkedPrescriptionId, isLoadingRx]);
 
@@ -392,9 +441,16 @@ export default function NewSalePage() {
     });
   };
 
+  const handleEditBatch = (item: any, index: number) => {
+    // For editing, we treat the item as the 'pendingProduct' so BatchModal knows what drug to fetch batches for
+    setPendingProduct(item);
+    setEditingBasketItemIndex(index);
+    setShowBatchModal(true);
+  };
+
   const handleBatchSelect = (batch: any) => {
     if (pendingProduct) {
-      // FIX: Check if this batch already exists in basket to prevent duplicates
+      // Create the item object from the selected batch
       const newItem = {
         ...pendingProduct,
         batchId: batch.id,
@@ -402,11 +458,26 @@ export default function NewSalePage() {
         location: batch.location,
         stock: Number(batch.quantityInStock), // Fix N/A issue by ensuring number
         expiryDate: batch.expiryDate,
-        qty: 1,
-        gstRate: pendingProduct.gstRate ? Number(pendingProduct.gstRate) : 5
+        qty: editingBasketItemIndex !== null ? basketItems[editingBasketItemIndex].qty : 1, // Keep existing qty if editing
+        gstRate: pendingProduct.gstRate ? Number(pendingProduct.gstRate) : 5,
+        // Override price if batch has specific MRP/PTR (optional, usually batch price rules)
+        mrp: batch.mrp || pendingProduct.mrp
       };
 
       setBasketItems(prev => {
+        // CASE 1: Editing an existing item in the basket
+        if (editingBasketItemIndex !== null) {
+          const newItems = [...prev];
+          newItems[editingBasketItemIndex] = {
+            ...newItems[editingBasketItemIndex], // Keep other props like discount
+            ...newItem, // Overwrite with new batch details
+            qty: newItems[editingBasketItemIndex].qty // Preserve quantity
+          };
+          toast.success(`Batch updated to ${batch.batchNumber}`);
+          return newItems;
+        }
+
+        // CASE 2: Adding a new item (Duplicate Check)
         const existingIndex = prev.findIndex(item =>
           item.id === newItem.id && item.batchId === newItem.batchId
         );
@@ -426,6 +497,7 @@ export default function NewSalePage() {
     }
     setShowBatchModal(false);
     setPendingProduct(null);
+    setEditingBasketItemIndex(null);
   };
 
   const handleCustomerSelect = (selectedCustomer: any) => {
@@ -433,7 +505,7 @@ export default function NewSalePage() {
     setShowCustomerModal(false);
   };
 
-  const handleImportPrescription = async (rx: any) => {
+  const handleImportPrescription = async (rx: any, medicationIdsFilter?: string[]) => {
     // 0. Validation: Check if a prescription is already linked or items exist
     if (linkedPrescriptionId && linkedPrescriptionId === rx.id) {
       toast.error('This prescription is already imported!');
@@ -441,12 +513,12 @@ export default function NewSalePage() {
     }
 
     // FIX: Clear basket before importing new prescription
-    // "And then from scratch the new basket should be loaded!"
     if (basketItems.length > 0) {
       clearBasket();
-      // Small toast to inform user
       toast.info('Cleared previous basket for new prescription');
     }
+
+    setImportStatus('Setting up customer...');
 
     // 1. Set Customer
     if (rx.patient) {
@@ -476,17 +548,29 @@ export default function NewSalePage() {
     const missingBatches: string[] = [];
     const substitutions: Array<{ drug: string; reason: string; originalBatch?: string; newBatch?: string }> = [];
 
-    // Show loading toast since this might take a moment
-    const loadingToast = toast.loading('Importing prescription items...');
+    setImportStatus('Processing prescription items...');
 
     try {
       if (!rx.items || !Array.isArray(rx.items)) {
         throw new Error('No items found in prescription');
       }
 
+      const totalItems = rx.items.length;
+      let processedCount = 0;
+
       for (const item of rx.items) {
+        processedCount++;
+        setImportStatus(`Processing item ${processedCount} of ${totalItems}...`);
+
         const drugId = item.drug?.id || item.drugId;
         if (!drugId) continue;
+
+        // Filter by specific medications if requested (e.g., for Refills)
+        if (medicationIdsFilter && medicationIdsFilter.length > 0) {
+          if (!medicationIdsFilter.includes(drugId)) {
+            continue;
+          }
+        }
 
         try {
           // Extract batchId - backend returns it as an object if included
@@ -560,15 +644,31 @@ export default function NewSalePage() {
 
                 // Successfully used prescribed batch, skip FEFO
                 continue;
-              } else {
-                // Prescribed batch is out of stock or deleted
-                const batchInfo = item.batch?.batchNumber || 'Unknown';
+              } else if (prescribedBatch) {
+                // FOUND BATCH BUT ZERO STOCK - Add it anyway so user sees it
+                newItems.push({
+                  id: item.drug.id,
+                  name: item.drug.name,
+                  sku: item.drug.sku || item.drug.id,
+                  batchId: prescribedBatch.id,
+                  batchNumber: prescribedBatch.batchNumber,
+                  location: prescribedBatch.location,
+                  expiryDate: prescribedBatch.expiryDate,
+                  stock: Number(prescribedBatch.quantityInStock),
+                  mrp: Number(prescribedBatch.mrp),
+                  qty: Number(item.quantityPrescribed) || 1, // Add requested qty so it shows error
+                  discount: 0,
+                  gstRate: Number(item.drug.gstRate) || 5,
+                  type: 'RX'
+                });
+
+                // Fall through to substitution logging but NOT FEFO (since we forced this batch)
                 substitutions.push({
                   drug: item.drug.name,
-                  reason: prescribedBatch ? 'Prescribed batch is out of stock' : 'Prescribed batch no longer exists',
-                  originalBatch: batchInfo,
+                  reason: 'Prescribed batch is out of stock',
+                  originalBatch: prescribedBatch.batchNumber,
                 });
-                // Fall through to FEFO logic below
+                continue;
               }
             }
           }
@@ -576,8 +676,10 @@ export default function NewSalePage() {
           // If no batch specified or prescribed batch unavailable, use FEFO
           if (!prescribedBatchId || !newItems.find(ni => ni.id === item.drug.id && ni.batchId === prescribedBatchId)) {
             // Fetch batches for this drug
-            const batchResponse = await inventoryApi.getBatches({ drugId: drugId, limit: 10, minQuantity: 1 });
+            const batchResponse = await inventoryApi.getBatches({ drugId: drugId, limit: 10, minQuantity: 0 }); // Allow 0 qty to find at least something
             const batches = (batchResponse as any).data || (batchResponse as any).batches || [];
+
+            // Try to find valid stock first
             const validBatches = Array.isArray(batches) ? batches.filter((b: any) => Number(b.quantityInStock) > 0) : [];
             validBatches.sort((a: any, b: any) => new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime());
 
@@ -607,7 +709,7 @@ export default function NewSalePage() {
                     type: 'RX'
                   });
 
-                  // Track FEFO substitution if original batch was prescribed
+                  // ... substitution tracking ...
                   if (prescribedBatchId && substitutions.findIndex(s => s.drug === item.drug.name) === -1) {
                     substitutions.push({
                       drug: item.drug.name,
@@ -627,7 +729,28 @@ export default function NewSalePage() {
                 });
               }
             } else {
-              missingBatches.push(item.drug?.name || 'Unknown Drug');
+              // NO VALID STOCK FOUND - Add first available batch (even if 0) to show item in POS
+              const anyBatch = batches[0];
+              if (anyBatch) {
+                newItems.push({
+                  id: item.drug.id,
+                  name: item.drug.name,
+                  sku: item.drug.sku || item.drug.id,
+                  batchId: anyBatch.id,
+                  batchNumber: anyBatch.batchNumber,
+                  location: anyBatch.location,
+                  expiryDate: anyBatch.expiryDate,
+                  stock: Number(anyBatch.quantityInStock),
+                  mrp: Number(anyBatch.mrp),
+                  qty: Number(item.quantityPrescribed) || 1, // Show requested
+                  discount: 0,
+                  gstRate: Number(item.drug.gstRate) || 5,
+                  type: 'RX'
+                });
+                missingBatches.push(`${item.drug?.name} (Out of Stock)`);
+              } else {
+                missingBatches.push(item.drug?.name || 'Unknown Drug');
+              }
             }
           }
         } catch (err) {
@@ -638,7 +761,6 @@ export default function NewSalePage() {
 
       if (newItems.length > 0) {
         setBasketItems(newItems); // Replace with new items since we cleared above
-        toast.dismiss(loadingToast);
 
         // Show detailed summary
         if (substitutions.length > 0 || missingBatches.length > 0) {
@@ -679,16 +801,15 @@ export default function NewSalePage() {
           toast.success(`✅ Imported ${newItems.length} items with prescribed batches`);
         }
       } else {
-        toast.dismiss(loadingToast);
         toast.warning('No available batches found for prescription items');
       }
 
     } catch (error) {
       console.error("Import error:", error);
-      toast.dismiss(loadingToast);
       toast.error('Error importing prescription');
     } finally {
       setIsLoadingRx(false);
+      setImportStatus(null);
     }
   };
 
@@ -705,7 +826,7 @@ export default function NewSalePage() {
   const clearBasket = () => {
     setBasketItems([]);
     setCustomer(null);
-    setLinkedPrescriptionId(null);
+    setLinkedPrescriptionId(undefined);
     setActivePrescription(null);
     setCurrentDraftId(null); // Clear draft ID when clearing basket
     localStorage.removeItem('currentDraftId'); // Remove from localStorage
@@ -856,16 +977,23 @@ export default function NewSalePage() {
         items,
         paymentSplits,
         prescriptionId: linkedPrescriptionId, // Link to prescription if imported
+        shouldCreateRefill, // Pass the flag to backend
         invoiceNumber, // Pass the invoice number (manually edited or auto-fetched)
       };
 
       // Ensure prescriptionId is undefined if null to match interface
-      const payload: Partial<Sale> = {
+      console.log('Creating sale with data:', {
         ...saleData,
-        prescriptionId: saleData.prescriptionId || undefined
-      };
+        itemCount: saleData.items.length,
+        hasCustomer: !!saleData.patientId,
+        hasPrescription: !!saleData.prescriptionId,
+        shouldCreateRefill // Add refill creation flag
+      });
 
-      const response = await salesApi.createSale(payload);
+      const response = await salesApi.createSale({
+        ...saleData,
+        shouldCreateRefill // Pass flag to backend
+      });
 
       // Check if sale was created successfully (response has id and invoiceNumber)
       if (response && (response.id || response.invoiceNumber)) {
@@ -884,19 +1012,18 @@ export default function NewSalePage() {
           }
         }
 
-        // Show success toast with invoice number
+        // Show success toast
         toast.success(`${invoiceNumber} created successfully!`, {
           description: `Total: ₹${totals.total.toFixed(2)}`,
-          duration: 5000,
         });
 
-        // Clear basket and reset form
-        clearBasket();
-        setCustomer(null);
+        // Set sale ID for success screen (using invoice number for display)
+        setSaleId(invoiceNumber);
 
-        // Optional: Navigate to invoices tab after a short delay
-        // setTimeout(() => {
-        //   window.location.href = '/pos/invoices';
+        // Show success screen (GPay style animation)
+        setShowSuccess(true);
+
+        // Note: Basket clearing is now handled when user clicks "New Sale" in SuccessScreen
         // }, 2000);
       } else {
         console.error('Sale creation failed - response:', response);
@@ -931,6 +1058,8 @@ export default function NewSalePage() {
   const handleNewSale = () => {
     setShowSuccess(false);
     clearBasket();
+    setCustomer(null);
+    setSaleId(`S-2025-${Math.floor(Math.random() * 10000).toString().padStart(5, '0')}`);
   };
 
   const handleSplitPaymentConfirm = (splits: any) => {
@@ -940,7 +1069,7 @@ export default function NewSalePage() {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-[#f8fafc]">
+    <div className="h-screen flex flex-col bg-[#f8fafc] relative">
       <POSHeader
         saleId={saleId}
         onOpenCustomer={() => setShowCustomerModal(true)}
@@ -974,6 +1103,7 @@ export default function NewSalePage() {
             onUpdateItem={updateBasketItem}
             onRemoveItem={removeBasketItem}
             onClear={clearBasket}
+            onEditBatch={handleEditBatch}
           />
         </div>
 
@@ -1054,6 +1184,27 @@ export default function NewSalePage() {
           onNewSale={handleNewSale}
           onClose={handleNewSale}
         />
+      )}
+      {/* Loading Overlay - Scoped and Minimal */}
+      {importStatus && (
+        <div className="absolute inset-0 z-[50] flex items-center justify-center pointer-events-none">
+          {/* Backdrop only blurring, no color overlay to keep it clean */}
+          <div className="absolute inset-0 bg-white/50 backdrop-blur-[2px]"></div>
+
+          <div className="relative bg-white/90 backdrop-blur-md p-6 rounded-2xl shadow-xl border border-white/20 ring-1 ring-black/5 flex flex-col items-center space-y-4 min-w-[280px] pointer-events-auto transition-all animate-in fade-in zoom-in-95 duration-200">
+            <div className="relative w-10 h-10">
+              <svg className="animate-spin text-blue-600 w-10 h-10" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            </div>
+
+            <div className="text-center space-y-1">
+              <h3 className="text-sm font-bold text-gray-900 tracking-wide uppercase">Importing Prescription</h3>
+              <p className="text-xs text-blue-600 font-medium">{importStatus}</p>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

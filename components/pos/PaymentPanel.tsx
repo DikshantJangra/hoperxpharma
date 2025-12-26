@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import { FiUser, FiCreditCard, FiSmartphone, FiDollarSign, FiUserPlus, FiClock, FiSearch, FiX, FiCheck } from 'react-icons/fi';
 import { BsWallet2 } from 'react-icons/bs';
+import ProcessingLoader from './animations/ProcessingLoader';
 
 export default function PaymentPanel({
   basketItems,
@@ -559,7 +560,7 @@ export default function PaymentPanel({
               }`}
           >
             {actionState.name === 'pay_later' && actionState.status === 'loading' ? (
-              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-indigo-700"></div>
+              <ProcessingLoader size="sm" color="blue" />
             ) : actionState.name === 'pay_later' && actionState.status === 'success' ? (
               <FiCheck className="w-5 h-5" />
             ) : (
@@ -604,7 +605,7 @@ export default function PaymentPanel({
               : 'bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100'
               }`}
           >
-            {actionState.name === 'draft' && actionState.status === 'loading' && <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-gray-700" />}
+            {actionState.name === 'draft' && actionState.status === 'loading' && <ProcessingLoader size="sm" color="teal" />}
             {actionState.name === 'draft' && actionState.status === 'success' && <FiCheck className="w-4 h-4" />}
             <span>Draft (F2)</span>
           </button>
@@ -635,27 +636,33 @@ export default function PaymentPanel({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                onClick={() => setShowFinalizeModal(false)}
-                className="py-3 px-4 border border-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-colors"
-              >
-                Cancel
-              </button>
+            <div className="grid grid-cols-2 gap-3 transition-all duration-300">
+              {/* Hide Cancel button when processing or success */}
+              {actionState.status === 'idle' && (
+                <button
+                  onClick={() => setShowFinalizeModal(false)}
+                  className="py-3 px-4 border border-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+              )}
+
               <button
                 onClick={confirmFinalize}
                 disabled={actionState.status !== 'idle'}
-                className={`py-3 px-4 rounded-xl font-semibold transition-colors shadow-lg flex items-center justify-center gap-2 ${actionState.name === 'complete_sale' && actionState.status === 'success'
-                  ? 'bg-green-600 text-white shadow-green-600/20'
-                  : 'bg-teal-600 text-white hover:bg-teal-700 shadow-teal-600/20'
+                className={`py-3 px-4 rounded-xl font-semibold transition-all duration-300 shadow-lg flex items-center justify-center gap-2 
+                  ${actionState.status !== 'idle' ? 'col-span-2 scale-105' : ''} 
+                  ${actionState.name === 'complete_sale' && actionState.status === 'success'
+                    ? 'bg-green-600 text-white shadow-green-600/20'
+                    : 'bg-teal-600 text-white hover:bg-teal-700 shadow-teal-600/20'
                   }`}
               >
                 {actionState.name === 'complete_sale' && actionState.status === 'loading' ? (
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  <ProcessingLoader size="sm" color="white" />
                 ) : actionState.name === 'complete_sale' && actionState.status === 'success' ? (
-                  <FiCheck className="w-5 h-5" />
+                  <FiCheck className="w-5 h-5 animate-bounce" />
                 ) : null}
-                <span>{actionState.name === 'complete_sale' && actionState.status === 'success' ? 'Success' : 'Complete'}</span>
+                <span>{actionState.name === 'complete_sale' && actionState.status === 'success' ? 'Sale Completed!' : (actionState.status === 'loading' ? 'Processing...' : 'Complete Sale')}</span>
               </button>
             </div>
           </div>

@@ -79,6 +79,12 @@ export default function HistoryTab({ prescription }: HistoryTabProps) {
                         icon: FiCheck,
                         color: 'green',
                         description: 'Prescription dispensed to patient'
+                    },
+                    'REFILL_DISPENSE': {
+                        title: 'Refill Dispensed',
+                        icon: FiCheck,
+                        color: 'blue',
+                        description: 'Medications dispensed via refill'
                     }
                 };
 

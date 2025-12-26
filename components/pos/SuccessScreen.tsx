@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { FiPrinter, FiMessageSquare, FiShoppingCart } from 'react-icons/fi';
 import { FaWhatsapp } from 'react-icons/fa';
+import PremiumSuccess from './animations/PremiumSuccess';
 
 export default function SuccessScreen({ saleData, onNewSale, onClose }: any) {
   const [show, setShow] = useState(false);
@@ -26,16 +27,8 @@ export default function SuccessScreen({ saleData, onNewSale, onClose }: any) {
           }`}
       >
         <div className="relative mb-6">
-          <div className={`w-24 h-24 mx-auto bg-green-100 rounded-full flex items-center justify-center mb-4 transition-all duration-700 delay-200 ${show ? 'scale-100' : 'scale-0'}`}>
-            <svg
-              className={`w-12 h-12 text-green-600 ${show ? 'animate-checkmark' : ''}`}
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth="3"
-            >
-              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-            </svg>
+          <div className="relative mb-6 flex justify-center">
+            <PremiumSuccess />
           </div>
 
           <h2 className="text-2xl font-bold text-gray-900 mb-1">Payment Successful</h2>

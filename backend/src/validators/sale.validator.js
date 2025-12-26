@@ -45,6 +45,7 @@ const saleCreateSchema = z.object({
     soldBy: z.string().cuid().optional(), // Added by middleware
     prescriptionId: z.string().optional().nullable(),
     invoiceNumber: z.string().optional(), // Allow manual override or auto-generated
+    shouldCreateRefill: z.boolean().optional(),
 });
 
 /**
