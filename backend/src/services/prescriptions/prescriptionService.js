@@ -1,101 +1,385 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
+const versionService = require('./versionService');
+const refillService = require('./refillService');
+const dispenseService = require('./dispenseService');
 
+/**
+ * PrescriptionService (Refactored)
+ * Main service for prescription management with new architecture
+ * Manages prescription lifecycle: DRAFT → ACTIVE → COMPLETED/EXPIRED/CANCELLED
+ */
 class PrescriptionService {
-    async createPrescription(data, userId) {
-        const { storeId, patientId, prescriberId, source, priority, items } = data;
-
-        // Build the data object conditionally
-        const prescriptionData = {
-            store: { connect: { id: storeId } },
-            patient: { connect: { id: patientId } },
-            source: source || 'manual',
-            priority: priority || 'Normal',
-            status: 'DRAFT',
-            items: {
-                create: items.map(item => {
-                    const itemData = {
-                        drug: { connect: { id: item.drugId } },
-                        quantityPrescribed: item.quantity,
-                        sig: item.sig,
-                        daysSupply: item.daysSupply,
-                        isControlled: item.isControlled || false
-                    };
-
-                    // Connect batch if specified (for batch-specific prescriptions)
-                    if (item.batchId) {
-                        itemData.batch = { connect: { id: item.batchId } };
-                    }
-
-                    return itemData;
-                })
-            }
-        };
-
-        // Only add prescriber if provided
-        if (prescriberId) {
-            prescriptionData.prescriber = { connect: { id: prescriberId } };
-        }
-
-        // Handle uploaded images/files
-        if (data.files && data.files.length > 0) {
-            // For backward compatibility or easy access
-            prescriptionData.uploadedImages = data.files.map(f => f.url);
-
-            // Prepare PrescriptionFile creation
-            prescriptionData.files = {
-                create: data.files.map(f => ({
-                    fileUrl: f.url,
-                    thumbnailUrl: f.thumbnailUrl || null,
-                    ocrData: f.ocrData || {},
-                    uploadedBy: userId
-                }))
-            };
-        } else if (data.uploadedImages && data.uploadedImages.length > 0) {
-            // Fallback if only uploadedImages string array is passed
-            prescriptionData.uploadedImages = data.uploadedImages;
-        }
-
-        // Create prescription with items and files
-        const prescription = await prisma.prescription.create({
-            data: prescriptionData,
-            include: {
-                items: {
-                    include: {
-                        drug: true,
-                        batch: true  // Include batch info for prescribed batches
-                    }
-                },
-                patient: true,
-                prescriber: true,
-                files: true
-            }
+    /**
+     * Generate unique prescription number for a store
+     */
+    async generatePrescriptionNumber(storeId) {
+        const lastRx = await prisma.prescription.findFirst({
+            where: { storeId },
+            orderBy: { createdAt: 'desc' },
+            select: { prescriptionNumber: true }
         });
 
-        // Log creation
-        await prisma.auditLog.create({
-            data: {
-                storeId: storeId,
-                userId: userId,
-                action: 'PRESCRIPTION_CREATED',
-                entityType: 'Prescription',
-                entityId: prescription.id,
-                changes: { itemCount: items.length, priority, source, filesCount: (data.files?.length || 0) }
-            }
-        });
+        const lastNumber = lastRx?.prescriptionNumber?.match(/\d+$/)?.[0] || '0';
+        const nextNumber = (parseInt(lastNumber) + 1).toString().padStart(6, '0');
 
-        return prescription;
+        return `RX${nextNumber}`;
     }
 
     /**
-     * Verify a prescription (Clinical Check)
-     * Transitions status from DRAFT/AWAITING_AUTH to IN_PROGRESS (Ready for Dispense)
+     * Create a new prescription (NEW ARCHITECTURE)
+     * Creates: Prescription + PrescriptionVersion v1 + Refill records
      */
-    async verifyPrescription(id, userId, notes) {
-        // 1. Get current prescription
+    async createPrescription(data, userId) {
+        const {
+            storeId,
+            patientId,
+            prescriberId,
+            source = 'manual',
+            priority = 'Normal',
+            type = 'REGULAR',
+            totalRefills = 0,
+            expiryDate,
+            items,
+            instructions,
+            files
+        } = data;
+
+        // Generate prescription number
+        const prescriptionNumber = await this.generatePrescriptionNumber(storeId);
+
+        // Calculate expiry date if not provided (default: 1 year)
+        const calculatedExpiryDate = expiryDate || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000);
+
+        // Create prescription + version + refills in transaction
+        const result = await prisma.$transaction(async (tx) => {
+            // 1. Create Prescription (Master Record)
+            const prescriptionData = {
+                storeId,
+                prescriptionNumber,
+                patientId,
+                issueDate: new Date(),
+                expiryDate: calculatedExpiryDate,
+                totalRefills,
+                status: 'DRAFT',
+                type,
+                source,
+                priority
+            };
+
+            if (prescriberId) {
+                prescriptionData.prescriberId = prescriberId;
+            }
+
+            // Handle uploaded images (legacy field)
+            if (files && files.length > 0) {
+                prescriptionData.uploadedImages = files.map(f => f.url);
+            }
+
+            const prescription = await tx.prescription.create({
+                data: prescriptionData
+            });
+
+            // 2. Create PrescriptionVersion v1 (Clinical Snapshot)
+            const version = await tx.prescriptionVersion.create({
+                data: {
+                    prescriptionId: prescription.id,
+                    versionNumber: 1,
+                    instructions,
+                    createdBy: userId,
+                    items: {
+                        create: items.map(item => ({
+                            drugId: item.drugId,
+                            batchId: item.batchId || null,
+                            quantityPrescribed: item.quantity,
+                            sig: item.sig,
+                            daysSupply: item.daysSupply,
+                            substitutionAllowed: item.substitutionAllowed !== false,
+                            isControlled: item.isControlled || false,
+                            refillsAllowed: item.refillsAllowed || 0
+                        }))
+                    }
+                }
+            });
+
+            // 3. Create Refill records
+            const totalQty = items.reduce((sum, item) => sum + item.quantity, 0);
+            const refills = [];
+            for (let i = 0; i <= totalRefills; i++) {
+                refills.push({
+                    prescriptionId: prescription.id,
+                    refillNumber: i,
+                    authorizedQty: totalQty,
+                    dispensedQty: 0,
+                    remainingQty: totalQty,
+                    status: 'AVAILABLE',
+                    expiresAt: calculatedExpiryDate
+                });
+            }
+            await tx.refill.createMany({ data: refills });
+
+            // 4. Create PrescriptionFile records if files provided
+            if (files && files.length > 0) {
+                await tx.prescriptionFile.createMany({
+                    data: files.map(f => ({
+                        prescriptionId: prescription.id,
+                        fileUrl: f.url,
+                        thumbnailUrl: null, // Can be generated later
+                        ocrData: null, // Can be populated via OCR processing
+                        uploadedBy: userId
+                    }))
+                });
+            }
+
+            // 5. Audit log
+            await tx.auditLog.create({
+                data: {
+                    storeId,
+                    userId,
+                    action: 'PRESCRIPTION_CREATED',
+                    entityType: 'Prescription',
+                    entityId: prescription.id,
+                    changes: {
+                        prescriptionNumber,
+                        type,
+                        totalRefills,
+                        itemCount: items.length
+                    }
+                }
+            });
+
+            return prescription.id;
+        });
+
+        // Return complete prescription data
+        return await this.getPrescriptionById(result);
+    }
+
+    /**
+     * Update existing prescription
+     * Used when editing drafts - creates a new version
+     */
+    async updatePrescription(id, data, userId) {
+        const { items, files, instructions, ...prescriptionData } = data;
+
+        const result = await prisma.$transaction(async (tx) => {
+            // 1. Update prescription metadata (only fields that are provided)
+            console.log('[updatePrescription] Received data:', {
+                totalRefills: prescriptionData.totalRefills,
+                status: prescriptionData.status,
+                allData: prescriptionData
+            });
+
+            const updateData = {};
+            if (prescriptionData.patientId) updateData.patientId = prescriptionData.patientId;
+            if (prescriptionData.prescriberId) updateData.prescriberId = prescriptionData.prescriberId;
+            if (prescriptionData.priority) updateData.priority = prescriptionData.priority;
+            if (prescriptionData.source) updateData.source = prescriptionData.source;
+            if (prescriptionData.status) updateData.status = prescriptionData.status;
+            if (prescriptionData.totalRefills !== undefined) updateData.totalRefills = prescriptionData.totalRefills;
+            updateData.updatedAt = new Date();
+
+            console.log('[updatePrescription] Update data:', updateData);
+
+            const prescription = await tx.prescription.update({
+                where: { id },
+                data: updateData
+            });
+
+            console.log('[updatePrescription] ✅ DATABASE UPDATED - Prescription:', {
+                id: prescription.id,
+                totalRefills: prescription.totalRefills,
+                status: prescription.status
+            });
+
+            // Verify by reading back from database
+            const verifyFromDB = await tx.prescription.findUnique({
+                where: { id },
+                select: { id: true, totalRefills: true, status: true }
+            });
+            console.log('[updatePrescription] ✅ VERIFIED FROM DB:', verifyFromDB);
+
+            // 2. Get current version number
+            const currentVersion = await tx.prescriptionVersion.findFirst({
+                where: { prescriptionId: id },
+                orderBy: { versionNumber: 'desc' },
+                select: { versionNumber: true }
+            });
+
+            const newVersionNumber = (currentVersion?.versionNumber || 0) + 1;
+
+            // 3. Create new version with items
+            const version = await tx.prescriptionVersion.create({
+                data: {
+                    prescriptionId: id,
+                    versionNumber: newVersionNumber,
+                    instructions: instructions || null,
+                    createdBy: userId,
+                    items: {
+                        createMany: {
+                            data: items.map(item => ({
+                                drugId: item.drugId,
+                                batchId: item.batchId || null,
+                                quantityPrescribed: item.quantity,
+                                daysSupply: item.daysSupply || null,
+                                sig: item.sig || null,
+                                substitutionAllowed: item.substitutionAllowed ?? true,
+                                isControlled: item.isControlled ?? false,
+                                refillsAllowed: item.refillsAllowed || 0
+                            }))
+                        }
+                    }
+                }
+            });
+
+            // 4. Update Refill records if totalRefills changed
+            if (updateData.totalRefills !== undefined) {
+                // Delete all existing refills
+                await tx.refill.deleteMany({
+                    where: { prescriptionId: id }
+                });
+
+                // Create new refills based on new totalRefills
+                const totalQty = items.reduce((sum, item) => sum + item.quantity, 0);
+                const newTotalRefills = updateData.totalRefills;
+
+                if (newTotalRefills > 0) {
+                    const refills = [];
+                    const calculatedExpiryDate = new Date();
+                    calculatedExpiryDate.setMonth(calculatedExpiryDate.getMonth() + 6);
+
+                    for (let i = 0; i <= newTotalRefills; i++) {
+                        refills.push({
+                            prescriptionId: id,
+                            refillNumber: i,
+                            authorizedQty: totalQty,
+                            dispensedQty: 0,
+                            remainingQty: totalQty,
+                            status: 'AVAILABLE',
+                            expiresAt: calculatedExpiryDate
+                        });
+                    }
+                    await tx.refill.createMany({ data: refills });
+                    console.log(`[updatePrescription] ✅ Created ${refills.length} refill records`);
+                } else {
+                    console.log('[updatePrescription] ✅ No refills created (totalRefills = 0)');
+                }
+            }
+
+            // 5. Create new PrescriptionFile records if files provided
+            if (files && files.length > 0) {
+                await tx.prescriptionFile.createMany({
+                    data: files.map(f => ({
+                        prescriptionId: prescription.id,
+                        fileUrl: f.url,
+                        thumbnailUrl: null,
+                        ocrData: null,
+                        uploadedBy: userId
+                    }))
+                });
+            }
+
+            // 5. Audit log
+            await tx.auditLog.create({
+                data: {
+                    userId,
+                    storeId: prescription.storeId,
+                    action: 'PRESCRIPTION_UPDATE',
+                    entityType: 'Prescription',
+                    entityId: prescription.id,
+                    changes: {
+                        versionNumber: newVersionNumber,
+                        itemCount: items.length
+                    }
+                }
+            });
+
+            return prescription.id;
+        });
+
+        // Return complete prescription data
+        return await this.getPrescriptionById(result);
+    }
+
+    /**
+     * Activate prescription (DRAFT → ACTIVE)
+     * Makes prescription ready for dispensing
+     */
+    async activatePrescription(id, userId) {
         const prescription = await prisma.prescription.findUnique({
+            where: { id }
+        });
+
+        if (!prescription) {
+            throw new Error('Prescription not found');
+        }
+
+        if (prescription.status !== 'DRAFT') {
+            throw new Error(`Cannot activate prescription in ${prescription.status} status`);
+        }
+
+        const updated = await prisma.prescription.update({
             where: { id },
-            include: { items: true }
+            data: {
+                status: 'ACTIVE',
+                updatedAt: new Date()
+            }
+        });
+
+        // Audit log
+        await prisma.auditLog.create({
+            data: {
+                storeId: prescription.storeId,
+                userId,
+                action: 'PRESCRIPTION_ACTIVATED',
+                entityType: 'Prescription',
+                entityId: id,
+                changes: { previousStatus: prescription.status, newStatus: 'ACTIVE' }
+            }
+        });
+
+        return await this.getPrescriptionById(id);
+    }
+
+    /**
+     * Update prescription status based on refills
+     * Call this after refill changes to auto-manage status
+     */
+    async updatePrescriptionStatus(prescriptionId) {
+        const prescription = await prisma.prescription.findUnique({
+            where: { id: prescriptionId },
+            include: { refills: true }
+        });
+
+        if (!prescription) return;
+
+        let newStatus = prescription.status;
+
+        // Check if expired
+        if (new Date() > prescription.expiryDate) {
+            newStatus = 'EXPIRED';
+        }
+        // Check if all refills exhausted
+        else if (await refillService.areAllRefillsExhausted(prescriptionId)) {
+            newStatus = 'COMPLETED';
+        }
+
+        if (newStatus !== prescription.status) {
+            await prisma.prescription.update({
+                where: { id: prescriptionId },
+                data: { status: newStatus }
+            });
+        }
+
+        return newStatus;
+    }
+
+    /**
+     * Edit prescription (creates new version)
+     */
+    async editPrescription(id, data, userId, reason) {
+        const prescription = await prisma.prescription.findUnique({
+            where: { id }
         });
 
         if (!prescription) {
@@ -103,96 +387,125 @@ class PrescriptionService {
         }
 
         if (prescription.status === 'COMPLETED' || prescription.status === 'CANCELLED') {
-            throw new Error(`Cannot verify prescription in ${prescription.status} status`);
+            throw new Error(`Cannot edit prescription in ${prescription.status} status`);
         }
 
-        // 2. Perform automated checks (Placeholder for now, could integrate with drug interaction API)
-        // For now, we assume if the pharmacist clicks "Verify", they have done the checks.
+        // Create new version
+        const newVersion = await versionService.createNewVersion(id, data, userId, reason);
 
-        // 3. Update status and create Dispense Event in a transaction
-        const result = await prisma.$transaction(async (tx) => {
-            // Update Rx Status
-            const updatedRx = await tx.prescription.update({
-                where: { id },
-                data: {
-                    status: 'IN_PROGRESS', // Ready for dispensing
-                    updatedAt: new Date()
+        // Audit log
+        await prisma.auditLog.create({
+            data: {
+                storeId: prescription.storeId,
+                userId,
+                action: 'PRESCRIPTION_EDITED',
+                entityType: 'Prescription',
+                entityId: id,
+                changes: {
+                    versionNumber: newVersion.versionNumber,
+                    reason
                 }
-            });
-
-            // Create Dispense Event (The "Ticket" for the factory floor)
-            const dispenseEvent = await tx.dispenseEvent.create({
-                data: {
-                    prescriptionId: id,
-                    workflowStatus: 'INTAKE', // Starts at Intake -> Verify -> Fill
-                    intakeBy: userId,
-                    intakeAt: new Date(),
-                    verifyBy: userId, // Clinical verification done at this step
-                    verifyAt: new Date()
-                }
-            });
-
-            // Log the action (Audit)
-            await tx.auditLog.create({
-                data: {
-                    storeId: prescription.storeId,
-                    userId: userId,
-                    action: 'PRESCRIPTION_VERIFIED',
-                    entityType: 'Prescription',
-                    entityId: id,
-                    changes: { notes, dispenseEventId: dispenseEvent.id }
-                }
-            });
-
-            return { updatedRx, dispenseEvent };
+            }
         });
 
-        return result;
+        return await this.getPrescriptionById(id);
     }
 
     /**
-     * Get Verified/In-Progress prescriptions for POS
-     * These are active prescriptions not yet converted to a sale
+     * Get prescription by ID with full details
      */
-    async getVerifiedPrescriptions(storeId, search) {
-        const where = {
-            storeId,
-            status: 'IN_PROGRESS', // Prescriptions ready for dispensing
-            sale: null, // Not yet associated with a sale
-            deletedAt: null
-        };
+    async getPrescriptionById(id) {
+        console.log('[getPrescriptionById] 🔍 FETCHING prescription:', id);
 
-        if (search) {
-            where.OR = [
-                { patient: { firstName: { contains: search, mode: 'insensitive' } } },
-                { patient: { lastName: { contains: search, mode: 'insensitive' } } },
-                { patient: { phoneNumber: { contains: search, mode: 'insensitive' } } },
-                { id: { contains: search, mode: 'insensitive' } }
-            ];
-        }
-
-        return await prisma.prescription.findMany({
-            where,
+        const prescription = await prisma.prescription.findUnique({
+            where: { id },
             include: {
                 patient: true,
                 prescriber: true,
-                items: {
+                store: true,
+                versions: {
+                    orderBy: { versionNumber: 'desc' },
+                    take: 1,
                     include: {
-                        drug: true,
-                        batch: true  // Include batch info
+                        items: {
+                            include: {
+                                drug: true,
+                                batch: true
+                            }
+                        }
                     }
                 },
+                refills: {
+                    orderBy: { refillNumber: 'asc' }
+                },
                 files: true
-            },
-            orderBy: { updatedAt: 'desc' },
-            take: 50 // Limit results
+            }
         });
+
+        if (!prescription) return null;
+
+        console.log('[getPrescriptionById] 📦 RAW FROM DATABASE:', {
+            id: prescription.id,
+            totalRefills: prescription.totalRefills,
+            status: prescription.status
+        });
+
+        // Fetch audit logs separately (they use entityId, not a direct relation)
+        const auditLogs = await prisma.auditLog.findMany({
+            where: {
+                entityType: 'Prescription',
+                entityId: id
+            },
+            orderBy: { createdAt: 'desc' },
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                        email: true
+                    }
+                }
+            }
+        });
+
+        // Flatten latest version items for easier access
+        const latestVersion = prescription.versions[0];
+        prescription.items = latestVersion?.items || [];
+        prescription.currentVersion = latestVersion?.versionNumber || 1;
+        prescription.auditLogs = auditLogs;
+
+        console.log('[getPrescriptionById] Returning prescription:', {
+            id: prescription.id,
+            totalRefills: prescription.totalRefills,
+            status: prescription.status,
+            itemsCount: prescription.items.length,
+            refillsCount: prescription.refills?.length || 0,
+            refillsData: prescription.refills?.map(r => ({
+                id: r.id,
+                refillNumber: r.refillNumber,
+                status: r.status,
+                quantityDispensed: r.quantityDispensed
+            }))
+        });
+
+        return prescription;
     }
 
     /**
-     * Get prescriptions by status for a store
+     * Get active prescriptions for a store
+     * (Used in Prescriptions module with filters)
+**
      */
-    async getPrescriptionsByStore(storeId, status, search) {
+    async getPrescriptionsByStore(storeId, filters = {}) {
+        const {
+            status = 'ALL',
+            search = null,
+            type = null,
+            fromDate = null,
+            toDate = null
+        } = filters;
+
         const where = {
             storeId,
             deletedAt: null
@@ -202,11 +515,22 @@ class PrescriptionService {
             where.status = status;
         }
 
+        if (type) {
+            where.type = type;
+        }
+
+        if (fromDate || toDate) {
+            where.createdAt = {};
+            if (fromDate) where.createdAt.gte = new Date(fromDate);
+            if (toDate) where.createdAt.lte = new Date(toDate);
+        }
+
         if (search) {
             where.OR = [
+                { prescriptionNumber: { contains: search, mode: 'insensitive' } },
                 { patient: { firstName: { contains: search, mode: 'insensitive' } } },
                 { patient: { lastName: { contains: search, mode: 'insensitive' } } },
-                { id: { contains: search, mode: 'insensitive' } } // Search by Rx ID
+                { patient: { phoneNumber: { contains: search } } }
             ];
         }
 
@@ -215,16 +539,218 @@ class PrescriptionService {
             include: {
                 patient: true,
                 prescriber: true,
-                items: {
-                    include: {
-                        drug: true,
-                        batch: true  // Include batch info
+                versions: {
+                    orderBy: { versionNumber: 'desc' },
+                    take: 1,
+                    select: {
+                        versionNumber: true,
+                        items: {
+                            include: {
+                                drug: { select: { name: true, form: true } }
+                            }
+                        }
                     }
                 },
-                files: true
+                refills: {
+                    select: {
+                        refillNumber: true,
+                        status: true,
+                        remainingQty: true
+                    }
+                }
             },
-            orderBy: { createdAt: 'desc' }
+            orderBy: { createdAt: 'desc' },
+            take: 100
         });
+    }
+
+    /**
+     * Cancel prescription
+     */
+    async cancelPrescription(id, userId, reason) {
+        const prescription = await prisma.prescription.findUnique({
+            where: { id }
+        });
+
+        if (!prescription) {
+            throw new Error('Prescription not found');
+        }
+
+        // Cancel all remaining refills
+        await refillService.cancelRemainingRefills(id);
+
+        // Update prescription status
+        await prisma.prescription.update({
+            where: { id },
+            data: {
+                status: 'CANCELLED',
+                notes: reason
+            }
+        });
+
+        // Audit log
+        await prisma.auditLog.create({
+            data: {
+                storeId: prescription.storeId,
+                userId,
+                action: 'PRESCRIPTION_CANCELLED',
+                entityType: 'Prescription',
+                entityId: id,
+                changes: { reason }
+            }
+        });
+
+        return await this.getPrescriptionById(id);
+    }
+
+    /**
+     * Get version history for a prescription
+     */
+    async getVersionHistory(id) {
+        return await versionService.getVersionHistory(id);
+    }
+
+    /**
+     * Get refill history for a prescription
+     */
+    async getRefillHistory(id) {
+        return await refillService.getRefillHistory(id);
+    }
+
+    /**
+     * Create quick dispense for Simple Mode (skips workbench)
+     */
+    async createQuickDispense(prescriptionId, userId) {
+        const prescription = await prisma.prescription.findUnique({
+            where: { id: prescriptionId },
+            include: {
+                versions: {
+                    orderBy: { versionNumber: 'desc' },
+                    take: 1,
+                    include: {
+                        items: {
+                            include: {
+                                drug: true,
+                                batch: true
+                            }
+                        }
+                    }
+                },
+                patient: true
+            }
+        });
+
+        if (!prescription) {
+            throw new Error('Prescription not found');
+        }
+
+        if (prescription.status !== 'VERIFIED') {
+            throw new Error('Prescription must be verified before dispensing');
+        }
+
+        // Create dispense event directly (skip INTAKE → FILLING → READY workflow)
+        const dispense = await prisma.dispenseEvent.create({
+            data: {
+                prescriptionId,
+                workflowStatus: 'PENDING_DISPENSE', // Ready for POS checkout
+                initiatedBy: userId,
+                createdAt: new Date()
+            }
+        });
+
+        // Audit log
+        await prisma.auditLog.create({
+            data: {
+                userId,
+                storeId: prescription.storeId,
+                entityType: 'Prescription',
+                entityId: prescriptionId,
+                action: 'QUICK_DISPENSE_CREATED',
+                metadata: {
+                    dispenseId: dispense.id,
+                    mode: 'SIMPLE',
+                    patientName: prescription.patient?.name
+                }
+            }
+        });
+
+        return dispense;
+    }
+
+    /**
+     * Get VERIFIED prescriptions for POS import
+     */
+    async getVerifiedPrescriptions(storeId, search = '') {
+        const where = {
+            storeId,
+            status: 'VERIFIED',
+            deletedAt: null
+        };
+
+        // Add search filter if provided
+        if (search && search.trim()) {
+            where.OR = [
+                { prescriptionNumber: { contains: search, mode: 'insensitive' } },
+                { patient: { firstName: { contains: search, mode: 'insensitive' } } },
+                { patient: { lastName: { contains: search, mode: 'insensitive' } } },
+                { patient: { phoneNumber: { contains: search } } },
+                { id: { contains: search, mode: 'insensitive' } }
+            ];
+        }
+
+        const prescriptions = await prisma.prescription.findMany({
+            where,
+            include: {
+                patient: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                        phoneNumber: true
+                    }
+                },
+                prescriber: {
+                    select: {
+                        id: true,
+                        name: true
+                    }
+                },
+                versions: {
+                    orderBy: { versionNumber: 'desc' },
+                    take: 1,
+                    include: {
+                        items: {
+                            include: {
+                                drug: {
+                                    select: {
+                                        id: true,
+                                        name: true,
+                                        form: true,
+                                        strength: true
+                                    }
+                                },
+                                batch: {
+                                    select: {
+                                        id: true,
+                                        batchNumber: true,
+                                        expiryDate: true,
+                                        mrp: true
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            orderBy: { updatedAt: 'desc' },
+            take: 50
+        });
+
+        // Flatten structure (map version.items to prescription.items)
+        return prescriptions.map(rx => ({
+            ...rx,
+            items: rx.versions[0]?.items || []
+        }));
     }
 }
 

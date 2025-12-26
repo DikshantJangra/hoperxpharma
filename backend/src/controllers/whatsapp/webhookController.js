@@ -8,6 +8,7 @@ const { verifyWebhookSignature, verifyWebhookChallenge } = require('../../utils/
 const whatsappAccountRepo = require('../../repositories/whatsappAccountRepository');
 const conversationRepo = require('../../repositories/conversationRepository');
 const messageRepo = require('../../repositories/messageRepository');
+const templateRepo = require('../../repositories/templateRepository');
 const whatsappService = require('../../services/whatsappService');
 
 /**
@@ -94,13 +95,18 @@ async function processWebhookData(data) {
             // Update last webhook timestamp
             await whatsappAccountRepo.updateWebhookTimestamp(phoneNumberId);
 
-            // Handle different webhook types
-            if (value.messages) {
-                await handleIncomingMessages(value.messages, storeId, account);
-            }
+            // Handle different webhook types based on field
+            const field = change.field;
 
-            if (value.statuses) {
-                await handleStatusUpdates(value.statuses);
+            if (field === 'messages') {
+                if (value.messages) {
+                    await handleIncomingMessages(value.messages, storeId, account);
+                }
+                if (value.statuses) {
+                    await handleStatusUpdates(value.statuses);
+                }
+            } else if (field === 'message_template_status_update') {
+                await handleTemplateStatusUpdate(value, storeId);
             }
         }
     }
@@ -233,3 +239,36 @@ module.exports = {
     handleWebhookVerification,
     handleWebhook,
 };
+
+/**
+ * Handle template status updates (APPROVED, REJECTED, PAUSED)
+ * @param {Object} value - Webhook value
+ * @param {string} storeId - Store ID
+ */
+async function handleTemplateStatusUpdate(value, storeId) {
+    try {
+        const { event, message_template_id, message_template_name, message_template_language, reason } = value;
+
+        console.log(`[Webhook] Template status update: ${message_template_name} -> ${event}`);
+
+        // Find template by name and language (or ID if we stored it)
+        // We use name+language as primary key for templates in Meta
+        const template = await templateRepo.findByNameAndLanguage(
+            storeId,
+            message_template_name,
+            message_template_language
+        );
+
+        if (template) {
+            await templateRepo.updateStatus(template.id, event, {
+                templateId: message_template_id,
+                rejectedReason: reason || null,
+            });
+            console.log(`[Webhook] Updated template ${template.id} status to ${event}`);
+        } else {
+            console.warn(`[Webhook] Template not found for update: ${message_template_name} (${message_template_language})`);
+        }
+    } catch (error) {
+        console.error('[Webhook] Template update error:', error);
+    }
+}

@@ -40,6 +40,16 @@ export const prescriptionApi = {
     return apiClient.delete(`/prescriptions/${id}`);
   },
 
+  // Delete prescription file
+  async deleteFile(prescriptionId: string, fileId: string) {
+    return apiClient.delete(`/prescriptions/${prescriptionId}/files/${fileId}`);
+  },
+
+  // Create refill
+  async createRefill(prescriptionId: string, data: { notes?: string; dispenseNow?: boolean; medicationIds?: string[] }) {
+    return apiClient.post(`/prescriptions/${prescriptionId}/refills`, data);
+  },
+
   // Queue Management
   async getQueue(params?: any) {
     const queryParams = new URLSearchParams();

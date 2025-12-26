@@ -10,6 +10,7 @@ import { useCurrentStore } from '@/hooks/useCurrentStore';
 import ConnectModal from '@/components/integrations/whatsapp/ConnectModal';
 import PhoneVerificationModal from '@/components/integrations/whatsapp/PhoneVerificationModal';
 import ManualSetupModal from '@/components/integrations/whatsapp/ManualSetupModal';
+import PreConnectionEducationModal from '@/components/integrations/whatsapp/PreConnectionEducationModal';
 import TemplateManager from '@/components/integrations/whatsapp/TemplateManager';
 
 const StatCard = ({ icon, label, value, color = 'blue' }: any) => {
@@ -38,9 +39,11 @@ const StatCard = ({ icon, label, value, color = 'blue' }: any) => {
 export default function WhatsAppIntegrationPage() {
   const [connection, setConnection] = useState<WhatsAppConnection | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showEducationModal, setShowEducationModal] = useState(false);
   const [showConnectModal, setShowConnectModal] = useState(false);
   const [showManualSetup, setShowManualSetup] = useState(false);
   const [showPhoneVerification, setShowPhoneVerification] = useState(false);
+  const [sendingTestMessage, setSendingTestMessage] = useState(false);
 
   const { storeId, loading: storeLoading } = useCurrentStore();
 
@@ -91,6 +94,32 @@ export default function WhatsAppIntegrationPage() {
     }
   };
 
+  const handleSendTestMessage = async () => {
+    if (!storeId || !connection?.phoneNumber) return;
+
+    const phoneNumber = prompt(
+      'Enter phone number to send test message (E.164 format, e.g., +919876543210):'
+    );
+
+    if (!phoneNumber) return;
+
+    // Basic validation
+    if (!/^\+\d{10,15}$/.test(phoneNumber)) {
+      alert('Invalid phone number format. Use E.164 format (e.g., +919876543210)');
+      return;
+    }
+
+    try {
+      setSendingTestMessage(true);
+      await whatsappApi.sendTestMessage(storeId, phoneNumber);
+      alert(`✅ Test message sent successfully to ${phoneNumber}!\n\nCheck the phone for delivery.`);
+    } catch (error: any) {
+      alert(`❌ Failed to send test message:\n${error.message}`);
+    } finally {
+      setSendingTestMessage(false);
+    }
+  };
+
   if (loading || storeLoading || !storeId) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-[#f7fafc]">
@@ -111,15 +140,9 @@ export default function WhatsAppIntegrationPage() {
         </div>
         {!isConnected && (
           <div className="flex gap-2">
+            {/* Manual Setup Button removed as per request */}
             <button
-              onClick={() => setShowManualSetup(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 transition-colors"
-            >
-              <FaKey className="h-4 w-4" />
-              Manual Setup
-            </button>
-            <button
-              onClick={() => setShowConnectModal(true)}
+              onClick={() => setShowEducationModal(true)}
               className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-md hover:bg-emerald-700 transition-colors"
             >
               <FaPlug className="h-4 w-4" />
@@ -135,18 +158,32 @@ export default function WhatsAppIntegrationPage() {
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 mb-6">
           <div className="max-w-3xl mx-auto text-center">
             {/* Icon */}
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
-              <FaWhatsapp className="w-8 h-8 text-green-600" />
+            <div className="inline-flex items-center justify-center w-20 h-20 bg-green-100 rounded-full mb-6">
+              <FaWhatsapp className="w-10 h-10 text-green-600" />
             </div>
 
             {/* Title */}
-            <h2 className="text-2xl font-bold text-[#0f172a] mb-2">
-              Connect WhatsApp Business
+            <h2 className="text-2xl font-bold text-[#0f172a] mb-3">
+              WhatsApp not connected
             </h2>
-            <p className="text-gray-600 mb-8">
-              Enable real-time patient communication directly from HopeRx.
-              Your staff can send and receive messages without leaving the platform.
+            <p className="text-gray-600 mb-6 max-w-2xl mx-auto">
+              Connect your WhatsApp Business account to send prescription updates, invoices, and alerts directly to customers.
             </p>
+
+            {/* Important Note */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-8 text-left">
+              <div className="flex items-start gap-3">
+                <FaExclamationTriangle className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                <div>
+                  <h3 className="font-semibold text-blue-900 mb-1 text-sm">
+                    Important Note
+                  </h3>
+                  <p className="text-sm text-blue-800">
+                    WhatsApp requires a Business account. Personal WhatsApp numbers are not supported.
+                  </p>
+                </div>
+              </div>
+            </div>
 
             {/* Benefits Grid */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
@@ -170,20 +207,23 @@ export default function WhatsAppIntegrationPage() {
               />
             </div>
 
-            {/* Warning Banner */}
-            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-              <div className="flex items-start gap-3 text-left">
-                <FaExclamationTriangle className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
-                <div>
-                  <h3 className="font-medium text-yellow-900 mb-1 text-sm">
-                    WhatsApp Not Connected
-                  </h3>
-                  <p className="text-xs text-yellow-800">
-                    Staff cannot send or receive messages until you connect a WhatsApp Business Account.
-                    Messages will appear under <strong>Messages → WhatsApp</strong> once connected.
-                  </p>
-                </div>
-              </div>
+            {/* Primary CTA */}
+            <button
+              onClick={() => setShowEducationModal(true)}
+              className="inline-flex items-center gap-2 px-8 py-3 bg-emerald-600 text-white text-base font-medium rounded-lg hover:bg-emerald-700 transition-colors shadow-sm mb-4"
+            >
+              <FaPlug className="h-5 w-5" />
+              Connect WhatsApp Business
+            </button>
+
+            {/* Secondary Help Link */}
+            <div>
+              <button
+                onClick={() => window.open('https://www.facebook.com/business/help/2169003770027706', '_blank')}
+                className="text-sm text-emerald-600 hover:text-emerald-700 font-medium"
+              >
+                Don't have WhatsApp Business?
+              </button>
             </div>
           </div>
         </div>
@@ -210,6 +250,21 @@ export default function WhatsAppIntegrationPage() {
 
             <div className="flex gap-2">
               <button
+                onClick={() => window.location.href = '/messages/whatsapp'}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 text-white text-sm font-medium rounded-md hover:bg-emerald-700 transition-colors"
+              >
+                <FaWhatsapp className="h-4 w-4" />
+                Go to Inbox
+              </button>
+              <button
+                onClick={handleSendTestMessage}
+                disabled={sendingTestMessage}
+                className="inline-flex items-center gap-2 px-4 py-2 border border-emerald-300 text-emerald-700 text-sm font-medium rounded-md hover:bg-emerald-50 transition-colors disabled:opacity-50"
+              >
+                <FaWhatsapp className="h-4 w-4" />
+                {sendingTestMessage ? 'Sending...' : 'Send Test Message'}
+              </button>
+              <button
                 onClick={() => loadConnection()}
                 className="inline-flex items-center gap-2 px-4 py-2 border border-gray-300 text-gray-700 text-sm font-medium rounded-md hover:bg-gray-50 transition-colors"
               >
@@ -227,8 +282,8 @@ export default function WhatsAppIntegrationPage() {
           </div>
 
           {/* Stats Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="p-4 bg-gray-50 rounded-lg border border-border-gray-200">
               <p className="text-xs font-medium text-gray-500 mb-1 uppercase tracking-wider">Business Name</p>
               <p className="text-base font-semibold text-gray-900">
                 {connection.businessName || 'Not set'}
@@ -257,6 +312,32 @@ export default function WhatsAppIntegrationPage() {
                   : 'Never'}
               </p>
             </div>
+
+            <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+              <p className="text-xs font-medium text-gray-500 mb-1 uppercase tracking-wider">Connection Health</p>
+              <p className="text-base font-semibold">
+                {connection.lastWebhookAt ? (
+                  (() => {
+                    const lastWebhook = new Date(connection.lastWebhookAt);
+                    const hoursSince = (Date.now() - lastWebhook.getTime()) / (1000 * 60 * 60);
+                    if (hoursSince < 1) {
+                      return (
+                        <span className="text-green-600 flex items-center gap-1">
+                          <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                          Healthy
+                        </span>
+                      );
+                    } else if (hoursSince < 24) {
+                      return <span className="text-yellow-600">Active</span>;
+                    } else {
+                      return <span className="text-gray-600">Idle</span>;
+                    }
+                  })()
+                ) : (
+                  <span className="text-gray-500">No Data</span>
+                )}
+              </p>
+            </div>
           </div>
         </div>
       )}
@@ -283,11 +364,31 @@ export default function WhatsAppIntegrationPage() {
       </div>
 
       {/* Modals */}
+      <PreConnectionEducationModal
+        isOpen={showEducationModal}
+        onClose={() => setShowEducationModal(false)}
+        onConnectEmbedded={() => {
+          setShowEducationModal(false);
+          setShowConnectModal(true);
+        }}
+        onConnectManual={() => {
+          setShowEducationModal(false);
+          setShowManualSetup(true);
+        }}
+        onNeedHelp={() => {
+          window.open('https://www.facebook.com/business/help/2169003770027706', '_blank');
+        }}
+      />
+
       {showConnectModal && storeId && (
         <ConnectModal
           storeId={storeId}
           onClose={() => setShowConnectModal(false)}
           onSuccess={handleConnectSuccess}
+          onSwitchToManual={() => {
+            setShowConnectModal(false);
+            setShowManualSetup(true);
+          }}
         />
       )}
 

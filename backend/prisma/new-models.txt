@@ -1,0 +1,124 @@
+-- Add new models to schema.prisma manually
+
+-- Insert these models after the Prescriber model (around line 1056)
+
+model PrescriptionVersion {
+  id                String   @id @default(cuid())
+  prescriptionId    String
+  versionNumber     Int
+  instructions      String?  @db.Text
+  substitutionNotes String?  @db.Text
+  attachments       Json?    // URLs to scans/documents
+  changedReason     String?  // Why this version was created
+  createdBy         String   // User ID who created this version
+  createdAt         DateTime @default(now())
+  
+  prescription Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  items        PrescriptionItemVersion[]
+  dispenses    Dispense[]
+  
+  @@unique([prescriptionId, versionNumber])
+  @@index([prescriptionId])
+  @@index([createdAt])
+}
+
+model PrescriptionItemVersion {
+  id                    String  @id @default(cuid())
+  prescriptionVersionId String
+  drugId                String
+  batchId               String? // Optional: specific batch if prescribed
+  quantityPrescribed    Int
+  sig                   String? // Dosage instructions
+  daysSupply            Int?
+  substitutionAllowed   Boolean @default(true)
+  isControlled          Boolean @default(false)
+
+  prescriptionVersion PrescriptionVersion @relation(fields: [prescriptionVersionId], references: [id], onDelete: Cascade)
+  drug                Drug                @relation(fields: [drugId], references: [id])
+  batch               InventoryBatch?     @relation(fields: [batchId], references: [id])
+
+  @@index([prescriptionVersionId])
+  @@index([drugId])
+  @@index([batchId])
+}
+
+model Refill {
+  id             String       @id @default(cuid())
+  prescriptionId String
+  refillNumber   Int
+  authorizedQty  Int // How much can be dispensed for this refill
+  dispensedQty   Int          @default(0)
+  remainingQty   Int
+  status         RefillStatus @default(AVAILABLE)
+  expiresAt      DateTime?
+  notes          String?
+  
+  prescription Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  dispenses    Dispense[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([prescriptionId, refillNumber])
+  @@index([prescriptionId])
+  @@index([status])
+  @@index([expiresAt])
+}
+
+model Dispense {
+  id                    String         @id @default(cuid())
+  refillId              String
+  prescriptionVersionId String
+  status                DispenseStatus @default(QUEUED)
+  
+  // Workflow tracking
+  queuedAt    DateTime  @default(now())
+  verifyingAt DateTime?
+  fillingAt   DateTime?
+  checkingAt  DateTime?
+  readyAt     DateTime?
+  completedAt DateTime?
+  cancelledAt DateTime?
+  
+  // Staff assignments
+  queuedBy    String? // User ID
+  verifiedBy  String?
+  filledBy    String?
+  checkedBy   String?
+  dispensedBy String?
+  
+  // Quantities
+  quantityDispensed Int?
+  
+  notes              String? @db.Text
+  cancellationReason String?
+  
+  refill              Refill              @relation(fields: [refillId], references: [id], onDelete: Cascade)
+  prescriptionVersion PrescriptionVersion @relation(fields: [prescriptionVersionId], references: [id])
+  sale                Sale?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([refillId])
+  @@index([prescriptionVersionId])
+  @@index([status])
+  @@index([queuedAt])
+  @@index([completedAt])
+}
+
+model PrescriptionFile {
+  id             String   @id @default(cuid())
+  prescriptionId String
+  fileUrl        String
+  fileType       String // "scan", "image", "pdf", "erx"
+  fileName       String?
+  fileSize       Int? // In bytes 
+  uploadedBy     String // User ID
+  uploadedAt     DateTime @default(now())
+  
+  prescription Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  
+  @@index([prescriptionId])
+  @@index([uploadedAt])
+}

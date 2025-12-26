@@ -33,10 +33,37 @@ enum SubscriptionStatus {
 
 enum PrescriptionStatus {
   DRAFT
-  IN_PROGRESS
+  VERIFIED // Was missing
+  ACTIVE
   ON_HOLD
+  EXPIRED
+  COMPLETED
+  CANCELLED
+  // Legacy values - keep for migration compatibility
+  IN_PROGRESS
   AWAITING_AUTH
   PARTIAL_FILLED
+}
+
+enum PrescriptionType {
+  REGULAR
+  ONE_TIME
+}
+
+enum RefillStatus {
+  AVAILABLE
+  PARTIALLY_USED
+  FULLY_USED
+  EXPIRED
+  CANCELLED
+}
+
+enum DispenseStatus {
+  QUEUED
+  VERIFYING
+  FILLING
+  CHECKING
+  READY
   COMPLETED
   CANCELLED
 }
@@ -158,7 +185,8 @@ enum DiscrepancyResolution {
 // ============================================================================
 // CATEGORY 1: CORE INFRASTRUCTURE (12 tables)
 // ============================================================================
-
+// USERS  
+// ============================================================================
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -187,19 +215,18 @@ model User {
   emergencyContactPhone String?
   employeeId            String?   @unique // Internal employee ID
 
-  storeUsers            StoreUser[]
-  auditLogs             AuditLog[]
-  accessLogs            AccessLog[]
-  onboarding            OnboardingProgress?
-  returnsRequested      SupplierReturn[]     @relation("ReturnRequester")
-  returnsApproved       SupplierReturn[]     @relation("ReturnApprover")
-  userRoles             UserRoleAssignment[]
-  adminPin              AdminPin?
-  grns                  GoodsReceivedNote[]
-  savedFilters          SavedFilter[]
-  avatars               UserAvatar[]
-  preferences           Json? // User-specific UI preferences (e.g., keyboard shortcuts)
-  assignedPrescriptions Prescription[]       @relation("AssignedPrescriptions")
+  storeUsers       StoreUser[]
+  auditLogs        AuditLog[]
+  accessLogs       AccessLog[]
+  onboarding       OnboardingProgress?
+  returnsRequested SupplierReturn[]     @relation("ReturnRequester")
+  returnsApproved  SupplierReturn[]     @relation("ReturnApprover")
+  userRoles        UserRoleAssignment[]
+  adminPin         AdminPin?
+  grns             GoodsReceivedNote[]
+  savedFilters     SavedFilter[]
+  avatars          UserAvatar[]
+  preferences      Json? // User-specific UI preferences (e.g., keyboard shortcuts)
 
   // HR Relations
   attendanceLogs     AttendanceLog[]
@@ -504,6 +531,9 @@ model StoreSettings {
   defaultCustomerType String  @default("Walk-in")
   enableGSTBilling    Boolean @default(true)
 
+  // Prescription Workflow Settings
+  workbenchMode String @default("SIMPLE") // "SIMPLE" or "ADVANCED"
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -603,6 +633,10 @@ model Patient {
   gender      String?
   photoUrl    String?
 
+  // Connections
+  relatedTo   PatientRelation[] @relation("SourcePatient")
+  relatedFrom PatientRelation[] @relation("RelatedPatient")
+
   phoneNumber String
   email       String?
 
@@ -622,14 +656,15 @@ model Patient {
   emergencyContactName  String?
   emergencyContactPhone String?
 
-  store         Store              @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  prescriptions Prescription[]
-  sales         Sale[]
-  consents      PatientConsent[]
-  insurance     PatientInsurance[]
-  adherence     PatientAdherence[]
-  auditLogs     PatientAudit[]
-  ledger        CustomerLedger[]
+  store          Store              @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  prescriptions  Prescription[]
+  sales          Sale[]
+  dispensedSales Sale[]             @relation("DispenseFor")
+  consents       PatientConsent[]
+  insurance      PatientInsurance[]
+  adherence      PatientAdherence[]
+  auditLogs      PatientAudit[]
+  ledger         CustomerLedger[]
 
   // Financials
   currentBalance Decimal @default(0.00) @db.Decimal(10, 2) // Positive = Due from customer
@@ -797,8 +832,9 @@ model Drug {
   returnItems       SupplierReturnItem[]
   grnItems          GRNItem[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt                DateTime                  @default(now())
+  updatedAt                DateTime                  @updatedAt
+  prescriptionItemVersions PrescriptionItemVersion[]
 
   @@index([name])
   @@index([hsnCode])
@@ -839,10 +875,11 @@ model InventoryBatch {
   dispenseItems DispenseItem[]
   saleItems     SaleItem[]
 
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
-  deletedAt        DateTime?
-  PrescriptionItem PrescriptionItem[]
+  createdAt                DateTime                  @default(now())
+  updatedAt                DateTime                  @updatedAt
+  deletedAt                DateTime?
+  PrescriptionItem         PrescriptionItem[]
+  prescriptionItemVersions PrescriptionItemVersion[]
 
   @@unique([storeId, batchNumber, drugId])
   @@index([storeId, drugId])
@@ -932,22 +969,20 @@ model InventoryForecast {
 // ============================================================================
 
 model Prescription {
-  id           String  @id @default(cuid())
-  storeId      String
-  patientId    String
-  prescriberId String? // Made optional
-  source       String  @default("manual") // manual, e-rx, fax, phone
-  priority     String  @default("Normal") // Normal, Urgent
-  status       String  @default("DRAFT") // DRAFT, IN_PROGRESS, ON_HOLD, COMPLETED, CANCELLED
+  id                 String             @id @default(cuid())
+  storeId            String
+  prescriptionNumber String
+  patientId          String
+  prescriberId       String? // Made optional
+  issueDate          DateTime           @default(now())
+  expiryDate         DateTime
+  totalRefills       Int                @default(0)
+  status             PrescriptionStatus @default(DRAFT)
+  type               PrescriptionType   @default(REGULAR)
 
-  // Queue Management
-  stage      String  @default("NEW") // NEW, UNVERIFIED, VERIFIED, READY, DELIVERED, ON_HOLD
-  assignedTo String? // User ID who's working on it
-
-  // Refill Tracking
-  refillNumber     Int     @default(0) // 0 = original, 1+ = refill
-  refillsRemaining Int     @default(0)
-  originalRxId     String? // Link to original if refill
+  // Source tracking
+  source   String @default("manual") // manual, e-rx, fax, phone
+  priority String @default("Normal") // Normal, Urgent
 
   // Controlled Substance
   controlledFlag Boolean @default(false)
@@ -961,10 +996,6 @@ model Prescription {
   ocrText        String? // Extracted text
   ocrConfidence  Float? // OCR accuracy score
 
-  // Workflow Timing
-  processingStarted   DateTime?
-  processingCompleted DateTime?
-
   // Reminders
   reminderSent  DateTime?
   nextRefillDue DateTime?
@@ -974,31 +1005,27 @@ model Prescription {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  store        Store       @relation(fields: [storeId], references: [id])
-  patient      Patient     @relation(fields: [patientId], references: [id])
-  prescriber   Prescriber? @relation(fields: [prescriberId], references: [id]) // Made optional
-  assignedUser User?       @relation("AssignedPrescriptions", fields: [assignedTo], references: [id])
+  store      Store       @relation(fields: [storeId], references: [id])
+  patient    Patient     @relation(fields: [patientId], references: [id])
+  prescriber Prescriber? @relation(fields: [prescriberId], references: [id])
 
-  sale Sale?
+  versions PrescriptionVersion[]
+  refills  Refill[]
+  files    PrescriptionFile[]
 
-  items          PrescriptionItem[]
-  dispenseEvents DispenseEvent[]
-  files          PrescriptionFile[]
+  // Sales (one-to-many for refills support)
+  sales Sale[]
+  prescriptionItems PrescriptionItem[]
+  dispenseEvents    DispenseEvent[]
 
-  // Refill chain
-  originalPrescription Prescription?  @relation("RefillChain", fields: [originalRxId], references: [id], onDelete: SetNull, onUpdate: NoAction)
-  refills              Prescription[] @relation("RefillChain")
-
+  @@unique([storeId, prescriptionNumber])
   @@index([storeId])
   @@index([patientId])
   @@index([prescriberId])
   @@index([status])
-  @@index([stage])
-  @@index([assignedTo])
-  @@index([controlledFlag])
+  @@index([type])
   @@index([createdAt])
   @@index([deletedAt])
-  @@index([originalRxId])
 }
 
 model PrescriptionItem {
@@ -1014,6 +1041,7 @@ model PrescriptionItem {
   prescription Prescription    @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
   drug         Drug            @relation(fields: [drugId], references: [id])
   batch        InventoryBatch? @relation(fields: [batchId], references: [id])
+  refillItems  RefillItem[] // Track which refills dispensed this item
 
   @@index([prescriptionId])
   @@index([batchId])
@@ -1038,6 +1066,145 @@ model Prescriber {
   @@unique([storeId, licenseNumber])
   @@index([storeId])
   @@index([licenseNumber])
+  @@index([name]) // For fast name-based search
+  @@index([clinic]) // For fast clinic-based search
+  @@index([storeId, name]) // Composite index for filtered searches
+}
+
+model PrescriptionVersion {
+  id                String   @id @default(cuid())
+  prescriptionId    String
+  versionNumber     Int
+  instructions      String?  @db.Text
+  substitutionNotes String?  @db.Text
+  attachments       Json? // URLs to scans/documents
+  changedReason     String? // Why this version was created
+  createdBy         String // User ID who created this version
+  createdAt         DateTime @default(now())
+
+  prescription Prescription              @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  items        PrescriptionItemVersion[]
+  dispenses    Dispense[]
+
+  @@unique([prescriptionId, versionNumber])
+  @@index([prescriptionId])
+  @@index([createdAt])
+}
+
+model PrescriptionItemVersion {
+  id                    String  @id @default(cuid())
+  prescriptionVersionId String
+  drugId                String
+  batchId               String? // Optional: specific batch if prescribed
+  quantityPrescribed    Int
+  sig                   String? // Dosage instructions
+  daysSupply            Int?
+  substitutionAllowed   Boolean @default(true)
+  isControlled          Boolean @default(false)
+  refillsAllowed        Int     @default(0) // Number of refills allowed for this medication
+
+  prescriptionVersion PrescriptionVersion @relation(fields: [prescriptionVersionId], references: [id], onDelete: Cascade)
+  drug                Drug                @relation(fields: [drugId], references: [id])
+  batch               InventoryBatch?     @relation(fields: [batchId], references: [id])
+
+  @@index([prescriptionVersionId])
+  @@index([drugId])
+  @@index([batchId])
+}
+
+model Refill {
+  id             String       @id @default(cuid())
+  prescriptionId String
+  refillNumber   Int
+  authorizedQty  Int // How much can be dispensed for this refill
+  dispensedQty   Int          @default(0)
+  remainingQty   Int
+  status         RefillStatus @default(AVAILABLE)
+  expiresAt      DateTime?
+  notes          String?
+
+  prescription Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  dispenses    Dispense[]
+  items        RefillItem[] // Per-medication refill tracking
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([prescriptionId, refillNumber])
+  @@index([prescriptionId])
+  @@index([status])
+  @@index([expiresAt])
+}
+
+model RefillItem {
+  id                  String   @id @default(cuid())
+  refillId            String
+  prescriptionItemId  String
+  quantityDispensed   Int      @default(0)
+  dispensedAt         DateTime?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  
+  refill              Refill            @relation(fields: [refillId], references: [id], onDelete: Cascade)
+  prescriptionItem    PrescriptionItem  @relation(fields: [prescriptionItemId], references: [id])
+  
+  @@index([refillId])
+  @@index([prescriptionItemId])
+}
+
+model Dispense {
+  id                    String         @id @default(cuid())
+  refillId              String
+  prescriptionVersionId String
+  status                DispenseStatus @default(QUEUED)
+
+  // Workflow tracking
+  queuedAt    DateTime  @default(now())
+  verifyingAt DateTime?
+  fillingAt   DateTime?
+  checkingAt  DateTime?
+  readyAt     DateTime?
+  completedAt DateTime?
+  cancelledAt DateTime?
+
+  // Staff assignments
+  queuedBy    String? // User ID
+  verifiedBy  String?
+  filledBy    String?
+  checkedBy   String?
+  dispensedBy String?
+
+  // Quantities
+  quantityDispensed Int?
+
+  notes              String? @db.Text
+  cancellationReason String?
+
+  refill              Refill              @relation(fields: [refillId], references: [id], onDelete: Cascade)
+  prescriptionVersion PrescriptionVersion @relation(fields: [prescriptionVersionId], references: [id])
+  sale                Sale?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([refillId])
+  @@index([prescriptionVersionId])
+  @@index([status])
+  @@index([queuedAt])
+  @@index([completedAt])
+}
+
+model PrescriptionFile {
+  id             String       @id @default(cuid())
+  prescriptionId String
+  fileUrl        String
+  thumbnailUrl   String?
+  ocrData        Json?
+  uploadedBy     String
+  createdAt      DateTime     @default(now())
+  prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+
+  @@index([prescriptionId])
 }
 
 model DispenseEvent {
@@ -1666,12 +1833,13 @@ model SupplierReturnItem {
 // ============================================================================
 
 model Sale {
-  id            String      @id @default(cuid())
-  storeId       String
-  invoiceNumber String      @unique
-  invoiceType   InvoiceType @default(RECEIPT)
-  status        SaleStatus  @default(COMPLETED)
-  patientId     String?
+  id                   String      @id @default(cuid())
+  storeId              String
+  invoiceNumber        String      @unique
+  invoiceType          InvoiceType @default(RECEIPT)
+  status               SaleStatus  @default(COMPLETED)
+  patientId            String?
+  dispenseForPatientId String?
 
   subtotal       Decimal @db.Decimal(10, 2)
   discountAmount Decimal @default(0) @db.Decimal(10, 2)
@@ -1687,15 +1855,18 @@ model Sale {
 
   attachments Json? // Array of { name, url, type }
 
-  store          Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  prescription   Prescription?  @relation(fields: [prescriptionId], references: [id])
-  prescriptionId String?        @unique
-  patient        Patient?       @relation(fields: [patientId], references: [id])
-  originalSale   Sale?          @relation("CreditNotes", fields: [originalSaleId], references: [id])
-  creditNotes    Sale[]         @relation("CreditNotes")
-  items          SaleItem[]
-  paymentSplits  PaymentSplit[]
-  refunds        SaleRefund[]
+  store              Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  prescription       Prescription?  @relation(fields: [prescriptionId], references: [id])
+  prescriptionId     String?
+  dispense           Dispense?      @relation(fields: [dispenseId], references: [id])
+  dispenseId         String?        @unique
+  patient            Patient?       @relation(fields: [patientId], references: [id])
+  dispenseForPatient Patient?       @relation("DispenseFor", fields: [dispenseForPatientId], references: [id])
+  originalSale       Sale?          @relation("CreditNotes", fields: [originalSaleId], references: [id])
+  creditNotes        Sale[]         @relation("CreditNotes")
+  items              SaleItem[]
+  paymentSplits      PaymentSplit[]
+  refunds            SaleRefund[]
 
   // NEW: Bill-wise settlement fields
   balance       Decimal             @default(0.00) @db.Decimal(10, 2)
@@ -1789,10 +1960,11 @@ model SaleDraft {
   customerId    String? // Patient ID if selected
 
   // Serialized basket data
-  items     Json // Array of {drugId, batchId, quantity, mrp, discount, gstRate}
-  subtotal  Decimal @db.Decimal(10, 2)
-  taxAmount Decimal @db.Decimal(10, 2)
-  total     Decimal @db.Decimal(10, 2)
+  items       Json // Array of {drugId, batchId, quantity, mrp, discount, gstRate}
+  dispenseFor Json? // { id, firstName, lastName, relationType }
+  subtotal    Decimal @db.Decimal(10, 2)
+  taxAmount   Decimal @db.Decimal(10, 2)
+  total       Decimal @db.Decimal(10, 2)
 
   createdBy String
   expiresAt DateTime // Auto-delete after 7 days
@@ -2728,20 +2900,6 @@ model PatientAudit {
   @@index([patientId, createdAt])
 }
 
-model PrescriptionFile {
-  id             String   @id @default(cuid())
-  prescriptionId String
-  fileUrl        String
-  thumbnailUrl   String?
-  ocrData        Json? // Extracted data
-  uploadedBy     String
-  createdAt      DateTime @default(now())
-
-  prescription Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
-
-  @@index([prescriptionId])
-}
-
 // ============================================================================
 // CATEGORY 11: AVATAR STORAGE (R2)
 // ============================================================================
@@ -2777,27 +2935,27 @@ model AvatarObject {
 // ============================================================================
 
 model EmailAccount {
-  id                   String   @id @default(cuid())
-  storeId              String
-  email                String
-  provider             String
-  smtpHost             String
-  smtpPort             Int
-  smtpUser             String
-  smtpPasswordEncrypted String  @db.Text
-  useTLS               Boolean  @default(true)
-  isPrimary    Boolean   @default(false)
-  isVerified   Boolean   @default(false)
-  isActive     Boolean   @default(true)
-  lastTestedAt DateTime?
-  
+  id                    String    @id @default(cuid())
+  storeId               String
+  email                 String
+  provider              String
+  smtpHost              String
+  smtpPort              Int
+  smtpUser              String
+  smtpPasswordEncrypted String    @db.Text
+  useTLS                Boolean   @default(true)
+  isPrimary             Boolean   @default(false)
+  isVerified            Boolean   @default(false)
+  isActive              Boolean   @default(true)
+  lastTestedAt          DateTime?
+
   store      Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
   sentEmails EmailLog[]
   templates  EmailTemplate[]
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   @@unique([storeId, email])
   @@index([storeId, isPrimary])
   @@index([email])
@@ -2813,12 +2971,12 @@ model EmailTemplate {
   category       String   @default("general")
   tags           String[] @default([])
   isBuiltIn      Boolean  @default(false)
-  
+
   emailAccount EmailAccount @relation(fields: [emailAccountId], references: [id], onDelete: Cascade)
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   @@index([emailAccountId])
   @@index([emailAccountId, category])
 }
@@ -2837,12 +2995,12 @@ model EmailLog {
   sentBy         String
   contextType    String?
   contextId      String?
-  
+
   emailAccount EmailAccount @relation(fields: [emailAccountId], references: [id], onDelete: Cascade)
-  
-  createdAt DateTime @default(now())
+
+  createdAt DateTime  @default(now())
   sentAt    DateTime?
-  
+
   @@index([emailAccountId, createdAt])
   @@index([status])
   @@index([contextType, contextId])
@@ -2853,4 +3011,18 @@ enum EmailStatus {
   SENT
   FAILED
   BOUNCED
+}
+
+model PatientRelation {
+  id               String   @id @default(cuid())
+  patientId        String
+  relatedPatientId String
+  relationType     String // e.g. "FAMILY", "PARENT", "CHILD", "SIBLING"
+  createdAt        DateTime @default(now())
+
+  patient        Patient @relation("SourcePatient", fields: [patientId], references: [id], onDelete: Cascade)
+  relatedPatient Patient @relation("RelatedPatient", fields: [relatedPatientId], references: [id], onDelete: Cascade)
+
+  @@unique([patientId, relatedPatientId])
+  @@index([patientId])
 }

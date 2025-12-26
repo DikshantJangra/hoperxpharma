@@ -9,7 +9,7 @@ class SaleRepository {
     /**
      * Find sales with pagination
      */
-    async findSales({ storeId, page = 1, limit = 20, patientId, startDate, endDate }) {
+    async findSales({ storeId, page = 1, limit = 20, patientId, startDate, endDate, paymentMethod, invoiceType, paymentStatus, hasPrescription, sortBy = 'createdAt', sortOrder = 'desc' }) {
         const skip = (page - 1) * limit;
         const take = parseInt(limit, 10); // Convert to integer for Prisma
 
@@ -23,7 +23,35 @@ class SaleRepository {
                     lte: new Date(endDate),
                 },
             }),
+            ...(paymentMethod && paymentMethod !== 'all' && {
+                paymentSplits: {
+                    some: {
+                        paymentMethod: paymentMethod.toUpperCase()
+                    }
+                }
+            }),
+            ...(invoiceType && invoiceType !== 'all' && {
+                invoiceType: invoiceType === 'gst' ? 'GST_INVOICE' :
+                    invoiceType === 'credit' ? 'CREDIT_NOTE' :
+                        'REGULAR_INVOICE'
+            }),
+            ...(paymentStatus && paymentStatus !== 'all' && {
+                paymentStatus: paymentStatus.toUpperCase()
+            }),
+            ...(hasPrescription !== undefined && {
+                prescriptionId: hasPrescription === 'true' || hasPrescription === true ? { not: null } : null
+            }),
         };
+
+        // Build orderBy based on sortBy field
+        let orderBy = {};
+        if (sortBy === 'amount') {
+            orderBy = { total: sortOrder };
+        } else if (sortBy === 'invoice') {
+            orderBy = { invoiceNumber: sortOrder };
+        } else {
+            orderBy = { createdAt: sortOrder };
+        }
 
         const [sales, total] = await Promise.all([
             prisma.sale.findMany({
@@ -32,6 +60,14 @@ class SaleRepository {
                 take,
                 include: {
                     patient: {
+                        select: {
+                            id: true,
+                            firstName: true,
+                            lastName: true,
+                            phoneNumber: true,
+                        },
+                    },
+                    dispenseForPatient: {
                         select: {
                             id: true,
                             firstName: true,
@@ -52,7 +88,7 @@ class SaleRepository {
                     },
                     paymentSplits: true,
                 },
-                orderBy: { createdAt: 'desc' },
+                orderBy,
             }),
             prisma.sale.count({ where }),
         ]);
@@ -68,6 +104,7 @@ class SaleRepository {
             where: { id, deletedAt: null },
             include: {
                 patient: true,
+                dispenseForPatient: true,
                 store: {
                     include: {
                         settings: true // Include settings which contains invoiceFormat and footerText
@@ -98,36 +135,115 @@ class SaleRepository {
      */
     async createSale(saleData, items, paymentSplits) {
         return await prisma.$transaction(async (tx) => {
-            // If prescription ID is linked, fetch it to get attachments
             let attachments = [];
 
+            // Optimize: Only fetch prescription if it exists (single query with minimal fields)
             if (saleData.prescriptionId) {
                 const rx = await tx.prescription.findUnique({
                     where: { id: saleData.prescriptionId },
-                    include: { files: true }
+                    select: {
+                        id: true,
+                        files: { select: { fileUrl: true } }
+                    }
                 });
 
-                if (rx && rx.files && rx.files.length > 0) {
+                if (rx?.files?.length > 0) {
                     attachments = rx.files.map(f => ({
-                        name: 'Prescription Attachment',
-                        url: f.url,
-                        type: f.fileType || 'image'
+                        name: 'Prescription',
+                        url: f.fileUrl,
+                        type: 'image'
                     }));
                 }
 
-                // Update Prescription Status
-                await tx.prescription.update({
+                // Update prescription status (no await needed, will commit with transaction)
+                tx.prescription.update({
                     where: { id: saleData.prescriptionId },
-                    data: {
-                        status: 'COMPLETED',
-                        stage: 'DELIVERED', // or 'DISPENSED'
-                        updatedAt: new Date()
+                    data: { status: 'COMPLETED', updatedAt: new Date() }
+                });
+
+                // Update RefillItems for medications actually dispensed
+                // Find the most recent AVAILABLE refill for this prescription
+                const activeRefill = await tx.refill.findFirst({
+                    where: {
+                        prescriptionId: saleData.prescriptionId,
+                        status: { in: ['AVAILABLE', 'PARTIALLY_USED'] }
+                    },
+                    orderBy: { createdAt: 'desc' },
+                    include: {
+                        items: {
+                            include: {
+                                prescriptionItem: {
+                                    select: { drugId: true }
+                                }
+                            }
+                        }
                     }
                 });
+
+                if (activeRefill && activeRefill.items.length > 0) {
+                    // Build map of drugId to refillItem for fast lookup
+                    const drugToRefillItem = new Map();
+                    activeRefill.items.forEach(ri => {
+                        if (ri.prescriptionItem?.drugId) {
+                            drugToRefillItem.set(ri.prescriptionItem.drugId, ri);
+                        }
+                    });
+
+                    // Batch update RefillItems
+                    const updatePromises = items.map(saleItem => {
+                        const refillItem = drugToRefillItem.get(saleItem.drugId);
+                        if (refillItem && !refillItem.dispensedAt) {
+                            return tx.refillItem.update({
+                                where: { id: refillItem.id },
+                                data: {
+                                    quantityDispensed: saleItem.quantity,
+                                    dispensedAt: new Date()
+                                }
+                            });
+                        }
+                        return null;
+                    }).filter(Boolean);
+
+                    await Promise.all(updatePromises);
+
+                    // Check completion and update Refill status
+                    const updatedRefillItems = await tx.refillItem.findMany({
+                        where: { refillId: activeRefill.id },
+                        select: { dispensedAt: true }
+                    });
+
+                    const allDispensed = updatedRefillItems.every(item => item.dispensedAt !== null);
+                    const anyDispensed = updatedRefillItems.some(item => item.dispensedAt !== null);
+
+                    const newRefillStatus = allDispensed ? 'FULLY_USED'
+                        : anyDispensed ? 'PARTIALLY_USED'
+                            : 'AVAILABLE';
+
+                    await tx.refill.update({
+                        where: { id: activeRefill.id },
+                        data: { status: newRefillStatus }
+                    });
+
+                    // Create audit log for refill dispensing
+                    await tx.auditLog.create({
+                        data: {
+                            userId: saleData.soldBy,
+                            storeId: saleData.storeId,
+                            action: 'REFILL_DISPENSE',
+                            entityType: 'Refill',
+                            entityId: activeRefill.id,
+                            changes: {
+                                refillNumber: activeRefill.refillNumber,
+                                status: newRefillStatus,
+                                dispensedMedications: items.map(i => ({ drugId: i.drugId, quantity: i.quantity })),
+                                saleId: null // Will be updated after sale creation
+                            }
+                        }
+                    });
+                }
             }
 
             // Create sale
-
             const sale = await tx.sale.create({
                 data: {
                     ...saleData,
@@ -135,145 +251,98 @@ class SaleRepository {
                 },
             });
 
-            /* 
-            // Previous code block removed:
-            // If prescription ID is linked, update its status
-            if (saleData.prescriptionId) { ... } 
-            */
+            // Batch create sale items (parallel)
+            const saleItemsPromise = tx.saleItem.createMany({
+                data: items.map(item => ({ ...item, saleId: sale.id }))
+            });
 
-            // Create sale items
-            const saleItems = await Promise.all(
-                items.map((item) =>
-                    tx.saleItem.create({
-                        data: {
-                            ...item,
-                            saleId: sale.id,
-                        },
-                    })
-                )
-            );
+            // Batch create payment splits (parallel)
+            const paymentsPromise = tx.paymentSplit.createMany({
+                data: paymentSplits.map(payment => ({ ...payment, saleId: sale.id }))
+            });
 
-            // Create payment splits
-            const payments = await Promise.all(
-                paymentSplits.map((payment) =>
-                    tx.paymentSplit.create({
-                        data: {
-                            ...payment,
-                            saleId: sale.id,
-                        },
-                    })
-                )
-            );
+            // Wait for both
+            await Promise.all([saleItemsPromise, paymentsPromise]);
 
-            // Calculate total credit amount used in this sale
-            // FIX: Case-insensitive check for CREDIT
-            const creditPayment = paymentSplits.find(p => p.paymentMethod && p.paymentMethod.toUpperCase() === 'CREDIT');
+            // Handle credit payments
+            const creditPayment = paymentSplits.find(p => p.paymentMethod?.toUpperCase() === 'CREDIT');
             const creditAmount = creditPayment ? parseFloat(creditPayment.amount) : 0;
-
-            console.log(`[SaleRepository] Creating Sale: PatientID=${saleData.patientId}, CreditAmount=${creditAmount}, Splits=${JSON.stringify(paymentSplits)}`);
-
-            // Set initial balance and status
-            let saleBalance = 0;
-            let paymentStatus = 'PAID'; // Default for fully paid
-
-            if (creditAmount > 0) {
-                saleBalance = creditAmount;
-                paymentStatus = 'UNPAID';
-                // If there were other payments (e.g. partial cash), status might be PARTIAL essentially,
-                // but for simplified tracking, if there is ANY credit, it is UNPAID/PARTIAL depending on logic.
-                // Let's stick to UNPAID if full credit, or PARTIAL if mixed.
-                const totalAmount = parseFloat(sale.total);
-                if (creditAmount < totalAmount) {
-                    paymentStatus = 'PARTIAL';
-                }
-            }
-
-            // Update Sale with balance info (if credit used)
-            if (creditAmount > 0) {
-                await tx.sale.update({
-                    where: { id: sale.id },
-                    data: {
-                        balance: creditAmount,
-                        paymentStatus: paymentStatus
-                    }
-                });
-            }
 
             if (creditAmount > 0) {
                 if (!saleData.patientId) {
-                    throw new Error("Customer is required for Credit/Pay Later sales.");
+                    throw new Error("Customer required for credit sales");
                 }
 
-                // 1. Update Patient Balance (Increase Debt)
-                const updatedPatient = await tx.patient.update({
-                    where: { id: saleData.patientId },
-                    data: {
-                        currentBalance: {
-                            increment: creditAmount
-                        }
-                    }
+                const totalAmount = parseFloat(sale.total);
+                const paymentStatus = creditAmount < totalAmount ? 'PARTIAL' : 'UNPAID';
+
+                // Update sale balance
+                await tx.sale.update({
+                    where: { id: sale.id },
+                    data: { balance: creditAmount, paymentStatus }
                 });
 
-                // 2. Add to Ledger
-                await tx.customerLedger.create({
+                // Update patient balance and create ledger entry (parallel)
+                const updatedPatient = await tx.patient.update({
+                    where: { id: saleData.patientId },
+                    data: { currentBalance: { increment: creditAmount } }
+                });
+
+                tx.customerLedger.create({
                     data: {
                         storeId: saleData.storeId,
                         patientId: saleData.patientId,
-                        type: 'DEBIT', // Increasing debt
+                        type: 'DEBIT',
                         amount: creditAmount,
                         balanceAfter: updatedPatient.currentBalance,
                         referenceType: 'SALE',
                         referenceId: sale.id,
-                        notes: `Credit Sale Invoice: ${saleData.invoiceNumber}`
+                        notes: `Credit Sale: ${saleData.invoiceNumber}`
                     }
                 });
             }
 
-            // Update inventory and create stock movements (SKIP for ESTIMATES)
+            // Update inventory (skip for estimates)
             if (saleData.invoiceType !== 'ESTIMATE') {
-                for (const item of items) {
-                    // Validate stock availability before decrement (race condition protection)
+                // Batch update inventory and create stock movements
+                const inventoryPromises = items.map(async (item) => {
                     const currentBatch = await tx.inventoryBatch.findUnique({
                         where: { id: item.batchId },
                         select: { quantityInStock: true, batchNumber: true, drug: { select: { name: true } } }
                     });
 
-                    if (!currentBatch) {
-                        throw new Error(`Batch ${item.batchId} not found`);
-                    }
-
-                    if (currentBatch.quantityInStock < item.quantity) {
+                    if (!currentBatch || currentBatch.quantityInStock < item.quantity) {
                         throw new Error(
-                            `Insufficient stock for ${currentBatch.drug.name} (Batch: ${currentBatch.batchNumber}). ` +
-                            `Available: ${currentBatch.quantityInStock}, Required: ${item.quantity}`
+                            `Insufficient stock for ${currentBatch?.drug.name || 'item'} (Batch: ${currentBatch?.batchNumber})`
                         );
                     }
 
-                    // Deduct from batch
-                    await tx.inventoryBatch.update({
-                        where: { id: item.batchId },
-                        data: {
-                            quantityInStock: {
-                                decrement: item.quantity,
-                            },
-                        },
-                    });
+                    // Update batch and create movement (parallel)
+                    return Promise.all([
+                        tx.inventoryBatch.update({
+                            where: { id: item.batchId },
+                            data: { quantityInStock: { decrement: item.quantity } }
+                        }),
+                        tx.stockMovement.create({
+                            data: {
+                                batchId: item.batchId,
+                                movementType: 'OUT',
+                                quantity: item.quantity,
+                                reason: 'Sale',
+                                referenceType: 'sale',
+                                referenceId: sale.id
+                            }
+                        })
+                    ]);
+                });
 
-                    // Create stock movement
-                    await tx.stockMovement.create({
-                        data: {
-                            batchId: item.batchId,
-                            movementType: 'OUT',
-                            quantity: item.quantity,
-                            reason: 'Sale',
-                            referenceType: 'sale',
-                            referenceId: sale.id,
-                        },
-                    });
-                }
-            } // End of ESTIMATE check
+                await Promise.all(inventoryPromises);
+            }
 
-            return { sale, items: saleItems, payments };
+            return { sale, items: [], payments: [] };
+        }, {
+            maxWait: 8000,
+            timeout: 8000
         });
     }
 

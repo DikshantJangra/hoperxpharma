@@ -60,22 +60,59 @@ class PrescriptionController {
                 }
             }
 
-            // Allow manual override of images if needed, otherwise use uploaded
+            // Debug: Log what we received
+            console.log('Request body fields:', {
+                patientId: req.body.patientId,
+                prescriberId: req.body.prescriberId,
+                storeId: storeId, // From middleware, not req.body
+                status: req.body.status,
+                hasFiles: !!req.files?.length
+            });
+
+            // Validate required fields
+            if (!req.body.patientId) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Patient is required. Please select a patient before saving.'
+                });
+            }
+
+            // Parse all FormData fields properly
             const prescriptionData = {
-                ...req.body,
-                items,
                 storeId,
+                patientId: req.body.patientId,
+                prescriberId: req.body.prescriberId || null,
+                priority: req.body.priority || 'NORMAL',
+                source: req.body.source || 'MANUAL',
+                instructions: req.body.instructions || null,
+                totalRefills: parseInt(req.body.totalRefills) || 0,
+                status: req.body.status || 'DRAFT',
+                items,
                 files: processedFiles
             };
 
-            const prescription = await prescriptionService.createPrescription(
-                prescriptionData,
-                userId
-            );
+            let prescription;
 
-            return res.status(201).json({
+            // Check if updating existing prescription or creating new one
+            if (req.body.prescriptionId) {
+                // Update existing prescription
+                prescription = await prescriptionService.updatePrescription(
+                    req.body.prescriptionId,
+                    prescriptionData,
+                    userId
+                );
+            } else {
+                // Create new prescription
+                prescription = await prescriptionService.createPrescription(
+                    prescriptionData,
+                    userId
+                );
+            }
+
+            return res.status(req.body.prescriptionId ? 200 : 201).json({
                 success: true,
                 data: prescription,
+                message: req.body.prescriptionId ? 'Prescription updated successfully' : 'Prescription created successfully',
                 new_states: {
                     clinical_status: prescription.status,
                     physical_status: 'NotStarted'
@@ -151,29 +188,7 @@ class PrescriptionController {
         try {
             const { id } = req.params;
 
-            const prescription = await prisma.prescription.findUnique({
-                where: { id },
-                include: {
-                    patient: true,
-                    prescriber: true,
-                    items: {
-                        include: {
-                            drug: true,
-                            batch: true  // Include batch info for prescribed batches
-                        }
-                    },
-                    files: true,
-                    dispenseEvents: {
-                        include: {
-                            items: {
-                                include: {
-                                    batch: true
-                                }
-                            }
-                        }
-                    }
-                }
-            });
+            const prescription = await prescriptionService.getPrescriptionById(id);
 
             if (!prescription) {
                 return res.status(404).json({
@@ -385,6 +400,236 @@ class PrescriptionController {
             return res.status(500).json({
                 success: false,
                 message: error.message || 'Failed to delete prescription'
+            });
+        }
+    }
+
+    /**
+     * Delete a prescription file
+     * DELETE /api/v1/prescriptions/:id/files/:fileId
+     */
+    async deleteFile(req, res) {
+        try {
+            const { id, fileId } = req.params;
+            const storeId = req.storeId;
+            const userId = req.user.id;
+
+            // Get the file record to extract R2 key
+            const file = await prisma.prescriptionFile.findUnique({
+                where: { id: fileId },
+                include: {
+                    prescription: true
+                }
+            });
+
+            if (!file) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'File not found'
+                });
+            }
+
+            // Verify prescription belongs to user's store
+            if (file.prescription.storeId !== storeId) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Access denied'
+                });
+            }
+
+            // Extract R2 key from URL
+            const fileKey = file.fileUrl.split('.r2.dev/')[1]?.split('?')[0];
+
+            // Delete from R2
+            if (fileKey) {
+                try {
+                    await r2Config.deleteObject(fileKey);
+                } catch (r2Error) {
+                    console.error('R2 delete error:', r2Error);
+                    // Continue with database delete even if R2 fails
+                }
+            }
+
+            // Delete from database
+            await prisma.prescriptionFile.delete({
+                where: { id: fileId }
+            });
+
+            // Audit log
+            await prisma.auditLog.create({
+                data: {
+                    userId,
+                    storeId,
+                    action: 'FILE_DELETE',
+                    entityType: 'PrescriptionFile',
+                    entityId: fileId,
+                    changes: {
+                        prescriptionId: id,
+                        fileUrl: file.fileUrl
+                    }
+                }
+            });
+
+            return res.json({
+                success: true,
+                message: 'File deleted successfully'
+            });
+        } catch (error) {
+            console.error('[PrescriptionController] Delete file error:', error);
+            return res.status(500).json({
+                success: false,
+                message: error.message || 'Failed to delete file'
+            });
+        }
+    }
+
+    /**
+     * Create a refill for a prescription
+     * POST /api/v1/prescriptions/:id/refills
+     */
+    async createRefill(req, res) {
+        try {
+            const { id } = req.params;
+            const { notes, dispenseNow } = req.body;
+            const userId = req.user.id;
+            const storeId = req.storeId;
+
+            // Get prescription and validate
+            const prescription = await prisma.prescription.findUnique({
+                where: { id },
+                include: {
+                    refills: true,
+                    versions: {
+                        orderBy: { versionNumber: 'desc' },
+                        take: 1,
+                        include: {
+                            items: {
+                                include: {
+                                    drug: true,
+                                    batch: true
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            if (!prescription) {
+                return res.status(404).json({
+                    success: false,
+                    message: 'Prescription not found'
+                });
+            }
+
+            // Verify prescription belongs to user's store
+            if (prescription.storeId !== storeId) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Access denied'
+                });
+            }
+
+            // Validate prescription status - allow refills for VERIFIED or COMPLETED
+            if (prescription.status !== 'VERIFIED' && prescription.status !== 'COMPLETED') {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Prescription must be verified or completed before creating refills'
+                });
+            }
+
+            // Count valid refills (those that have been processed/dispensed)
+            const validRefills = prescription.refills.filter(r =>
+                r.processedAt || r.quantityDispensed > 0 || r.daysSupply > 0 || r.dispensedQty > 0 || r.status === 'PARTIALLY_USED' || r.status === 'FULLY_USED'
+            );
+
+            // Check refill limit based on DISPENSED refills, not total records
+            if (validRefills.length >= prescription.totalRefills) {
+                return res.status(400).json({
+                    success: false,
+                    message: `No refills remaining. Maximum ${prescription.totalRefills} refills allowed.`
+                });
+            }
+
+            // Next refill number: find the highest existing refill number and add 1
+            const allRefills = prescription.refills || [];
+            const maxRefillNumber = allRefills.length > 0
+                ? Math.max(...allRefills.map(r => r.refillNumber))
+                : 0;
+            const nextRefillNumber = maxRefillNumber + 1;
+
+            // Calculate total quantity from prescription items
+            const latestVersion = prescription.versions[0];
+            const totalQty = latestVersion.items.reduce((sum, item) => sum + (item.quantityPrescribed || 0), 0);
+
+            // Create refill
+            const refill = await prisma.refill.create({
+                data: {
+                    prescriptionId: id,
+                    refillNumber: nextRefillNumber,
+                    authorizedQty: totalQty,
+                    remainingQty: totalQty,
+                    status: 'AVAILABLE',
+                    notes,
+                    createdAt: new Date()
+                }
+            });
+
+            // Create RefillItem for each prescription item (per-medication tracking)
+            const { medicationIds } = req.body;
+            const prescriptionItems = prescription.items || [];
+
+            // Filter items if specific medications requested (for partial refills)
+            const itemsToRefill = medicationIds && medicationIds.length > 0
+                ? prescriptionItems.filter(item => medicationIds.includes(item.drug?.id || item.drugId))
+                : prescriptionItems;
+
+            // Create RefillItem for each medication
+            const refillItemsData = itemsToRefill.map(item => ({
+                refillId: refill.id,
+                prescriptionItemId: item.id,
+                quantityDispensed: 0, // Not yet dispensed
+                dispensedAt: null
+            }));
+
+            if (refillItemsData.length > 0) {
+                await prisma.refillItem.createMany({
+                    data: refillItemsData
+                });
+            }
+
+            // Audit log
+            await prisma.auditLog.create({
+                data: {
+                    userId,
+                    storeId,
+                    action: 'REFILL_CREATE',
+                    entityType: 'PrescriptionRefill',
+                    entityId: refill.id,
+                    changes: {
+                        prescriptionId: id,
+                        refillNumber: nextRefillNumber,
+                        dispenseNow
+                    }
+                }
+            });
+
+            return res.json({
+                success: true,
+                message: 'Refill created successfully',
+                data: {
+                    refill,
+                    prescription: {
+                        id: prescription.id,
+                        prescriptionNumber: prescription.prescriptionNumber,
+                        items: prescription.versions[0]?.items || []
+                    }
+                }
+            });
+        } catch (error) {
+            console.error('[PrescriptionController] Create refill error:', error);
+            return res.status(500).json({
+                success: false,
+                message: error.message || 'Failed to create refill'
             });
         }
     }

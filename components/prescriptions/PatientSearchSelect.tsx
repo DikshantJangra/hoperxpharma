@@ -25,6 +25,7 @@ export default function PatientSearchSelect({ onSelect, selectedPatient }: Patie
     const [results, setResults] = useState<Patient[]>([]);
     const [loading, setLoading] = useState(false);
     const [showAddModal, setShowAddModal] = useState(false);
+    const [selectedIndex, setSelectedIndex] = useState(0);
 
     // Debounced search
     useEffect(() => {
@@ -36,6 +37,7 @@ export default function PatientSearchSelect({ onSelect, selectedPatient }: Patie
                     if (response.success) {
                         setResults(response.data || []);
                         setIsOpen(true);
+                        setSelectedIndex(0); // Reset selection when results change
                     }
                 } catch (error) {
                     console.error('Failed to search patients', error);
@@ -80,6 +82,32 @@ export default function PatientSearchSelect({ onSelect, selectedPatient }: Patie
         onSelect(patient);
         setIsOpen(false);
         setSearch('');
+        setSelectedIndex(0);
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (!isOpen || results.length === 0) return;
+
+        switch (e.key) {
+            case 'ArrowDown':
+                e.preventDefault();
+                setSelectedIndex(prev => (prev + 1) % results.length);
+                break;
+            case 'ArrowUp':
+                e.preventDefault();
+                setSelectedIndex(prev => (prev - 1 + results.length) % results.length);
+                break;
+            case 'Enter':
+                e.preventDefault();
+                if (results[selectedIndex]) {
+                    handleSelectPatient(results[selectedIndex]);
+                }
+                break;
+            case 'Escape':
+                e.preventDefault();
+                setIsOpen(false);
+                break;
+        }
     };
 
     return (
@@ -145,6 +173,7 @@ export default function PatientSearchSelect({ onSelect, selectedPatient }: Patie
                         className="w-full pl-9 pr-10 py-2.5 text-sm border-2 border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
+                        onKeyDown={handleKeyDown}
                         onFocus={() => search.length >= 2 && setIsOpen(true)}
                     />
                     {loading && (
@@ -165,10 +194,13 @@ export default function PatientSearchSelect({ onSelect, selectedPatient }: Patie
                                             Found {results.length} patient{results.length !== 1 ? 's' : ''}
                                         </p>
                                     </div>
-                                    {results.map(patient => (
+                                    {results.map((patient, index) => (
                                         <button
                                             key={patient.id}
-                                            className="w-full text-left p-3 hover:bg-gray-50 flex items-start gap-3 border-b border-gray-100 last:border-none transition-colors"
+                                            className={`w-full text-left p-3 flex items-start gap-3 border-b border-gray-100 last:border-none transition-colors ${index === selectedIndex
+                                                    ? 'bg-teal-50 border-l-2 border-l-teal-500'
+                                                    : 'hover:bg-gray-50'
+                                                }`}
                                             onClick={() => handleSelectPatient(patient)}
                                         >
                                             <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 flex-shrink-0">

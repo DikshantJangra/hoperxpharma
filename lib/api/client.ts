@@ -134,9 +134,12 @@ async function baseFetch(
 
     const url = `${config.baseURL}${endpoint}`;
 
-    const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-    };
+    const headers: Record<string, string> = {};
+
+    // Only set Content-Type for non-FormData requests
+    if (!(options.body instanceof FormData)) {
+        headers['Content-Type'] = 'application/json';
+    }
 
     if (options.headers) {
         const customHeaders = options.headers as Record<string, string>;
@@ -238,7 +241,7 @@ export const apiClient = {
         return baseFetch(endpoint, {
             ...options,
             method: 'POST',
-            body: data ? JSON.stringify(data) : undefined,
+            body: data instanceof FormData ? data : (data ? JSON.stringify(data) : undefined),
         });
     },
 

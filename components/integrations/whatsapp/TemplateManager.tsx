@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { FaPlus, FaSync, FaTrash, FaCheckCircle, FaClock, FaTimesCircle } from 'react-icons/fa';
 import { whatsappApi, WhatsAppTemplate } from '@/lib/api/whatsapp';
+import CreateTemplateModal from './CreateTemplateModal';
 
 interface TemplateManagerProps {
     storeId: string;
@@ -175,23 +176,16 @@ export default function TemplateManager({ storeId }: TemplateManagerProps) {
                 )}
             </div>
 
-            {/* Create Template Modal - placeholder for now */}
-            {showCreateModal && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl max-w-2xl w-full p-6">
-                        <h3 className="text-lg font-semibold mb-4">Create Template</h3>
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                            Template creation UI coming soon. For now, create templates directly in Meta Business Manager.
-                        </p>
-                        <button
-                            onClick={() => setShowCreateModal(false)}
-                            className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg"
-                        >
-                            Close
-                        </button>
-                    </div>
-                </div>
-            )}
+            {/* Create Template Modal */}
+            <CreateTemplateModal
+                storeId={storeId}
+                isOpen={showCreateModal}
+                onClose={() => setShowCreateModal(false)}
+                onSuccess={() => {
+                    setShowCreateModal(false);
+                    loadTemplates();
+                }}
+            />
         </div>
     );
 }

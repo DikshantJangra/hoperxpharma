@@ -19,6 +19,8 @@ async function handleEmbeddedSignup(req, res) {
             return res.status(400).json({ error: 'Missing tempToken or storeId' });
         }
 
+        console.log(`[WhatsApp] Storing tempToken for ${storeId}. Length: ${tempToken.length}, Prefix: ${tempToken.substring(0, 10)}...`);
+
         // Store temporary token
         await whatsappAccountRepo.upsertWhatsAppAccount(storeId, {
             tempToken,
@@ -50,6 +52,8 @@ async function finalizeSetup(req, res) {
         if (!account || !account.tempToken) {
             return res.status(404).json({ error: 'No temporary token found. Please reconnect.' });
         }
+
+        console.log(`[WhatsApp] Finalizing setup for ${storeId}. Token Length: ${account.tempToken.length}, Prefix: ${account.tempToken.substring(0, 10)}...`);
 
         // Fetch WABA info from Meta
         const wabaInfo = await whatsappService.getWABAInfo(account.tempToken);
@@ -242,6 +246,46 @@ async function disconnect(req, res) {
     }
 }
 
+/**
+ * Send test message to verify connection
+ * POST /api/whatsapp/test-message/:storeId
+ */
+async function sendTestMessage(req, res) {
+    try {
+        const { storeId } = req.params;
+        const { phoneNumber } = req.body;
+
+        if (!phoneNumber) {
+            return res.status(400).json({ error: 'Phone number is required' });
+        }
+
+        const account = await whatsappAccountRepo.findByStoreId(storeId, true);
+
+        if (!account || account.status !== 'ACTIVE') {
+            return res.status(400).json({ error: 'WhatsApp not connected or not active' });
+        }
+
+        // Send test message via WhatsApp Service
+        const message = 'HopeRx WhatsApp setup successful! Your connection is working.';
+
+        await whatsappService.sendTextMessage(
+            account.phoneNumberId,
+            phoneNumber,
+            message,
+            account.accessToken
+        );
+
+        res.json({
+            success: true,
+            message: 'Test message sent successfully',
+            to: phoneNumber
+        });
+    } catch (error) {
+        console.error('[WhatsApp] Test message error:', error);
+        res.status(500).json({ error: error.message });
+    }
+}
+
 module.exports = {
     handleEmbeddedSignup,
     finalizeSetup,
@@ -249,4 +293,5 @@ module.exports = {
     getStatus,
     verifyPhone,
     disconnect,
+    sendTestMessage,
 };

@@ -2,10 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { FiX, FiAlertCircle } from 'react-icons/fi';
+import { toast } from 'sonner';
 
 interface Batch {
   batchId: string;
+  batchNumber: string;
   expiry: string;
+  expiryDate?: string; // Raw ISO date
   qty: number;
   mrp: number;
   location: string;
@@ -57,14 +60,29 @@ export default function BatchModal({ product, onSelect, onClose }: any) {
 
         if (batchesData.length > 0) {
           // Transform to match expected format
-          const formattedBatches: Batch[] = batchesData.map((batch: any, index: number) => ({
-            batchId: batch.id,
-            expiry: new Date(batch.expiryDate).toLocaleDateString(),
-            qty: batch.quantityInStock,
-            mrp: Number(batch.mrp),
-            location: batch.location || 'N/A',
-            recommended: index === 0, // First batch is FEFO
-          }));
+          const formattedBatches: Batch[] = batchesData
+            .map((batch: any) => ({
+              batchId: batch.id,
+              batchNumber: batch.batchNumber,
+              expiry: new Date(batch.expiryDate).toLocaleDateString(),
+              expiryDate: batch.expiryDate,
+              qty: batch.quantityInStock,
+              mrp: Number(batch.mrp),
+              location: batch.location || 'N/A',
+              recommended: false, // Will set after sorting
+            }))
+            .sort((a, b) => {
+              // Sort by stock: in-stock (qty > 0) first, then out-of-stock (qty = 0)
+              if (a.qty > 0 && b.qty === 0) return -1;
+              if (a.qty === 0 && b.qty > 0) return 1;
+              // If both have stock or both out of stock, maintain FEFO (earliest expiry first)
+              return new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime();
+            });
+
+          // Mark first in-stock batch as recommended (FEFO)
+          if (formattedBatches.length > 0 && formattedBatches[0].qty > 0) {
+            formattedBatches[0].recommended = true;
+          }
 
           setBatches(formattedBatches);
         } else {
@@ -106,16 +124,24 @@ export default function BatchModal({ product, onSelect, onClose }: any) {
               batches.map((batch) => (
                 <div
                   key={batch.batchId}
-                  onClick={() => onSelect(batch)}
-                  className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${batch.recommended
-                    ? 'border-[#0ea5a3] bg-[#f0fdfa]'
-                    : 'border-[#e2e8f0] hover:border-[#cbd5e1]'
+                  onClick={() => {
+                    if (batch.qty <= 0) {
+                      toast.error(`Batch ${batch.batchNumber} is out of stock!`);
+                      return;
+                    }
+                    onSelect(batch);
+                  }}
+                  className={`p-4 border-2 rounded-lg transition-all ${batch.qty <= 0
+                    ? 'opacity-50 cursor-not-allowed border-gray-300 bg-gray-50'
+                    : batch.recommended
+                      ? 'border-[#0ea5a3] bg-[#f0fdfa] cursor-pointer hover:shadow-md'
+                      : 'border-[#e2e8f0] hover:border-[#cbd5e1] cursor-pointer hover:shadow-md'
                     }`}
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold text-[#0f172a]">{batch.batchId}</span>
+                        <span className="font-semibold text-[#0f172a]">{batch.batchNumber}</span>
                         {batch.recommended && (
                           <span className="px-2 py-0.5 bg-[#0ea5a3] text-white text-xs rounded-full">FEFO</span>
                         )}
@@ -126,7 +152,11 @@ export default function BatchModal({ product, onSelect, onClose }: any) {
                     </div>
                     <div className="text-right ml-4">
                       <div className="font-semibold text-[#0f172a]">₹{batch.mrp}</div>
-                      <div className="text-sm text-[#64748b]">Qty: {batch.qty}</div>
+                      <div className={`text-sm font-medium ${batch.qty === 0 ? 'text-red-600' : batch.qty < 5 ? 'text-orange-600' : 'text-[#64748b]'
+                        }`}>
+                        {batch.qty === 0 ? 'Out of Stock' : `Qty: ${batch.qty}`}
+                        {batch.qty > 0 && batch.qty < 5 && ' (Low)'}
+                      </div>
                     </div>
                   </div>
                 </div>

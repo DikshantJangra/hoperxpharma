@@ -51,21 +51,21 @@ const CTASection = () => {
                 </div>
 
                 {/* Trust elements */}
-                <div className="flex flex-wrap justify-center gap-6 text-sm text-emerald-100">
+                <div className="flex flex-wrap justify-center gap-6 text-xs text-emerald-100">
                     <span className="flex items-center gap-2">
-                        <FiCheck className="w-5 h-5" />
+                        <FiCheck className="w-4 h-4" />
                         No credit card required
                     </span>
                     <span className="flex items-center gap-2">
-                        <FiCheck className="w-5 h-5" />
+                        <FiCheck className="w-4 h-4" />
                         14-day free trial
                     </span>
                     <span className="flex items-center gap-2">
-                        <FiCheck className="w-5 h-5" />
+                        <FiCheck className="w-4 h-4" />
                         Setup in 10 minutes
                     </span>
                     <span className="flex items-center gap-2">
-                        <FiCheck className="w-5 h-5" />
+                        <FiCheck className="w-4 h-4" />
                         Cancel anytime
                     </span>
                 </div>

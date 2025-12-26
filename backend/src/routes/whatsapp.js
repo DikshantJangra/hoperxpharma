@@ -22,6 +22,7 @@ router.post('/manual-token', whatsappController.manualTokenSetup);
 router.get('/status/:storeId', whatsappController.getStatus);
 router.post('/verify-phone', whatsappController.verifyPhone);
 router.delete('/disconnect/:storeId', whatsappController.disconnect);
+router.post('/test-message/:storeId', whatsappController.sendTestMessage);
 
 // Conversations & messaging
 router.get('/conversations/:storeId', messagingController.getConversations);

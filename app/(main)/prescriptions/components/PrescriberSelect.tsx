@@ -23,11 +23,12 @@ export default function PrescriberSelect({ onSelect, selectedPrescriber }: Presc
     const [results, setResults] = useState<Prescriber[]>([]);
     const [loading, setLoading] = useState(false);
     const [showAddModal, setShowAddModal] = useState(false);
+    const [selectedIndex, setSelectedIndex] = useState(0);
 
-    // Debounced search
+    // Debounced search - only search when user types, not on click
     useEffect(() => {
         const timer = setTimeout(async () => {
-            if ((isOpen || search.length > 0) && primaryStore?.id) {
+            if (search.length > 0 && primaryStore?.id) {
                 setLoading(true);
                 try {
                     const response = await prescribersApi.getPrescribers({
@@ -38,16 +39,26 @@ export default function PrescriberSelect({ onSelect, selectedPrescriber }: Presc
                     // The apiClient returns the parsed body directly { success, data, message }
                     if (response.success) {
                         setResults(response.data || []);
+                        setSelectedIndex(0); // Reset selection when results change
                     }
-                } catch (error) {
+                } catch (error: any) {
                     console.error('Failed to search prescribers', error);
+                    // Don't show toast for network errors during typing
+                    if (search.length > 2) {
+                        // Only show error if user typed more than 2 chars
+                        toast.error('Failed to search prescribers. Check connection.');
+                    }
+                    setResults([]);
                 } finally {
                     setLoading(false);
                 }
+            } else if (search.length === 0) {
+                setResults([]); // Clear results when search is cleared
+                setLoading(false);
             }
-        }, 300);
+        }, 150); // Reduced from 300ms to 150ms for faster response
         return () => clearTimeout(timer);
-    }, [search, isOpen, primaryStore?.id]);
+    }, [search, primaryStore?.id]);
 
     const handleQuickAdd = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -83,9 +94,36 @@ export default function PrescriberSelect({ onSelect, selectedPrescriber }: Presc
         }
     };
 
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+        if (!isOpen || results.length === 0) return;
+
+        switch (e.key) {
+            case 'ArrowDown':
+                e.preventDefault();
+                setSelectedIndex(prev => (prev + 1) % results.length);
+                break;
+            case 'ArrowUp':
+                e.preventDefault();
+                setSelectedIndex(prev => (prev - 1 + results.length) % results.length);
+                break;
+            case 'Enter':
+                e.preventDefault();
+                if (results[selectedIndex]) {
+                    onSelect(results[selectedIndex]);
+                    setIsOpen(false);
+                    setSearch('');
+                    setSelectedIndex(0);
+                }
+                break;
+            case 'Escape':
+                e.preventDefault();
+                setIsOpen(false);
+                break;
+        }
+    };
+
     return (
         <div className="relative">
-            <label className="block text-xs font-medium text-gray-700 mb-1">Prescriber</label>
 
             {/* Selected View */}
             {selectedPrescriber ? (
@@ -119,6 +157,7 @@ export default function PrescriberSelect({ onSelect, selectedPrescriber }: Presc
                         value={search}
                         onFocus={() => setIsOpen(true)}
                         onChange={(e) => setSearch(e.target.value)}
+                        onKeyDown={handleKeyDown}
                     />
 
                     {/* Dropdown */}
@@ -127,14 +166,18 @@ export default function PrescriberSelect({ onSelect, selectedPrescriber }: Presc
                             {loading ? (
                                 <div className="p-4 text-center text-xs text-gray-500">Loading...</div>
                             ) : results.length > 0 ? (
-                                results.map(doc => (
+                                results.map((doc, index) => (
                                     <button
                                         key={doc.id}
-                                        className="w-full text-left p-3 hover:bg-gray-50 flex items-center gap-3 border-b border-gray-50 last:border-none"
+                                        className={`w-full text-left p-3 flex items-center gap-3 border-b border-gray-50 last:border-none transition-colors ${index === selectedIndex
+                                                ? 'bg-teal-50 border-l-2 border-l-teal-500'
+                                                : 'hover:bg-gray-50'
+                                            }`}
                                         onClick={() => {
                                             onSelect(doc);
                                             setIsOpen(false);
                                             setSearch('');
+                                            setSelectedIndex(0);
                                         }}
                                     >
                                         <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">

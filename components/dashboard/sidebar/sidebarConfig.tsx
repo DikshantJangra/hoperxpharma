@@ -62,8 +62,8 @@ export const sidebarConfig: SidebarSection[] = [
                 path: "/prescriptions",
                 requiredPermission: "prescription.read",
                 subItems: [
-                    { label: "All Prescriptions", path: "/prescriptions" },
-                    { label: "Workbench", path: "/prescriptions/queue" }
+                    { label: "All Prescriptions", path: "/prescriptions/all-prescriptions" },
+                    { label: "Workbench", path: "/prescriptions/workbench" }
                 ]
             },
             /*

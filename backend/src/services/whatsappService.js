@@ -43,8 +43,11 @@ async function subscribeWebhook(wabaId, accessToken) {
  * @returns {Promise<Object>} WABA info including phone numbers
  */
 async function getWABAInfo(accessToken) {
+    if (!accessToken) throw new Error('Access token is missing');
+    const cleanToken = accessToken.trim();
+
     // First, get the user's business accounts
-    const url = `${GRAPH_BASE_URL}/me?fields=businesses{whatsapp_business_accounts}&access_token=${accessToken}`;
+    const url = `${GRAPH_BASE_URL}/me?fields=businesses{whatsapp_business_accounts}&access_token=${cleanToken}`;
 
     const response = await fetch(url);
 

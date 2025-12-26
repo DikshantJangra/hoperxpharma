@@ -324,6 +324,13 @@ class InventoryService {
                     batchNumber: primaryBatch.batchNumber,
                     expiryDate: primaryBatch.expiryDate,
                     gstRate: drug.gstRate,
+                    batchList: batches.map(b => ({
+                        id: b.id,
+                        batchNumber: b.batchNumber,
+                        quantityInStock: b.quantityInStock,
+                        expiryDate: b.expiryDate,
+                        mrp: b.mrp
+                    }))
                 };
             })
         );

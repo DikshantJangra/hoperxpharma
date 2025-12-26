@@ -143,7 +143,9 @@ export default function InvoiceDrawer({ invoice, onClose, isLoading }: any) {
             <h3 className="text-sm font-semibold text-[#64748b] mb-2">Customer Details</h3>
             <div className="space-y-1">
               <p className="text-sm font-medium text-[#0f172a]">{invoice.customer.name}</p>
-              <p className="text-sm text-[#64748b]">{invoice.customer.phone}</p>
+              {invoice.customer.phone && invoice.customer.phone !== '-' && (
+                <p className="text-sm text-[#64748b]">{invoice.customer.phone}</p>
+              )}
               {invoice.type === 'GST' && invoice.customer.gstin && (
                 <p className="text-xs text-[#64748b]">GSTIN: {invoice.customer.gstin}</p>
               )}
@@ -162,6 +164,19 @@ export default function InvoiceDrawer({ invoice, onClose, isLoading }: any) {
               ))}
             </div>
           </div>
+
+          {/* Dispensed For */}
+          {invoice.dispenseFor && (
+            <div className="bg-[#fef3c7] rounded-lg p-4 border border-[#fde68a]">
+              <h3 className="text-sm font-semibold text-[#92400e] mb-2">Dispensed For</h3>
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-[#78350f]">{invoice.dispenseFor.name}</p>
+                {invoice.dispenseFor.phone && (
+                  <p className="text-sm text-[#92400e]">{invoice.dispenseFor.phone}</p>
+                )}
+              </div>
+            </div>
+          )}
 
           {/* Items */}
           <div>

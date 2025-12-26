@@ -26,6 +26,7 @@ export interface Conversation {
     assignedAgentId?: string;
     lastMessageAt?: string;
     lastMessageBody?: string;
+    lastCustomerMessageAt?: string;
     unreadCount: number;
     sessionActive: boolean;
     messages?: Message[];
@@ -201,6 +202,19 @@ class WhatsAppAPI {
         });
     }
 
+    async sendTestMessage(storeId: string, phoneNumber: string) {
+        const response = await fetch(`/api/v1/whatsapp/test-message/${storeId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ phoneNumber }),
+        });
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to send test message');
+        }
+        return response.json();
+    }
+
     async sendTemplate(data: SendTemplateRequest): Promise<{ success: boolean; message: Message }> {
         // Check consent before sending if patientId is provided
         if (data.patientId) {
@@ -238,9 +252,10 @@ class WhatsAppAPI {
     async getTemplates(
         storeId: string,
         status?: string
-    ): Promise<{ templates: WhatsAppTemplate[] }> {
+    ): Promise<WhatsAppTemplate[]> {
         const query = status ? `?status=${status}` : '';
-        return this.request(`/templates/${storeId}${query}`);
+        const data = await this.request<{ templates: WhatsAppTemplate[] }>(`/templates/${storeId}${query}`);
+        return data.templates || [];
     }
 
     async createTemplate(data: CreateTemplateRequest): Promise<{ success: boolean; template: WhatsAppTemplate }> {

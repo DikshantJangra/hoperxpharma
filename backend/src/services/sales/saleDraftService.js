@@ -12,7 +12,7 @@ class SaleDraftService {
      * Create or update a draft
      */
     async saveDraft(draftData) {
-        const { storeId, customerId, customerName, customerPhone, items, subtotal, taxAmount, total, createdBy } = draftData;
+        const { storeId, customerId, customerName, customerPhone, items, dispenseFor, subtotal, taxAmount, total, createdBy } = draftData;
 
         // Calculate expiry date (7 days from now)
         const expiresAt = new Date();
@@ -29,6 +29,7 @@ class SaleDraftService {
                 customerName,
                 customerPhone,
                 items: JSON.stringify(items), // Serialize items array
+                dispenseFor,
                 subtotal,
                 taxAmount,
                 total,
@@ -45,7 +46,7 @@ class SaleDraftService {
      * Update existing draft
      */
     async updateDraft(draftId, draftData) {
-        const { customerId, customerName, customerPhone, items, subtotal, taxAmount, total } = draftData;
+        const { customerId, customerName, customerPhone, items, dispenseFor, subtotal, taxAmount, total } = draftData;
 
         const draft = await prisma.saleDraft.update({
             where: { id: draftId },
@@ -54,6 +55,7 @@ class SaleDraftService {
                 customerName,
                 customerPhone,
                 items: JSON.stringify(items),
+                dispenseFor,
                 subtotal,
                 taxAmount,
                 total,
@@ -130,6 +132,7 @@ class SaleDraftService {
         const saleData = {
             storeId: draft.storeId,
             patientId: draft.customerId,
+            dispenseForPatientId: draft.dispenseFor?.id,
             subtotal: draft.subtotal,
             discountAmount: 0,
             taxAmount: draft.taxAmount,

@@ -1,5 +1,6 @@
 const express = require('express');
 const patientController = require('../../controllers/patients/patientController');
+const patientRelationController = require('../../controllers/patients/patientRelationController');
 const { authenticate } = require('../../middlewares/auth');
 const { requireStoreAccess, requirePharmacist } = require('../../middlewares/rbac');
 const validate = require('../../middlewares/validate');
@@ -64,6 +65,13 @@ router.get('/:id/ledger', patientController.getLedger);
 router.get('/:id/invoices/unpaid', patientController.getUnpaidInvoices);
 router.post('/:id/sync-balance', patientController.syncBalance);
 router.post('/:id/payments', requirePharmacist, auditLogger.logActivity('CUSTOMER_PAYMENT', 'customer_ledger'), patientController.processPayment);
+
+/**
+ * Patient Relation Routes
+ */
+router.post('/:id/relations', patientRelationController.addRelation);
+router.get('/:id/relations', patientRelationController.getRelations);
+router.delete('/:id/relations/:relatedPatientId', patientRelationController.removeRelation);
 
 // Create patient (after specific routes)
 router.post('/', validate(patientCreateSchema), auditLogger.logActivity('PATIENT_CREATED', 'patient'), patientController.createPatient);

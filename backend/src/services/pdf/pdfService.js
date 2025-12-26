@@ -232,10 +232,39 @@ class PDFService {
 
                 // Patient Info
                 if (sale.patient) {
+                    console.log('[PDF] Patient data:', JSON.stringify(sale.patient, null, 2));
                     doc.text(`Patient: ${sale.patient.firstName} ${sale.patient.lastName || ''}`, leftX);
-                    if (sale.patient.phoneNumber) doc.text(`Phone: ${sale.patient.phoneNumber}`, leftX);
+                    if (sale.patient.phoneNumber) {
+                        doc.text(`Phone: ${sale.patient.phoneNumber}`, leftX);
+                    }
                 }
+
+                // Add Dispensed For details if they exist and are different from the main patient
+                // Add Dispensed For details
+                if (sale.dispenseForPatient) {
+                    doc.moveDown(0.3);
+                    doc.font('Helvetica-Bold').fontSize(9).text('Dispensed For:', leftX);
+                    doc.font('Helvetica').fontSize(9).text(`${sale.dispenseForPatient.firstName} ${sale.dispenseForPatient.lastName || ''}`, leftX + 80, doc.y - 12);
+
+                    const details = [];
+                    if (sale.dispenseForPatient.age || sale.dispenseForPatient.dateOfBirth) {
+                        // Calculate age if DOB is present and age is not
+                        let age = sale.dispenseForPatient.age;
+                        if (!age && sale.dispenseForPatient.dateOfBirth) {
+                            age = moment().diff(sale.dispenseForPatient.dateOfBirth, 'years');
+                        }
+                        if (age) details.push(`Age: ${age}`);
+                    }
+                    if (sale.dispenseForPatient.gender) details.push(`Sex: ${sale.dispenseForPatient.gender}`);
+
+                    if (details.length > 0) {
+                        doc.text(details.join(', '), leftX + 80, doc.y);
+                    }
+                    doc.moveDown(0.2);
+                }
+
                 if (sale.doctorName) {
+                    doc.moveDown(0.2);
                     doc.text(`Prescribed by: ${sale.doctorName}`, leftX);
                 }
                 doc.moveDown(1);
@@ -246,13 +275,15 @@ class PDFService {
                 doc.rect(leftX, tableTop - 5, 515, 15).fill('#e0e7ff');
 
                 doc.fillColor(textColor);
-                doc.text('Item', leftX + 5, tableTop);
-                doc.text('Batch', 220, tableTop);
-                doc.text('Exp', 280, tableTop);
-                doc.text('Qty', 330, tableTop);
-                doc.text('MRP', 370, tableTop);
-                doc.text('GST', 420, tableTop);
-                doc.text('Total', 480, tableTop, { align: 'right' });
+                doc.fillColor(textColor);
+                doc.text('Item', leftX + 5, tableTop, { width: 180 });
+                doc.text('Batch', 200, tableTop, { width: 60 });
+                doc.text('Exp', 265, tableTop, { width: 40 });
+                doc.text('Qty', 310, tableTop, { width: 30 });
+                doc.text('MRP', 345, tableTop, { width: 50, align: 'right' });
+                doc.text('Disc', 400, tableTop, { width: 40, align: 'right' });
+                doc.text('GST', 445, tableTop, { width: 40, align: 'right' });
+                doc.text('Total', 490, tableTop, { width: 60, align: 'right' });
 
                 doc.moveDown(0.8);
 
@@ -269,13 +300,27 @@ class PDFService {
 
                     totalMrp += mrp * quantity;
 
-                    doc.text(item.drug?.name || 'Item', leftX + 5, y, { width: 200 });
-                    doc.text(item.batch?.batchNumber || '-', 220, y, { width: 50 });
-                    doc.text(item.batch?.expiryDate ? moment(item.batch.expiryDate).format('MM/YY') : '-', 280, y);
-                    doc.text(quantity.toString(), 330, y);
-                    doc.text(formatCurrency(mrp), 370, y);
-                    doc.text(`${gstRate}%`, 420, y);
-                    doc.text(formatCurrency(lineTotal), 480, y, { align: 'right' });
+                    // Extract batch number - prefer batchNumber field, fallback to last 6 chars of ID
+                    let batchDisplay = '-';
+                    console.log('[PDF] Item batch data:', JSON.stringify(item.batch, null, 2));
+                    console.log('[PDF] Item batchId:', item.batchId);
+
+                    if (item.batch?.batchNumber) {
+                        batchDisplay = item.batch.batchNumber;
+                    } else if (item.batchId) {
+                        // Fallback: show last 6 characters of batch ID if batchNumber is missing
+                        batchDisplay = item.batchId.slice(-6).toUpperCase();
+                    }
+
+                    doc.text(item.drug?.name || 'Item', leftX + 5, y, { width: 180 });
+                    doc.text(batchDisplay, 200, y, { width: 60 });
+                    doc.text(item.batch?.expiryDate ? moment(item.batch.expiryDate).format('MM/YY') : '-', 265, y, { width: 40 });
+                    doc.text(quantity.toString(), 310, y, { width: 30 });
+                    doc.text(formatCurrency(mrp), 345, y, { width: 50, align: 'right' });
+                    const itemDiscount = Number(item.discount) || 0;
+                    doc.text(itemDiscount > 0 ? formatCurrency(itemDiscount) : '-', 400, y, { width: 40, align: 'right' });
+                    doc.text(`${gstRate}%`, 445, y, { width: 40, align: 'right' });
+                    doc.text(formatCurrency(lineTotal), 490, y, { width: 60, align: 'right' });
 
                     doc.moveDown(0.7);
 

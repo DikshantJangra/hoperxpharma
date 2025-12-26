@@ -2,13 +2,36 @@
 
 import { useState } from 'react';
 
-export default function FilterBar() {
-  const [filters, setFilters] = useState({
-    paymentMethod: 'all',
-    invoiceType: 'all',
-    status: 'all',
-    saleType: 'all',
-  });
+export default function FilterBar({ filters, onFilterChange }: any) {
+  const handleFilterChange = (key: string, value: any) => {
+    onFilterChange({ ...filters, [key]: value });
+  };
+
+  const setDateRange = (range: 'today' | 'week' | 'month') => {
+    const now = new Date();
+    let startDate = new Date();
+
+    if (range === 'today') {
+      startDate.setHours(0, 0, 0, 0);
+    } else if (range === 'week') {
+      startDate.setDate(now.getDate() - 7);
+    } else if (range === 'month') {
+      startDate.setMonth(now.getMonth() - 1);
+    }
+
+    onFilterChange({ ...filters, startDate: startDate.toISOString(), endDate: now.toISOString() });
+  };
+
+  const clearFilters = () => {
+    onFilterChange({
+      paymentMethod: 'all',
+      invoiceType: 'all',
+      paymentStatus: 'all',
+      hasPrescription: undefined,
+      startDate: undefined,
+      endDate: undefined,
+    });
+  };
 
   return (
     <div className="mt-4 p-4 bg-[#f8fafc] rounded-lg border border-[#e2e8f0]">
@@ -16,54 +39,54 @@ export default function FilterBar() {
         <div>
           <label className="text-xs font-medium text-[#64748b] mb-1 block">Payment Method</label>
           <select
-            value={filters.paymentMethod}
-            onChange={(e) => setFilters({ ...filters, paymentMethod: e.target.value })}
+            value={filters.paymentMethod || 'all'}
+            onChange={(e) => handleFilterChange('paymentMethod', e.target.value)}
             className="w-full px-3 py-2 border border-[#cbd5e1] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0ea5a3]"
           >
             <option value="all">All</option>
             <option value="cash">Cash</option>
             <option value="card">Card</option>
             <option value="upi">UPI</option>
-            <option value="wallet">Wallet</option>
+            <option value="credit">Pay Later</option>
           </select>
         </div>
 
         <div>
           <label className="text-xs font-medium text-[#64748b] mb-1 block">Invoice Type</label>
           <select
-            value={filters.invoiceType}
-            onChange={(e) => setFilters({ ...filters, invoiceType: e.target.value })}
+            value={filters.invoiceType || 'all'}
+            onChange={(e) => handleFilterChange('invoiceType', e.target.value)}
             className="w-full px-3 py-2 border border-[#cbd5e1] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0ea5a3]"
           >
             <option value="all">All</option>
             <option value="regular">Regular</option>
             <option value="gst">GST</option>
-            <option value="einvoice">E-Invoice</option>
             <option value="credit">Credit Note</option>
           </select>
         </div>
 
         <div>
-          <label className="text-xs font-medium text-[#64748b] mb-1 block">Status</label>
+          <label className="text-xs font-medium text-[#64748b] mb-1 block">Payment Status</label>
           <select
-            value={filters.status}
-            onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+            value={filters.paymentStatus || 'all'}
+            onChange={(e) => handleFilterChange('paymentStatus', e.target.value)}
             className="w-full px-3 py-2 border border-[#cbd5e1] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0ea5a3]"
           >
             <option value="all">All</option>
             <option value="paid">Paid</option>
-            <option value="partial">Partially Paid</option>
-            <option value="returned">Returned</option>
-            <option value="void">Void</option>
-            <option value="pending">Pending Sync</option>
+            <option value="unpaid">Pending</option>
+            <option value="partial">Partial</option>
           </select>
         </div>
 
         <div>
           <label className="text-xs font-medium text-[#64748b] mb-1 block">Sale Type</label>
           <select
-            value={filters.saleType}
-            onChange={(e) => setFilters({ ...filters, saleType: e.target.value })}
+            value={filters.hasPrescription !== undefined ? (filters.hasPrescription ? 'prescription' : 'otc') : 'all'}
+            onChange={(e) => {
+              const val = e.target.value;
+              handleFilterChange('hasPrescription', val === 'all' ? undefined : val === 'prescription');
+            }}
             className="w-full px-3 py-2 border border-[#cbd5e1] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#0ea5a3]"
           >
             <option value="all">All</option>
@@ -74,16 +97,28 @@ export default function FilterBar() {
       </div>
 
       <div className="mt-3 flex items-center gap-2">
-        <button className="px-3 py-1.5 text-xs bg-white border border-[#cbd5e1] rounded-full hover:bg-[#f8fafc]">
+        <button
+          onClick={() => setDateRange('today')}
+          className="px-3 py-1.5 text-xs bg-white border border-[#cbd5e1] rounded-full hover:bg-[#f8fafc]"
+        >
           Today
         </button>
-        <button className="px-3 py-1.5 text-xs bg-white border border-[#cbd5e1] rounded-full hover:bg-[#f8fafc]">
+        <button
+          onClick={() => setDateRange('week')}
+          className="px-3 py-1.5 text-xs bg-white border border-[#cbd5e1] rounded-full hover:bg-[#f8fafc]"
+        >
           This Week
         </button>
-        <button className="px-3 py-1.5 text-xs bg-white border border-[#cbd5e1] rounded-full hover:bg-[#f8fafc]">
+        <button
+          onClick={() => setDateRange('month')}
+          className="px-3 py-1.5 text-xs bg-white border border-[#cbd5e1] rounded-full hover:bg-[#f8fafc]"
+        >
           This Month
         </button>
-        <button className="px-3 py-1.5 text-xs text-[#ef4444] hover:underline ml-auto">
+        <button
+          onClick={clearFilters}
+          className="px-3 py-1.5 text-xs text-[#ef4444] hover:underline ml-auto"
+        >
           Clear Filters
         </button>
       </div>

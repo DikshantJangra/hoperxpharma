@@ -8,6 +8,7 @@ import {
 import { whatsappApi, Conversation, Message } from '@/lib/api/whatsapp';
 import { useCurrentStore } from '@/hooks/useCurrentStore';
 import TemplateSelector from '@/components/integrations/whatsapp/TemplateSelector';
+import SessionExpiryTimer from '@/components/messages/whatsapp/SessionExpiryTimer';
 
 export default function WhatsAppMessagesPage() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
@@ -40,6 +41,8 @@ export default function WhatsAppMessagesPage() {
       } catch (error) {
         console.error('Failed to check WhatsApp status:', error);
         setConnectionStatus('disconnected');
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -397,7 +400,32 @@ export default function WhatsAppMessagesPage() {
             </div>
 
             <div className="flex items-center gap-4">
-              {!selectedConversation.sessionActive && (
+              {selectedConversation.sessionActive ? (
+                (() => {
+                  // Calculate time remaining in 24-hour window
+                  const lastCustomerMessage = selectedConversation.lastCustomerMessageAt
+                    ? new Date(selectedConversation.lastCustomerMessageAt)
+                    : null;
+
+                  if (lastCustomerMessage) {
+                    const expiryTime = new Date(lastCustomerMessage.getTime() + 24 * 60 * 60 * 1000);
+                    const now = new Date();
+                    const msRemaining = expiryTime.getTime() - now.getTime();
+                    const hoursRemaining = Math.floor(msRemaining / (1000 * 60 * 60));
+                    const minutesRemaining = Math.floor((msRemaining % (1000 * 60 * 60)) / (1000 * 60));
+
+                    if (msRemaining > 0) {
+                      return (
+                        <div className="flex items-center gap-2 text-xs font-medium text-green-700 bg-green-50 dark:bg-green-900/30 dark:text-green-400 px-3 py-1.5 rounded-full border border-green-200 dark:border-green-800">
+                          <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                          Session: {hoursRemaining}h {minutesRemaining}m left
+                        </div>
+                      );
+                    }
+                  }
+                  return null;
+                })()
+              ) : (
                 <div className="flex items-center gap-2 text-xs font-medium text-amber-700 bg-amber-50 dark:bg-amber-900/30 dark:text-amber-400 px-3 py-1.5 rounded-full border border-amber-200 dark:border-amber-800">
                   <FaBolt className="w-3 h-3" />
                   Session Expired
@@ -532,7 +560,6 @@ export default function WhatsAppMessagesPage() {
       {/* Template Selector Modal */}
       {showTemplateSelector && storeId && (
         <TemplateSelector
-          storeId={storeId}
           isOpen={showTemplateSelector}
           onClose={() => setShowTemplateSelector(false)}
           onSelect={handleTemplateSend}

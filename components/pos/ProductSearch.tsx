@@ -36,7 +36,11 @@ const ProductSkeleton = () => (
   </div>
 )
 
-export default function ProductSearch({ onAddProduct, searchFocus, setSearchFocus }: any) {
+export default function ProductSearch({ onAddProduct, searchFocus, setSearchFocus }: {
+  onAddProduct: (product: any) => void;
+  searchFocus?: boolean;
+  setSearchFocus?: (focus: boolean) => void;
+}) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Product[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -136,13 +140,12 @@ export default function ProductSearch({ onAddProduct, searchFocus, setSearchFocu
             setTimeout(() => { isTypingRef.current = false; }, 500);
           }}
           onKeyDown={handleKeyDown}
-          onFocus={() => setSearchFocus(true)}
+          onFocus={() => setSearchFocus?.(true)}
           placeholder="Scan barcode or search product... (/)"
           className={`w-full pl-10 pr-4 py-3 border-2 rounded-lg text-[#0f172a] placeholder:text-[#94a3b8] focus:outline-none transition-all ${searchFocus && query.length === 0
             ? 'border-[#0ea5a3] ring-2 ring-[#0ea5a3]/20'
             : 'border-[#cbd5e1] focus:border-[#0ea5a3]'
             }`}
-          disabled={isLoading}
         />
         <BsUpcScan className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#94a3b8]" />
       </div>

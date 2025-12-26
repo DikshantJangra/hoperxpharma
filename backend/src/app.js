@@ -14,7 +14,12 @@ const logger = require('./config/logger');
 // Validate environment variables
 validateEnv();
 
+const whatsappRetryWorker = require('./workers/whatsappRetryWorker');
+
 const app = express();
+
+// Start background workers
+whatsappRetryWorker.startWorker(60000); // Check every minute
 
 // Trust proxy - Required for production deployment behind reverse proxy (Render, etc.)
 // This allows Express to correctly read X-Forwarded-* headers

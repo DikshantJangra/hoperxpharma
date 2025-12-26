@@ -2,10 +2,10 @@
 
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { FiMinus, FiPlus, FiX, FiTag, FiChevronDown, FiPercent, FiTrash } from 'react-icons/fi';
+import { FiMinus, FiPlus, FiX, FiTag, FiChevronDown, FiPercent, FiTrash, FiAlertCircle } from 'react-icons/fi';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 
-export default function Basket({ items, onUpdateItem, onRemoveItem, onClear }: any) {
+export default function Basket({ items, onUpdateItem, onRemoveItem, onClear, onEditBatch }: any) {
   const [expandedItem, setExpandedItem] = useState<number | null>(null);
   const [showClearDialog, setShowClearDialog] = useState(false);
 
@@ -45,10 +45,15 @@ export default function Basket({ items, onUpdateItem, onRemoveItem, onClear }: a
                     {/* Premium Metadata Badges */}
                     <div className="flex flex-wrap gap-1.5 mt-1.5">
                       {/* Batch */}
-                      <div className={`flex items-center gap-1 px-1.5 py-0.5 border rounded text-[10px] font-medium ${!item.batchId ? 'bg-red-50 border-red-200 text-red-700' : 'bg-gray-100 border-gray-200 text-gray-600'}`} title="Batch Number">
+                      <button
+                        onClick={() => onEditBatch && onEditBatch(item, index)}
+                        className={`flex items-center gap-1 px-1.5 py-0.5 border rounded text-[10px] font-medium transition-colors hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700 cursor-pointer ${!item.batchId ? 'bg-red-50 border-red-200 text-red-700' : 'bg-gray-100 border-gray-200 text-gray-600'}`}
+                        title="Click to change batch"
+                      >
                         <span className="opacity-70">Batch:</span>
                         <span className="text-gray-900 font-bold">{item.batchNumber || (item.batchId ? '...' + item.batchId.slice(-4) : 'MISSING')}</span>
-                      </div>
+                        <FiChevronDown className="w-3 h-3 ml-0.5" />
+                      </button>
 
                       {/* Location */}
                       {item.location && (
@@ -74,6 +79,24 @@ export default function Basket({ items, onUpdateItem, onRemoveItem, onClear }: a
                       </div>
                     </div>
                   </div>
+
+                  {/* OUT OF STOCK WARNING */}
+                  {(() => {
+                    const stockVal = Number(item.stock) || Number(item.totalStock) || 0;
+                    if (isNaN(stockVal) || stockVal <= 0) {
+                      return (
+                        <div className="mt-2 p-2 bg-red-50 border border-red-300 rounded-lg flex items-center gap-2">
+                          <FiAlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                          <div className="flex-1">
+                            <p className="text-xs font-semibold text-red-700">Out of Stock!</p>
+                            <p className="text-xs text-red-600">Please change the batch to continue</p>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+
                   <button
                     onClick={() => onRemoveItem(index)}
                     className="text-[#ef4444] hover:bg-[#fef2f2] p-1 rounded"
@@ -150,13 +173,13 @@ export default function Basket({ items, onUpdateItem, onRemoveItem, onClear }: a
                         <div className="flex gap-1">
                           <button
                             onClick={() => onUpdateItem(index, { discountType: 'amount' })}
-                            className={`px-2 py-0.5 text-xs rounded ${(item.discountType || 'amount') === 'amount' ? 'bg-[#0ea5a3] text-white' : 'bg-[#f1f5f9] text-[#64748b]'}`}
+                            className={`px-2 py-0.5 text-xs rounded ${(item.discountType || 'percentage') === 'amount' ? 'bg-[#0ea5a3] text-white' : 'bg-[#f1f5f9] text-[#64748b]'}`}
                           >
                             ₹
                           </button>
                           <button
                             onClick={() => onUpdateItem(index, { discountType: 'percentage' })}
-                            className={`px-2 py-0.5 text-xs rounded ${item.discountType === 'percentage' ? 'bg-[#0ea5a3] text-white' : 'bg-[#f1f5f9] text-[#64748b]'}`}
+                            className={`px-2 py-0.5 text-xs rounded ${(item.discountType || 'percentage') === 'percentage' ? 'bg-[#0ea5a3] text-white' : 'bg-[#f1f5f9] text-[#64748b]'}`}
                           >
                             %
                           </button>
@@ -169,7 +192,7 @@ export default function Basket({ items, onUpdateItem, onRemoveItem, onClear }: a
                           value={item.discountValue || ''}
                           onChange={(e) => {
                             const value = parseFloat(e.target.value) || 0;
-                            const discountType = item.discountType || 'amount';
+                            const discountType = item.discountType || 'percentage';
                             const lineTotal = item.qty * item.mrp;
 
                             let discountAmount = 0;
@@ -222,7 +245,7 @@ export default function Basket({ items, onUpdateItem, onRemoveItem, onClear }: a
                     <div className="flex items-center justify-between text-xs mt-2 bg-gray-50 p-2 rounded border border-gray-100">
                       <span className="text-gray-500">Available Stock</span>
                       <span className={`font-bold ${item.qty > (item.stock || 0) ? 'text-red-600' : 'text-gray-700'}`}>
-                        {item.stock !== undefined ? item.stock : 'N/A'} units
+                        {item.stock !== undefined && item.stock !== null && !isNaN(item.stock) ? item.stock : '0'} units
                       </span>
                     </div>
                     {item.qty > (item.stock || item.totalStock || 0) && (

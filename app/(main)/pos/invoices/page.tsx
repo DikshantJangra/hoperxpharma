@@ -11,11 +11,20 @@ export default function InvoicesPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [filters, setFilters] = useState({
+    paymentMethod: 'all',
+    invoiceType: 'all',
+    paymentStatus: 'all',
+    hasPrescription: undefined,
+    startDate: undefined,
+    endDate: undefined,
+  });
+  const [totalCount, setTotalCount] = useState(0);
 
   useEffect(() => {
     setIsLoading(true);
     const timer = setTimeout(() => {
-        setIsLoading(false);
+      setIsLoading(false);
     }, 1500);
     return () => clearTimeout(timer);
   }, []);
@@ -25,7 +34,12 @@ export default function InvoicesPage() {
       {/* Header */}
       <div className="bg-white border-b border-[#e2e8f0] p-4">
         <div className="flex items-center justify-between mb-4">
-          <h1 className="text-2xl font-bold text-[#0f172a]">Invoices</h1>
+          <h1 className="text-2xl font-bold text-[#0f172a]">
+            Invoices
+            {totalCount > 0 && (
+              <span className="ml-2 text-lg font-normal text-[#64748b]">({totalCount})</span>
+            )}
+          </h1>
           <button className="px-4 py-2 bg-[#0ea5a3] text-white rounded-lg hover:bg-[#0d9391] flex items-center gap-2" disabled={isLoading}>
             <FiDownload className="w-4 h-4" />
             Export
@@ -47,9 +61,8 @@ export default function InvoicesPage() {
 
           <button
             onClick={() => setShowFilters(!showFilters)}
-            className={`px-4 py-2.5 border rounded-lg flex items-center gap-2 ${
-              showFilters ? 'bg-[#f0fdfa] border-[#0ea5a3] text-[#0ea5a3]' : 'border-[#cbd5e1] hover:bg-[#f8fafc]'
-            }`}
+            className={`px-4 py-2.5 border rounded-lg flex items-center gap-2 ${showFilters ? 'bg-[#f0fdfa] border-[#0ea5a3] text-[#0ea5a3]' : 'border-[#cbd5e1] hover:bg-[#f8fafc]'
+              }`}
             disabled={isLoading}
           >
             <FiFilter className="w-4 h-4" />
@@ -62,7 +75,7 @@ export default function InvoicesPage() {
           </button>
         </div>
 
-        {showFilters && <FilterBar />}
+        {showFilters && <FilterBar filters={filters} onFilterChange={setFilters} />}
       </div>
 
       {/* Content */}
@@ -73,6 +86,8 @@ export default function InvoicesPage() {
             onSelectInvoice={setSelectedInvoice}
             selectedInvoice={selectedInvoice}
             isLoading={isLoading}
+            filters={filters}
+            onTotalChange={setTotalCount}
           />
         </div>
 

@@ -6,7 +6,7 @@ import {
     FiPhone, FiMail, FiMapPin, FiCalendar, FiUser,
     FiShoppingCart, FiRefreshCw, FiUpload, FiMessageSquare,
     FiArrowLeft, FiEdit, FiShield, FiActivity, FiFileText,
-    FiClock, FiCheckCircle
+    FiClock, FiCheckCircle, FiUsers
 } from "react-icons/fi";
 import { MdLocalPharmacy } from "react-icons/md";
 import { patientsApi } from "@/lib/api/patients";
@@ -17,6 +17,7 @@ import PatientMergeModal from "@/components/patients/PatientMergeModal";
 import PatientConsentsTab from "@/components/patients/PatientConsentsTab";
 import PatientHistoryTimeline from "@/components/patients/PatientHistoryTimeline";
 import AdherenceChart from "@/components/patients/AdherenceChart";
+import PatientConnectionsTab from "@/components/patients/PatientConnectionsTab"; // Import
 
 interface TabProps {
     id: string;
@@ -27,6 +28,7 @@ interface TabProps {
 const tabs: TabProps[] = [
     { id: "summary", label: "Summary", icon: <FiUser className="w-4 h-4" /> },
     { id: "prescriptions", label: "Prescriptions", icon: <FiFileText className="w-4 h-4" /> },
+    { id: "connections", label: "Family & Connections", icon: <FiUsers className="w-4 h-4" /> }, // Add Tab
     { id: "adherence", label: "Adherence", icon: <FiActivity className="w-4 h-4" /> },
     { id: "sales", label: "Sales History", icon: <FiShoppingCart className="w-4 h-4" /> },
     { id: "consents", label: "Consents", icon: <FiShield className="w-4 h-4" /> },
@@ -36,7 +38,7 @@ const tabs: TabProps[] = [
 export default function PatientProfilePage() {
     const params = useParams();
     const router = useRouter();
-    const patientId = params.id as string;
+    const patientId = params?.id as string;
     const { primaryStore } = useAuthStore();
 
     const [patient, setPatient] = useState<any>(null);
@@ -267,6 +269,7 @@ export default function PatientProfilePage() {
             <div className="max-w-7xl mx-auto px-6 py-6">
                 {activeTab === "summary" && <SummaryTab patient={patient} />}
                 {activeTab === "prescriptions" && <PrescriptionsTab patient={patient} />}
+                {activeTab === "connections" && <PatientConnectionsTab patient={patient} onUpdate={loadPatient} />}
                 {activeTab === "adherence" && <AdherenceTab patientId={patientId} />}
                 {activeTab === "sales" && <SalesTab patient={patient} />}
                 {activeTab === "consents" && <PatientConsentsTab patient={patient} onUpdate={loadPatient} />}

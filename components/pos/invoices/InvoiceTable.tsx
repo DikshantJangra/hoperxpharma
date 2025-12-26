@@ -17,31 +17,46 @@ const TableRowSkeleton = () => (
   </tr>
 )
 
-export default function InvoiceTable({ searchQuery, onSelectInvoice, selectedInvoice, isLoading: parentLoading }: any) {
+export default function InvoiceTable({ searchQuery, onSelectInvoice, selectedInvoice, isLoading: parentLoading, filters, onTotalChange }: any) {
   const [invoices, setInvoices] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [downloadingPdf, setDownloadingPdf] = useState<string | null>(null);
   const [printingPdf, setPrintingPdf] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [limit] = useState(20);
+  const [total, setTotal] = useState(0);
+  const [sortBy, setSortBy] = useState('createdAt');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   useEffect(() => {
     fetchInvoices();
-  }, []);
+  }, [page, sortBy, sortOrder, filters]);
 
   const fetchInvoices = async () => {
     try {
       setIsLoading(true);
-      const response = await salesApi.getSales({ limit: 100 });
+      const response = await salesApi.getSales({
+        page,
+        limit,
+        sortBy,
+        sortOrder,
+        ...filters
+      });
       console.log('Invoices API response:', response);
 
       // Handle both wrapped response {data: [...]} and direct array response
       const salesData = response.data || response.sales || response;
       const invoicesArray = Array.isArray(salesData) ? salesData : [];
+      const totalCount = response.total || invoicesArray.length;
 
       console.log('Extracted invoices:', invoicesArray);
       setInvoices(invoicesArray);
+      setTotal(totalCount);
+      onTotalChange?.(totalCount);
     } catch (error: any) {
       console.error('Failed to fetch invoices:', error);
       setInvoices([]);
+      setTotal(0);
     } finally {
       setIsLoading(false);
     }
@@ -187,6 +202,10 @@ export default function InvoiceTable({ searchQuery, onSelectInvoice, selectedInv
                       phone: invoice.patient?.phoneNumber || '-',
                       gstin: invoice.patient?.gstin
                     },
+                    dispenseFor: invoice.dispenseForPatient ? {
+                      name: `${invoice.dispenseForPatient.firstName} ${invoice.dispenseForPatient.lastName || ''}`.trim(),
+                      phone: invoice.dispenseForPatient.phoneNumber
+                    } : null,
                     paymentModes: invoice.paymentSplits?.map((split: any) => ({
                       mode: split.paymentMethod,
                       amount: split.amount
@@ -195,8 +214,8 @@ export default function InvoiceTable({ searchQuery, onSelectInvoice, selectedInv
                       name: item.drug?.name || 'Unknown Item',
                       strength: item.drug?.strength || '',
                       pack: item.drug?.packSize || '1s',
-                      batch: item.batchId, // We might need to fetch batch number
-                      expiry: '-', // We need to fetch expiry
+                      batch: item.batch?.batchNumber || (item.batchId ? item.batchId.slice(-6).toUpperCase() : '-'),
+                      expiry: item.batch?.expiryDate ? new Date(item.batch.expiryDate).toLocaleDateString('en-IN', { month: '2-digit', year: 'numeric' }).replace('/', '/20').slice(0, 5) : '-',
                       gst: item.gstRate,
                       qty: item.quantity,
                       price: item.mrp,
@@ -322,6 +341,34 @@ export default function InvoiceTable({ searchQuery, onSelectInvoice, selectedInv
           )}
         </tbody>
       </table>
+
+      {/* Pagination */}
+      {!loading && total > 0 && (
+        <div className="sticky bottom-0 bg-white border-t border-[#e2e8f0] px-4 py-3 flex items-center justify-between">
+          <div className="text-sm text-[#64748b]">
+            Showing {Math.min((page - 1) * limit + 1, total)} to {Math.min(page * limit, total)} of {total} invoices
+          </div>
+          <div className="flex gap-2">
+            <button
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="px-3 py-1.5 border border-[#cbd5e1] rounded-lg hover:bg-[#f8fafc] disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+            >
+              Previous
+            </button>
+            <span className="px-3 py-1.5 text-sm text-[#64748b]">
+              Page {page} of {Math.ceil(total / limit)}
+            </span>
+            <button
+              onClick={() => setPage(p => Math.min(Math.ceil(total / limit), p + 1))}
+              disabled={page >= Math.ceil(total / limit)}
+              className="px-3 py-1.5 border border-[#cbd5e1] rounded-lg hover:bg-[#f8fafc] disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
