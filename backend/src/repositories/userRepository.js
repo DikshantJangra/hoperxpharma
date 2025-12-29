@@ -14,6 +14,7 @@ class UserRepository {
             where: { email },
             include: {
                 storeUsers: {
+                    orderBy: { assignedAt: 'asc' },
                     include: {
                         store: true,
                     },
@@ -39,6 +40,7 @@ class UserRepository {
             where: { id, deletedAt: null },
             include: {
                 storeUsers: {
+                    orderBy: { assignedAt: 'asc' },
                     include: {
                         store: true,
                     },
@@ -119,6 +121,7 @@ class UserRepository {
             where: { id: userId },
             include: {
                 storeUsers: {
+                    orderBy: { assignedAt: 'asc' },
                     include: {
                         store: {
                             include: {
