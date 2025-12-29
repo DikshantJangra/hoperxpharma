@@ -46,6 +46,8 @@ export default function NewSalePage() {
   const [isLoadingRx, setIsLoadingRx] = useState(false);
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [shouldCreateRefill, setShouldCreateRefill] = useState(false); // Track if this sale should create a refill
+  const [overallDiscount, setOverallDiscount] = useState<{ type: 'percentage' | 'amount' | null, value: number }>({ type: null, value: 0 });
+  const [dispenseFor, setDispenseFor] = useState<any>(null); // Track who medication is dispensed for
   const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Get storeId from localStorage
@@ -644,32 +646,17 @@ export default function NewSalePage() {
 
                 // Successfully used prescribed batch, skip FEFO
                 continue;
-              } else if (prescribedBatch) {
-                // FOUND BATCH BUT ZERO STOCK - Add it anyway so user sees it
-                newItems.push({
-                  id: item.drug.id,
-                  name: item.drug.name,
-                  sku: item.drug.sku || item.drug.id,
-                  batchId: prescribedBatch.id,
-                  batchNumber: prescribedBatch.batchNumber,
-                  location: prescribedBatch.location,
-                  expiryDate: prescribedBatch.expiryDate,
-                  stock: Number(prescribedBatch.quantityInStock),
-                  mrp: Number(prescribedBatch.mrp),
-                  qty: Number(item.quantityPrescribed) || 1, // Add requested qty so it shows error
-                  discount: 0,
-                  gstRate: Number(item.drug.gstRate) || 5,
-                  type: 'RX'
-                });
-
-                // Fall through to substitution logging but NOT FEFO (since we forced this batch)
+              } else {
+                // Batch specified but not found or out of stock
                 substitutions.push({
                   drug: item.drug.name,
-                  reason: 'Prescribed batch is out of stock',
-                  originalBatch: prescribedBatch.batchNumber,
+                  reason: "Prescribed batch not available or out of stock",
+                  originalBatch: prescribedBatchId
                 });
-                continue;
+                // Fall through to FEFO logic to try finding another batch
               }
+
+              // End of specific batch check
             }
           }
 
@@ -829,38 +816,15 @@ export default function NewSalePage() {
     setLinkedPrescriptionId(undefined);
     setActivePrescription(null);
     setCurrentDraftId(null); // Clear draft ID when clearing basket
+    setShouldCreateRefill(false);
+    setOverallDiscount({ type: null, value: 0 }); // Reset overall discount
     localStorage.removeItem('currentDraftId'); // Remove from localStorage
   };
 
-  // Apply Overall Discount
+  // Apply Overall Discount (stores for application in calculateTotals)
   const handleApplyOverallDiscount = (type: 'percentage' | 'amount', value: number) => {
-    setBasketItems(prev => {
-      const totalMrp = prev.reduce((sum, item) => sum + (item.qty * item.mrp), 0);
-
-      return prev.map(item => {
-        const itemTotal = item.qty * item.mrp;
-        let discountValue = 0;
-        let discountAmount = 0;
-
-        if (type === 'percentage') {
-          discountValue = value;
-          discountAmount = (itemTotal * value) / 100;
-        } else {
-          // Weighted distribution for fixed amount
-          const ratio = itemTotal / totalMrp;
-          discountAmount = value * ratio;
-          discountValue = discountAmount; // For 'amount' type, value is the amount
-        }
-
-        return {
-          ...item,
-          discountType: type,
-          discountValue: Number(discountValue.toFixed(2)),
-          discount: Number(discountAmount.toFixed(2))
-        };
-      });
-    });
-    toast.success('Overall discount applied to all items');
+    setOverallDiscount({ type, value });
+    toast.success(`Overall ${type} discount of ${type === 'percentage' ? value + '%' : '₹' + value} applied`);
   };
 
   // Calculate GST
@@ -893,12 +857,22 @@ export default function NewSalePage() {
       netTotal += lineNet;
     });
 
-    const roundedTotal = Math.round(netTotal);
-    const roundOff = roundedTotal - netTotal;
+    // 5. Apply overall discount to the final total (AFTER item discounts + GST)
+    let overallDiscountAmount = 0;
+    if (overallDiscount.type === 'percentage' && overallDiscount.value > 0) {
+      overallDiscountAmount = (netTotal * overallDiscount.value) / 100;
+    } else if (overallDiscount.type === 'amount' && overallDiscount.value > 0) {
+      overallDiscountAmount = overallDiscount.value;
+    }
+
+    const totalAfterOverallDiscount = netTotal - overallDiscountAmount;
+    const roundedTotal = Math.round(totalAfterOverallDiscount);
+    const roundOff = roundedTotal - totalAfterOverallDiscount;
 
     return {
       totalMrp,
-      totalDiscount,
+      totalDiscount, // Item-level discounts only
+      overallDiscountAmount, // Overall discount separate
       taxableValue,
       taxAmount,
       roundOff,
@@ -1120,6 +1094,8 @@ export default function NewSalePage() {
             onClear={clearBasket}
             onApplyDiscount={handleApplyOverallDiscount}
             totals={totals}
+            dispenseFor={dispenseFor}
+            onDispenseForChange={setDispenseFor}
           />
         </div>
       </div>

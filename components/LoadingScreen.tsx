@@ -32,8 +32,13 @@ const tips = [
 
 export function LoadingScreen() {
     const [currentTipIndex, setCurrentTipIndex] = useState(0);
+    const [isMounted, setIsMounted] = useState(false);
 
     useEffect(() => {
+        // Set random tip on mount (client-side only)
+        setCurrentTipIndex(Math.floor(Math.random() * tips.length));
+        setIsMounted(true);
+
         const interval = setInterval(() => {
             setCurrentTipIndex((prev) => (prev + 1) % tips.length);
         }, 7000); // Change tip every 7 seconds
@@ -42,6 +47,8 @@ export function LoadingScreen() {
     }, []);
 
     const CurrentIcon = tips[currentTipIndex].icon;
+
+    if (!isMounted) return null; // Prevent server-client mismatch
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-white via-emerald-50/30 to-white">

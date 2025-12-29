@@ -21,7 +21,8 @@ const getDashboardStats = asyncHandler(async (req, res) => {
             prescriptions: 0,
             readyForPickup: 0,
             criticalStock: 0,
-            expiringSoon: 0
+            expiringSoon: 0,
+            yesterdayRevenue: 0
         }));
     }
 
@@ -30,10 +31,15 @@ const getDashboardStats = asyncHandler(async (req, res) => {
     const tomorrow = new Date(today);
     tomorrow.setDate(tomorrow.getDate() + 1);
 
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+
     // Fetch all stats in parallel
     const [
         todaySales,
+        yesterdaySales,
         prescriptionsCount,
+        prescriptionDetails,
         readyForPickupCount,
         lowStockCount,
         expiringCount
@@ -48,16 +54,40 @@ const getDashboardStats = asyncHandler(async (req, res) => {
                 },
                 status: { not: 'CANCELLED' }
             },
-            _sum: { finalAmount: true },
+            _sum: { total: true },
             _count: true
         }),
 
-        // Prescriptions pending review
+        // Yesterday's revenue for comparison
+        prisma.sale.aggregate({
+            where: {
+                storeId,
+                createdAt: {
+                    gte: yesterday,
+                    lt: today
+                },
+                status: { not: 'CANCELLED' }
+            },
+            _sum: { total: true }
+        }),
+
+        // Prescriptions - ACTIVE/VERIFIED (implies refills remaining) or DRAFT status
         prisma.prescription.count({
             where: {
                 storeId,
-                status: 'PENDING'
+                status: { in: ['ACTIVE', 'VERIFIED', 'DRAFT'] },
+                deletedAt: null
             }
+        }),
+
+        // Detailed Prescription Breakdown
+        prisma.prescription.groupBy({
+            by: ['status'],
+            where: {
+                storeId,
+                deletedAt: null
+            },
+            _count: true
         }),
 
         // Orders ready for pickup
@@ -72,8 +102,9 @@ const getDashboardStats = asyncHandler(async (req, res) => {
         prisma.inventoryBatch.count({
             where: {
                 storeId,
-                currentStock: { lte: 10 }, // Low stock threshold
-                currentStock: { gt: 0 }
+                quantityInStock: { lte: 10 }, // Low stock threshold
+                quantityInStock: { gt: 0 },
+                deletedAt: null
             }
         }),
 
@@ -84,18 +115,25 @@ const getDashboardStats = asyncHandler(async (req, res) => {
                 expiryDate: {
                     gte: new Date(),
                     lte: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-                }
+                },
+                deletedAt: null
             }
         })
     ]);
 
     const stats = {
-        revenue: todaySales._sum.finalAmount || 0,
+        revenue: todaySales._sum.total || 0,
         salesCount: todaySales._count || 0,
         prescriptions: prescriptionsCount,
+        prescriptionDetails: {
+            active: (prescriptionDetails.find(d => d.status === 'ACTIVE')?._count || 0) + (prescriptionDetails.find(d => d.status === 'VERIFIED')?._count || 0),
+            draft: prescriptionDetails.find(d => d.status === 'DRAFT')?._count || 0,
+            refill: (prescriptionDetails.find(d => d.status === 'ACTIVE')?._count || 0) + (prescriptionDetails.find(d => d.status === 'VERIFIED')?._count || 0) // Updated logic: Verified/Active implies refills available
+        },
         readyForPickup: readyForPickupCount,
         criticalStock: lowStockCount,
-        expiringSoon: expiringCount
+        expiringSoon: expiringCount,
+        yesterdayRevenue: yesterdaySales._sum.total || 0
     };
 
     return res.status(200).json(new ApiResponse(200, stats));
@@ -113,35 +151,95 @@ const getSalesChart = asyncHandler(async (req, res) => {
         throw new ApiError(400, 'User has no associated store');
     }
 
-    const period = req.query.period || 'daily'; // daily, weekly, monthly
-    const days = period === 'weekly' ? 7 : period === 'monthly' ? 30 : 1;
+    const period = req.query.period || 'week'; // week, month, year
+    let days;
+
+    if (period === 'week') {
+        days = 7;
+    } else if (period === 'month') {
+        days = 30;
+    } else if (period === 'year') {
+        days = 365;
+    } else {
+        days = 7; // default to week
+    }
 
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
     startDate.setHours(0, 0, 0, 0);
 
-    // Get sales grouped by date
-    const sales = await prisma.sale.findMany({
-        where: {
-            storeId,
-            createdAt: { gte: startDate },
-            status: { not: 'CANCELLED' }
-        },
-        select: {
-            createdAt: true,
-            finalAmount: true
-        },
-        orderBy: { createdAt: 'asc' }
-    });
+    // Get sales grouped by date and workflow counts
+    const [sales, workflowCounts] = await Promise.all([
+        // Sales data for chart
+        prisma.sale.findMany({
+            where: {
+                storeId,
+                createdAt: { gte: startDate },
+                status: { not: 'CANCELLED' }
+            },
+            select: {
+                createdAt: true,
+                total: true,
+                status: true
+            },
+            orderBy: { createdAt: 'asc' }
+        }),
+
+        // Workflow status counts
+        prisma.sale.groupBy({
+            by: ['status'],
+            where: {
+                storeId,
+                createdAt: { gte: startDate },
+                status: { not: 'CANCELLED' }
+            },
+            _count: true
+        })
+    ]);
 
     // Group by date
     const chartData = {};
+    let totalProcessingTime = 0;
+    let processedSalesCount = 0;
+
+    // Calculate processing time from dispense events
+    const dispenseEvents = await prisma.dispenseEvent.findMany({
+        where: {
+            prescription: {
+                storeId,
+                createdAt: { gte: startDate }
+            },
+            workflowStatus: 'COMPLETED',
+            completedAt: { not: null }
+        },
+        select: {
+            createdAt: true,
+            completedAt: true
+        },
+        take: 100
+    });
+
+    dispenseEvents.forEach(event => {
+        if (event.completedAt) {
+            const processingMs = new Date(event.completedAt).getTime() - new Date(event.createdAt).getTime();
+            const processingHours = processingMs / (1000 * 60 * 60);
+            if (processingHours > 0 && processingHours < 168) { // Sanity check: less than 7 days
+                totalProcessingTime += processingHours;
+                processedSalesCount += 1;
+            }
+        }
+    });
+
     sales.forEach(sale => {
-        const date = sale.createdAt.toISOString().split('T')[0];
+        // Adjust for IST (UTC+5:30) to ensure correct day grouping
+        // 12:45 AM Dec 30 IST is 19:15 Dec 29 UTC, which caused the issue.
+        // Adding 5.5 hours shifts it effectively to IST for correct YYYY-MM-DD extraction
+        const istDate = new Date(sale.createdAt.getTime() + (5.5 * 60 * 60 * 1000));
+        const date = istDate.toISOString().split('T')[0];
         if (!chartData[date]) {
             chartData[date] = { revenue: 0, count: 0 };
         }
-        chartData[date].revenue += parseFloat(sale.finalAmount);
+        chartData[date].revenue += parseFloat(sale.total);
         chartData[date].count += 1;
     });
 
@@ -152,7 +250,65 @@ const getSalesChart = asyncHandler(async (req, res) => {
         count: stats.count
     }));
 
-    return res.status(200).json(new ApiResponse(200, { period, data }));
+    // Map workflow statuses to readable names
+    const workflowStatusMap = {
+        'PENDING': 'New',
+        'PROCESSING': 'In Progress',
+        'COMPLETED': 'Ready',
+        'DELIVERED': 'Delivered'
+    };
+
+    const workflowStats = {
+        new: 0,
+        inProgress: 0,
+        ready: 0,
+        delivered: 0
+    };
+
+    workflowCounts.forEach(item => {
+        const status = item.status;
+        const count = item._count;
+
+        if (status === 'PENDING') workflowStats.new = count;
+        else if (status === 'PROCESSING') workflowStats.inProgress = count;
+        else if (status === 'COMPLETED') workflowStats.ready = count;
+        else if (status === 'DELIVERED') workflowStats.delivered = count;
+    });
+
+    const averageProcessingTime = processedSalesCount > 0
+        ? (totalProcessingTime / processedSalesCount).toFixed(1) + 'h'
+        : 'N/A';
+
+    // Calculate growth percentage compared to previous period
+    const previousPeriodStart = new Date(startDate);
+    previousPeriodStart.setDate(previousPeriodStart.getDate() - days);
+    const previousPeriodSales = await prisma.sale.aggregate({
+        where: {
+            storeId,
+            createdAt: {
+                gte: previousPeriodStart,
+                lt: startDate
+            },
+            status: { not: 'CANCELLED' }
+        },
+        _sum: { total: true }
+    });
+
+    const currentTotal = data.reduce((sum, item) => sum + item.revenue, 0);
+    const previousTotal = parseFloat(previousPeriodSales._sum.total) || 0;
+    const growthPercent = previousTotal > 0
+        ? (((currentTotal - previousTotal) / previousTotal) * 100).toFixed(1)
+        : currentTotal > 0 ? '100.0' : '0.0';
+
+    return res.status(200).json(new ApiResponse(200, {
+        period,
+        data,
+        workflowStats,
+        averageProcessingTime,
+        growthPercent,
+        totalRevenue: currentTotal,
+        totalOrders: data.reduce((sum, item) => sum + item.count, 0)
+    }));
 });
 
 /**
@@ -173,11 +329,11 @@ const getActionQueues = asyncHandler(async (req, res) => {
         expiringItems,
         readyForPickup
     ] = await Promise.all([
-        // Pending prescriptions
+        // Pending prescriptions (DRAFT or VERIFIED)
         prisma.prescription.findMany({
             where: {
                 storeId,
-                status: 'PENDING'
+                status: { in: ['DRAFT', 'VERIFIED'] }
             },
             take: 5,
             orderBy: { createdAt: 'desc' },
@@ -194,13 +350,13 @@ const getActionQueues = asyncHandler(async (req, res) => {
         prisma.inventoryBatch.findMany({
             where: {
                 storeId,
-                currentStock: { lte: 10, gt: 0 }
+                quantityInStock: { lte: 10, gt: 0 }
             },
             take: 5,
-            orderBy: { currentStock: 'asc' },
+            orderBy: { quantityInStock: 'asc' },
             select: {
                 id: true,
-                currentStock: true,
+                quantityInStock: true,
                 drug: {
                     select: { name: true }
                 }
@@ -249,13 +405,13 @@ const getActionQueues = asyncHandler(async (req, res) => {
     const queues = {
         pendingPrescriptions: pendingPrescriptions.map(p => ({
             id: p.id,
-            patientName: `${p.patient.firstName} ${p.patient.lastName}`,
+            patientName: p.patient ? `${p.patient.firstName} ${p.patient.lastName}` : 'Walk-in Customer',
             time: p.createdAt
         })),
         lowStockItems: lowStockItems.map(i => ({
             id: i.id,
             drugName: i.drug.name,
-            stock: i.currentStock
+            stock: i.quantityInStock
         })),
         expiringItems: expiringItems.map(i => ({
             id: i.id,
@@ -265,7 +421,7 @@ const getActionQueues = asyncHandler(async (req, res) => {
         readyForPickup: readyForPickup.map(s => ({
             id: s.id,
             invoiceNumber: s.invoiceNumber,
-            patientName: `${s.patient.firstName} ${s.patient.lastName}`,
+            patientName: s.patient ? `${s.patient.firstName} ${s.patient.lastName}` : 'Walk-in Customer',
             time: s.createdAt
         }))
     };

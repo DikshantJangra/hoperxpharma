@@ -3,6 +3,7 @@ import { useEffect, useState } from "react"
 import { FiDollarSign, FiAlertTriangle, FiClock, FiPackage } from "react-icons/fi"
 import { TbPrescription } from "react-icons/tb"
 import { MdStore } from "react-icons/md"
+import { useRouter } from "next/navigation"
 import KPICard from "@/components/dashboard/overview/KPICard"
 import SalesChart from "@/components/dashboard/overview/SalesChart"
 import AIInsights from "@/components/dashboard/overview/AIInsights"
@@ -22,14 +23,17 @@ const formatCurrency = (amount: number) => {
 }
 
 export default function OverviewPage() {
+    const router = useRouter()
     const { user, primaryStore, hasStore } = useAuthStore()
     const [loading, setLoading] = useState(true)
     const [stats, setStats] = useState({
         revenue: 0,
         prescriptions: 0,
+        prescriptionDetails: { active: 0, draft: 0, refill: 0 },
         readyForPickup: 0,
         criticalStock: 0,
-        expiringSoon: 0
+        expiringSoon: 0,
+        yesterdayRevenue: 0
     })
 
     useEffect(() => {
@@ -49,9 +53,11 @@ export default function OverviewPage() {
                 setStats({
                     revenue: dashboardStats.revenue || 0,
                     prescriptions: dashboardStats.prescriptions || 0,
+                    prescriptionDetails: dashboardStats.prescriptionDetails || { active: 0, draft: 0, refill: 0 },
                     readyForPickup: dashboardStats.readyForPickup || 0,
                     criticalStock: dashboardStats.criticalStock || 0,
-                    expiringSoon: dashboardStats.expiringSoon || 0
+                    expiringSoon: dashboardStats.expiringSoon || 0,
+                    yesterdayRevenue: dashboardStats.yesterdayRevenue || 0
                 })
             } catch (error) {
                 console.error("Failed to fetch dashboard data:", error)
@@ -62,6 +68,17 @@ export default function OverviewPage() {
 
         fetchDashboardData()
     }, [hasStore])
+
+    // Calculate revenue comparison
+    const calculateComparison = (today: number, yesterday: number) => {
+        if (yesterday === 0) {
+            if (today > 0) return "+100%"
+            return "0%"
+        }
+        const change = ((today - yesterday) / yesterday) * 100
+        const sign = change >= 0 ? "+" : ""
+        return `${sign}${change.toFixed(1)}%`
+    }
 
     return (
         <>
@@ -93,10 +110,10 @@ export default function OverviewPage() {
                         icon={<FiDollarSign size={20} />}
                         title="Revenue (Today)"
                         value={formatCurrency(stats.revenue)}
-                        microtext={loading ? "Loading..." : "vs yesterday"}
+                        microtext={loading ? "Loading..." : `${calculateComparison(stats.revenue, stats.yesterdayRevenue)} vs yesterday`}
                         ctaLabel="View"
                         updated="Just now"
-                        onAction={() => { }}
+                        onAction={() => router.push('/pos/invoices')}
                         loading={loading}
                     />
                     <KPICard
@@ -105,7 +122,19 @@ export default function OverviewPage() {
                         value={stats.prescriptions.toString()}
                         microtext={loading ? "Loading..." : "Pending review"}
                         ctaLabel="Open Queue"
-                        onAction={() => { }}
+                        tooltipContent={
+                            <div className="space-y-1">
+                                <div className="flex justify-between items-center text-emerald-300">
+                                    <span>Active (Refills Left):</span>
+                                    <span className="font-bold">{stats.prescriptionDetails?.active || 0}</span>
+                                </div>
+                                <div className="flex justify-between items-center text-amber-300">
+                                    <span>Drafts/New:</span>
+                                    <span className="font-bold">{stats.prescriptionDetails?.draft || 0}</span>
+                                </div>
+                            </div>
+                        }
+                        onAction={() => router.push('/prescriptions/all-prescriptions')}
                         loading={loading}
                     />
                     <KPICard
@@ -114,7 +143,7 @@ export default function OverviewPage() {
                         value={stats.readyForPickup.toString()}
                         microtext={loading ? "Loading..." : "Waiting for patient"}
                         ctaLabel="Notify"
-                        onAction={() => { }}
+                        onAction={() => router.push('/prescriptions/ready')}
                         loading={loading}
                     />
                     <KPICard
@@ -124,7 +153,7 @@ export default function OverviewPage() {
                         microtext={loading ? "Loading..." : "Items below threshold"}
                         ctaLabel="Order"
                         variant={stats.criticalStock > 0 ? "critical" : "default"}
-                        onAction={() => { }}
+                        onAction={() => router.push('/inventory?filter=low_stock')}
                         loading={loading}
                     />
                     <KPICard
@@ -134,7 +163,7 @@ export default function OverviewPage() {
                         microtext={loading ? "Loading..." : "In next 30 days"}
                         ctaLabel="Manage"
                         variant={stats.expiringSoon > 0 ? "critical" : "default"}
-                        onAction={() => { }}
+                        onAction={() => router.push('/inventory?filter=expiring')}
                         loading={loading}
                     />
                 </div>

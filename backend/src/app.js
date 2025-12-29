@@ -36,7 +36,7 @@ const allowedOrigins = [
 
 // In development, always allow localhost
 if (process.env.NODE_ENV !== 'production') {
-  allowedOrigins.push('http://localhost:3000', 'http://localhost:3001', 'http://127.0.0.1:3000');
+  allowedOrigins.push('http://localhost:3000', 'https://localhost:3000', 'http://127.0.0.1:3000');
   logger.info('CORS: Development mode - allowing localhost origins');
 }
 

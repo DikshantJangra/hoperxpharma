@@ -161,125 +161,135 @@ class SaleRepository {
                     }));
                 }
 
-                // Update prescription status (no await needed, will commit with transaction)
+                // Calculate remaining refills to determine status
+                const refillCount = await tx.refill.count({
+                    where: { prescriptionId: saleData.prescriptionId }
+                });
+                // Assuming typical max refill logic or fetch from prescription if available.
+                // For now, simpler: If we just created a refill (via shouldCreateRefill), keep ACTIVE.
+                // If this is a one-time fill or last refill, mark COMPLETED.
+
+                // BETTER: Just set to ACTIVE by default if it was Verified.
+                // Only mark COMPLETED if 0 refills left (logic handled in future cleanup).
+                // For safety, let's keep it ACTIVE if this is a Refill creation flow.
+                const nextStatus = saleData.shouldCreateRefill ? 'ACTIVE' : 'COMPLETED';
+
+                // Update prescription status
                 tx.prescription.update({
                     where: { id: saleData.prescriptionId },
-                    data: { status: 'COMPLETED', updatedAt: new Date() }
+                    data: { status: nextStatus, updatedAt: new Date() }
                 });
 
-                // CONDITIONAL: Handle Refill Updates
-                // Note: Creation of NEW refills is handled at the end by _processRefillUpdates
-                // Legacy block removed to rely on unified logic
+            }
 
-                // Create sale
-                // FIX: Extract non-DB fields to prevent Prisma error
-                const { shouldCreateRefill, ...saleDataForDB } = saleData;
+            // Create sale (for both prescription and walk-in sales)
+            // FIX: Extract non-DB fields to prevent Prisma error
+            const { shouldCreateRefill, ...saleDataForDB } = saleData;
 
-                const sale = await tx.sale.create({
+            const sale = await tx.sale.create({
+                data: {
+                    ...saleDataForDB,
+                    attachments: attachments.length > 0 ? attachments : undefined
+                },
+            });
+
+            // Batch create sale items (parallel)
+            const saleItemsPromise = tx.saleItem.createMany({
+                data: items.map(item => ({ ...item, saleId: sale.id }))
+            });
+
+            // Batch create payment splits (parallel)
+            const paymentsPromise = tx.paymentSplit.createMany({
+                data: paymentSplits.map(payment => ({ ...payment, saleId: sale.id }))
+            });
+
+            // Wait for both
+            await Promise.all([saleItemsPromise, paymentsPromise]);
+
+            // Handle credit payments
+            const creditPayment = paymentSplits.find(p => p.paymentMethod?.toUpperCase() === 'CREDIT');
+            const creditAmount = creditPayment ? parseFloat(creditPayment.amount) : 0;
+
+            if (creditAmount > 0) {
+                if (!saleData.patientId) {
+                    throw new Error("Customer required for credit sales");
+                }
+
+                const totalAmount = parseFloat(sale.total);
+                const paymentStatus = creditAmount < totalAmount ? 'PARTIAL' : 'UNPAID';
+
+                // Update sale balance
+                await tx.sale.update({
+                    where: { id: sale.id },
+                    data: { balance: creditAmount, paymentStatus }
+                });
+
+                // Update patient balance and create ledger entry (parallel)
+                const updatedPatient = await tx.patient.update({
+                    where: { id: saleData.patientId },
+                    data: { currentBalance: { increment: creditAmount } }
+                });
+
+                tx.customerLedger.create({
                     data: {
-                        ...saleDataForDB,
-                        attachments: attachments.length > 0 ? attachments : undefined
-                    },
+                        storeId: saleData.storeId,
+                        patientId: saleData.patientId,
+                        type: 'DEBIT',
+                        amount: creditAmount,
+                        balanceAfter: updatedPatient.currentBalance,
+                        referenceType: 'SALE',
+                        referenceId: sale.id,
+                        notes: `Credit Sale: ${saleData.invoiceNumber}`
+                    }
                 });
+            }
 
-                // Batch create sale items (parallel)
-                const saleItemsPromise = tx.saleItem.createMany({
-                    data: items.map(item => ({ ...item, saleId: sale.id }))
-                });
+            // Update inventory (skip for estimates)
+            if (saleData.invoiceType !== 'ESTIMATE') {
+                // Batch update inventory and create stock movements
+                const inventoryPromises = items.map(async (item) => {
+                    const currentBatch = await tx.inventoryBatch.findUnique({
+                        where: { id: item.batchId },
+                        select: { quantityInStock: true, batchNumber: true, drug: { select: { name: true } } }
+                    });
 
-                // Batch create payment splits (parallel)
-                const paymentsPromise = tx.paymentSplit.createMany({
-                    data: paymentSplits.map(payment => ({ ...payment, saleId: sale.id }))
-                });
-
-                // Wait for both
-                await Promise.all([saleItemsPromise, paymentsPromise]);
-
-                // Handle credit payments
-                const creditPayment = paymentSplits.find(p => p.paymentMethod?.toUpperCase() === 'CREDIT');
-                const creditAmount = creditPayment ? parseFloat(creditPayment.amount) : 0;
-
-                if (creditAmount > 0) {
-                    if (!saleData.patientId) {
-                        throw new Error("Customer required for credit sales");
+                    if (!currentBatch || currentBatch.quantityInStock < item.quantity) {
+                        throw new Error(
+                            `Insufficient stock for ${currentBatch?.drug.name || 'item'} (Batch: ${currentBatch?.batchNumber})`
+                        );
                     }
 
-                    const totalAmount = parseFloat(sale.total);
-                    const paymentStatus = creditAmount < totalAmount ? 'PARTIAL' : 'UNPAID';
-
-                    // Update sale balance
-                    await tx.sale.update({
-                        where: { id: sale.id },
-                        data: { balance: creditAmount, paymentStatus }
-                    });
-
-                    // Update patient balance and create ledger entry (parallel)
-                    const updatedPatient = await tx.patient.update({
-                        where: { id: saleData.patientId },
-                        data: { currentBalance: { increment: creditAmount } }
-                    });
-
-                    tx.customerLedger.create({
-                        data: {
-                            storeId: saleData.storeId,
-                            patientId: saleData.patientId,
-                            type: 'DEBIT',
-                            amount: creditAmount,
-                            balanceAfter: updatedPatient.currentBalance,
-                            referenceType: 'SALE',
-                            referenceId: sale.id,
-                            notes: `Credit Sale: ${saleData.invoiceNumber}`
-                        }
-                    });
-                }
-
-                // Update inventory (skip for estimates)
-                if (saleData.invoiceType !== 'ESTIMATE') {
-                    // Batch update inventory and create stock movements
-                    const inventoryPromises = items.map(async (item) => {
-                        const currentBatch = await tx.inventoryBatch.findUnique({
+                    // Update batch and create movement (parallel)
+                    return Promise.all([
+                        tx.inventoryBatch.update({
                             where: { id: item.batchId },
-                            select: { quantityInStock: true, batchNumber: true, drug: { select: { name: true } } }
-                        });
+                            data: {
+                                quantityInStock: { decrement: item.quantity }
+                            }
+                        }),
+                        tx.stockMovement.create({
+                            data: {
+                                // storeId removed as it's not in StockMovement model
+                                batchId: item.batchId,
+                                movementType: 'SALE',
+                                quantity: -item.quantity,
+                                referenceType: 'SALE', // Explicitly set referenceType
+                                referenceId: sale.invoiceNumber,
+                                userId: saleData.soldBy // Mapped from createdBy/soldBy
+                            }
+                        })
+                    ]);
+                });
 
-                        if (!currentBatch || currentBatch.quantityInStock < item.quantity) {
-                            throw new Error(
-                                `Insufficient stock for ${currentBatch?.drug.name || 'item'} (Batch: ${currentBatch?.batchNumber})`
-                            );
-                        }
-
-                        // Update batch and create movement (parallel)
-                        return Promise.all([
-                            tx.inventoryBatch.update({
-                                where: { id: item.batchId },
-                                data: {
-                                    quantityInStock: { decrement: item.quantity }
-                                }
-                            }),
-                            tx.stockMovement.create({
-                                data: {
-                                    // storeId removed as it's not in StockMovement model
-                                    batchId: item.batchId,
-                                    movementType: 'SALE',
-                                    quantity: -item.quantity,
-                                    referenceType: 'SALE', // Explicitly set referenceType
-                                    referenceId: sale.invoiceNumber,
-                                    userId: saleData.soldBy // Mapped from createdBy/soldBy
-                                }
-                            })
-                        ]);
-                    });
-
-                    await Promise.all(inventoryPromises);
-                }
-
-                // 4. Process Refill Updates if linked to a prescription and requested
-                if (saleData.prescriptionId && saleData.shouldCreateRefill) {
-                    await this._processRefillUpdates(tx, sale.id, saleData.prescriptionId, items);
-                }
-
-                return { sale, items: [], payments: [] };
+                await Promise.all(inventoryPromises);
             }
+
+            // 4. Process Refill Updates if linked to a prescription and requested
+            if (saleData.prescriptionId && saleData.shouldCreateRefill) {
+                await this._processRefillUpdates(tx, sale.id, saleData.prescriptionId, items, saleData.soldBy);
+            }
+
+            return { sale, items: [], payments: [] };
         }, {
             maxWait: 20000,
             timeout: 20000
@@ -290,15 +300,16 @@ class SaleRepository {
      * Process refill updates and prescription item tracking
      * @private
      */
-    async _processRefillUpdates(tx, saleId, prescriptionId, saleItems) {
+    async _processRefillUpdates(tx, saleId, prescriptionId, saleItems, userId) {
         const log = (msg) => fs.appendFileSync('/tmp/refill_debug.log', `[${new Date().toISOString()}] ${msg}\n`);
         try {
             log(`START processing refill for Sale ${saleId}, Rx ${prescriptionId}`);
 
-            // 1. Fetch prescription with items to verify
+            // 1. Fetch prescription with CANONICAL items (Required for FK)
             const prescription = await tx.prescription.findUnique({
                 where: { id: prescriptionId },
                 include: {
+                    prescriptionItems: true, // Canonical Items (Target for RefillItem FK)
                     versions: {
                         orderBy: { versionNumber: 'desc' },
                         take: 1,
@@ -311,35 +322,100 @@ class SaleRepository {
                 log(`ERROR: Prescription ${prescriptionId} not found`);
                 return;
             }
-            log(`Prescription found. Versions: ${prescription.versions?.length}`);
+            log(`Prescription found. Canonical Items: ${prescription.prescriptionItems?.length}`);
 
-            // Flatten items from latest version
-            const prescriptionItems = prescription.versions?.[0]?.items || [];
-            log(`Prescription Items count: ${prescriptionItems.length}`);
+            // Use Canonical Items for RefillItem Creation (matches RefillItem_prescriptionItemId_fkey)
+            const canonicalItems = prescription.prescriptionItems || [];
 
-            // 2. Identify items that match the prescription
+            // 2. Identify items from Sale that match the Prescription
             // We need to match sale items to prescription items (by drugId)
             const matchedItems = [];
 
+            // Helper to get or create canonical item (Self-Healing)
+            const getOrCreateCanonicalItem = async (drugId, soldItemQty) => {
+                // 1. Try to find in loaded canonical items
+                let canonical = canonicalItems.find(ri => ri.drugId == drugId);
+                if (canonical) return canonical;
+
+                // 2. If not found, try to find in DB directly (double check)
+                canonical = await tx.prescriptionItem.findFirst({
+                    where: { prescriptionId, drugId: String(drugId) } // Ensure String comparison
+                });
+                if (canonical) return canonical;
+
+                // 3. If still not found, check if it exists in the LATEST VERSION (Ghost Item scenario)
+                const versionItem = prescription.versions?.[0]?.items?.find(vi => vi.drugId == drugId);
+
+                if (versionItem) {
+                    log(`⚠️ REPAIR: Canonical PrescriptionItem missing for Drug ${drugId}. Re-creating from Version...`);
+                    // Self-Heal: Create the missing PrescriptionItem
+                    canonical = await tx.prescriptionItem.create({
+                        data: {
+                            prescriptionId,
+                            drugId: String(drugId),
+                            batchId: versionItem.batchId,
+                            quantityPrescribed: versionItem.quantityPrescribed || soldItemQty, // Fallback to sold qty if missing
+                            sig: versionItem.sig,
+                            daysSupply: versionItem.daysSupply,
+                            isControlled: versionItem.isControlled || false
+                        }
+                    });
+                    log(`✅ REPAIR SUCCESS: Created PrescriptionItem ${canonical.id}`);
+                    return canonical;
+                }
+
+                return null;
+            };
+
             for (const soldItem of saleItems) {
                 log(`Checking sold item drugId: ${soldItem.drugId}`);
-                // Find matching prescription item
-                const rxItem = prescriptionItems.find(ri => ri.drugId === soldItem.drugId);
+
+                // Use the self-healing helper
+                const rxItem = await getOrCreateCanonicalItem(soldItem.drugId, soldItem.quantity);
 
                 if (rxItem) {
                     log(`MATCH FOUND: RxItem ID ${rxItem.id} for Drug ${soldItem.drugId}`);
                     matchedItems.push({
-                        rxItem,
+                        rxItem, // This is now guaranteed to be a valid PrescriptionItem (Canonical)
                         soldQty: soldItem.quantity
                     });
                 } else {
-                    log(`NO MATCH for Drug ${soldItem.drugId}`);
+                    log(`NO MATCH for Drug ${soldItem.drugId} - Not in Prescription or Versions`);
                 }
             }
 
             if (matchedItems.length === 0) {
                 log('No matched items found. Exiting.');
                 return;
+            }
+
+            // 2b. VALIDATION: Check Status, Expiry, and Limits
+            if (['CANCELLED', 'EXPIRED', 'DRAFT'].includes(prescription.status)) {
+                throw new Error(`Cannot refill: Prescription is ${prescription.status}`);
+            }
+            if (prescription.expiryDate && new Date(prescription.expiryDate) < new Date()) {
+                throw new Error(`Cannot refill: Prescription expired on ${new Date(prescription.expiryDate).toDateString()}`);
+            }
+
+            // Check Refill Limits for each matched item
+            const latestVersion = prescription.versions?.[0];
+            for (const m of matchedItems) {
+                const versionItem = latestVersion?.items?.find(vi => vi.drugId == m.rxItem.drugId);
+                const allowed = versionItem?.refillsAllowed || 0;
+
+                const used = await tx.refillItem.count({
+                    where: {
+                        prescriptionItemId: m.rxItem.id,
+                        dispensedAt: { not: null }
+                    }
+                });
+
+                log(`Drug ${m.rxItem.drugId}: Used ${used} / Allowed ${allowed}`);
+
+                if (used >= allowed) {
+                    // Strict error to rollback transaction
+                    throw new Error(`Refill limit reached for item (Used: ${used}/${allowed})`);
+                }
             }
 
             // 3. Create a new Refill Record
@@ -364,59 +440,65 @@ class SaleRepository {
                     dispensedQty: refillQty,
                     remainingQty: 0,
                     status: 'FULLY_USED',
-                    notes: `Dispensed via Sale #${sale.invoiceNumber || saleId}`,
+                    notes: `Dispensed via Sale ID: ${saleId}`,
                 }
             });
             log(`Refill created with ID: ${refill.id}, Qty: ${refillQty}`);
 
-            // Create RefillItems explicitly using createMany
+            // Create RefillItems explicitly using loop for safety and debug
             if (matchedItems.length > 0) {
-                await tx.refillItem.createMany({
-                    data: matchedItems.map(m => ({
-                        refillId: refill.id,
-                        prescriptionItemId: m.rxItem.id,
-                        quantityDispensed: m.soldQty,
-                        dispensedAt: new Date()
-                    }))
-                });
-            }
-
-            // 4. Update Prescription Items "quantityUsed"
-            // This is crucial for "Remaining" calculations in frontend
-            for (const match of matchedItems) {
-                await tx.prescriptionItem.update({
-                    where: { id: match.rxItem.id },
-                    data: {
-                        quantityUsed: { increment: match.soldQty }
-                    }
-                });
-            }
-
-            // 5. Create Audit Log
-            await tx.auditLog.create({
-                data: {
-                    userId: 'SYSTEM', // or pass in userId from sale
-                    storeId: prescription.storeId || null, // Context might be needed
-                    action: 'REFILL_DISPENSE',
-                    entityType: 'Refill',
-                    entityId: refill.id,
-                    changes: {
-                        refillNumber: nextRefillNumber,
-                        status: 'FULLY_USED',
-                        dispensedMedications: matchedItems.map(m => ({ drugId: m.rxItem.drugId, quantity: m.soldQty })),
-                        saleId: saleId
+                log(`Attempting to create ${matchedItems.length} RefillItems...`);
+                let createdCount = 0;
+                for (const m of matchedItems) {
+                    try {
+                        await tx.refillItem.create({
+                            data: {
+                                refillId: refill.id,
+                                prescriptionItemId: m.rxItem.id, // Use Canonical ID
+                                quantityDispensed: m.soldQty,
+                                dispensedAt: new Date()
+                            }
+                        });
+                        createdCount++;
+                    } catch (e) {
+                        log(`ERROR creating RefillItem for RxItemId ${m.rxItem.id}: ${e.message}`);
+                        // We re-throw to ensure the transaction rolls back if data is inconsistent
+                        throw e;
                     }
                 }
-            });
+                log(`RefillItems created successfully! Count: ${createdCount}`);
+            }
+
+            // 4. Removed update of "quantityUsed" as column does not exist on PrescriptionItem table.
+            // Usage should be calculated by summing RefillItems.
+
+            // 5. Create Audit Log
+            if (refill) {
+                await tx.auditLog.create({
+                    data: {
+                        userId: userId,
+                        storeId: prescription.storeId || null, // Context might be needed
+                        action: 'REFILL_DISPENSE',
+                        entityType: 'Refill',
+                        entityId: refill.id,
+                        changes: {
+                            refillNumber: nextRefillNumber,
+                            status: 'FULLY_USED',
+                            dispensedMedications: matchedItems.map(m => ({ drugId: m.rxItem.drugId, quantity: m.soldQty })),
+                            saleId: saleId
+                        }
+                    }
+                });
+            }
 
             log(`✅ SUCCESS: Refill #${nextRefillNumber} process completed`);
 
-        } catch (error) {
-            console.error("Failed to process refill updates:", error);
-            // Don't block the sale if refill logic fails, but log it
-            // throw error; // Uncomment if we want strict consistency
+        } catch (err) {
+            log(`FATAL ERROR in _processRefillUpdates: ${err.message}`);
+            throw err; // Ensure transaction rollback
         }
     }
+
 
     /**
      * Generate invoice number

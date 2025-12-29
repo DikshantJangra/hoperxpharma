@@ -321,25 +321,32 @@ class InventoryRepository {
      * Get low stock items
      */
     async getLowStockItems(storeId) {
-        const result = await prisma.$queryRaw`
-      SELECT 
-        d.id as "drugId",
-        d.name,
-        d."lowStockThreshold",
-        SUM(ib."quantityInStock") as "totalStock"
-      FROM "Drug" d
-      INNER JOIN "InventoryBatch" ib ON ib."drugId" = d.id
-      WHERE ib."storeId" = ${storeId}
-        AND ib."deletedAt" IS NULL
-      GROUP BY d.id, d.name, d."lowStockThreshold"
-      HAVING SUM(ib."quantityInStock") <= COALESCE(d."lowStockThreshold", 10)
-      ORDER BY "totalStock" ASC
-    `;
+        console.log('🔍 Repository: fetching low stock items for store:', storeId);
+        try {
+            const result = await prisma.$queryRaw`
+                SELECT 
+                    d.id as "drugId",
+                    d.name,
+                    d."lowStockThreshold",
+                    SUM(ib."quantityInStock") as "totalStock"
+                FROM "Drug" d
+                INNER JOIN "InventoryBatch" ib ON ib."drugId" = d.id
+                WHERE ib."storeId" = ${storeId}
+                    AND ib."deletedAt" IS NULL
+                GROUP BY d.id, d.name, d."lowStockThreshold"
+                HAVING SUM(ib."quantityInStock") <= COALESCE(d."lowStockThreshold", 10)
+                ORDER BY "totalStock" ASC
+            `;
+            console.log(`🔍 Repository: Found ${result.length} low stock items`);
 
-        return result.map(item => ({
-            ...item,
-            totalStock: Number(item.totalStock)
-        }));
+            return result.map(item => ({
+                ...item,
+                totalStock: Number(item.totalStock)
+            }));
+        } catch (error) {
+            console.error('❌ Repository: Error fetching low stock items:', error);
+            throw error;
+        }
     }
 
     /**

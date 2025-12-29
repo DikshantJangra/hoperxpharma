@@ -531,7 +531,7 @@ class PrescriptionService {
      * (Used in Prescriptions module with filters)
 **
      */
-    async getPrescriptionsByStore(storeId, filters = {}) {
+    async getPrescriptionsByStore(storeId, filters = {}, pagination = {}, sorting = {}) {
         const {
             status = 'ALL',
             search = null,
@@ -539,6 +539,9 @@ class PrescriptionService {
             fromDate = null,
             toDate = null
         } = filters;
+
+        const { page = 1, limit = 10 } = pagination;
+        const { sortBy = 'createdAt', sortOrder = 'desc' } = sorting;
 
         const where = {
             storeId,
@@ -564,38 +567,83 @@ class PrescriptionService {
                 { prescriptionNumber: { contains: search, mode: 'insensitive' } },
                 { patient: { firstName: { contains: search, mode: 'insensitive' } } },
                 { patient: { lastName: { contains: search, mode: 'insensitive' } } },
-                { patient: { phoneNumber: { contains: search } } }
-            ];
-        }
-
-        return await prisma.prescription.findMany({
-            where,
-            include: {
-                patient: true,
-                prescriber: true,
-                versions: {
-                    orderBy: { versionNumber: 'desc' },
-                    take: 1,
-                    select: {
-                        versionNumber: true,
-                        items: {
-                            include: {
-                                drug: { select: { name: true, form: true } }
+                { patient: { phoneNumber: { contains: search } } },
+                // Add search by Medication Name (nested relation)
+                {
+                    versions: {
+                        some: {
+                            items: {
+                                some: {
+                                    drug: {
+                                        name: { contains: search, mode: 'insensitive' }
+                                    }
+                                }
                             }
                         }
                     }
-                },
-                refills: {
-                    select: {
-                        refillNumber: true,
-                        status: true,
-                        remainingQty: true
-                    }
                 }
-            },
-            orderBy: { createdAt: 'desc' },
-            take: 100
-        });
+            ];
+        }
+
+        // Sorting Logic
+        let orderByClause = {};
+        if (sortBy === 'firstName' || sortBy === 'lastName') {
+            // Relational sort on Patient
+            orderByClause = {
+                patient: {
+                    [sortBy]: sortOrder
+                }
+            };
+        } else {
+            const validSortFields = ['createdAt', 'issueDate', 'expiryDate'];
+            const safeSortBy = validSortFields.includes(sortBy) ? sortBy : 'createdAt';
+            orderByClause = { [safeSortBy]: sortOrder };
+        }
+
+        const skip = (parseInt(page) - 1) * parseInt(limit);
+
+        const [prescriptions, total] = await Promise.all([
+            prisma.prescription.findMany({
+                where,
+                include: {
+                    patient: true,
+                    prescriber: true,
+                    versions: {
+                        orderBy: { versionNumber: 'desc' },
+                        take: 1,
+                        select: {
+                            versionNumber: true,
+                            items: {
+                                include: {
+                                    drug: { select: { name: true, form: true } }
+                                }
+                            }
+                        }
+                    },
+                    refills: {
+                        select: {
+                            refillNumber: true,
+                            status: true,
+                            remainingQty: true
+                        }
+                    }
+                },
+                orderBy: orderByClause,
+                skip: skip,
+                take: parseInt(limit)
+            }),
+            prisma.prescription.count({ where })
+        ]);
+
+        return {
+            data: prescriptions,
+            meta: {
+                total,
+                page: parseInt(page),
+                limit: parseInt(limit),
+                totalPages: Math.ceil(total / parseInt(limit))
+            }
+        };
     }
 
     /**

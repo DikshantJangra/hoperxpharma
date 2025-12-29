@@ -103,7 +103,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 if (isPublicRoute) {
                     // Redirect authenticated users from public routes
                     if (onboardingComplete) {
-                        router.push('/dashboard');
+                        router.push('/dashboard/overview');
                     } else {
                         router.push('/onboarding');
                     }
@@ -114,7 +114,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 } else if (isOnboardingRoute && onboardingComplete) {
                     // If onboarding is complete, redirect to dashboard
                     console.log('Onboarding complete -> Redirecting to dashboard');
-                    router.push('/dashboard');
+                    router.push('/dashboard/overview');
                 }
             }
         }

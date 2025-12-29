@@ -1,59 +1,38 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { SalesReportData, SalesFilters, DatePreset } from '@/types/reports';
-import { getSalesReport } from '@/lib/api/reports';
-import SalesHeader from './SalesHeader';
-import KPIBar from './KPIBar';
-import FiltersPanel from './FiltersPanel';
+import { DatePreset } from '@/lib/api/salesAnalytics';
+import * as SalesAnalytics from '@/lib/api/salesAnalytics';
+import EnhancedKPIBar from './EnhancedKPIBar';
+import EnhancedInsightsPanel from './EnhancedInsightsPanel';
+import TopProductsTable from './TopProductsTable';
+import TopCustomersTable from './TopCustomersTable';
 import TrendChart from './TrendChart';
-import TopTable from './TopTable';
-import InsightPanel from './InsightPanel';
-import ExportModal from './ExportModal';
+import { HiOutlineCalendar, HiOutlineArrowDownTray, HiOutlineClock } from 'react-icons/hi2';
 
-export default function SalesReportPage() {
+export default function EnterprisePageContent() {
   const today = new Date().toISOString().split('T')[0];
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-  const [filters, setFilters] = useState<SalesFilters>({
-    from: weekAgo,
-    to: today
-  });
-
-  const [showExportModal, setShowExportModal] = useState(false);
+  const [datePreset, setDatePreset] = useState<DatePreset>('7d');
+  const [customStart, setCustomStart] = useState(weekAgo);
+  const [customEnd, setCustomEnd] = useState(today);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [reportData, setReportData] = useState<SalesReportData>({
-    meta: { from: weekAgo, to: today },
-    kpis: {
-      revenue: 0,
-      orders: 0,
-      aov: 0,
-      refunds: 0,
-      returnRate: 0,
-      delta: {
-        revenue: 0,
-        orders: 0,
-        aov: 0,
-        refunds: 0
-      }
-    },
-    series: [],
-    breakdown: {
-      byStore: [],
-      bySKU: [],
-      byCategory: []
-    }
-  });
+  const [reportData, setReportData] = useState<SalesAnalytics.CompleteReport | null>(null);
 
-  // Fetch report data when filters change
+  // Fetch complete report
   useEffect(() => {
-    const fetchReportData = async () => {
+    const fetchReport = async () => {
       setIsLoading(true);
       setError(null);
       try {
-        const data = await getSalesReport(filters);
+        const data = await SalesAnalytics.getCompleteReport({
+          datePreset,
+          customStart: datePreset === 'custom' ? customStart : undefined,
+          customEnd: datePreset === 'custom' ? customEnd : undefined
+        });
         setReportData(data);
       } catch (err) {
         console.error('Failed to fetch sales report:', err);
@@ -63,112 +42,227 @@ export default function SalesReportPage() {
       }
     };
 
-    fetchReportData();
-  }, [filters]);
+    fetchReport();
+  }, [datePreset, customStart, customEnd]);
 
-  const handleDateChange = (from: string, to: string) => {
-    setFilters({ ...filters, from, to });
-  };
-
-  const handlePresetClick = (preset: DatePreset) => {
-    const today = new Date();
-    let from = new Date();
-
-    switch (preset) {
-      case 'today':
-        from = today;
-        break;
-      case '7d':
-        from = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-        break;
-      case '30d':
-        from = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
-        break;
-      case 'mtd':
-        from = new Date(today.getFullYear(), today.getMonth(), 1);
-        break;
-      case 'lastMonth':
-        from = new Date(today.getFullYear(), today.getMonth() - 1, 1);
-        break;
-    }
-
-    setFilters({ ...filters, from: from.toISOString().split('T')[0], to: today.toISOString().split('T')[0] });
-  };
-
-  const handleKPIClick = (kpi: string) => {
-    console.log('KPI clicked:', kpi);
-  };
-
-  const handleExport = async (format: string, includeRaw: boolean) => {
+  const handleExport = async () => {
     try {
-      const response = await fetch('/api/reports/sales/export', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...filters, format, includeRaw })
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        alert(`Export job started • Job ${result.jobId}`);
-      }
+      const result = await SalesAnalytics.exportReport(
+        { datePreset, customStart, customEnd },
+        'csv'
+      );
+      alert(`Export ready: ${result.filename}`);
     } catch (error) {
-      alert('Failed to start export');
+      alert('Failed to export report');
     }
   };
+
+  const presets: { label: string; value: DatePreset }[] = [
+    { label: 'Today', value: 'today' },
+    { label: '7 Days', value: '7d' },
+    { label: '30 Days', value: '30d' },
+    { label: 'Month to Date', value: 'mtd' },
+    { label: 'Custom', value: 'custom' }
+  ];
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <SalesHeader
-        dateRange={{ from: filters.from, to: filters.to }}
-        onDateChange={handleDateChange}
-        onPresetClick={handlePresetClick}
-        onExportClick={() => setShowExportModal(true)}
-        onScheduleClick={() => alert('Schedule modal would open')}
-      />
+      {/* Header with Filters */}
+      <div className="bg-white border-b border-gray-200 sticky top-0 z-10 shadow-sm">
+        <div className="px-6 py-4">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Sales Analytics</h1>
+              <p className="text-sm text-gray-600 mt-1">
+                Comprehensive sales performance insights
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={handleExport}
+                className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+              >
+                <HiOutlineArrowDownTray className="h-5 w-5" />
+                Export
+              </button>
+              <button
+                className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+              >
+                <HiOutlineClock className="h-5 w-5" />
+                Schedule Report
+              </button>
+            </div>
+          </div>
 
+          {/* Date Range Controls */}
+          <div className="flex items-center gap-3">
+            <HiOutlineCalendar className="h-5 w-5 text-gray-500" />
+            <div className="flex gap-2">
+              {presets.map((preset) => (
+                <button
+                  key={preset.value}
+                  onClick={() => setDatePreset(preset.value)}
+                  className={`px-4 py-2 rounded-lg font-medium transition-all ${datePreset === preset.value
+                    ? 'bg-blue-100 text-blue-700 border-2 border-blue-300'
+                    : 'bg-gray-100 text-gray-700 border-2 border-transparent hover:bg-gray-200'
+                    }`}
+                >
+                  {preset.label}
+                </button>
+              ))}
+            </div>
+
+            {datePreset === 'custom' && (
+              <div className="flex items-center gap-2 ml-4">
+                <input
+                  type="date"
+                  value={customStart}
+                  onChange={(e) => setCustomStart(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg"
+                />
+                <span className="text-gray-500">to</span>
+                <input
+                  type="date"
+                  value={customEnd}
+                  onChange={(e) => setCustomEnd(e.target.value)}
+                  className="px-3 py-2 border border-gray-300 rounded-lg"
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Error State */}
       {error && (
         <div className="mx-6 mt-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
           {error}
         </div>
       )}
 
-      {isLoading ? (
-        <div className="flex items-center justify-center h-96">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-            <p className="text-gray-600">Loading report data...</p>
+      {/* Loading State - Skeleton */}
+      {isLoading && (
+        <div className="animate-in fade-in duration-300">
+          {/* KPI Skeleton */}
+          <div className="px-6 py-6 bg-white border-b border-gray-200">
+            <div className="grid grid-cols-4 gap-6">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="animate-pulse">
+                  <div className="h-4 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 rounded w-24 mb-3 bg-[length:200%_100%] animate-shimmer"></div>
+                  <div className="h-8 bg-gradient-to-r from-gray-300 via-gray-200 to-gray-300 rounded w-32 mb-2 bg-[length:200%_100%] animate-shimmer"></div>
+                  <div className="h-3 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 rounded w-20 bg-[length:200%_100%] animate-shimmer"></div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="px-6 py-6">
+            <div className="grid grid-cols-12 gap-6">
+              {/* Chart Skeleton */}
+              <div className="col-span-9 space-y-6">
+                <div className="bg-white rounded-xl border border-gray-200 p-6 animate-pulse">
+                  <div className="h-6 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 rounded w-40 mb-6 bg-[length:200%_100%] animate-shimmer"></div>
+                  <div className="h-64 bg-gradient-to-br from-gray-100 via-gray-50 to-gray-100 rounded-lg relative overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/50 to-transparent animate-shimmer-slow"></div>
+                  </div>
+                </div>
+
+                {/* Table Skeleton */}
+                <div className="bg-white rounded-xl border border-gray-200 p-6 animate-pulse">
+                  <div className="h-6 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 rounded w-48 mb-4 bg-[length:200%_100%] animate-shimmer"></div>
+                  <div className="space-y-3">
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <div key={i} className="flex items-center gap-4">
+                        <div className="h-10 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 rounded flex-1 bg-[length:200%_100%] animate-shimmer" style={{ animationDelay: `${i * 100}ms` }}></div>
+                        <div className="h-10 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 rounded w-24 bg-[length:200%_100%] animate-shimmer" style={{ animationDelay: `${i * 100}ms` }}></div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Insights Skeleton */}
+              <div className="col-span-3">
+                <div className="bg-white rounded-xl border border-gray-200 p-6 animate-pulse sticky top-24">
+                  <div className="h-6 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 rounded w-32 mb-4 bg-[length:200%_100%] animate-shimmer"></div>
+                  <div className="space-y-4">
+                    {[1, 2, 3].map((i) => (
+                      <div key={i} className="p-4 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg">
+                        <div className="h-4 bg-gradient-to-r from-gray-300 via-gray-200 to-gray-300 rounded w-full mb-2 bg-[length:200%_100%] animate-shimmer" style={{ animationDelay: `${i * 150}ms` }}></div>
+                        <div className="h-3 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 rounded w-3/4 bg-[length:200%_100%] animate-shimmer" style={{ animationDelay: `${i * 150}ms` }}></div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Floating pulse effect */}
+          <div className="fixed bottom-8 right-8 pointer-events-none">
+            <div className="relative">
+              <div className="h-3 w-3 bg-blue-500 rounded-full animate-ping opacity-75"></div>
+              <div className="h-3 w-3 bg-blue-600 rounded-full absolute top-0 left-0"></div>
+            </div>
           </div>
         </div>
-      ) : (
+      )}
+
+      {/* Main Content */}
+      {!isLoading && reportData && (
         <>
-          <KPIBar kpis={reportData.kpis} onKPIClick={handleKPIClick} />
+          {/* KPI Row */}
+          <EnhancedKPIBar
+            kpis={reportData.kpis}
+            onKPIClick={(kpi) => console.log('KPI clicked:', kpi)}
+          />
 
-          <div className="grid grid-cols-12">
-            <div className="col-span-3">
-              <FiltersPanel filters={filters} onChange={setFilters} />
-            </div>
+          {/* Main Grid */}
+          <div className="px-6 py-6">
+            <div className="grid grid-cols-12 gap-6">
+              {/* Left Column - Charts & Tables */}
+              <div className="col-span-9 space-y-6">
+                {/* Trend Chart */}
+                <TrendChart series={reportData.trends.current} />
 
-            <div className="col-span-6 p-6 space-y-6">
-              <TrendChart series={reportData.series} />
-              <TopTable items={reportData.breakdown.bySKU} title="Top SKUs" />
-              <TopTable items={reportData.breakdown.byStore} title="Top Stores" />
-            </div>
+                {/* Performance Tables */}
+                <TopProductsTable
+                  products={reportData.performance.topProducts}
+                  onProductClick={(product) => console.log('Product clicked:', product)}
+                />
 
-            <div className="col-span-3">
-              <InsightPanel
-                onDrillClick={() => alert('Drill drawer would open')}
-                onExportClick={() => setShowExportModal(true)}
-              />
+                <TopCustomersTable
+                  customers={reportData.performance.topCustomers}
+                  onCustomerClick={(customer) => console.log('Customer clicked:', customer)}
+                />
+              </div>
+
+              {/* Right Column - Insights */}
+              <div className="col-span-3">
+                <EnhancedInsightsPanel
+                  insights={reportData.insights}
+                  onInsightClick={(insight) => console.log('Insight clicked:', insight)}
+                />
+              </div>
             </div>
           </div>
         </>
       )}
 
-      <ExportModal
-        isOpen={showExportModal}
-        onClose={() => setShowExportModal(false)}
-        onExport={handleExport}
-      />
+      {/* Empty State */}
+      {!isLoading && !reportData && !error && (
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <p className="text-gray-600 mb-4">No data available for this period</p>
+            <button
+              onClick={() => setDatePreset('7d')}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              View Last 7 Days
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

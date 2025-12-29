@@ -27,6 +27,8 @@ const dispenseRoutes = require('./dispense.routes');
 const portalRoutes = require('../portal.routes');
 const consolidatedInvoicesRoutes = require('./consolidatedInvoices.routes');
 const emailRoutes = require('../emailRoutes');
+const loyaltyRoutes = require('../loyaltyRoutes');
+const salesAnalyticsRoutes = require('../salesAnalyticsRoutes');
 
 
 const router = express.Router();
@@ -63,6 +65,8 @@ router.use('/prescribers', require('./prescribers.routes'));
 router.use('/portal', portalRoutes);
 router.use('/consolidated-invoices', consolidatedInvoicesRoutes);
 router.use('/email', emailRoutes);
+router.use('/engage/loyalty', loyaltyRoutes);
+router.use('/sales/analytics', salesAnalyticsRoutes);
 
 
 

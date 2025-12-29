@@ -103,11 +103,23 @@ const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ onSubmit, onCancel,
                 setIsSearching(true);
                 try {
                     const response = await inventoryApi.searchForPOS(drugSearch);
-                    if (response.success) {
-                        setDrugResults(response.data || []);
-                        setShowResults(true);
-                        setSelectedSearchIndex(0); // Reset selection
+
+                    // Handle both response formats:
+                    // 1. Direct array from backend: [{ id, name, ... }]
+                    // 2. Wrapped object: { success: true, data: [...] }
+                    let resultsData: any[] = [];
+
+                    if (Array.isArray(response)) {
+                        // Direct array response
+                        resultsData = response;
+                    } else if (response && typeof response === 'object' && response.success) {
+                        // Wrapped response
+                        resultsData = response.data || [];
                     }
+
+                    setDrugResults(resultsData);
+                    setShowResults(resultsData.length > 0);
+                    setSelectedSearchIndex(0); // Reset selection
                 } catch (error) {
                     console.error('Search error:', error);
                     setDrugResults([]);

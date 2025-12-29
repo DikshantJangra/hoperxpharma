@@ -182,6 +182,41 @@ enum DiscrepancyResolution {
   ACCEPTED
 }
 
+// Loyalty System Enums
+enum LoyaltyStatus {
+  NEW
+  REGULAR
+  TRUSTED
+  INSIDER
+  ADVOCATE
+}
+
+enum LoyaltyEventType {
+  PURCHASE_COMPLETED
+  FEEDBACK_SUBMITTED
+  PRESCRIPTION_FILLED
+  MILESTONE_REACHED
+  REWARD_EARNED
+  REWARD_REDEEMED
+  COMEBACK
+}
+
+enum LoyaltyRewardType {
+  THANK_YOU_CREDIT
+  MILESTONE_PERK
+  PRIORITY_SERVICE
+  EARLY_ACCESS
+  SURPRISE_BONUS
+  COMEBACK_WELCOME
+}
+
+enum LoyaltyRewardStatus {
+  LOCKED
+  UNLOCKED
+  REDEEMED
+  EXPIRED
+}
+
 // ============================================================================
 // CATEGORY 1: CORE INFRASTRUCTURE (12 tables)
 // ============================================================================
@@ -665,6 +700,7 @@ model Patient {
   adherence      PatientAdherence[]
   auditLogs      PatientAudit[]
   ledger         CustomerLedger[]
+  loyaltyProfile LoyaltyProfile?
 
   // Financials
   currentBalance Decimal @default(0.00) @db.Decimal(10, 2) // Positive = Due from customer
@@ -3025,4 +3061,103 @@ model PatientRelation {
 
   @@unique([patientId, relatedPatientId])
   @@index([patientId])
+}
+
+// ============================================================================
+// LOYALTY SYSTEM (ENGAGE MODULE)
+// ============================================================================
+
+model LoyaltyProfile {
+  id        String   @id @default(cuid())
+  patientId String   @unique
+  storeId   String
+  
+  // Current Status
+  status         LoyaltyStatus @default(NEW)
+  statusSince    DateTime      @default(now())
+  
+  // Progress Metrics (computed from events)
+  totalPoints        Int      @default(0)
+  purchaseCount      Int      @default(0)
+  feedbackCount      Int      @default(0)
+  daysSinceFirst     Int      @default(0)
+  consistencyScore   Decimal  @default(0) @db.Decimal(5, 2) // 0-100
+  engagementScore    Decimal  @default(0) @db.Decimal(5, 2) // 0-100
+  
+  // Milestones
+  lastPurchaseAt     DateTime?
+  nextMilestoneAt    DateTime?
+  milestoneProgress  Decimal   @default(0) @db.Decimal(5, 2) // 0-100 percentage
+  
+  // Recognition
+  recognitionMessage String?  @db.Text
+  recognizedAt       DateTime?
+  
+  patient Patient        @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  events  LoyaltyEvent[]
+  rewards LoyaltyReward[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([patientId])
+  @@index([storeId, status])
+  @@index([storeId, updatedAt])
+}
+
+model LoyaltyEvent {
+  id        String   @id @default(cuid())
+  profileId String
+  storeId   String
+  
+  eventType      LoyaltyEventType
+  eventSource    String? // sale_id, feedback_id, etc.
+  
+  // Signal weights (computed at event creation)
+  points         Int     @default(0)
+  frequencyBonus Int     @default(0)
+  timeBonus      Int     @default(0)
+  
+  // Context
+  metadata       Json? // Event-specific data
+  description    String?
+  
+  profile LoyaltyProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  
+  @@index([profileId, createdAt])
+  @@index([storeId, eventType, createdAt])
+}
+
+model LoyaltyReward {
+  id        String   @id @default(cuid())
+  profileId String
+  storeId   String
+  
+  type         LoyaltyRewardType
+  status       LoyaltyRewardStatus @default(LOCKED)
+  
+  title        String
+  description  String? @db.Text
+  
+  // Unlock criteria (optional, can be null for automatic)
+  minStatus    LoyaltyStatus?
+  minPoints    Int?
+  
+  // Monetary value (optional)
+  creditAmount Decimal? @db.Decimal(10, 2)
+  
+  // Lifecycle
+  unlockedAt   DateTime?
+  redeemedAt   DateTime?
+  expiresAt    DateTime?
+  
+  profile LoyaltyProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([profileId, status])
+  @@index([storeId, type])
 }

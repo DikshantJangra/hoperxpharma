@@ -74,15 +74,29 @@ export default function ProductSearch({ onAddProduct, searchFocus, setSearchFocu
         console.log('🔍 Calling API...');
         const response = await inventoryApi.searchForPOS(query);
         console.log('🔍 API Response:', response);
+        console.log('🔍 Response type:', typeof response);
+        console.log('🔍 Response is array?:', Array.isArray(response));
 
-        if (response.success) {
-          console.log('🔍 Setting results:', response.data?.length || 0, 'items');
-          setResults(response.data || []);
-          setSelectedIndex(0);
+        // Handle both response formats:
+        // 1. Direct array from backend: [{ id, name, ... }]
+        // 2. Wrapped object: { success: true, data: [...] }
+        let resultsData: Product[] = [];
+
+        if (Array.isArray(response)) {
+          // Direct array response
+          console.log('🔍 Direct array response, using as-is');
+          resultsData = response;
+        } else if (response && typeof response === 'object' && response.success) {
+          // Wrapped response
+          console.log('🔍 Wrapped response, extracting data');
+          resultsData = response.data || [];
         } else {
-          console.log('🔍 Response not successful:', response);
-          setResults([]);
+          console.log('🔍 Unknown response format:', response);
         }
+
+        console.log('🔍 Setting results:', resultsData.length, 'items');
+        setResults(resultsData);
+        setSelectedIndex(0);
       } catch (error) {
         console.error('🔍 Failed to search drugs:', error);
         setResults([]);

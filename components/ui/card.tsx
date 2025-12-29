@@ -9,6 +9,14 @@ interface CardContentProps extends React.HTMLAttributes<HTMLDivElement> {
   children: React.ReactNode;
 }
 
+interface CardHeaderProps extends React.HTMLAttributes<HTMLDivElement> {
+  children: React.ReactNode;
+}
+
+interface CardTitleProps extends React.HTMLAttributes<HTMLHeadingElement> {
+  children: React.ReactNode;
+}
+
 export function Card({ className, children, ...props }: CardProps) {
   return (
     <div
@@ -23,9 +31,25 @@ export function Card({ className, children, ...props }: CardProps) {
   );
 }
 
+export function CardHeader({ className, children, ...props }: CardHeaderProps) {
+  return (
+    <div className={cn("flex flex-col space-y-1.5 p-6", className)} {...props}>
+      {children}
+    </div>
+  );
+}
+
+export function CardTitle({ className, children, ...props }: CardTitleProps) {
+  return (
+    <h3 className={cn("text-lg font-semibold leading-none tracking-tight", className)} {...props}>
+      {children}
+    </h3>
+  );
+}
+
 export function CardContent({ className, children, ...props }: CardContentProps) {
   return (
-    <div className={cn("p-6", className)} {...props}>
+    <div className={cn("p-6 pt-0", className)} {...props}>
       {children}
     </div>
   );

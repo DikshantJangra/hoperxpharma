@@ -52,7 +52,7 @@ export default function Login() {
             // Explicit redirect to dashboard after successful login
             // Small delay to show success message
             setTimeout(() => {
-                router.push('/dashboard');
+                router.push('/dashboard/overview');
             }, 500);
         } catch (error: any) {
             const toast = (await import('react-hot-toast')).default;

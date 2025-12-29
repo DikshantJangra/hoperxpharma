@@ -8,11 +8,20 @@ interface KPICardProps {
     updated?: string
     onAction: () => void
     loading?: boolean
+    tooltipContent?: React.ReactNode
 }
 
-export default function KPICard({ icon, title, value, microtext, ctaLabel, variant = 'default', updated, onAction, loading = false }: KPICardProps) {
+export default function KPICard({ icon, title, value, microtext, ctaLabel, variant = 'default', updated, onAction, loading = false, tooltipContent }: KPICardProps) {
     return (
-        <div className={`p-4 rounded-xl border transition-all duration-200 ${variant === 'critical' ? 'bg-red-50 border-red-100 hover:border-red-200' : 'bg-white border-[#e6eef2] hover:border-[#0ea5a3]/30'}`} style={{ boxShadow: '0 4px 12px rgba(3,15,31,0.03)' }}>
+        <div className={`group relative p-4 rounded-xl border transition-all duration-200 ${variant === 'critical' ? 'bg-red-50 border-red-100 hover:border-red-200' : 'bg-white border-[#e6eef2] hover:border-[#0ea5a3]/30'}`} style={{ boxShadow: '0 4px 12px rgba(3,15,31,0.03)' }}>
+            {/* Tooltip */}
+            {tooltipContent && (
+                <div className="absolute opacity-0 group-hover:opacity-100 transition-opacity duration-200 bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 bg-[#1e293b] text-white text-xs rounded-lg py-2 px-3 shadow-xl z-50 pointer-events-none">
+                    {tooltipContent}
+                    <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-[#1e293b] rotate-45"></div>
+                </div>
+            )}
+
             <div className="flex items-start justify-between mb-3">
                 <div className={`p-2 rounded-lg ${variant === 'critical' ? 'bg-red-100 text-red-600' : 'bg-[#0ea5a3]/10 text-[#0ea5a3]'}`}>
                     {icon}

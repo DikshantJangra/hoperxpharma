@@ -106,7 +106,7 @@ export const salesApi = {
      */
     async createSale(data: Partial<Sale>) {
         const response = await apiClient.post('/sales', data);
-        return response.data;
+        return response.data; // Correctly unwrap ApiResponse
     },
 
     /**

@@ -1,13 +1,14 @@
 const saleRepository = require('../../repositories/saleRepository');
 const inventoryService = require('../inventory/inventoryService');
 const prescriptionService = require('../prescriptions/prescriptionService');
-const dispenseService = require('../prescriptions/dispenseService');
-const versionService = require('../prescriptions/versionService');
 const refillService = require('../prescriptions/refillService');
-const ApiError = require('../../utils/ApiError');
+const versionService = require('../prescriptions/versionService');
+const dispenseService = require('../prescriptions/dispenseService');
 const logger = require('../../config/logger');
+const ApiError = require('../../utils/ApiError');
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
+const loyaltyService = require('../loyaltyService');
 
 /**
  * Sale Service (Refactored with Dispense Integration)
@@ -47,7 +48,7 @@ class SaleService {
         }
 
         if (dispense.status !== 'READY') {
-            throw ApiError.badRequest(`Dispense must be READY for sale. Current status: ${dispense.status}`);
+            throw ApiError.badRequest(`Dispense must be READY for sale.Current status: ${dispense.status} `);
         }
 
         const prescription = dispense.refill.prescription;
@@ -104,6 +105,23 @@ class SaleService {
         await prescriptionService.updatePrescriptionStatus(prescription.id);
 
         logger.info(`Sale created from dispense: ${invoiceNumber} - Dispense: ${dispenseId}`);
+
+        // 7. Track loyalty event (async, don't block sale completion)
+        if (prescription.patientId) {
+            try {
+                await loyaltyService.processPurchase(
+                    result.sale.id,
+                    prescription.patientId,
+                    saleInfo.storeId,
+                    parseFloat(result.sale.total),
+                    items.length
+                );
+                logger.info(`Loyalty event tracked for patient: ${prescription.patientId}`);
+            } catch (loyaltyError) {
+                // Log error but don't fail the sale
+                logger.error('Failed to track loyalty event:', loyaltyError);
+            }
+        }
 
         return {
             ...result.sale,
@@ -196,7 +214,7 @@ class SaleService {
 
                 if (batch.quantityInStock < item.quantity) {
                     throw ApiError.badRequest(
-                        `Insufficient stock for ${batch.drug.name}. Available: ${batch.quantityInStock}, Required: ${item.quantity}`
+                        `Insufficient stock for ${batch.drug.name}.Available: ${batch.quantityInStock}, Required: ${item.quantity} `
                     );
                 }
             }
@@ -215,7 +233,7 @@ class SaleService {
             paymentSplits
         );
 
-        logger.info(`Sale created (legacy): ${invoiceNumber} - Total: ${saleInfo.total}`);
+        logger.info(`Sale created(legacy): ${invoiceNumber} - Total: ${saleInfo.total} `);
 
         return {
             ...result.sale,

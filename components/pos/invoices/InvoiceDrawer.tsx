@@ -239,10 +239,17 @@ export default function InvoiceDrawer({ invoice, onClose, isLoading }: any) {
           {/* Prescription */}
           {invoice.hasRx && (
             <div className="bg-[#dbeafe] rounded-lg p-4">
-              <h3 className="text-sm font-semibold text-[#1e40af] mb-2">Prescription Linked</h3>
+              <h3 className="text-sm font-semibold text-[#1e40af] mb-2 flex items-center gap-2">
+                Prescription Linked
+                {invoice.isRefill && (
+                  <span className="px-2 py-0.5 bg-purple-100 text-purple-700 text-[10px] font-bold rounded border border-purple-200">
+                    REFILL
+                  </span>
+                )}
+              </h3>
               <p className="text-sm text-[#1e40af]">ID: {invoice.prescriptionId?.substring(0, 12)}...</p>
               <button
-                onClick={() => router.push(`/prescriptions`)}
+                onClick={() => router.push(`/prescriptions/all-prescriptions`)}
                 className="text-xs text-[#1e40af] hover:underline mt-1 flex items-center gap-1"
               >
                 View in Prescriptions →

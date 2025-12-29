@@ -4,18 +4,34 @@ export interface DashboardStats {
     revenue: number;
     salesCount: number;
     prescriptions: number;
+    prescriptionDetails?: {
+        active: number;
+        draft: number;
+        refill: number;
+    };
     readyForPickup: number;
     criticalStock: number;
     expiringSoon: number;
+    yesterdayRevenue: number;
 }
 
 export interface SalesChartData {
-    period: 'daily' | 'weekly' | 'monthly';
+    period: 'week' | 'month' | 'year';
     data: Array<{
         date: string;
         revenue: number;
         count: number;
     }>;
+    workflowStats?: {
+        new: number;
+        inProgress: number;
+        ready: number;
+        delivered: number;
+    };
+    averageProcessingTime?: string;
+    growthPercent?: string;
+    totalRevenue?: number;
+    totalOrders?: number;
 }
 
 export interface ActionQueues {
@@ -57,27 +73,31 @@ export const dashboardApi = {
      * Get dashboard statistics
      */
     async getStats(): Promise<DashboardStats> {
-        return baseFetch('/dashboard/stats') as any;
+        const response = await baseFetch('/dashboard/stats') as any;
+        return response.data; // Unwrap ApiResponse
     },
 
     /**
      * Get sales chart data
      */
     async getSalesChart(period: 'week' | 'month' | 'year'): Promise<SalesChartData> {
-        return baseFetch(`/dashboard/sales-chart?period=${period}`) as any;
+        const response = await baseFetch(`/dashboard/sales-chart?period=${period}`) as any;
+        return response.data; // Unwrap ApiResponse
     },
 
     /**
      * Get action queues
      */
     async getActionQueues(): Promise<ActionQueues> {
-        return baseFetch('/dashboard/action-queues') as any;
+        const response = await baseFetch('/dashboard/action-queues') as any;
+        return response.data; // Unwrap ApiResponse
     },
 
     /**
      * Get insights
      */
     async getInsights(): Promise<Insight[]> {
-        return baseFetch('/dashboard/insights') as any;
+        const response = await baseFetch('/dashboard/insights') as any;
+        return response.data; // Unwrap ApiResponse
     },
 };

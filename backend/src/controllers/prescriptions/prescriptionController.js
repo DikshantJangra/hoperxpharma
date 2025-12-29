@@ -158,18 +158,19 @@ class PrescriptionController {
     async getPrescriptions(req, res) {
         try {
             const storeId = req.storeId;
-            const { status, search } = req.query;
+            const { status, search, page, limit, sortBy, sortOrder } = req.query;
 
-            const prescriptions = await prescriptionService.getPrescriptionsByStore(
+            const result = await prescriptionService.getPrescriptionsByStore(
                 storeId,
-                status,
-                search
+                { status, search },
+                { page, limit },
+                { sortBy, sortOrder }
             );
 
             return res.json({
                 success: true,
-                data: prescriptions,
-                count: prescriptions.length
+                data: result.data,
+                meta: result.meta
             });
         } catch (error) {
             console.error('[PrescriptionController] Get error:', error);
