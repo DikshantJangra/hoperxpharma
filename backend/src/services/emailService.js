@@ -66,8 +66,14 @@ class EmailService {
             logger.info(`Magic link email sent to ${email}: ${info.messageId}`);
             return { success: true, messageId: info.messageId };
         } catch (error) {
-            logger.error(`Failed to send magic link email to ${email}:`, error);
-            throw new Error('Failed to send email via SMTP.');
+            logger.error(`Failed to send magic link email to ${email}:`, {
+                message: error.message,
+                code: error.code,
+                command: error.command,
+                responseCode: error.responseCode,
+                stack: error.stack
+            });
+            throw new Error(`Failed to send email via SMTP: ${error.message}`);
         }
     }
 
