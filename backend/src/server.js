@@ -4,8 +4,10 @@ const dotenv = require('dotenv');
 dotenv.config();
 
 // Validate environment variables BEFORE loading other modules
-const { validateEnv } = require('./config/envValidator');
-const validatedEnv = validateEnv();
+// Validate environment variables BEFORE loading other modules
+const validateEnv = require('./config/env.validator');
+validateEnv();
+const validatedEnv = process.env;
 
 console.log('Starting HopeRxPharma Backend (Restarted)...');
 console.log(`Environment: ${validatedEnv.NODE_ENV}`);

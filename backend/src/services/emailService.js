@@ -19,6 +19,8 @@ class EmailService {
                     user: process.env.SMTP_USER,
                     pass: process.env.SMTP_PASSWORD,
                 },
+                connectionTimeout: 10000, // 10 seconds timeout for initial connection
+                socketTimeout: 10000, // 10 seconds timeout for socket operations
             };
 
             if (!smtpConfig.host || !smtpConfig.auth.user || !smtpConfig.auth.pass) {

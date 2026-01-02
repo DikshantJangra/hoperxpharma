@@ -80,14 +80,16 @@ router.get('/google/callback', (req, res, next) => {
     passport.authenticate('google', { session: false }, (err, user, info) => {
         if (err) {
             logger.error('Passport Auth Error:', err);
-            return res.redirect(`${process.env.FRONTEND_URL}/login?error=auth_error`);
+            const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+            return res.redirect(`${frontendUrl}/login?error=auth_error`);
         }
 
         // Handle explicit failure (e.g. strict login check failed)
         if (!user) {
             const errorMessage = info?.message || 'Authentication failed';
             logger.warn(`OAuth Failure Redirect: ${errorMessage}`);
-            return res.redirect(`${process.env.FRONTEND_URL}/login?error=${encodeURIComponent(errorMessage)}`);
+            const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+            return res.redirect(`${frontendUrl}/login?error=${encodeURIComponent(errorMessage)}`);
         }
 
         // Successful authentication
@@ -114,8 +116,15 @@ router.get('/google/callback', (req, res, next) => {
         // Check if user needs onboarding (no stores)
         const needsOnboarding = !user.storeUsers || user.storeUsers.length === 0;
 
+        // Ensure FRONTEND_URL is defined
+        const frontendUrl = process.env.FRONTEND_URL;
+        if (!frontendUrl) {
+            logger.error('CRITICAL: FRONTEND_URL is not defined in environment variables.');
+            return res.status(500).send('Configuration Error: Login cannot complete.');
+        }
+
         // Redirect to frontend with token
-        res.redirect(`${process.env.FRONTEND_URL}/auth/callback?token=${accessToken}${needsOnboarding ? '&onboarding=true' : ''}`);
+        res.redirect(`${frontendUrl}/auth/callback?token=${accessToken}${needsOnboarding ? '&onboarding=true' : ''}`);
     })(req, res, next);
 });
 

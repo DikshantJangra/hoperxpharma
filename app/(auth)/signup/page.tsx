@@ -64,7 +64,7 @@ export default function Signup() {
         setLoading(true);
 
         try {
-            const authApi = (await import('@/lib/api/auth')).default;
+            const { authApi } = await import('@/lib/api/auth');
             const toast = (await import('react-hot-toast')).default;
 
             // Simple signup with just email and password
@@ -74,6 +74,7 @@ export default function Signup() {
                 lastName: '',
                 email,
                 password,
+                confirmPassword: password,
                 phoneNumber: '0000000000' // Placeholder - will be updated during onboarding
             });
 
