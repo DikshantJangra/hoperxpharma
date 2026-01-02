@@ -125,9 +125,14 @@ function validateEnv() {
         console.error('❌ Environment Variable Validation Failed:');
 
         if (error instanceof z.ZodError) {
-            error.errors.forEach((err) => {
-                console.error(`   - ${err.path.join('.')}: ${err.message}`);
-            });
+            const issues = error.errors || error.issues || [];
+            if (issues.length > 0) {
+                issues.forEach((err) => {
+                    console.error(`   - ${err.path.join('.')}: ${err.message}`);
+                });
+            } else {
+                console.error(`   - ${error.message}`);
+            }
         } else {
             console.error(`   - ${error.message}`);
         }
