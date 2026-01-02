@@ -9,6 +9,7 @@ import DeleteConfirmModal from '@/components/messages/email/DeleteConfirmModal';
 import RecipientSelector from '@/components/messages/email/RecipientSelector';
 import QuickGroupSelector from '@/components/messages/email/QuickGroupSelector';
 import AttachmentUploader from '@/components/messages/email/AttachmentUploader';
+import EmailShimmer, { LogsShimmer } from '@/components/messages/email/EmailShimmer';
 import { getProviderWebmailLink, getProviderInfo } from '@/utils/emailProviderLinks';
 
 // Helper to get auth headers
@@ -20,7 +21,7 @@ const getAuthHeaders = () => {
   };
 };
 
-type EmailSection = 'compose' | 'sent' | 'templates' | 'settings';
+type EmailSection = 'compose' | 'sent' | 'settings';
 
 export default function EmailPage() {
   const [emailAccounts, setEmailAccounts] = useState<any[]>([]);
@@ -47,6 +48,8 @@ export default function EmailPage() {
   // Email logs state
   const [emailLogs, setEmailLogs] = useState<any[]>([]);
   const [logsLoading, setLogsLoading] = useState(false);
+  const [logsPagination, setLogsPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 0 });
+  const [logsSearch, setLogsSearch] = useState('');
 
   useEffect(() => {
     fetchEmailAccounts();
@@ -125,10 +128,16 @@ export default function EmailPage() {
     }
   };
 
-  const fetchEmailLogs = async () => {
+  const fetchEmailLogs = async (page = logsPagination.page, search = logsSearch) => {
     setLogsLoading(true);
     try {
-      const response = await fetch('/api/v1/email/logs', {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: logsPagination.limit.toString(),
+        ...(search && { search }),
+      });
+
+      const response = await fetch(`/api/v1/email/logs?${params}`, {
         headers: getAuthHeaders(),
         credentials: 'include',
       });
@@ -136,6 +145,12 @@ export default function EmailPage() {
       if (response.ok) {
         const data = await response.json();
         setEmailLogs(data.data?.logs || []);
+        setLogsPagination({
+          page: data.data?.page || 1,
+          limit: logsPagination.limit,
+          total: data.data?.total || 0,
+          totalPages: data.data?.totalPages || 0,
+        });
       }
     } catch (error) {
       console.error('Failed to fetch email logs:', error);
@@ -208,12 +223,9 @@ export default function EmailPage() {
     }
   }, [emailAccounts, activeSection]);
 
+
   if (isLoading) {
-    return (
-      <div className="h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#10b981]"></div>
-      </div>
-    );
+    return <EmailShimmer />;
   }
 
   if (emailAccounts.length === 0) {
@@ -300,7 +312,6 @@ export default function EmailPage() {
           <h1 className="text-2xl font-bold text-[#0f172a]">
             {activeSection === 'compose' && 'Compose Email'}
             {activeSection === 'sent' && 'Sent Emails'}
-            {activeSection === 'templates' && 'Email Templates'}
             {activeSection === 'settings' && 'Email Settings'}
           </h1>
           <p className="text-sm text-[#64748b] mt-1">
@@ -345,13 +356,21 @@ export default function EmailPage() {
             <SentSection
               logs={emailLogs}
               loading={logsLoading}
-              onRefresh={fetchEmailLogs}
+              pagination={logsPagination}
+              search={logsSearch}
+              onSearch={(query: string) => {
+                setLogsSearch(query);
+                setLogsPagination(prev => ({ ...prev, page: 1 }));
+                fetchEmailLogs(1, query);
+              }}
+              onPageChange={(page: number) => {
+                setLogsPagination(prev => ({ ...prev, page }));
+                fetchEmailLogs(page, logsSearch);
+              }}
+              onRefresh={() => fetchEmailLogs(logsPagination.page, logsSearch)}
             />
           )}
 
-          {activeSection === 'templates' && (
-            <TemplatesSection />
-          )}
 
           {activeSection === 'settings' && (
             <SettingsSection
@@ -464,7 +483,11 @@ function ComposeSection({
       });
       const data = await response.json();
       if (data.success) {
-        setTemplates(data.data.templates || []);
+        // Filter to only show email templates (not WhatsApp or SMS)
+        const emailTemplates = (data.data.templates || []).filter(
+          (t: any) => !t.channel || t.channel.toLowerCase() === 'email'
+        );
+        setTemplates(emailTemplates);
       }
     } catch (error) {
       console.error('Failed to fetch templates:', error);
@@ -927,208 +950,292 @@ function ComposeSection({
 }
 
 
-// Sent Section with Expandable Rows
-function SentSection({ logs, loading, onRefresh }: any) {
+// Sent Section with Expandable Rows, Search, and Pagination
+function SentSection({ logs, loading, pagination, search, onSearch, onPageChange, onRefresh }: any) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [searchInput, setSearchInput] = useState(search || '');
 
   const toggleExpanded = (id: string) => {
     setExpandedId(expandedId === id ? null : id);
   };
 
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSearch(searchInput);
+  };
+
   return (
     <div className="max-w-6xl">
-      <div className="flex items-center justify-between mb-6">
-        <p className="text-sm text-[#64748b]">{logs.length} emails sent</p>
-        <button
-          onClick={onRefresh}
-          disabled={loading}
-          className="px-4 py-2 text-sm text-[#64748b] hover:text-[#0f172a] hover:bg-[#f8fafc] rounded-lg transition-colors flex items-center gap-2"
-        >
-          <FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
-        </button>
+      {/* Header with Search and Actions */}
+      <div className="flex items-center gap-4 mb-6">
+        {/* Search Form */}
+        <form onSubmit={handleSearch} className="flex-1 max-w-md">
+          <div className="relative">
+            <input
+              type="text"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Search by recipient or subject..."
+              className="w-full px-4 py-2 pr-10 border border-[#e2e8f0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#10b981] focus:border-transparent"
+            />
+            <button
+              type="submit"
+              className="absolute right-2 top-2 px-3 py-1 text-sm text-[#10b981] hover:text-[#059669] font-medium"
+            >
+              Search
+            </button>
+          </div>
+        </form>
+
+        {/* Stats and Refresh */}
+        <div className="flex items-center gap-4">
+          <p className="text-sm text-[#64748b]">
+            {pagination.total} total • Page {pagination.page} of {pagination.totalPages || 1}
+          </p>
+          <button
+            onClick={onRefresh}
+            disabled={loading}
+            className="px-4 py-2 text-sm text-[#64748b] hover:text-[#0f172a] hover:bg-[#f8fafc] rounded-lg transition-colors flex items-center gap-2"
+          >
+            <FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            Refresh
+          </button>
+        </div>
       </div>
 
-      <div className="space-y-3">
-        {logs.length === 0 ? (
-          <div className="bg-white rounded-lg border border-[#e2e8f0] px-6 py-12 text-center text-[#94a3b8]">
-            No emails sent yet
-          </div>
-        ) : (
-          logs.map((log: any) => {
-            const isExpanded = expandedId === log.id;
-            const providerInfo = log.emailAccount ? getProviderInfo(log.emailAccount.provider) : null;
-            const webmailLink = log.emailAccount ? getProviderWebmailLink(log.emailAccount.provider, log.subject) : null;
-            const totalRecipients = (log.to?.length || 0) + (log.cc?.length || 0) + (log.bcc?.length || 0);
+      {loading ? (
+        <LogsShimmer />
+      ) : (
+        <div className="space-y-3">
+          {logs.length === 0 ? (
+            <div className="bg-white rounded-lg border border-[#e2e8f0] px-6 py-12 text-center text-[#94a3b8]">
+              No emails sent yet
+            </div>
+          ) : (
+            logs.map((log: any) => {
+              const isExpanded = expandedId === log.id;
+              const providerInfo = log.emailAccount ? getProviderInfo(log.emailAccount.provider) : null;
+              const webmailLink = log.emailAccount ? getProviderWebmailLink(log.emailAccount.provider, log.subject) : null;
+              const totalRecipients = (log.to?.length || 0) + (log.cc?.length || 0) + (log.bcc?.length || 0);
 
-            return (
-              <div key={log.id} className="bg-white rounded-lg border border-[#e2e8f0] overflow-hidden">
-                {/* Collapsed View */}
-                <button
-                  onClick={() => toggleExpanded(log.id)}
-                  className="w-full px-6 py-4 flex items-center gap-4 hover:bg-[#f8fafc] transition-colors text-left"
-                >
-                  <div className="flex-shrink-0">
-                    {isExpanded ? (
-                      <FiChevronUp className="w-5 h-5 text-[#64748b]" />
-                    ) : (
-                      <FiChevronDown className="w-5 h-5 text-[#64748b]" />
-                    )}
-                  </div>
+              return (
+                <div key={log.id} className="bg-white rounded-lg border border-[#e2e8f0] overflow-hidden">
+                  {/* Collapsed View */}
+                  <button
+                    onClick={() => toggleExpanded(log.id)}
+                    className="w-full px-6 py-4 flex items-center gap-4 hover:bg-[#f8fafc] transition-colors text-left"
+                  >
+                    <div className="flex-shrink-0">
+                      {isExpanded ? (
+                        <FiChevronUp className="w-5 h-5 text-[#64748b]" />
+                      ) : (
+                        <FiChevronDown className="w-5 h-5 text-[#64748b]" />
+                      )}
+                    </div>
 
-                  <div className="flex-1 min-w-0 grid grid-cols-12 gap-4 items-center">
-                    {/* Recipients */}
-                    <div className="col-span-3">
-                      <div className="flex items-center gap-2">
-                        <FiUsers className="w-4 h-4 text-[#64748b] flex-shrink-0" />
-                        <span className="text-sm text-[#0f172a] truncate">
-                          {log.to?.[0] || 'N/A'}
-                        </span>
-                        {totalRecipients > 1 && (
-                          <span className="text-xs text-[#64748b] bg-[#f1f5f9] px-2 py-0.5 rounded-full flex-shrink-0">
-                            +{totalRecipients - 1}
+                    <div className="flex-1 min-w-0 grid grid-cols-12 gap-4 items-center">
+                      {/* Recipients */}
+                      <div className="col-span-3">
+                        <div className="flex items-center gap-2">
+                          <FiUsers className="w-4 h-4 text-[#64748b] flex-shrink-0" />
+                          <span className="text-sm text-[#0f172a] truncate">
+                            {log.to?.[0] || 'N/A'}
                           </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Subject */}
-                    <div className="col-span-4">
-                      <p className="text-sm text-[#64748b] truncate">{log.subject}</p>
-                    </div>
-
-                    {/* Status */}
-                    <div className="col-span-2">
-                      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${log.status === 'SENT'
-                        ? 'bg-[#d1fae5] text-[#065f46]'
-                        : log.status === 'FAILED'
-                          ? 'bg-[#fee2e2] text-[#991b1b]'
-                          : 'bg-[#fef3c7] text-[#92400e]'
-                        }`}>
-                        {log.status}
-                      </span>
-                    </div>
-
-                    {/* Date */}
-                    <div className="col-span-3">
-                      <p className="text-sm text-[#64748b]">
-                        {new Date(log.createdAt).toLocaleString()}
-                      </p>
-                    </div>
-                  </div>
-                </button>
-
-                {/* Expanded View */}
-                {isExpanded && (
-                  <div className="border-t border-[#e2e8f0] bg-[#f8fafc] p-6 space-y-6">
-                    {/* All Recipients */}
-                    <div>
-                      <h4 className="text-sm font-semibold text-[#0f172a] mb-3">Recipients</h4>
-                      <div className="space-y-2">
-                        {/* To */}
-                        {log.to && log.to.length > 0 && (
-                          <div className="flex gap-2">
-                            <span className="text-sm font-medium text-[#64748b] w-12">To:</span>
-                            <div className="flex-1 flex flex-wrap gap-2">
-                              {log.to.map((email: string, idx: number) => (
-                                <span key={idx} className="inline-flex items-center gap-1 px-2 py-1 bg-white border border-[#e2e8f0] rounded text-sm text-[#0f172a]">
-                                  <FiMail className="w-3 h-3" />
-                                  {email}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* CC */}
-                        {log.cc && log.cc.length > 0 && (
-                          <div className="flex gap-2">
-                            <span className="text-sm font-medium text-[#64748b] w-12">CC:</span>
-                            <div className="flex-1 flex flex-wrap gap-2">
-                              {log.cc.map((email: string, idx: number) => (
-                                <span key={idx} className="inline-flex items-center gap-1 px-2 py-1 bg-white border border-[#e2e8f0] rounded text-sm text-[#0f172a]">
-                                  <FiMail className="w-3 h-3" />
-                                  {email}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* BCC */}
-                        {log.bcc && log.bcc.length > 0 && (
-                          <div className="flex gap-2">
-                            <span className="text-sm font-medium text-[#64748b] w-12">BCC:</span>
-                            <div className="flex-1 flex flex-wrap gap-2">
-                              {log.bcc.map((email: string, idx: number) => (
-                                <span key={idx} className="inline-flex items-center gap-1 px-2 py-1 bg-white border border-[#e2e8f0] rounded text-sm text-[#0f172a]">
-                                  <FiMail className="w-3 h-3" />
-                                  {email}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Email Body */}
-                    <div>
-                      <h4 className="text-sm font-semibold text-[#0f172a] mb-3">Message</h4>
-                      <div className="bg-white border border-[#e2e8f0] rounded-lg p-4 max-h-64 overflow-y-auto">
-                        <div
-                          className="text-sm text-[#0f172a] prose prose-sm max-w-none"
-                          dangerouslySetInnerHTML={{ __html: log.bodyHtml || '' }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Attachments */}
-                    {log.attachments && Array.isArray(log.attachments) && log.attachments.length > 0 && (
-                      <div>
-                        <h4 className="text-sm font-semibold text-[#0f172a] mb-3 flex items-center gap-2">
-                          <FiPaperclip className="w-4 h-4" />
-                          Attachments ({log.attachments.length})
-                        </h4>
-                        <div className="flex flex-wrap gap-2">
-                          {log.attachments.map((att: any, idx: number) => (
-                            <div key={idx} className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-[#e2e8f0] rounded-lg">
-                              <FiFile className="w-4 h-4 text-[#64748b]" />
-                              <span className="text-sm text-[#0f172a]">{att.filename || att.name || `Attachment ${idx + 1}`}</span>
-                            </div>
-                          ))}
+                          {totalRecipients > 1 && (
+                            <span className="text-xs text-[#64748b] bg-[#f1f5f9] px-2 py-0.5 rounded-full flex-shrink-0">
+                              +{totalRecipients - 1}
+                            </span>
+                          )}
                         </div>
                       </div>
-                    )}
 
-                    {/* Actions */}
-                    <div className="flex items-center gap-3 pt-4 border-t border-[#e2e8f0]">
-                      {webmailLink && providerInfo && (
-                        <a
-                          href={webmailLink}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-[#e2e8f0] rounded-lg hover:bg-[#f1f5f9] transition-colors text-sm font-medium text-[#0f172a]"
-                        >
-                          {providerInfo.iconType === 'gmail' && <SiGmail className="w-4 h-4" style={{ color: providerInfo.color }} />}
-                          {providerInfo.iconType === 'outlook' && <FiMail className="w-4 h-4" style={{ color: providerInfo.color }} />}
-                          {providerInfo.iconType === 'generic' && <FiMail className="w-4 h-4 text-[#64748b]" />}
-                          View in {providerInfo.name}
-                          <FiExternalLink className="w-3 h-3" />
-                        </a>
-                      )}
-                      <div className="flex-1" />
-                      <span className="text-xs text-[#64748b]">
-                        Sent from: {log.emailAccount?.email || 'Unknown'}
-                      </span>
+                      {/* Subject */}
+                      <div className="col-span-4">
+                        <p className="text-sm text-[#64748b] truncate">{log.subject}</p>
+                      </div>
+
+                      {/* Status */}
+                      <div className="col-span-2">
+                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${log.status === 'SENT'
+                          ? 'bg-[#d1fae5] text-[#065f46]'
+                          : log.status === 'FAILED'
+                            ? 'bg-[#fee2e2] text-[#991b1b]'
+                            : 'bg-[#fef3c7] text-[#92400e]'
+                          }`}>
+                          {log.status}
+                        </span>
+                      </div>
+
+                      {/* Date */}
+                      <div className="col-span-3">
+                        <p className="text-sm text-[#64748b]">
+                          {new Date(log.createdAt).toLocaleString()}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            );
-          })
-        )}
-      </div>
+                  </button>
+
+                  {/* Expanded View */}
+                  {isExpanded && (
+                    <div className="border-t border-[#e2e8f0] bg-[#f8fafc] p-6 space-y-6">
+                      {/* All Recipients */}
+                      <div>
+                        <h4 className="text-sm font-semibold text-[#0f172a] mb-3">Recipients</h4>
+                        <div className="space-y-2">
+                          {/* To */}
+                          {log.to && log.to.length > 0 && (
+                            <div className="flex gap-2">
+                              <span className="text-sm font-medium text-[#64748b] w-12">To:</span>
+                              <div className="flex-1 flex flex-wrap gap-2">
+                                {log.to.map((email: string, idx: number) => (
+                                  <span key={idx} className="inline-flex items-center gap-1 px-2 py-1 bg-white border border-[#e2e8f0] rounded text-sm text-[#0f172a]">
+                                    <FiMail className="w-3 h-3" />
+                                    {email}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* CC */}
+                          {log.cc && log.cc.length > 0 && (
+                            <div className="flex gap-2">
+                              <span className="text-sm font-medium text-[#64748b] w-12">CC:</span>
+                              <div className="flex-1 flex flex-wrap gap-2">
+                                {log.cc.map((email: string, idx: number) => (
+                                  <span key={idx} className="inline-flex items-center gap-1 px-2 py-1 bg-white border border-[#e2e8f0] rounded text-sm text-[#0f172a]">
+                                    <FiMail className="w-3 h-3" />
+                                    {email}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* BCC */}
+                          {log.bcc && log.bcc.length > 0 && (
+                            <div className="flex gap-2">
+                              <span className="text-sm font-medium text-[#64748b] w-12">BCC:</span>
+                              <div className="flex-1 flex flex-wrap gap-2">
+                                {log.bcc.map((email: string, idx: number) => (
+                                  <span key={idx} className="inline-flex items-center gap-1 px-2 py-1 bg-white border border-[#e2e8f0] rounded text-sm text-[#0f172a]">
+                                    <FiMail className="w-3 h-3" />
+                                    {email}
+                                  </span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Email Body */}
+                      <div>
+                        <h4 className="text-sm font-semibold text-[#0f172a] mb-3">Message</h4>
+                        <div className="bg-white border border-[#e2e8f0] rounded-lg p-4 max-h-64 overflow-y-auto">
+                          <div
+                            className="text-sm text-[#0f172a] prose prose-sm max-w-none"
+                            dangerouslySetInnerHTML={{ __html: log.bodyHtml || '' }}
+                          />
+                        </div>
+                      </div>
+
+                      {/* Attachments */}
+                      {log.attachments && Array.isArray(log.attachments) && log.attachments.length > 0 && (
+                        <div>
+                          <h4 className="text-sm font-semibold text-[#0f172a] mb-3 flex items-center gap-2">
+                            <FiPaperclip className="w-4 h-4" />
+                            Attachments ({log.attachments.length})
+                          </h4>
+                          <div className="flex flex-wrap gap-2">
+                            {log.attachments.map((att: any, idx: number) => (
+                              <div key={idx} className="inline-flex items-center gap-2 px-3 py-2 bg-white border border-[#e2e8f0] rounded-lg">
+                                <FiFile className="w-4 h-4 text-[#64748b]" />
+                                <span className="text-sm text-[#0f172a]">{att.filename || att.name || `Attachment ${idx + 1}`}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Actions */}
+                      <div className="flex items-center gap-3 pt-4 border-t border-[#e2e8f0]">
+                        {webmailLink && providerInfo && (
+                          <a
+                            href={webmailLink}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-[#e2e8f0] rounded-lg hover:bg-[#f1f5f9] transition-colors text-sm font-medium text-[#0f172a]"
+                          >
+                            {providerInfo.iconType === 'gmail' && <SiGmail className="w-4 h-4" style={{ color: providerInfo.color }} />}
+                            {providerInfo.iconType === 'outlook' && <FiMail className="w-4 h-4" style={{ color: providerInfo.color }} />}
+                            {providerInfo.iconType === 'generic' && <FiMail className="w-4 h-4 text-[#64748b]" />}
+                            View in {providerInfo.name}
+                            <FiExternalLink className="w-3 h-3" />
+                          </a>
+                        )}
+                        <div className="flex-1" />
+                        <span className="text-xs text-[#64748b]">
+                          Sent from: {log.emailAccount?.email || 'Unknown'}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+      )}
+
+      {/* Pagination Controls */}
+      {!loading && logs.length > 0 && pagination.totalPages > 1 && (
+        <div className="mt-6 flex items-center justify-between border-t border-[#e2e8f0] pt-4">
+          <button
+            onClick={() => onPageChange(pagination.page - 1)}
+            disabled={pagination.page === 1}
+            className="px-4 py-2 border border-[#e2e8f0] rounded-lg text-sm font-medium text-[#64748b] hover:bg-[#f8fafc] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            Previous
+          </button>
+
+          <div className="flex items-center gap-2">
+            {Array.from({ length: Math.min(5, pagination.totalPages) }, (_, i) => {
+              let pageNum;
+              if (pagination.totalPages <= 5) {
+                pageNum = i + 1;
+              } else if (pagination.page <= 3) {
+                pageNum = i + 1;
+              } else if (pagination.page >= pagination.totalPages - 2) {
+                pageNum = pagination.totalPages - 4 + i;
+              } else {
+                pageNum = pagination.page - 2 + i;
+              }
+
+              return (
+                <button
+                  key={pageNum}
+                  onClick={() => onPageChange(pageNum)}
+                  className={`w-10 h-10 rounded-lg text-sm font-medium transition-colors ${pagination.page === pageNum
+                    ? 'bg-[#10b981] text-white'
+                    : 'border border-[#e2e8f0] text-[#64748b] hover:bg-[#f8fafc]'
+                    }`}
+                >
+                  {pageNum}
+                </button>
+              );
+            })}
+          </div>
+
+          <button
+            onClick={() => onPageChange(pagination.page + 1)}
+            disabled={pagination.page >= pagination.totalPages}
+            className="px-4 py-2 border border-[#e2e8f0] rounded-lg text-sm font-medium text-[#64748b] hover:bg-[#f8fafc] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            Next
+          </button>
+        </div>
+      )}
     </div>
   );
 }

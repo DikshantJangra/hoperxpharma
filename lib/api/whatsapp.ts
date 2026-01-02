@@ -3,7 +3,9 @@
  * Type-safe API methods for WhatsApp Business integration
  */
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+import { getApiBaseUrl } from '@/lib/config/env';
+
+const API_BASE = getApiBaseUrl();
 
 // Types
 export interface WhatsAppConnection {

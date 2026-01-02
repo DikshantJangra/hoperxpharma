@@ -2,9 +2,11 @@
  * API Client Configuration
  */
 import { isNetworkError, isTimeoutError } from '@/lib/utils/network';
+import { getApiBaseUrl } from '@/lib/config/env';
+import { RequestError, OfflineError } from './errors';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
-const API_TIMEOUT = parseInt(process.env.NEXT_PUBLIC_API_TIMEOUT || '30000');
+const API_BASE_URL = getApiBaseUrl();
+const API_TIMEOUT = parseInt(process.env.NEXT_PUBLIC_API_TIMEOUT || '60000');
 
 export const config = {
     baseURL: API_BASE_URL,
@@ -12,15 +14,26 @@ export const config = {
 };
 
 /**
- * Token management
+ * Token management - Cookie-based (more secure than localStorage)
+ * Access tokens are now stored in httpOnly cookies set by the backend
+ * This prevents XSS attacks from stealing tokens
  */
 let accessToken: string | null = null;
-let refreshToken: string | null = null;
 
 export const tokenManager = {
-    getAccessToken: () => accessToken,
+    getAccessToken: () => {
+        if (typeof window === 'undefined') return accessToken;
+        if (!accessToken) {
+            accessToken = localStorage.getItem('accessToken');
+        }
+        return accessToken;
+    },
     setAccessToken: (token: string | null) => {
         accessToken = token;
+        if (typeof window !== 'undefined') {
+            if (token) localStorage.setItem('accessToken', token);
+            else localStorage.removeItem('accessToken');
+        }
     },
     clearTokens: () => {
         accessToken = null;
@@ -41,26 +54,7 @@ export const tokenManager = {
     },
 };
 
-/**
- * API Error class
- */
-export class ApiError extends Error {
-    constructor(
-        public statusCode: number,
-        message: string,
-        public data?: any
-    ) {
-        super(message);
-        this.name = 'ApiError';
-    }
-}
 
-export class OfflineError extends Error {
-    constructor() {
-        super('Network offline. Action queued for sync.');
-        this.name = 'OfflineError';
-    }
-}
 
 /**
  * Base fetch wrapper with error handling
@@ -111,9 +105,15 @@ async function refreshTokenIfNeeded(): Promise<void> {
                 console.error('Token refresh response missing accessToken');
             }
         } catch (error: any) {
-            console.error('Token refresh error:', error.message);
-            // Don't clear tokens here - let auth-store handle it
-            // This prevents premature logout on network errors
+            console.error('RefreshToken logic caught error:', error.message);
+            // Only logout on definitive auth errors (401/403) to avoid issues with flaky network
+            if (error.message.includes('Unauthorized') ||
+                error.message.includes('unauthenticated') ||
+                error.message.includes('expired') ||
+                error.message.includes('start with') || // JWT malformed
+                error.message.includes('required')) {
+                handleRefreshError(error);
+            }
         } finally {
             isRefreshing = false;
             refreshPromise = null;
@@ -123,9 +123,18 @@ async function refreshTokenIfNeeded(): Promise<void> {
     return refreshPromise;
 }
 
+// Helper to handle unauthorized errors during refresh
+async function handleRefreshError(error: any) {
+    console.error('Token refresh error:', error.message);
+    tokenManager.clearTokens();
+    if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+        window.location.href = '/login?error=session_expired';
+    }
+}
+
 async function baseFetch(
     endpoint: string,
-    options: RequestInit = {}
+    options: RequestInit & { responseType?: 'json' | 'blob' } = {}
 ): Promise<any> {
     // Auto-refresh token if needed (except for auth endpoints)
     if (!endpoint.includes('/auth/')) {
@@ -146,14 +155,9 @@ async function baseFetch(
         Object.assign(headers, customHeaders);
     }
 
-    // Always try to load token from localStorage if not in memory
-    let token = tokenManager.getAccessToken();
-    if (!token && typeof window !== 'undefined') {
-        token = localStorage.getItem('accessToken');
-        if (token) {
-            tokenManager.setAccessToken(token);
-        }
-    }
+    // Get token from memory (set during login)
+    // The httpOnly cookie will be sent automatically with the request
+    const token = tokenManager.getAccessToken();
 
     if (token) {
         headers['Authorization'] = `Bearer ${token}`;
@@ -172,6 +176,25 @@ async function baseFetch(
 
         clearTimeout(timeoutId);
 
+        if (!response.ok) {
+            let data;
+            try {
+                const text = await response.text();
+                data = text ? JSON.parse(text) : {};
+            } catch {
+                data = {};
+            }
+            throw new RequestError(
+                response.status,
+                data.message || 'Request failed',
+                data
+            );
+        }
+
+        if (options.responseType === 'blob') {
+            return response.blob();
+        }
+
         let data: any;
         try {
             const text = await response.text();
@@ -180,19 +203,11 @@ async function baseFetch(
             data = {};
         }
 
-        if (!response.ok) {
-            throw new ApiError(
-                response.status,
-                data.message || 'Request failed',
-                data
-            );
-        }
-
         return data;
     } catch (error) {
         clearTimeout(timeoutId);
 
-        if (error instanceof ApiError) {
+        if (error instanceof RequestError) {
             throw error;
         }
 
@@ -217,15 +232,15 @@ async function baseFetch(
 
         if (error instanceof Error) {
             if (error.name === 'AbortError' || isTimeoutError(error)) {
-                throw new ApiError(408, 'Request timeout');
+                throw new RequestError(408, 'Request timeout');
             }
             if (isNetworkError(error)) {
-                throw new ApiError(503, 'Network connection failed');
+                throw new RequestError(503, 'Network connection failed');
             }
-            throw new ApiError(500, error.message);
+            throw new RequestError(500, error.message);
         }
 
-        throw new ApiError(500, 'Unknown error occurred');
+        throw new RequestError(500, 'Unknown error occurred');
     }
 }
 
@@ -233,11 +248,11 @@ async function baseFetch(
  * API client with automatic token refresh
  */
 export const apiClient = {
-    async get(endpoint: string, options?: RequestInit) {
+    async get(endpoint: string, options?: RequestInit & { responseType?: 'json' | 'blob' }) {
         return baseFetch(endpoint, { ...options, method: 'GET' });
     },
 
-    async post(endpoint: string, data?: any, options?: RequestInit) {
+    async post(endpoint: string, data?: any, options?: RequestInit & { responseType?: 'json' | 'blob' }) {
         return baseFetch(endpoint, {
             ...options,
             method: 'POST',
@@ -245,7 +260,7 @@ export const apiClient = {
         });
     },
 
-    async put(endpoint: string, data?: any, options?: RequestInit) {
+    async put(endpoint: string, data?: any, options?: RequestInit & { responseType?: 'json' | 'blob' }) {
         return baseFetch(endpoint, {
             ...options,
             method: 'PUT',
@@ -253,7 +268,7 @@ export const apiClient = {
         });
     },
 
-    async patch(endpoint: string, data?: any, options?: RequestInit) {
+    async patch(endpoint: string, data?: any, options?: RequestInit & { responseType?: 'json' | 'blob' }) {
         return baseFetch(endpoint, {
             ...options,
             method: 'PATCH',
@@ -261,7 +276,7 @@ export const apiClient = {
         });
     },
 
-    async delete(endpoint: string, options?: RequestInit) {
+    async delete(endpoint: string, options?: RequestInit & { responseType?: 'json' | 'blob' }) {
         return baseFetch(endpoint, { ...options, method: 'DELETE' });
     },
 };
@@ -269,7 +284,5 @@ export const apiClient = {
 // Export baseFetch for direct use in API modules
 export { baseFetch };
 
-// Load tokens on initialization (client-side only)
-if (typeof window !== 'undefined') {
-    tokenManager.loadTokens();
-}
+// Note: Tokens are now managed via secure httpOnly cookies
+// No need to load from localStorage on initialization

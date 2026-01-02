@@ -1,4 +1,5 @@
 const emailService = require('../services/email/emailService');
+const logger = require('../config/logger');
 const templateService = require('../services/email/templateService');
 const ApiResponse = require('../utils/ApiResponse');
 
@@ -192,7 +193,7 @@ class EmailController {
     async testConnection(req, res) {
         const storeId = req.user.storeId || req.storeId;
         const { accountId } = req.body;
-        console.log("[Test Connection] Received accountId:", accountId, "storeId:", storeId);
+        logger.info("[Test Connection] Received accountId:", accountId, "storeId:", storeId);
 
         const success = await emailService.testConnection(accountId, storeId);
         res.status(200).json(
@@ -245,16 +246,24 @@ class EmailController {
 
     /**
      * Get email logs
-     * GET /api/email/logs
+     * GET /api/email/logs?page=1&limit=20&search=patient@example.com&status=SENT
      */
     async getEmailLogs(req, res) {
         const storeId = req.user.activeStoreId;
-        const filters = req.query;
+        const { page = 1, limit = 20, search, status } = req.query;
 
-        const logs = await emailService.getEmailLogs(storeId, filters);
+        const skip = (parseInt(page) - 1) * parseInt(limit);
+        const filters = {
+            limit: parseInt(limit),
+            skip,
+            search,
+            status
+        };
+
+        const result = await emailService.getEmailLogs(storeId, filters);
 
         res.status(200).json(
-            new ApiResponse(200, { logs, total: logs.length }, 'Email logs retrieved successfully')
+            new ApiResponse(200, result, 'Email logs retrieved successfully')
         );
     }
 

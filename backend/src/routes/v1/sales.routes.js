@@ -47,6 +47,14 @@ router.get('/top-selling', saleController.getTopSellingDrugs);
 router.get('/next-invoice', saleController.getNextInvoiceNumber);
 
 /**
+ * Sales Ledger routes - MUST be before /:id routes
+ */
+const salesLedgerController = require('../../controllers/sales/salesLedgerController');
+router.get('/ledger', salesLedgerController.getLedger);
+router.get('/ledger/summary', salesLedgerController.getSummary);
+router.get('/ledger/:id/matches', salesLedgerController.getMatchCandidates);
+
+/**
  * Invoice-specific route
  */
 router.get('/invoice/:invoiceNumber', saleController.getSaleByInvoiceNumber);

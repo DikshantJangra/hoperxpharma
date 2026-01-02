@@ -1,11 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useOnboarding } from "@/contexts/OnboardingContext";
 import { useRouter } from "next/navigation";
-import { FiUpload, FiInfo, FiArrowRight, FiArrowLeft, FiShield, FiCalendar, FiFileText } from "react-icons/fi";
+import { FiUpload, FiInfo, FiArrowRight, FiArrowLeft, FiShield, FiCalendar, FiFileText, FiCheck, FiX, FiLoader } from "react-icons/fi";
 import OnboardingCard from "@/components/onboarding/OnboardingCard";
 import { useKeyboardNavigation } from "@/hooks/useKeyboardNavigation";
+import { onboardingApi } from "@/lib/api/onboarding";
+import toast from "react-hot-toast";
+
+type UploadStatus = 'idle' | 'uploading' | 'processing' | 'success' | 'error';
 
 export default function Step2Page() {
     const { state, updateLicensing, setCurrentStep, markStepComplete } = useOnboarding();
@@ -22,6 +26,11 @@ export default function Step2Page() {
     });
 
     const [errors, setErrors] = useState<Record<string, string>>({});
+    const [dlUploadStatus, setDlUploadStatus] = useState<UploadStatus>('idle');
+    const [gstUploadStatus, setGstUploadStatus] = useState<UploadStatus>('idle');
+
+    const dlInputRef = useRef<HTMLInputElement>(null);
+    const gstInputRef = useRef<HTMLInputElement>(null);
 
     // Enable enhanced keyboard navigation
     const { handleKeyDown } = useKeyboardNavigation();
@@ -29,6 +38,34 @@ export default function Step2Page() {
     useEffect(() => {
         setCurrentStep(2);
     }, [setCurrentStep]);
+
+    // Sync formData when context licensing data loads asynchronously
+    useEffect(() => {
+        const licensing = state.data.licensing;
+        if (licensing.dlDocument || licensing.gstCertificate || licensing.dlNumber) {
+            setFormData(prev => {
+                const next = {
+                    ...prev,
+                    dlNumber: licensing.dlNumber || prev.dlNumber,
+                    dlValidityStart: licensing.dlValidityStart || prev.dlValidityStart,
+                    dlValidityEnd: licensing.dlValidityEnd || prev.dlValidityEnd,
+                    gstin: licensing.gstin || prev.gstin,
+                    pan: licensing.pan || prev.pan,
+                    dlDocument: licensing.dlDocument || prev.dlDocument,
+                    gstCertificate: licensing.gstCertificate || prev.gstCertificate
+                };
+
+                if (JSON.stringify(prev) === JSON.stringify(next)) {
+                    return prev;
+                }
+                return next;
+            });
+
+            // Set upload status to success if URLs already exist
+            if (licensing.dlDocument) setDlUploadStatus('success');
+            if (licensing.gstCertificate) setGstUploadStatus('success');
+        }
+    }, [state.data.licensing]);
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -39,7 +76,6 @@ export default function Step2Page() {
 
     const validateGSTIN = (gstin: string) => {
         if (gstin.length !== 15) return false;
-        // Basic GSTIN format: 2 digits (state) + 10 chars (PAN) + 1 char (entity) + 1 char (Z) + 1 check digit
         const gstinRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
         return gstinRegex.test(gstin);
     };
@@ -82,6 +118,76 @@ export default function Step2Page() {
         return Object.keys(newErrors).length === 0;
     };
 
+    const handleFileUpload = async (
+        file: File,
+        licenseType: 'DRUG_LICENSE' | 'GST_CERTIFICATE',
+        setStatus: (status: UploadStatus) => void
+    ) => {
+        try {
+            // Validate file size (max 10MB)
+            if (file.size > 10 * 1024 * 1024) {
+                toast.error('File size must be less than 10MB');
+                return;
+            }
+
+            // Validate file type
+            const allowedTypes = ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'];
+            if (!allowedTypes.includes(file.type)) {
+                toast.error('Only JPEG, PNG, WebP, and PDF files are allowed');
+                return;
+            }
+
+            setStatus('uploading');
+
+            // 1. Request presigned URL
+            const uploadResponse = await onboardingApi.requestLicenseUpload(licenseType, file.name);
+            const uploadData = uploadResponse.data || uploadResponse; // Handle both wrapped and direct response
+
+            // 2. Upload to presigned URL
+            await fetch(uploadData.uploadUrl, {
+                method: 'PUT',
+                body: file,
+                headers: {
+                    'Content-Type': file.type,
+                },
+            });
+
+            setStatus('processing');
+
+            // 3. Process the upload (compression, validation, etc.)
+            const processResponse = await onboardingApi.processLicenseUpload(uploadData.tempKey, licenseType);
+            const processedData = processResponse.data || processResponse;
+
+            // 4. Update form state with the processed URL
+            if (licenseType === 'DRUG_LICENSE') {
+                setFormData(prev => ({ ...prev, dlDocument: processedData.url }));
+            } else {
+                setFormData(prev => ({ ...prev, gstCertificate: processedData.url }));
+            }
+
+            setStatus('success');
+            toast.success(`${licenseType === 'DRUG_LICENSE' ? 'Drug License' : 'GST Certificate'} uploaded successfully!`);
+        } catch (error: any) {
+            console.error('Upload error:', error);
+            setStatus('error');
+            toast.error(error.message || 'Failed to upload document');
+        }
+    };
+
+    const handleDlFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            handleFileUpload(file, 'DRUG_LICENSE', setDlUploadStatus);
+        }
+    };
+
+    const handleGstFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (file) {
+            handleFileUpload(file, 'GST_CERTIFICATE', setGstUploadStatus);
+        }
+    };
+
     const handleNext = () => {
         if (validate()) {
             updateLicensing(formData);
@@ -93,6 +199,76 @@ export default function Step2Page() {
     const handleBack = () => {
         updateLicensing(formData);
         router.push("/onboarding/step-1");
+    };
+
+    const renderUploadBox = (
+        title: string,
+        description: string,
+        status: UploadStatus,
+        onClick: () => void,
+        uploadedUrl: string | null
+    ) => {
+        const getStatusIcon = () => {
+            switch (status) {
+                case 'uploading':
+                case 'processing':
+                    return <FiLoader className="animate-spin" size={20} />;
+                case 'success':
+                    return <FiCheck size={20} />;
+                case 'error':
+                    return <FiX size={20} />;
+                default:
+                    return <FiUpload size={20} />;
+            }
+        };
+
+        const getStatusColor = () => {
+            switch (status) {
+                case 'success':
+                    return 'border-emerald-500 bg-emerald-50';
+                case 'error':
+                    return 'border-red-500 bg-red-50';
+                case 'uploading':
+                case 'processing':
+                    return 'border-blue-500 bg-blue-50';
+                default:
+                    return 'border-gray-200 hover:border-emerald-500 hover:bg-emerald-50/30';
+            }
+        };
+
+        const getStatusText = () => {
+            switch (status) {
+                case 'uploading':
+                    return 'Uploading...';
+                case 'processing':
+                    return 'Optimizing...';
+                case 'success':
+                    return 'Uploaded!';
+                case 'error':
+                    return 'Failed - Click to retry';
+                default:
+                    return description;
+            }
+        };
+
+        return (
+            <div
+                onClick={onClick}
+                className={`border-2 border-dashed rounded-xl p-6 text-center transition-all cursor-pointer ${getStatusColor()}`}
+            >
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center mx-auto mb-3 transition-colors ${status === 'success' ? 'bg-emerald-100 text-emerald-500' : status === 'error' ? 'bg-red-100 text-red-500' : 'bg-gray-50 text-gray-400 group-hover:text-emerald-500'
+                    }`}>
+                    {getStatusIcon()}
+                </div>
+                <p className="text-xs text-gray-600 font-medium mb-1">{title}</p>
+                <p className="text-[10px] text-gray-400">{getStatusText()}</p>
+                {uploadedUrl && status === 'success' && (
+                    <p className="text-[10px] text-emerald-600 mt-2 truncate max-w-[150px] mx-auto">
+                        ✓ Document saved
+                    </p>
+                )}
+            </div>
+        );
     };
 
     return (
@@ -225,27 +401,40 @@ export default function Step2Page() {
                         <label className="block text-gray-700 text-xs font-semibold mb-1.5 ml-1">
                             Upload Drug License <span className="text-gray-400 font-normal">(Optional)</span>
                         </label>
-                        <div className={`border-2 border-dashed rounded-xl p-6 text-center hover:border-emerald-500 hover:bg-emerald-50/30 transition-all cursor-pointer group-hover:border-emerald-400 ${errors.dlDocument ? "border-red-500" : "border-gray-200"}`}>
-                            <div className="w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3 text-gray-400 group-hover:text-emerald-500 transition-colors">
-                                <FiUpload size={20} />
-                            </div>
-                            <p className="text-xs text-gray-600 font-medium mb-1">Upload DL Document</p>
-                            <p className="text-[10px] text-gray-400">PDF or JPG (max. 5MB)</p>
-                        </div>
-                        {errors.dlDocument && <p className="mt-1 ml-1 text-xs text-red-500">{errors.dlDocument}</p>}
+                        <input
+                            type="file"
+                            ref={dlInputRef}
+                            onChange={handleDlFileChange}
+                            accept="image/jpeg,image/png,image/webp,application/pdf"
+                            className="hidden"
+                        />
+                        {renderUploadBox(
+                            'Upload DL Document',
+                            'PDF or JPG (max. 10MB)',
+                            dlUploadStatus,
+                            () => dlInputRef.current?.click(),
+                            formData.dlDocument
+                        )}
                     </div>
 
                     <div className="group">
                         <label className="block text-gray-700 text-xs font-semibold mb-1.5 ml-1">
                             Upload GST Certificate <span className="text-gray-400 font-normal">(Optional)</span>
                         </label>
-                        <div className="border-2 border-dashed border-gray-200 rounded-xl p-6 text-center hover:border-emerald-500 hover:bg-emerald-50/30 transition-all cursor-pointer group-hover:border-emerald-400">
-                            <div className="w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3 text-gray-400 group-hover:text-emerald-500 transition-colors">
-                                <FiUpload size={20} />
-                            </div>
-                            <p className="text-xs text-gray-600 font-medium mb-1">Upload GST Certificate</p>
-                            <p className="text-[10px] text-gray-400">PDF or JPG (max. 5MB)</p>
-                        </div>
+                        <input
+                            type="file"
+                            ref={gstInputRef}
+                            onChange={handleGstFileChange}
+                            accept="image/jpeg,image/png,image/webp,application/pdf"
+                            className="hidden"
+                        />
+                        {renderUploadBox(
+                            'Upload GST Certificate',
+                            'PDF or JPG (max. 10MB)',
+                            gstUploadStatus,
+                            () => gstInputRef.current?.click(),
+                            formData.gstCertificate
+                        )}
                     </div>
                 </div>
 

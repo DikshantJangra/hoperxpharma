@@ -1,4 +1,5 @@
 const inventoryService = require('../../services/inventory/inventoryService');
+const logger = require('../../config/logger');
 const asyncHandler = require('../../middlewares/asyncHandler');
 const ApiResponse = require('../../utils/ApiResponse');
 
@@ -189,14 +190,14 @@ const getInventorySummary = asyncHandler(async (req, res) => {
 const searchDrugsForPOS = asyncHandler(async (req, res) => {
     const { search } = req.query;
 
-    console.log('🔍 POS Search Controller - storeId:', req.storeId, 'search:', search);
+    logger.info('🔍 POS Search Controller - storeId:', req.storeId, 'search:', search);
 
     if (!search || search.length < 2) {
         return res.status(200).json(ApiResponse.success([]));
     }
 
     const drugs = await inventoryService.searchDrugsForPOS(req.storeId, search);
-    console.log('🔍 POS Search Controller - Results:', drugs.length);
+    logger.info('🔍 POS Search Controller - Results:', drugs.length);
     const response = ApiResponse.success(drugs);
     res.status(response.statusCode).json(response);
 });

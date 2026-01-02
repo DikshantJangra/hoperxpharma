@@ -1,4 +1,5 @@
 const eRxService = require('../../services/prescriptions/eRxService');
+const logger = require('../../config/logger');
 const ApiResponse = require('../../utils/ApiResponse');
 
 class ERxController {
@@ -12,7 +13,7 @@ class ERxController {
             const response = ApiResponse.success(pendingScripts, "Pending E-Rx fetched successfully");
             return res.status(response.statusCode).json(response);
         } catch (error) {
-            console.error('Fetch Pending E-Rx Error:', error);
+            logger.error('Fetch Pending E-Rx Error:', error);
             return res.status(500).json({
                 success: false,
                 statusCode: 500,
@@ -42,7 +43,7 @@ class ERxController {
             const response = ApiResponse.success(prescription, "E-Rx imported successfully");
             return res.status(response.statusCode).json(response);
         } catch (error) {
-            console.error('Import E-Rx Error:', error);
+            logger.error('Import E-Rx Error:', error);
             return res.status(500).json({
                 success: false,
                 statusCode: 500,

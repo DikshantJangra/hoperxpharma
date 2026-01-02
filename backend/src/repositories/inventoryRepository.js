@@ -1,4 +1,5 @@
 const database = require('../config/database');
+const logger = require('../config/logger');
 const { buildOrderBy } = require('../utils/queryParser');
 
 const prisma = database.getClient();
@@ -321,7 +322,7 @@ class InventoryRepository {
      * Get low stock items
      */
     async getLowStockItems(storeId) {
-        console.log('🔍 Repository: fetching low stock items for store:', storeId);
+        logger.info('🔍 Repository: fetching low stock items for store:', storeId);
         try {
             const result = await prisma.$queryRaw`
                 SELECT 
@@ -337,14 +338,14 @@ class InventoryRepository {
                 HAVING SUM(ib."quantityInStock") <= COALESCE(d."lowStockThreshold", 10)
                 ORDER BY "totalStock" ASC
             `;
-            console.log(`🔍 Repository: Found ${result.length} low stock items`);
+            logger.info(`🔍 Repository: Found ${result.length} low stock items`);
 
             return result.map(item => ({
                 ...item,
                 totalStock: Number(item.totalStock)
             }));
         } catch (error) {
-            console.error('❌ Repository: Error fetching low stock items:', error);
+            logger.error('❌ Repository: Error fetching low stock items:', error);
             throw error;
         }
     }
@@ -417,7 +418,7 @@ class InventoryRepository {
      * Search drugs with stock availability for POS
      */
     async searchDrugsWithStock(storeId, searchTerm) {
-        console.log('🔍 POS Search - StoreId:', storeId, 'SearchTerm:', searchTerm);
+        logger.info('🔍 POS Search - StoreId:', storeId, 'SearchTerm:', searchTerm);
 
         // Search drugs that belong to this store and have inventory
         const drugs = await prisma.drug.findMany({
@@ -445,9 +446,9 @@ class InventoryRepository {
             orderBy: { name: 'asc' },
         });
 
-        console.log('🔍 POS Search - Found drugs:', drugs.length);
+        logger.info('🔍 POS Search - Found drugs:', drugs.length);
         if (drugs.length > 0) {
-            console.log('🔍 First result:', drugs[0].name);
+            logger.info('🔍 First result:', drugs[0].name);
         }
         return drugs;
     }

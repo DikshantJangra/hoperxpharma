@@ -1,4 +1,5 @@
-import { apiClient } from './client';
+import { apiClient, tokenManager } from './client';
+import { getApiBaseUrl } from '@/lib/config/env';
 
 export interface SaleItem {
     drugId: string;
@@ -248,12 +249,13 @@ export const salesApi = {
      * Download invoice PDF
      */
     async downloadInvoicePDF(saleId: string): Promise<Blob> {
-        // Use direct fetch for blob response
-        const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'}/sales/${saleId}/invoice/pdf`, {
+        // Use direct fetch for blob response  
+        const token = tokenManager.getAccessToken();
+        const response = await fetch(`${getApiBaseUrl()}/sales/${saleId}/invoice/pdf`, {
             headers: {
                 'Authorization': `Bearer ${token}`
-            }
+            },
+            credentials: 'include', // Send cookies for httpOnly token
         });
 
         if (!response.ok) {
@@ -264,7 +266,7 @@ export const salesApi = {
     },
 
     /**
-     * Email invoice (TODO: Implement backend endpoint)
+     * Email invoice
      */
     async emailInvoice(saleId: string, email: string) {
         const response = await apiClient.post(`/sales/${saleId}/invoice/email`, { email });
@@ -272,7 +274,7 @@ export const salesApi = {
     },
 
     /**
-     * WhatsApp invoice (TODO: Implement backend endpoint)
+     * WhatsApp invoice
      */
     async whatsappInvoice(saleId: string, phone: string) {
         const response = await apiClient.post(`/sales/${saleId}/invoice/whatsapp`, { phone });

@@ -9,9 +9,16 @@ export default function OnboardingPage() {
     const router = useRouter();
 
     useEffect(() => {
-        // Redirect to saved step
-        router.push(`/onboarding/step-${state.currentStep}`);
-    }, [state.currentStep, router]);
+        // Redirect logic
+        if (!state.mode) {
+            router.push('/onboarding/welcome');
+        } else if (state.mode === 'DEMO') {
+            router.push('/dashboard/overview');
+        } else {
+            // Redirect to saved step
+            router.push(`/onboarding/step-${state.currentStep}`);
+        }
+    }, [state.currentStep, state.mode, router]);
 
     return (
         <div className="min-h-screen flex items-center justify-center">

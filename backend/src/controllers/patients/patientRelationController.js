@@ -1,4 +1,5 @@
 const prisma = require('../../db/prisma');
+const logger = require('../../config/logger');
 const { z } = require('zod');
 
 // Schema for creating relation
@@ -56,7 +57,7 @@ class PatientRelationController {
 
             res.status(201).json({ success: true, data: relation });
         } catch (error) {
-            console.error('Add Relation Error:', error);
+            logger.error('Add Relation Error:', error);
             if (error instanceof z.ZodError) {
                 return res.status(400).json({ success: false, errors: error.errors });
             }
@@ -97,7 +98,7 @@ class PatientRelationController {
 
             res.json({ success: true, data: connections });
         } catch (error) {
-            console.error('Get Relations Error:', error);
+            logger.error('Get Relations Error:', error);
             res.status(500).json({ success: false, message: "Internal server error" });
         }
     }
@@ -125,7 +126,7 @@ class PatientRelationController {
 
             res.json({ success: true, message: "Connection removed" });
         } catch (error) {
-            console.error('Remove Relation Error:', error);
+            logger.error('Remove Relation Error:', error);
             res.status(500).json({ success: false, message: "Internal server error" });
         }
     }

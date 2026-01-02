@@ -71,6 +71,7 @@ export interface Store {
     landmark?: string;
     is24x7: boolean;
     homeDelivery: boolean;
+    isDemo: boolean; // Added for demo mode
     licenses: StoreLicense[];
     operatingHours: StoreOperatingHours[];
     subscription?: Subscription;

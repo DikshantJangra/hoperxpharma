@@ -1,4 +1,5 @@
 const avatarService = require('../services/avatarService');
+const logger = require('../config/logger');
 
 /**
  * Request presigned URL for avatar upload
@@ -8,19 +9,19 @@ async function requestUpload(req, res) {
     try {
         const userId = req.user.id;
 
-        console.log('[Avatar] Request upload for user:', userId);
+        logger.info('[Avatar] Request upload for user:', userId);
 
         const result = await avatarService.requestUpload(userId);
 
-        console.log('[Avatar] Upload URL generated successfully');
+        logger.info('[Avatar] Upload URL generated successfully');
 
         return res.status(200).json({
             success: true,
             data: result,
         });
     } catch (error) {
-        console.error('[Avatar] Error requesting avatar upload:', error);
-        console.error('[Avatar] Error stack:', error.stack);
+        logger.error('[Avatar] Error requesting avatar upload:', error);
+        logger.error('[Avatar] Error stack:', error.stack);
         return res.status(500).json({
             success: false,
             error: error.message || 'Failed to generate upload URL.',
@@ -52,7 +53,7 @@ async function completeUpload(req, res) {
 
         return res.status(200).json(result);
     } catch (error) {
-        console.error('Error completing avatar upload:', error);
+        logger.error('Error completing avatar upload:', error);
         return res.status(500).json({
             success: false,
             error: 'Failed to process avatar upload.',
@@ -76,7 +77,7 @@ async function getAvatar(req, res) {
 
         return res.status(200).json(result);
     } catch (error) {
-        console.error('Error getting avatar:', error);
+        logger.error('Error getting avatar:', error);
         return res.status(500).json({
             success: false,
             error: 'Failed to retrieve avatar.',
@@ -100,7 +101,7 @@ async function getMyAvatar(req, res) {
 
         return res.status(200).json(result);
     } catch (error) {
-        console.error('Error getting avatar:', error);
+        logger.error('Error getting avatar:', error);
         return res.status(500).json({
             success: false,
             error: 'Failed to retrieve avatar.',
@@ -127,7 +128,7 @@ async function deleteAvatar(req, res) {
             message: 'Avatar deleted successfully.',
         });
     } catch (error) {
-        console.error('Error deleting avatar:', error);
+        logger.error('Error deleting avatar:', error);
         return res.status(500).json({
             success: false,
             error: 'Failed to delete avatar.',

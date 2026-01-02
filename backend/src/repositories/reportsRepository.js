@@ -382,17 +382,41 @@ class ReportsRepository {
             ? ((Number(salesLast30Days._sum.total || 0) / totalValue) * 12).toFixed(1)
             : 0;
 
+        // Calculate per-category turnover based on category sales in the last 30 days
+        const enrichedCategoryData = await Promise.all(
+            categoryData.map(async (cat) => {
+                const catSalesLast30Days = await prisma.$queryRaw`
+                    SELECT \n                        SUM(si."lineTotal") as sales
+                    FROM "SaleItem" si
+                    JOIN "Sale" s ON si."saleId" = s.id
+                    JOIN "Drug" d ON si."drugId" = d.id
+                    WHERE s."storeId" = ${storeId}
+                        AND s.status IN ('COMPLETED', 'PARTIALLY_REFUNDED')
+                        AND s."createdAt" >= ${thirtyDaysAgo}
+                        AND s."deletedAt" IS NULL
+                        AND d.form = ${cat.category}
+                `;
+
+                const catSales = catSalesLast30Days[0]?.sales || 0;
+                const catTurnover = cat.value > 0
+                    ? ((Number(catSales) / cat.value) * 12).toFixed(1)
+                    : 0;
+
+                return {
+                    category: cat.category || 'Uncategorized',
+                    items: Number(cat.items),
+                    value: Number(cat.value || 0),
+                    turnover: Number(catTurnover),
+                };
+            })
+        );
+
         return {
             totalValue,
             totalItems: inventorySummary._count.id,
             lowStock: lowStockCount,
             turnoverRatio: Number(turnoverRatio),
-            categoryData: categoryData.map(cat => ({
-                category: cat.category || 'Uncategorized',
-                items: Number(cat.items),
-                value: Number(cat.value || 0),
-                turnover: 0, // TODO: Calculate per-category turnover
-            })),
+            categoryData: enrichedCategoryData,
         };
     }
 
@@ -527,6 +551,53 @@ class ReportsRepository {
             };
         });
 
+        // Calculate profit growth compared to previous period
+        const prevSaleItems = await prisma.saleItem.findMany({
+            where: {
+                sale: {
+                    storeId,
+                    status: { in: ['COMPLETED', 'PARTIALLY_REFUNDED'] },
+                    createdAt: {
+                        gte: prevStartDate,
+                        lte: prevEndDate,
+                    },
+                    deletedAt: null,
+                },
+            },
+            include: {
+                batch: {
+                    select: {
+                        purchasePrice: true,
+                    },
+                },
+            },
+        });
+
+        const prevCogs = prevSaleItems.reduce((sum, item) => {
+            return sum + (item.quantity * Number(item.batch.purchasePrice));
+        }, 0);
+
+        const prevExpenses = await prisma.expense.aggregate({
+            where: {
+                storeId,
+                status: { in: ['APPROVED', 'PAID', 'PARTIAL'] },
+                invoiceDate: {
+                    gte: prevStartDate,
+                    lte: prevEndDate,
+                },
+                deletedAt: null,
+            },
+            _sum: {
+                netAmount: true,
+            },
+        });
+
+        const prevGrossProfit = prevTotalRevenue - prevCogs;
+        const prevNetProfit = prevGrossProfit - Number(prevExpenses._sum.netAmount || 0);
+        const profitGrowth = prevNetProfit > 0
+            ? (((netProfit - prevNetProfit) / Math.abs(prevNetProfit)) * 100).toFixed(1)
+            : netProfit > 0 ? 100 : 0;
+
         return {
             revenue: totalRevenue,
             cogs: totalCOGS,
@@ -536,7 +607,7 @@ class ReportsRepository {
             grossMargin: Number(grossMargin),
             netMargin: Number(netMargin),
             revenueGrowth: Number(revenueGrowth),
-            profitGrowth: 0, // TODO: Calculate profit growth
+            profitGrowth: Number(profitGrowth),
             categoryBreakdown: enrichedCategoryBreakdown,
         };
     }

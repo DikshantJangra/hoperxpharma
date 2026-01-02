@@ -1,4 +1,5 @@
 const ApiResponse = require('../utils/ApiResponse');
+const logger = require('../config/logger');
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
@@ -95,7 +96,7 @@ class EmailContactController {
                 new ApiResponse(200, { ...results, total }, 'Contacts retrieved successfully')
             );
         } catch (error) {
-            console.error('Search contacts error:', error);
+            logger.error('Search contacts error:', error);
             res.status(error.statusCode || 500).json(
                 new ApiResponse(error.statusCode || 500, null, error.message || 'Failed to search contacts')
             );
@@ -204,7 +205,7 @@ class EmailContactController {
                 new ApiResponse(200, { groups }, 'Recipient groups retrieved successfully')
             );
         } catch (error) {
-            console.error('Get groups error:', error);
+            logger.error('Get groups error:', error);
             res.status(error.statusCode || 500).json(
                 new ApiResponse(error.statusCode || 500, null, error.message || 'Failed to retrieve groups')
             );
@@ -317,7 +318,7 @@ class EmailContactController {
                 new ApiResponse(200, { recipients, count: recipients.length }, 'Group recipients retrieved successfully')
             );
         } catch (error) {
-            console.error('Get group recipients error:', error);
+            logger.error('Get group recipients error:', error);
             res.status(error.statusCode || 500).json(
                 new ApiResponse(error.statusCode || 500, null, error.message || 'Failed to retrieve group recipients')
             );

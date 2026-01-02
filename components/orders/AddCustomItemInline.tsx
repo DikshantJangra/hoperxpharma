@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { HiOutlineCheck, HiOutlineXMark } from 'react-icons/hi2';
 import toast from 'react-hot-toast';
 import { normalizeGSTRate } from '@/utils/gst-utils';
+import { getApiBaseUrl } from '@/lib/config/env';
+import { tokenManager } from '@/lib/api/client';
 
 interface AddCustomItemInlineProps {
     onAdd: (item: any) => void;
@@ -42,18 +44,18 @@ export default function AddCustomItemInline({ onAdd, onCancel, initialName = '',
         setIsSubmitting(true);
 
         try {
-            const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
             const method = editMode ? 'PUT' : 'POST';
             const url = editMode
-                ? `${apiBaseUrl}/drugs/${drugId}`
-                : `${apiBaseUrl}/drugs`;
+                ? `${getApiBaseUrl()}/drugs/${drugId}`
+                : `${getApiBaseUrl()}/drugs`;
 
             const response = await fetch(url, {
                 method,
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+                    'Authorization': `Bearer ${tokenManager.getAccessToken()}`
                 },
+                credentials: 'include',
                 body: JSON.stringify({
                     name: formData.name,
                     genericName: formData.genericName || null,

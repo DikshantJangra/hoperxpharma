@@ -1,4 +1,5 @@
 const r2Config = require('../../config/r2');
+const logger = require('../../config/logger');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const prescriptionService = require('../../services/prescriptions/prescriptionService');
@@ -61,7 +62,7 @@ class PrescriptionController {
             }
 
             // Debug: Log what we received
-            console.log('Request body fields:', {
+            logger.info('Request body fields:', {
                 patientId: req.body.patientId,
                 prescriberId: req.body.prescriberId,
                 storeId: storeId, // From middleware, not req.body
@@ -119,7 +120,7 @@ class PrescriptionController {
                 }
             });
         } catch (error) {
-            console.error('[PrescriptionController] Create error:', error);
+            logger.error('[PrescriptionController] Create error:', error);
             return res.status(500).json({
                 success: false,
                 message: error.message || 'Failed to create prescription'
@@ -143,7 +144,7 @@ class PrescriptionController {
                 data: prescriptions
             });
         } catch (error) {
-            console.error('[PrescriptionController] Get Verified error:', error);
+            logger.error('[PrescriptionController] Get Verified error:', error);
             return res.status(500).json({
                 success: false,
                 message: error.message || 'Failed to fetch verified prescriptions'
@@ -173,7 +174,7 @@ class PrescriptionController {
                 meta: result.meta
             });
         } catch (error) {
-            console.error('[PrescriptionController] Get error:', error);
+            logger.error('[PrescriptionController] Get error:', error);
             return res.status(500).json({
                 success: false,
                 message: error.message || 'Failed to fetch prescriptions'
@@ -210,7 +211,7 @@ class PrescriptionController {
                 data: prescription
             });
         } catch (error) {
-            console.error('[PrescriptionController] Get by ID error:', error);
+            logger.error('[PrescriptionController] Get by ID error:', error);
             return res.status(500).json({
                 success: false,
                 message: error.message || 'Failed to fetch prescription'
@@ -262,7 +263,7 @@ class PrescriptionController {
                 message: 'Prescription verified and moved to dispense queue'
             });
         } catch (error) {
-            console.error('[PrescriptionController] Verify error:', error);
+            logger.error('[PrescriptionController] Verify error:', error);
             return res.status(500).json({
                 success: false,
                 message: error.message || 'Failed to verify prescription',
@@ -328,7 +329,7 @@ class PrescriptionController {
                 message: 'Prescription placed on hold'
             });
         } catch (error) {
-            console.error('[PrescriptionController] Hold error:', error);
+            logger.error('[PrescriptionController] Hold error:', error);
             return res.status(500).json({
                 success: false,
                 message: error.message || 'Failed to hold prescription'
@@ -397,7 +398,7 @@ class PrescriptionController {
                 message: 'Prescription deleted successfully'
             });
         } catch (error) {
-            console.error('[PrescriptionController] Delete error:', error);
+            logger.error('[PrescriptionController] Delete error:', error);
             return res.status(500).json({
                 success: false,
                 message: error.message || 'Failed to delete prescription'
@@ -446,7 +447,7 @@ class PrescriptionController {
                 try {
                     await r2Config.deleteObject(fileKey);
                 } catch (r2Error) {
-                    console.error('R2 delete error:', r2Error);
+                    logger.error('R2 delete error:', r2Error);
                     // Continue with database delete even if R2 fails
                 }
             }
@@ -476,7 +477,7 @@ class PrescriptionController {
                 message: 'File deleted successfully'
             });
         } catch (error) {
-            console.error('[PrescriptionController] Delete file error:', error);
+            logger.error('[PrescriptionController] Delete file error:', error);
             return res.status(500).json({
                 success: false,
                 message: error.message || 'Failed to delete file'
@@ -627,7 +628,7 @@ class PrescriptionController {
                 }
             });
         } catch (error) {
-            console.error('[PrescriptionController] Create refill error:', error);
+            logger.error('[PrescriptionController] Create refill error:', error);
             return res.status(500).json({
                 success: false,
                 message: error.message || 'Failed to create refill'

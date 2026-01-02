@@ -70,6 +70,14 @@ export const onboardingApi = {
     },
 
     /**
+     * Set onboarding mode (REAL or DEMO)
+     */
+    async setMode(mode: 'REAL' | 'DEMO') {
+        const response = await apiClient.post('/onboarding/mode', { mode });
+        return response.data;
+    },
+
+    /**
      * Create store (Step 1)
      */
     async createStore(data: StoreData) {
@@ -122,6 +130,57 @@ export const onboardingApi = {
      */
     async markComplete() {
         const response = await apiClient.post('/onboarding/mark-complete');
+        return response.data;
+    },
+
+    /**
+     * Reset onboarding (Delete demo store and restart)
+     */
+    async resetMode() {
+        const response = await apiClient.post('/onboarding/reset');
+        return response.data;
+    },
+
+    /**
+     * Request presigned URL for license document upload
+     */
+    async requestLicenseUpload(licenseType: 'DRUG_LICENSE' | 'GST_CERTIFICATE', fileName: string) {
+        const response = await apiClient.post('/onboarding/license/upload-request', {
+            licenseType,
+            fileName
+        });
+        return response.data;
+    },
+
+    /**
+     * Process uploaded license document (after uploading to presigned URL)
+     */
+    async processLicenseUpload(tempKey: string, licenseType: 'DRUG_LICENSE' | 'GST_CERTIFICATE') {
+        const response = await apiClient.post('/onboarding/license/process', {
+            tempKey,
+            licenseType
+        });
+        return response.data;
+    },
+
+    /**
+     * Download import template
+     */
+    async getImportTemplate(type: string) {
+        const response = await apiClient.get(`/onboarding/import/template/${type}`, {
+            responseType: 'blob'
+        });
+        return response;
+    },
+
+    /**
+     * Import data from file
+     */
+    async importData(type: string, file: File) {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await apiClient.post(`/onboarding/import/data/${type}`, formData);
         return response.data;
     }
 };

@@ -12,45 +12,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null);
 
-    // Only check auth on non-public routes
+    // Initial Auth Check on Mount
+    useEffect(() => {
+        checkAuth();
+    }, []); // Run once on mount
+
+    // Route Protection
     useEffect(() => {
         if (!pathname) return;
 
-        const publicRoutes = ['/', '/login', '/signup'];
+        const publicRoutes = ['/', '/login', '/signup', '/verify-magic-link', '/auth/callback'];
         const isPublicRoute = publicRoutes.includes(pathname);
 
-        if (!isPublicRoute) {
+        // If trying to access private route while unauthenticated, check auth/redirect
+        if (!isPublicRoute && !isAuthenticated && !isLoading) {
+            console.log('Accessing private route while unauthenticated, checking auth...');
             checkAuth();
         }
-    }, [checkAuth, pathname]);
+    }, [pathname, isAuthenticated, isLoading, checkAuth]);
 
     // Check onboarding completion status
     useEffect(() => {
         const checkOnboardingStatus = () => {
             if (isAuthenticated && !isLoading) {
-                console.log('Checking onboarding status:', {
-                    userRole: user?.role,
-                    hasStore,
-                    isAuthenticated,
-                    isLoading
-                });
-
-                // Staff members (non-ADMIN) don't need onboarding - they're added to existing stores by admins
-                // Check this BEFORE making any API calls
-                if (user && user.role !== 'ADMIN') {
-                    console.log('User is staff (non-ADMIN), setting onboarding complete');
-                    setOnboardingComplete(true);
-                    return;
-                }
-
-                // For ADMIN users (store owners), onboarding is complete ONLY if they have a store
-                if (hasStore) {
-                    console.log('ADMIN has store, setting onboarding complete');
-                    setOnboardingComplete(true);
-                } else {
-                    // ADMIN without store = onboarding NOT complete
-                    console.log('ADMIN has NO store, setting onboarding INCOMPLETE');
+                // Anyone without a store must go through onboarding (or be invited)
+                // If they have no store association, they cannot access the dashboard
+                if (!hasStore) {
+                    console.log('User has NO store, setting onboarding INCOMPLETE');
                     setOnboardingComplete(false);
+                } else {
+                    console.log('User has store, setting onboarding COMPLETE');
+                    setOnboardingComplete(true);
                 }
             }
         };
@@ -63,7 +55,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Monitor authentication state and redirect to login when logged out
     useEffect(() => {
         if (!isLoading && !isAuthenticated && pathname) {
-            const publicRoutes = ['/login', '/signup', '/'];
+            const publicRoutes = ['/login', '/signup', '/', '/verify-magic-link', '/auth/callback'];
             const isPublicRoute = publicRoutes.includes(pathname);
 
             // If user is not authenticated and not on a public route, redirect to login
@@ -86,7 +78,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (!isLoading && onboardingComplete !== null && pathname) {
             if (isAuthenticated) {
-                const isPublicRoute = ['/login', '/signup', '/'].includes(pathname);
+                const isPublicRoute = ['/login', '/signup', '/', '/verify-magic-link', '/auth/callback'].includes(pathname);
                 const isOnboardingRoute = pathname.startsWith('/onboarding');
                 const isDashboardRoute = pathname.startsWith('/dashboard') || pathname.startsWith('/(main)');
                 const isAdmin = user?.role === 'ADMIN';
@@ -121,7 +113,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }, [isAuthenticated, hasStore, onboardingComplete, isLoading, pathname, router, user]);
 
     // Skip loading screen for public routes
-    const publicRoutes = ['/', '/login', '/signup'];
+    const publicRoutes = ['/', '/login', '/signup', '/verify-magic-link', '/auth/callback'];
     const isPublicRoute = publicRoutes.includes(pathname || '');
 
     if (!isPublicRoute && (isLoading || (isAuthenticated && onboardingComplete === null))) {

@@ -1,4 +1,5 @@
 const patientService = require('../../services/patients/patientService');
+const logger = require('../../config/logger');
 const asyncHandler = require('../../middlewares/asyncHandler');
 const ApiResponse = require('../../utils/ApiResponse');
 const { parsePagination, parseSort, buildPaginationMeta } = require('../../utils/queryParser');
@@ -51,10 +52,10 @@ const getPatientById = asyncHandler(async (req, res) => {
     }
 
     // DEBUG (Optional - keep for confirmation)
-    // console.log(`[DEBUG] API getPatientById: CAST Balance=${patient?.currentBalance} (Type: ${typeof patient?.currentBalance})`);
+    // logger.info(`[DEBUG] API getPatientById: CAST Balance=${patient?.currentBalance} (Type: ${typeof patient?.currentBalance})`);
 
     // DEBUG: Log patient balance
-    console.log(`[DEBUG] API getPatientById: ${patient?.firstName} Balance=${patient?.currentBalance} (Type: ${typeof patient?.currentBalance})`);
+    logger.info(`[DEBUG] API getPatientById: ${patient?.firstName} Balance=${patient?.currentBalance} (Type: ${typeof patient?.currentBalance})`);
 
     const response = ApiResponse.success(patient);
     res.status(response.statusCode).json(response);
@@ -258,7 +259,7 @@ const processPayment = asyncHandler(async (req, res) => {
  * Get Debtors
  */
 const getDebtors = asyncHandler(async (req, res) => {
-    console.log('[getDebtors] StoreId:', req.storeId);
+    logger.info('[getDebtors] StoreId:', req.storeId);
     const { page, limit } = parsePagination(req.query);
     const sortConfig = parseSort(req.query);
     const filters = {
@@ -272,15 +273,15 @@ const getDebtors = asyncHandler(async (req, res) => {
 
     const { debtors, total, totalOutstanding, totalDebtors } = await patientService.getDebtors(req.storeId, filters);
     
-    console.log('[getDebtors] Results:', { debtors: debtors.length, total, totalOutstanding, totalDebtors });
-    console.log('[getDebtors] First debtor:', debtors[0]);
+    logger.info('[getDebtors] Results:', { debtors: debtors.length, total, totalOutstanding, totalDebtors });
+    logger.info('[getDebtors] First debtor:', debtors[0]);
 
     const response = ApiResponse.paginated(debtors, buildPaginationMeta(total, page, limit));
     // Add extra stats to response
     response.meta.totalOutstanding = totalOutstanding;
     response.meta.totalDebtors = totalDebtors;
     
-    console.log('[getDebtors] Response meta:', response.meta);
+    logger.info('[getDebtors] Response meta:', response.meta);
 
     res.status(response.statusCode).json(response);
 });

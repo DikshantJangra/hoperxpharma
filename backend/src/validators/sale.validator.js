@@ -1,7 +1,7 @@
 const { z } = require('zod');
 
 /**
- * Sale item schema
+ * Sale item schema with discount validation
  */
 const saleItemSchema = z.object({
     drugId: z.string().min(1), // Allow non-CUID strings for legacy data
@@ -11,6 +11,16 @@ const saleItemSchema = z.object({
     discount: z.number().min(0).default(0),
     gstRate: z.number().min(0).max(100),
     lineTotal: z.number().positive(),
+}).refine((item) => {
+    // Validate discount doesn't exceed item total
+    const itemTotal = item.mrp * item.quantity;
+    if (item.discount > itemTotal) {
+        return false;
+    }
+    return true;
+}, {
+    message: 'Item discount cannot exceed item total',
+    path: ['discount']
 });
 
 /**
@@ -29,23 +39,49 @@ const paymentSplitSchema = z.object({
 });
 
 /**
- * Sale creation schema
+ * Sale creation schema with comprehensive validation
  */
 const saleCreateSchema = z.object({
     storeId: z.string().cuid().optional(), // Added by middleware
     patientId: z.string().cuid().optional().nullable(),
-    invoiceType: z.enum(['RECEIPT', 'GST_INVOICE', 'CREDIT_NOTE']).default('RECEIPT'),
+    invoiceType: z.enum(['RECEIPT', 'GST_INVOICE', 'CREDIT_NOTE', 'ESTIMATE']).default('RECEIPT'),
     items: z.array(saleItemSchema).min(1, 'At least one item is required'),
     paymentSplits: z.array(paymentSplitSchema).min(1, 'At least one payment method is required'),
     subtotal: z.number().positive(),
     discountAmount: z.number().min(0).default(0),
     taxAmount: z.number().min(0),
-    roundOff: z.number().default(0),
+    roundOff: z.number()
+        .min(-1)
+        .max(1)
+        .default(0)
+        .refine(val => Math.abs(val) < 1, {
+            message: 'Round-off should be less than ₹1'
+        }),
     total: z.number().positive(),
     soldBy: z.string().cuid().optional(), // Added by middleware
     prescriptionId: z.string().optional().nullable(),
     invoiceNumber: z.string().optional(), // Allow manual override or auto-generated
     shouldCreateRefill: z.boolean().optional(),
+}).refine((sale) => {
+    // Validate overall discount doesn't exceed subtotal
+    if (sale.discountAmount > sale.subtotal) {
+        return false;
+    }
+    return true;
+}, {
+    message: 'Overall discount cannot exceed subtotal',
+    path: ['discountAmount']
+}).refine((sale) => {
+    // Validate payment splits sum matches total (within 1 rupee tolerance for rounding)
+    const paymentTotal = sale.paymentSplits.reduce((sum, p) => sum + p.amount, 0);
+    const difference = Math.abs(paymentTotal - sale.total);
+    if (difference > 1) {
+        return false;
+    }
+    return true;
+}, {
+    message: 'Payment total must match sale total',
+    path: ['paymentSplits']
 });
 
 /**

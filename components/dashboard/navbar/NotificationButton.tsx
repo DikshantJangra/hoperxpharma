@@ -19,17 +19,32 @@ export default function NotificationButton({ show, setShow }: NotificationButton
     // Fetch alerts
     const fetchAlerts = async () => {
         try {
-            const data = await alertsApi.getAlerts({ limit: 10 })
-            setAlerts(data)
-            // Count unread (NEW status)
-            const unread = data.filter(a => a.status === 'NEW').length
-            setUnreadCount(unread)
-        } catch (error) {
-            console.error("Failed to fetch alerts:", error)
+            // Rate limit protection
+            const lastError = localStorage.getItem('alerts_last_error');
+            if (lastError) {
+                const { time } = JSON.parse(lastError);
+                if (Date.now() - time < 10000) { // 10s backoff
+                    setLoading(false); // Ensure loading state is cleared even if we skip fetch
+                    return;
+                }
+            }
+
+            const data = await alertsApi.getAlerts({ limit: 10 });
+            // API returns array directly based on previous code and error
+            if (Array.isArray(data)) {
+                setAlerts(data);
+                const unread = data.filter((a: any) => a.status === 'NEW').length;
+                setUnreadCount(unread);
+            }
+        } catch (error: any) {
+            console.error("Failed to fetch alerts:", error);
+            if (error.status === 429) {
+                localStorage.setItem('alerts_last_error', JSON.stringify({ time: Date.now() }));
+            }
         } finally {
-            setLoading(false)
+            setLoading(false);
         }
-    }
+    };
 
     useEffect(() => {
         fetchAlerts()

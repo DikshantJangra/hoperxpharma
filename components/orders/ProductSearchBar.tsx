@@ -4,6 +4,8 @@ import { HiOutlineMagnifyingGlass, HiOutlineXMark, HiOutlinePlus } from 'react-i
 import { FiUpload } from 'react-icons/fi';
 import BulkAddModal from './BulkAddModal';
 import AddCustomItemInline from './AddCustomItemInline';
+import { getApiBaseUrl } from '@/lib/config/env';
+import { tokenManager } from '@/lib/api/client';
 
 interface Product {
     id: string;
@@ -75,11 +77,11 @@ const ProductSearchBar = forwardRef(({ onSelect, supplier }: ProductSearchBarPro
 
         setLoading(true);
         try {
-            const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
-            const response = await fetch(`${apiBaseUrl}/drugs/search?q=${searchQuery}&limit=10`, {
+            const response = await fetch(`${getApiBaseUrl()}/drugs/search?q=${searchQuery}&limit=10`, {
                 headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-                }
+                    'Authorization': `Bearer ${tokenManager.getAccessToken()}`
+                },
+                credentials: 'include'
             });
 
             if (response.ok) {

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { FiSearch, FiClock, FiAlertCircle, FiUser, FiArrowRight } from "react-icons/fi";
 import { MdLocalPharmacy } from "react-icons/md";
+import { toast } from 'react-hot-toast';
 import { dispenseApi } from "@/lib/api/prescriptions";
 import { useRouter } from "next/navigation";
 
@@ -91,7 +92,9 @@ export default function QueuePage() {
             }
         } catch (error: any) {
             console.error('[Queue] Start fill error:', error);
-            alert(error.response?.data?.message || 'Failed to start fill');
+            toast.error(error.response?.data?.message || 'Failed to start fill', {
+                icon: <FiAlertCircle className="text-white" size={20} />
+            });
         }
     };
 

@@ -1,4 +1,5 @@
 const roleService = require('../../services/roleService');
+const logger = require('../../config/logger');
 const asyncHandler = require('../../middlewares/asyncHandler');
 
 /**
@@ -9,10 +10,10 @@ const asyncHandler = require('../../middlewares/asyncHandler');
 exports.listRoles = asyncHandler(async (req, res) => {
     const roles = await roleService.getAllRoles(req.user.id);
 
-    console.log('🔍 Roles API Debug:');
-    console.log('Total roles:', roles.length);
-    console.log('Built-in roles:', roles.filter(r => r.builtIn).map(r => r.name));
-    console.log('Custom roles:', roles.filter(r => !r.builtIn).map(r => r.name));
+    logger.info('🔍 Roles API Debug:');
+    logger.info('Total roles:', roles.length);
+    logger.info('Built-in roles:', roles.filter(r => r.builtIn).map(r => r.name));
+    logger.info('Custom roles:', roles.filter(r => !r.builtIn).map(r => r.name));
 
     res.json({
         success: true,

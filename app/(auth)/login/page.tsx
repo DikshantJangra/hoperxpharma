@@ -1,35 +1,74 @@
 "use client";
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+
+import { Suspense } from "react";
 import Link from "next/link";
+import { HiArrowLeft } from "react-icons/hi";
+import { toast } from 'react-hot-toast';
+// import { FiAlertCircle } from 'react-icons/fi';
+import { IoMdBriefcase } from 'react-icons/io';
+
+import { AuthChoiceScreen } from "@/components/auth/AuthChoiceScreen";
+import { EmailLinkForm } from "@/components/auth/EmailLinkForm";
+
+// Import existing password login UI elements
 import { FiArrowRight } from "react-icons/fi";
 import { MdOutlineMailLock } from "react-icons/md";
 import { PiPassword } from "react-icons/pi";
 import { HiEye, HiEyeOff } from "react-icons/hi";
-import { BiCheckShield } from "react-icons/bi";
-import { RiSecurePaymentFill } from "react-icons/ri";
 import { useKeyboardNavigation } from "@/hooks/useKeyboardNavigation";
 
-export default function Login() {
+type AuthMethod = null | 'google' | 'link' | 'password';
+
+import { useRouter, useSearchParams } from "next/navigation";
+import { useState, useEffect } from "react";
+
+function LoginForm() {
+    const [authMethod, setAuthMethod] = useState<AuthMethod>(null);
+    const router = useRouter();
+    const searchParams = useSearchParams();
+
+    // Password login state
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [err, setErr] = useState("");
     const [loading, setLoading] = useState(false);
     const [showPass, setShowPass] = useState(false);
-    const router = useRouter();
-    const [showAnimation, setShowAnimation] = useState(true);
-
-    // Enable enhanced keyboard navigation
     const { handleKeyDown } = useKeyboardNavigation();
 
+    // Check for error in URL (e.g. from Google OAuth)
     useEffect(() => {
-        const timer = setTimeout(() => {
-            setShowAnimation(false);
-        }, 20000);
-        return () => clearTimeout(timer);
-    }, []);
+        if (!searchParams) return;
+        const error = searchParams.get('error');
+        if (error) {
+            // Decode URI component just in case, though get() usually handles it
+            const message = decodeURIComponent(error);
+            setErr(message);
 
-    const handleSubmit = async (e: React.FormEvent) => {
+            // Async import toast to avoid hydration mismatch if possible, or just use if available
+            import('react-hot-toast').then(({ default: toast }) => {
+                toast.error(message);
+            });
+
+            // Clean up URL
+            router.replace('/login');
+        }
+    }, [searchParams, router]);
+
+    const handleMethodSelect = (method: 'google' | 'magic' | 'password') => {
+        if (method === 'google') {
+            // TODO: Implement Google OAuth
+            toast('Google OAuth coming soon!', {
+                icon: <IoMdBriefcase className="text-blue-500" size={20} />,
+                duration: 3000
+            });
+        } else if (method === 'magic') {
+            setAuthMethod('link');
+        } else if (method === 'password') {
+            setAuthMethod('password');
+        }
+    };
+
+    const handlePasswordLogin = async (e: React.FormEvent) => {
         e.preventDefault();
         setErr("");
         setLoading(true);
@@ -49,8 +88,6 @@ export default function Login() {
 
             toast.success('Login successful!');
 
-            // Explicit redirect to dashboard after successful login
-            // Small delay to show success message
             setTimeout(() => {
                 router.push('/dashboard/overview');
             }, 500);
@@ -78,133 +115,136 @@ export default function Login() {
     };
 
     return (
-        <div className="h-screen w-screen bg-white flex items-center justify-center overflow-hidden">
-            <div className="w-full max-w-md bg-white rounded-3xl border border-gray-100 shadow-lg px-9 py-8">
+        <div className="min-h-screen w-full bg-[#FAFAFA] flex items-center justify-center p-6">
+            <div className="w-full max-w-md bg-white rounded-2xl shadow-lg px-10 py-10">
+
+                {/* Logo and Brand - Always visible */}
                 <div className="flex flex-col items-center text-center mb-8">
                     <div className="relative mb-4 flex justify-center items-center w-[98px] h-[98px]">
+                        {/* Animated rings */}
+                        <div className="absolute w-full h-full rounded-full bg-[#12B981]/15 animate-ping" style={{ animationDuration: '3s' }}></div>
+                        <div className="absolute w-full h-full rounded-full bg-[#12B981]/10 animate-ping" style={{ animationDuration: '4s', animationDelay: '0.5s' }}></div>
                         <div className="absolute w-full h-full rounded-full bg-[#12B981]/15"></div>
-                        {showAnimation && (
-                            <>
-                                <span className="animate-ping absolute inline-flex h-[66px] w-[66px] rounded-full bg-[#12B981]/75" style={{ animationDuration: '3s', animationIterationCount: 2 }}></span>
-                                <span className="animate-ping absolute inline-flex h-[66px] w-[66px] rounded-full bg-[#12B981]/75" style={{ animationDuration: '3s', animationIterationCount: 2, animationDelay: '2s' }}></span>
-                            </>
-                        )}
                         <div className="relative flex justify-center items-center font-bold text-white text-[26px] w-[66px] h-[66px] rounded-full bg-[#12B981]">
                             <span className="absolute" style={{ transform: 'translate(-6.5px, -1px)' }}>R</span>
-                            <span className="absolute" style={{ transform: 'translate(6.5px, 1px)' }}>X</span>
+                            <span className="absolute" style={{ transform: 'translate(6.5px, 1px)' }}>x</span>
                         </div>
                     </div>
 
                     <h1 className="text-[32px] font-bold tracking-tighter mb-3">
-                        <span className="text-[#A0A0A0]">Hope</span><span className="text-[#12B981] relative">Rx<span className="absolute -bottom-1.5 left-0 right-0 h-[3px] bg-[#12B981] rounded-full"></span><span className="absolute -bottom-3 left-0 right-0 h-[3px] bg-[#12B981] rounded-full"></span></span><span className="text-[#A0A0A0]">Pharma</span>
+                        <span className="text-[#A0A0A0]">Hope</span>
+                        <span className="text-[#12B981] relative">
+                            Rx
+                            <span className="absolute -bottom-1.5 left-0 right-0 h-[3px] bg-[#12B981] rounded-full"></span>
+                            <span className="absolute -bottom-3 left-0 right-0 h-[3px] bg-[#12B981] rounded-full"></span>
+                        </span>
+                        <span className="text-[#A0A0A0]">Pharma</span>
                     </h1>
-
-                    <h2 className="text-[26px] font-black text-black/70 leading-tight mt-4 mb-2">
-                        Get back in control with<br />Secure Access!
-                    </h2>
-
-                    <p className="text-black/50 text-sm leading-tight">
-                        Manage your pharmacy operations safely<br />and efficiently.
-                    </p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-4" onKeyDown={handleKeyDown}>
-                    <div>
-                        <label className="block text-black/70 text-sm font-medium mb-1.5 text-left">
-                            Email Address
-                        </label>
-                        <div className="relative">
-                            <MdOutlineMailLock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={17} />
-                            <span className="absolute left-10 top-1/2 -translate-y-1/2 h-5 w-px bg-gray-300"></span>
-                            <input
-                                type="email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                className="w-full pl-12 pr-4 py-2.5 border-transparent rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-black/5 text-gray-700 placeholder:text-gray-400 text-[15px]"
-                                placeholder="Email"
-                                required
-                            />
+                {/* Content Area */}
+                {authMethod === null ? (
+                    /* Choice Screen */
+                    <AuthChoiceScreen mode="login" onSelectMethod={handleMethodSelect} />
+                ) : authMethod === 'link' ? (
+                    /* Email Link Form - Inline */
+                    <EmailLinkForm mode="login" onBack={() => setAuthMethod(null)} />
+                ) : authMethod === 'password' ? (
+                    /* Password Login Form */
+                    <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+                        <div className="text-center space-y-2 mb-6">
+                            <h2 className="text-[24px] font-black text-black/70">Sign in with password</h2>
+                            <p className="text-black/50 text-sm">Enter your credentials</p>
                         </div>
-                    </div>
 
-                    <div>
-                        <label className="block text-black/70 text-sm font-medium mb-1.5 text-left">
-                            Password
-                        </label>
-                        <div className="relative">
-                            <PiPassword className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={17} />
-                            <span className="absolute left-10 top-1/2 -translate-y-1/2 h-5 w-px bg-gray-300"></span>
-                            <input
-                                type={showPass ? "text" : "password"}
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                className="w-full pl-12 pr-12 py-2.5 border-transparent rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-black/5 text-gray-700 placeholder:text-gray-400 text-[15px]"
-                                placeholder="**************"
-                                required
-                            />
-                            <div className="absolute right-4 top-1/2 -translate-y-1/2 cursor-pointer" onClick={() => setShowPass(!showPass)}>
-                                {showPass ? <HiEyeOff className="text-[#000000]/20" size={18} /> : <HiEye className="text-[#000000]/20" size={18} />}
+                        <form onSubmit={handlePasswordLogin} className="space-y-4" onKeyDown={handleKeyDown}>
+                            <div>
+                                <label className="block text-black/70 text-sm font-medium mb-1.5 text-left">
+                                    Email Address
+                                </label>
+                                <div className="relative">
+                                    <MdOutlineMailLock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={17} />
+                                    <span className="absolute left-10 top-1/2 -translate-y-1/2 h-5 w-px bg-gray-300"></span>
+                                    <input
+                                        type="email"
+                                        value={email}
+                                        onChange={(e) => setEmail(e.target.value)}
+                                        className="w-full pl-12 pr-4 py-2.5 border-transparent rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-black/5 text-gray-700 placeholder:text-gray-400 text-[15px]"
+                                        placeholder="Email"
+                                        required
+                                    />
+                                </div>
                             </div>
-                        </div>
-                        <div className="flex items-center justify-between mt-3 pt-2">
-                            <label className="flex items-center cursor-pointer">
-                                <input type="checkbox" className="w-4 h-4 text-emerald-500 border-gray-300 rounded focus:ring-emerald-500" />
-                                <span className="ml-2 text-sm text-gray-600">Remember me</span>
-                            </label>
-                            <Link href="/forgot-password" className="text-sm text-emerald-500 hover:text-emerald-600 font-medium">Forgot password?</Link>
-                        </div>
-                    </div>
 
-                    <div className="h-5 text-center">
-                        {err && (
-                            <p className="text-red-600 text-xs">{err}</p>
-                        )}
-                    </div>
+                            <div>
+                                <label className="block text-black/70 text-sm font-medium mb-1.5 text-left">
+                                    Password
+                                </label>
+                                <div className="relative">
+                                    <PiPassword className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" size={17} />
+                                    <span className="absolute left-10 top-1/2 -translate-y-1/2 h-5 w-px bg-gray-300"></span>
+                                    <input
+                                        type={showPass ? "text" : "password"}
+                                        value={password}
+                                        onChange={(e) => setPassword(e.target.value)}
+                                        className="w-full pl-12 pr-12 py-2.5 border-transparent rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 bg-black/5 text-gray-700 placeholder:text-gray-400 text-[15px]"
+                                        placeholder="**************"
+                                        required
+                                    />
+                                    <div className="absolute right-4 top-1/2 -translate-y-1/2 cursor-pointer" onClick={() => setShowPass(!showPass)}>
+                                        {showPass ? <HiEyeOff className="text-[#000000]/20" size={18} /> : <HiEye className="text-[#000000]/20" size={18} />}
+                                    </div>
+                                </div>
+                                <div className="flex items-center justify-end mt-2">
+                                    <Link href="/forgot-password" className="text-sm text-emerald-500 hover:text-emerald-600 font-medium">
+                                        Forgot password?
+                                    </Link>
+                                </div>
+                            </div>
 
-                    <div className="pt-2">
-                        <button
-                            type="submit"
-                            disabled={loading}
-                            className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-semibold text-sm py-3 rounded-lg transition-colors disabled:opacity-50 shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2 cursor-pointer"
-                        >
-                            <span className="flex items-center justify-center gap-2">
-                                {loading ? "Logging in..." : "Login"}
-                                {!loading && <FiArrowRight />}
-                            </span>
-                        </button>
-                    </div>
-                </form>
+                            <div className="h-5 text-center">
+                                {err && <p className="text-red-600 text-xs">{err}</p>}
+                            </div>
 
-                <p className="text-center text-gray-600 text-sm mt-6">
-                    New to HopeRxPharma?? <Link href="/signup" className="text-emerald-500 hover:text-emerald-600 font-medium">Sign up</Link>
-                </p>
+                            <button
+                                type="submit"
+                                disabled={loading}
+                                className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-semibold text-sm py-3 rounded-lg transition-colors disabled:opacity-50 shadow-lg shadow-emerald-500/30 flex items-center justify-center gap-2"
+                            >
+                                <span className="flex items-center justify-center gap-2">
+                                    {loading ? "Logging in..." : "Sign in"}
+                                    {!loading && <FiArrowRight />}
+                                </span>
+                            </button>
+                        </form>
 
-                <div className="mt-6 text-center">
-                    <p className="text-sm text-gray-500 mb-2">Need assistance? Contact IT support</p>
-                    <div className="flex items-center justify-center gap-3 text-sm">
-                        <Link href="/support" className="text-emerald-500 hover:text-emerald-600">Support Portal</Link>
-                        <span className="text-gray-400">•</span>
-                        <Link href="/security-policy" className="text-emerald-500 hover:text-emerald-600">Security Policy</Link>
-                    </div>
-                </div>
-
-                <div className="mt-6 flex justify-center items-center gap-2 text-xs sm:fixed sm:p-0 sm:inset-x-auto sm:bottom-4 sm:right-4 sm:justify-end">
-                    <div className="relative group flex items-center gap-1.5 bg-black/5 text-black/80 rounded-lg px-3 py-2">
-                        <BiCheckShield size={15} className="text-[#12B981]" />
-                        <span>HIPPA Compliant</span>
-                        <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block w-80 bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-lg">
-                            HIPAA-secured. No compromises on your privacy
-                        </div>
-                    </div>
-                    <div className="relative group flex items-center gap-1.5 bg-black/5 text-black/80 rounded-lg px-3 py-2">
-                        <RiSecurePaymentFill size={15} className="text-[#12B981]" />
-                        <span>256-bit SSL Secured</span>
-                        <div className="absolute bottom-full right-1 mb-2 hidden group-hover:block w-80 bg-gray-900 text-white text-xs rounded-lg px-3 py-2 shadow-lg">
-                            256-bit SSL — tough security, zero compromise.
+                        {/* Back Button - At Bottom */}
+                        <div className="text-center mt-6">
+                            <button
+                                onClick={() => setAuthMethod(null)}
+                                className="flex items-center gap-1.5 text-gray-600 hover:text-gray-900 transition-colors w-full justify-center"
+                            >
+                                <HiArrowLeft size={16} />
+                                <span className="text-xs font-medium">Back</span>
+                            </button>
                         </div>
                     </div>
-                </div>
+                ) : null}
             </div>
         </div>
+    );
+}
+
+export default function Login() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-screen w-full bg-[#FAFAFA] flex items-center justify-center p-6">
+                <div className="w-full max-w-md bg-white rounded-2xl shadow-lg px-10 py-10 flex justify-center items-center">
+                    <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+            </div>
+        }>
+            <LoginForm />
+        </Suspense>
     );
 }

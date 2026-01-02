@@ -29,6 +29,29 @@ export default function Step3Page() {
         setCurrentStep(3);
     }, [setCurrentStep]);
 
+    // Sync from context
+    useEffect(() => {
+        if (state.data.timings) {
+            setFormData(prev => {
+                const next = {
+                    ...prev,
+                    operatingDays: state.data.timings.operatingDays || prev.operatingDays,
+                    openTime: state.data.timings.openTime || prev.openTime,
+                    closeTime: state.data.timings.closeTime || prev.closeTime,
+                    lunchBreak: state.data.timings.lunchBreak !== undefined ? state.data.timings.lunchBreak : prev.lunchBreak,
+                    lunchStart: state.data.timings.lunchStart || prev.lunchStart,
+                    lunchEnd: state.data.timings.lunchEnd || prev.lunchEnd,
+                    is24x7: state.data.timings.is24x7 !== undefined ? state.data.timings.is24x7 : prev.is24x7,
+                    deliveryAvailable: state.data.timings.deliveryAvailable !== undefined ? state.data.timings.deliveryAvailable : prev.deliveryAvailable
+                };
+                if (JSON.stringify(prev) === JSON.stringify(next)) {
+                    return prev;
+                }
+                return next;
+            });
+        }
+    }, [state.data.timings]);
+
     useEffect(() => {
         const timer = setTimeout(() => {
             updateTimings(formData);

@@ -76,7 +76,13 @@ export default function RecipientSelector({ value = [], onChange, placeholder = 
         }
     };
 
-    const addRecipient = (contact: any, type: 'patient' | 'prescriber' | 'supplier') => {
+    const addRecipient = (contact: any, type: 'patient' | 'prescriber' | 'supplier', event?: React.MouseEvent) => {
+        // Prevent form submission
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+
         if (!contact.email) return;
 
         const newRecipient: Recipient = {
@@ -97,7 +103,13 @@ export default function RecipientSelector({ value = [], onChange, placeholder = 
         inputRef.current?.focus(); // Keep focus for keyboard navigation
     };
 
-    const addManualEmail = () => {
+    const addManualEmail = (event?: React.MouseEvent) => {
+        // Prevent form submission
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (emailRegex.test(query) && !value.find(r => r.email === query)) {
             const manualRecipient: Recipient = {
@@ -181,7 +193,7 @@ export default function RecipientSelector({ value = [], onChange, placeholder = 
                             ...(results.prescribers || []).map((p: any) => ({ ...p, _type: 'prescriber' })),
                             ...(results.suppliers || []).map((s: any) => ({ ...s, _type: 'supplier' }))
                         ];
-                        
+
                         if (e.key === 'ArrowDown') {
                             e.preventDefault();
                             setHighlightedIndex(prev => prev < allResults.length - 1 ? prev + 1 : 0);
@@ -190,6 +202,7 @@ export default function RecipientSelector({ value = [], onChange, placeholder = 
                             setHighlightedIndex(prev => prev > 0 ? prev - 1 : allResults.length - 1);
                         } else if (e.key === 'Enter') {
                             e.preventDefault();
+                            e.stopPropagation(); // CRITICAL: Prevent form submission
                             if (highlightedIndex >= 0 && allResults[highlightedIndex]) {
                                 const selected = allResults[highlightedIndex];
                                 addRecipient(selected, selected._type);
@@ -221,7 +234,8 @@ export default function RecipientSelector({ value = [], onChange, placeholder = 
                             {results.patients.map((patient: any) => (
                                 <button
                                     key={patient.id}
-                                    onClick={() => addRecipient(patient, 'patient')}
+                                    type="button"
+                                    onClick={(e) => addRecipient(patient, 'patient', e)}
                                     className="w-full px-4 py-3 text-left hover:bg-[#f8fafc] transition-colors border-b border-[#f1f5f9] last:border-0"
                                 >
                                     <div className="flex items-center gap-3">
@@ -247,7 +261,8 @@ export default function RecipientSelector({ value = [], onChange, placeholder = 
                             {results.prescribers.map((prescriber: any) => (
                                 <button
                                     key={prescriber.id}
-                                    onClick={() => addRecipient(prescriber, 'prescriber')}
+                                    type="button"
+                                    onClick={(e) => addRecipient(prescriber, 'prescriber', e)}
                                     className="w-full px-4 py-3 text-left hover:bg-[#f8fafc] transition-colors border-b border-[#f1f5f9] last:border-0"
                                 >
                                     <div className="flex items-center gap-3">
@@ -275,7 +290,8 @@ export default function RecipientSelector({ value = [], onChange, placeholder = 
                             {results.suppliers.map((supplier: any) => (
                                 <button
                                     key={supplier.id}
-                                    onClick={() => addRecipient(supplier, 'supplier')}
+                                    type="button"
+                                    onClick={(e) => addRecipient(supplier, 'supplier', e)}
                                     className="w-full px-4 py-3 text-left hover:bg-[#f8fafc] transition-colors border-b border-[#f1f5f9] last:border-0"
                                 >
                                     <div className="flex items-center gap-3">
@@ -297,7 +313,7 @@ export default function RecipientSelector({ value = [], onChange, placeholder = 
                         !value.find(r => r.email === query) && (
                             <button
                                 type="button"
-                                onClick={addManualEmail}
+                                onClick={(e) => addManualEmail(e)}
                                 className="w-full px-4 py-3 text-left hover:bg-[#f8fafc] transition-colors border-t border-[#e2e8f0]"
                             >
                                 <div className="flex items-center gap-3">
@@ -321,7 +337,7 @@ export default function RecipientSelector({ value = [], onChange, placeholder = 
                     {/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(query) && (
                         <button
                             type="button"
-                            onClick={addManualEmail}
+                            onClick={(e) => addManualEmail(e)}
                             className="mt-2 text-sm text-[#10b981] hover:text-[#059669] font-medium"
                         >
                             Add "{query}" as custom email

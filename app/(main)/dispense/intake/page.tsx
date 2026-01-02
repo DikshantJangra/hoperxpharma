@@ -2,7 +2,8 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { FiArrowLeft, FiUpload, FiUser, FiShield } from "react-icons/fi";
+import { FiArrowLeft, FiUpload, FiUser, FiShield, FiCheckCircle } from "react-icons/fi";
+import { toast } from 'react-hot-toast';
 import StepIndicator from "@/components/dispense/StepIndicator";
 import ChecklistPanel, { ChecklistItem } from "@/components/dispense/ChecklistPanel";
 import BarcodeScanner from "@/components/dispense/BarcodeScanner";
@@ -62,7 +63,9 @@ export default function IntakePage() {
 
     const handleComplete = () => {
         // Move to verify step
-        alert("Prescription moved to Verification queue");
+        toast.success("Prescription moved to Verification queue", {
+            icon: <FiCheckCircle className="text-white" size={20} />
+        });
     };
 
     return (

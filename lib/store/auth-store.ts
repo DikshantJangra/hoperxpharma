@@ -127,7 +127,8 @@ export const useAuthStore = create<AuthState>()(
                             set({ isLoading: false });
                             return;
                         } else {
-                            console.error('Token refresh failed - user is unauthenticated:', refreshError?.message);
+                            // Downgrade to warn or info as this is expected when user is not logged in
+                            console.warn('Token refresh failed - user is unauthenticated:', refreshError?.message);
                             // Clear all auth data including tokens and cookies
                             tokenManager.clearTokens();
                             authApi.clearLoggedInCookie();
@@ -175,9 +176,15 @@ export const useAuthStore = create<AuthState>()(
                 } catch (error: any) {
                     // If profile fetch fails, token might be invalid
                     const isNetError = isNetworkError(error) || isTimeoutError(error);
+                    const isRateLimit = error?.status === 429;
 
                     if (isNetError) {
                         console.warn('Network error during profile fetch, will retry on next request');
+                        set({ isLoading: false });
+                    } else if (isRateLimit) {
+                        console.warn('Rate limit exceeded during auth check, preserving existing state');
+                        // Do NOT clear auth state, just stop loading. 
+                        // This prevents the logout loop when 429s happen.
                         set({ isLoading: false });
                     } else {
                         console.error('Auth check failed - clearing auth state:', error?.message);

@@ -1,4 +1,5 @@
 const prisma = require('../db/prisma');
+const logger = require('../config/logger');
 const { USER_ROLES } = require('../constants/roles');
 const { LRUCache } = require('lru-cache');
 
@@ -72,7 +73,7 @@ class PermissionService {
 
             return false;
         } catch (error) {
-            console.error('Error checking permission:', error);
+            logger.error('Error checking permission:', error);
             return false;
         }
     }
@@ -136,7 +137,7 @@ class PermissionService {
             permissionCache.set(cacheKey, permissions);
             return permissions;
         } catch (error) {
-            console.error('Error getting user permissions:', error);
+            logger.error('Error getting user permissions:', error);
             return [];
         }
     }
@@ -169,7 +170,7 @@ class PermissionService {
 
             return user.userRoles.some(ur => ur.role.name === roleName);
         } catch (error) {
-            console.error('Error checking role:', error);
+            logger.error('Error checking role:', error);
             return false;
         }
     }

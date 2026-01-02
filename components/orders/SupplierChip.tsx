@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FiChevronDown, FiX } from 'react-icons/fi';
+import { getApiBaseUrl } from '@/lib/config/env';
+import { tokenManager } from '@/lib/api/client';
 
 interface Supplier {
     id: string;
@@ -29,11 +31,11 @@ export default function SupplierChip({ value, onChange }: SupplierChipProps) {
     const loadSuppliers = async () => {
         setLoading(true);
         try {
-            const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
-            const response = await fetch(`${apiBaseUrl}/purchase-orders/suppliers?limit=50`, {
+            const response = await fetch(`${getApiBaseUrl()}/purchase-orders/suppliers?limit=50`, {
                 headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-                }
+                    'Authorization': `Bearer ${tokenManager.getAccessToken()}`
+                },
+                credentials: 'include'
             });
 
             if (response.ok) {

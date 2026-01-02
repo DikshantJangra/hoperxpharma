@@ -1,4 +1,6 @@
 'use client';
+import { getApiBaseUrl } from '@/lib/config/env';
+import { tokenManager } from '@/lib/api/client';
 
 import React, { useState, useEffect, useRef } from 'react';
 import { normalizeGSTRate } from '@/utils/gst-utils';
@@ -51,10 +53,10 @@ export default function ProductSearch({ onSelect, onCancel, supplier }: ProductS
         params.append('supplierId', supplier.id);
       }
 
-      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+      const apiBaseUrl = getApiBaseUrl();
       const response = await fetch(`${apiBaseUrl}/drugs/search?${params}`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+          'Authorization': `Bearer ${tokenManager.getAccessToken()}`
         }
       });
 

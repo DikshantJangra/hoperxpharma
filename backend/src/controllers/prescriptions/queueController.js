@@ -1,4 +1,5 @@
 const queueService = require('../../services/prescriptions/queueService');
+const logger = require('../../config/logger');
 
 class QueueController {
     /**
@@ -24,7 +25,7 @@ class QueueController {
                 count: prescriptions.length
             });
         } catch (error) {
-            console.error('[QueueController] Get Queue error:', error);
+            logger.error('[QueueController] Get Queue error:', error);
             return res.status(500).json({
                 success: false,
                 message: error.message || 'Failed to fetch queue'
@@ -58,7 +59,7 @@ class QueueController {
                 message: `Prescription moved to ${stage}`
             });
         } catch (error) {
-            console.error('[QueueController] Update Stage error:', error);
+            logger.error('[QueueController] Update Stage error:', error);
             return res.status(500).json({
                 success: false,
                 message: error.message || 'Failed to update stage'
@@ -98,7 +99,7 @@ class QueueController {
                 message: `Processed ${ids.length} items`
             });
         } catch (error) {
-            console.error('[QueueController] Bulk Update error:', error);
+            logger.error('[QueueController] Bulk Update error:', error);
             return res.status(500).json({
                 success: false,
                 message: error.message || 'Failed to perform bulk update'

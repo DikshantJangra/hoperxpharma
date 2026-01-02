@@ -1,6 +1,8 @@
 import { useState, useCallback, useEffect } from 'react';
 import { PurchaseOrder, POLine, Supplier, ValidationResult, SuggestedItem } from '@/types/po';
 import { normalizeGSTRate } from '@/utils/gst-utils';
+import { getApiBaseUrl } from '@/lib/config/env';
+import { tokenManager } from '@/lib/api/client';
 
 export function usePOComposer(storeId: string) {
   const [po, setPO] = useState<PurchaseOrder>({
@@ -132,11 +134,11 @@ export function usePOComposer(storeId: string) {
 
   const loadSuggestions = useCallback(async () => {
     try {
-      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
-      const response = await fetch(`${apiBaseUrl}/purchase-orders/inventory/suggestions?limit=100`, {
+      const response = await fetch(`${getApiBaseUrl()}/purchase-orders/inventory/suggestions?limit=100`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-        }
+          'Authorization': `Bearer ${tokenManager.getAccessToken()}`
+        },
+        credentials: 'include'
       });
 
       if (!response.ok) {
@@ -155,13 +157,13 @@ export function usePOComposer(storeId: string) {
 
   const validate = useCallback(async (): Promise<boolean> => {
     try {
-      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
-      const response = await fetch(`${apiBaseUrl}/purchase-orders/validate`, {
+      const response = await fetch(`${getApiBaseUrl()}/purchase-orders/validate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+          'Authorization': `Bearer ${tokenManager.getAccessToken()}`
         },
+        credentials: 'include',
         body: JSON.stringify(po)
       });
 
@@ -181,11 +183,10 @@ export function usePOComposer(storeId: string) {
   const saveDraft = useCallback(async () => {
     setLoading(true);
     try {
-      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
       const method = po.poId ? 'PUT' : 'POST';
       const url = po.poId
-        ? `${apiBaseUrl}/purchase-orders/${po.poId}`
-        : `${apiBaseUrl}/purchase-orders`;
+        ? `${getApiBaseUrl()}/purchase-orders/${po.poId}`
+        : `${getApiBaseUrl()}/purchase-orders`;
 
       // Transform frontend PO structure to backend API structure
       const taxAmount = po.taxBreakdown?.reduce((sum, tax) => sum + tax.tax, 0) || 0;
@@ -221,8 +222,9 @@ export function usePOComposer(storeId: string) {
         method,
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+          'Authorization': `Bearer ${tokenManager.getAccessToken()}`
         },
+        credentials: 'include',
         body: JSON.stringify(payload)
       });
 
@@ -252,13 +254,13 @@ export function usePOComposer(storeId: string) {
     if (!po.poId) throw new Error('PO must be saved before requesting approval');
 
     try {
-      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
-      const response = await fetch(`${apiBaseUrl}/purchase-orders/${po.poId}/request-approval`, {
+      const response = await fetch(`${getApiBaseUrl()}/purchase-orders/${po.poId}/request-approval`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+          'Authorization': `Bearer ${tokenManager.getAccessToken()}`
         },
+        credentials: 'include',
         body: JSON.stringify({ approvers, note })
       });
 
@@ -278,13 +280,13 @@ export function usePOComposer(storeId: string) {
     if (!idToUse) throw new Error('PO must be saved before sending');
 
     try {
-      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
-      const response = await fetch(`${apiBaseUrl}/purchase-orders/${idToUse}/send`, {
+      const response = await fetch(`${getApiBaseUrl()}/purchase-orders/${idToUse}/send`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+          'Authorization': `Bearer ${tokenManager.getAccessToken()}`
         },
+        credentials: 'include',
         body: JSON.stringify({ ...sendRequest, sendAsPdf: true })
       });
 

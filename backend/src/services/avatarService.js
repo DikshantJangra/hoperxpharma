@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const logger = require('../config/logger');
 const sharp = require('sharp');
 const { v4: uuidv4 } = require('uuid');
 const prisma = require('../db/prisma');
@@ -221,13 +222,13 @@ async function processUpload(userId, tempKey) {
             reused: false,
         };
     } catch (error) {
-        console.error('Error processing avatar upload:', error);
+        logger.error('Error processing avatar upload:', error);
 
         // Try to clean up temp file
         try {
             await deleteObject(tempKey);
         } catch (cleanupError) {
-            console.error('Error cleaning up temp file:', cleanupError);
+            logger.error('Error cleaning up temp file:', cleanupError);
         }
 
         return {
@@ -258,7 +259,7 @@ async function getAvatarUrl(userId) {
             avatarUrl: getPublicUrl(userAvatar.key),
         };
     } catch (error) {
-        console.error('Error getting avatar URL:', error);
+        logger.error('Error getting avatar URL:', error);
         return { success: false, error: 'Failed to retrieve avatar URL.' };
     }
 }
@@ -306,7 +307,7 @@ async function deleteAvatar(userId) {
 
         return { success: true };
     } catch (error) {
-        console.error('Error deleting avatar:', error);
+        logger.error('Error deleting avatar:', error);
         return { success: false, error: error.message || 'Failed to delete avatar.' };
     }
 }
@@ -332,13 +333,13 @@ async function cleanupOrphans() {
                     where: { sha: orphan.sha },
                 });
             } catch (error) {
-                console.error(`Error deleting orphan ${orphan.sha}:`, error);
+                logger.error(`Error deleting orphan ${orphan.sha}:`, error);
             }
         }
 
         return { deleted: orphans.length };
     } catch (error) {
-        console.error('Error cleaning up orphans:', error);
+        logger.error('Error cleaning up orphans:', error);
         return { deleted: 0 };
     }
 }

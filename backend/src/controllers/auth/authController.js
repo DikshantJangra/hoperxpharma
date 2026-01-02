@@ -1,4 +1,5 @@
 const authService = require('../../services/auth/authService');
+const logger = require('../../config/logger');
 const accessLogService = require('../../services/audit/accessLogService');
 const asyncHandler = require('../../middlewares/asyncHandler');
 const ApiResponse = require('../../utils/ApiResponse');
@@ -46,6 +47,18 @@ const { MESSAGES } = require('../../constants');
  */
 const signup = asyncHandler(async (req, res) => {
     try {
+        // Validate password complexity (HIPAA requirement)
+        const { validatePassword } = require('../../utils/passwordValidator');
+        const passwordValidation = validatePassword(req.body.password);
+
+        if (!passwordValidation.valid) {
+            return res.status(400).json({
+                success: false,
+                message: 'Password does not meet security requirements',
+                errors: passwordValidation.errors
+            });
+        }
+
         const result = await authService.signup(req.body);
 
         // Set refresh token in httpOnly cookie
@@ -57,17 +70,26 @@ const signup = asyncHandler(async (req, res) => {
             path: '/',
         });
 
+        // Set access token in httpOnly cookie (XSS protection)
+        res.cookie('accessToken', result.accessToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+            maxAge: 15 * 60 * 1000, // 15 minutes
+            path: '/',
+        });
+
         const response = ApiResponse.created(
             {
                 user: result.user,
-                accessToken: result.accessToken,
+                accessToken: result.accessToken, // Still return for compatibility
             },
             MESSAGES.AUTH.SIGNUP_SUCCESS
         );
 
         res.status(response.statusCode).json(response);
     } catch (error) {
-        console.error('Signup error:', error);
+        logger.error('Signup error:', error);
         throw error;
     }
 });
@@ -132,6 +154,15 @@ const login = asyncHandler(async (req, res) => {
             path: '/',
         });
 
+        // Set access token in httpOnly cookie (XSS protection)
+        res.cookie('accessToken', result.accessToken, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+            maxAge: 15 * 60 * 1000, // 15 minutes
+            path: '/',
+        });
+
         // Log successful login
         await accessLogService.logAccess({
             userId: result.user.id,
@@ -144,7 +175,7 @@ const login = asyncHandler(async (req, res) => {
         const response = ApiResponse.success(
             {
                 user: result.user,
-                accessToken: result.accessToken,
+                accessToken: result.accessToken, // Still return for compatibility
                 permissions: result.permissions, // Include permissions
             },
             MESSAGES.AUTH.LOGIN_SUCCESS
@@ -171,7 +202,7 @@ const login = asyncHandler(async (req, res) => {
             }
         } catch (logError) {
             // Silently fail - don't prevent error throwing due to logging issues
-            console.error('Failed to log failed login attempt:', logError);
+            logger.error('Failed to log failed login attempt:', logError);
         }
 
         throw error;
@@ -192,11 +223,11 @@ const refresh = asyncHandler(async (req, res) => {
     const refreshToken = req.cookies.refreshToken || req.body.refreshToken;
 
     if (!refreshToken) {
-        console.log('Refresh attempt without token');
+        logger.info('Refresh attempt without token');
         throw ApiError.unauthorized('Refresh token is required');
     }
 
-    console.log('Processing token refresh request');
+    logger.info('Processing token refresh request');
     const tokens = await authService.refreshToken(refreshToken);
 
     // Update refresh token cookie
@@ -208,8 +239,17 @@ const refresh = asyncHandler(async (req, res) => {
         path: '/',
     });
 
+    // Set access token in httpOnly cookie (XSS protection)
+    res.cookie('accessToken', tokens.accessToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        maxAge: 15 * 60 * 1000, // 15 minutes
+        path: '/',
+    });
+
     const response = ApiResponse.success(
-        { accessToken: tokens.accessToken },
+        { accessToken: tokens.accessToken }, // Still return for compatibility
         'Token refreshed successfully'
     );
 
@@ -229,8 +269,9 @@ const refresh = asyncHandler(async (req, res) => {
  *         description: Logout successful
  */
 const logout = asyncHandler(async (req, res) => {
-    // Clear refresh token cookie
+    // Clear both access and refresh token cookies
     res.clearCookie('refreshToken', { path: '/' });
+    res.clearCookie('accessToken', { path: '/' });
 
     // Log logout if authenticated
     if (req.user) {

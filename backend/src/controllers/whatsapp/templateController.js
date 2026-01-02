@@ -4,6 +4,7 @@
  */
 
 const templateRepo = require('../../repositories/templateRepository');
+const logger = require('../../config/logger');
 const whatsappAccountRepo = require('../../repositories/whatsappAccountRepository');
 const whatsappService = require('../../services/whatsappService');
 
@@ -20,7 +21,7 @@ async function getTemplates(req, res) {
 
         res.json({ templates });
     } catch (error) {
-        console.error('[Templates] Get templates error:', error);
+        logger.error('[Templates] Get templates error:', error);
         res.status(500).json({ error: error.message });
     }
 }
@@ -122,7 +123,7 @@ async function createTemplate(req, res) {
             throw metaError;
         }
     } catch (error) {
-        console.error('[Templates] Create template error:', error);
+        logger.error('[Templates] Create template error:', error);
         res.status(500).json({ error: error.message });
     }
 }
@@ -182,7 +183,7 @@ async function syncTemplates(req, res) {
 
         res.json({ success: true, synced: syncResults.length, results: syncResults });
     } catch (error) {
-        console.error('[Templates] Sync templates error:', error);
+        logger.error('[Templates] Sync templates error:', error);
         res.status(500).json({ error: error.message });
     }
 }
@@ -199,7 +200,7 @@ async function deleteTemplate(req, res) {
 
         res.json({ success: true, message: 'Template deleted' });
     } catch (error) {
-        console.error('[Templates] Delete template error:', error);
+        logger.error('[Templates] Delete template error:', error);
         res.status(500).json({ error: error.message });
     }
 }

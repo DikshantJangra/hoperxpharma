@@ -1,4 +1,5 @@
 const loyaltyService = require('../services/loyaltyService');
+const logger = require('../config/logger');
 const loyaltyRepository = require('../repositories/loyaltyRepository');
 
 class LoyaltyController {
@@ -25,7 +26,7 @@ class LoyaltyController {
                 unlockedRewards: details.unlockedRewards,
             });
         } catch (error) {
-            console.error('Error fetching loyalty profile:', error);
+            logger.error('Error fetching loyalty profile:', error);
             return res.status(500).json({
                 error: 'Failed to fetch loyalty profile',
                 message: error.message,
@@ -51,7 +52,7 @@ class LoyaltyController {
 
             return res.json({ progress });
         } catch (error) {
-            console.error('Error fetching loyalty progress:', error);
+            logger.error('Error fetching loyalty progress:', error);
             return res.status(500).json({
                 error: 'Failed to fetch loyalty progress',
                 message: error.message,
@@ -89,7 +90,7 @@ class LoyaltyController {
                 },
             });
         } catch (error) {
-            console.error('Error fetching loyalty rewards:', error);
+            logger.error('Error fetching loyalty rewards:', error);
             return res.status(500).json({
                 error: 'Failed to fetch loyalty rewards',
                 message: error.message,
@@ -121,7 +122,7 @@ class LoyaltyController {
                 total: events.length,
             });
         } catch (error) {
-            console.error('Error fetching loyalty history:', error);
+            logger.error('Error fetching loyalty history:', error);
             return res.status(500).json({
                 error: 'Failed to fetch loyalty history',
                 message: error.message,
@@ -159,7 +160,7 @@ class LoyaltyController {
                 event,
             });
         } catch (error) {
-            console.error('Error recording loyalty event:', error);
+            logger.error('Error recording loyalty event:', error);
             return res.status(500).json({
                 error: 'Failed to record loyalty event',
                 message: error.message,
@@ -187,7 +188,7 @@ class LoyaltyController {
                 overview,
             });
         } catch (error) {
-            console.error('Error fetching loyalty overview:', error);
+            logger.error('Error fetching loyalty overview:', error);
             return res.status(500).json({
                 error: 'Failed to fetch loyalty overview',
                 message: error.message,
@@ -220,7 +221,7 @@ class LoyaltyController {
                 total: profiles.length,
             });
         } catch (error) {
-            console.error('Error fetching loyalty customers:', error);
+            logger.error('Error fetching loyalty customers:', error);
             return res.status(500).json({
                 error: 'Failed to fetch loyalty customers',
                 message: error.message,
@@ -250,7 +251,7 @@ class LoyaltyController {
                 reward,
             });
         } catch (error) {
-            console.error('Error redeeming reward:', error);
+            logger.error('Error redeeming reward:', error);
             return res.status(500).json({
                 error: 'Failed to redeem reward',
                 message: error.message,

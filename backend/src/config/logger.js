@@ -1,9 +1,11 @@
 const winston = require('winston');
+require('winston-daily-rotate-file');
 const path = require('path');
 
-/**
- * Custom log format
- */
+const isDevelopment = process.env.NODE_ENV !== 'production';
+const isProduction = process.env.NODE_ENV === 'production';
+
+// Log format
 const logFormat = winston.format.combine(
     winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
     winston.format.errors({ stack: true }),
@@ -11,74 +13,97 @@ const logFormat = winston.format.combine(
     winston.format.json()
 );
 
-/**
- * Console format for development
- */
+// Console format (human-readable)
 const consoleFormat = winston.format.combine(
     winston.format.colorize(),
     winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-    winston.format.printf(({ timestamp, level, message, ...meta }) => {
-        let msg = `${timestamp} [${level}]: ${message}`;
-        if (Object.keys(meta).length > 0) {
-            msg += ` ${JSON.stringify(meta)}`;
-        }
-        return msg;
+    winston.format.printf(({ level, message, timestamp, correlationId, ...meta }) => {
+        const corrId = correlationId ? `[${correlationId}]` : '';
+        const metaStr = Object.keys(meta).length ? JSON.stringify(meta) : '';
+        return `${timestamp} ${level} ${corrId}: ${message} ${metaStr}`;
     })
 );
 
-/**
- * Create logger instance
- */
-const transports = [
-    new winston.transports.Console({
-        format: consoleFormat,
-    }),
-];
+// Transports array
+const transports = [];
 
-// Only add file transports in development
-if (process.env.NODE_ENV !== 'production') {
+// Development: Console only
+if (isDevelopment) {
     transports.push(
-        new winston.transports.File({
-            filename: path.join(__dirname, '../../logs/error.log'),
-            level: 'error',
-            maxsize: 5242880,
-            maxFiles: 5,
-        }),
-        new winston.transports.File({
-            filename: path.join(__dirname, '../../logs/combined.log'),
-            maxsize: 5242880,
-            maxFiles: 5,
+        new winston.transports.Console({
+            level: process.env.LOG_LEVEL || 'debug',
+            format: consoleFormat,
         })
     );
 }
 
-const logger = winston.createLogger({
-    level: process.env.LOG_LEVEL || 'info',
-    format: logFormat,
-    transports,
-    exceptionHandlers: process.env.NODE_ENV !== 'production' ? [
-        new winston.transports.File({
-            filename: path.join(__dirname, '../../logs/exceptions.log'),
-        }),
-    ] : [
-        new winston.transports.Console({ format: consoleFormat }),
-    ],
-    rejectionHandlers: process.env.NODE_ENV !== 'production' ? [
-        new winston.transports.File({
-            filename: path.join(__dirname, '../../logs/rejections.log'),
-        }),
-    ] : [
-        new winston.transports.Console({ format: consoleFormat }),
-    ],
-});
+// Production: Console + Files with rotation
+if (isProduction) {
+    // Console for cloud providers (Heroku, AWS, etc.)
+    transports.push(
+        new winston.transports.Console({
+            level: process.env.LOG_LEVEL || 'info',
+            format: consoleFormat,
+        })
+    );
 
-// Don't log to files in test environment
-if (process.env.NODE_ENV === 'test') {
-    logger.transports.forEach((transport) => {
-        if (transport instanceof winston.transports.File) {
-            transport.silent = true;
-        }
-    });
+    // Error log file (14 days retention)
+    transports.push(
+        new winston.transports.DailyRotateFile({
+            filename: path.join(__dirname, '../../logs/error-%DATE%.log'),
+            datePattern: 'YYYY-MM-DD',
+            level: 'error',
+            maxSize: '20m',
+            maxFiles: '14d',
+            format: logFormat,
+        })
+    );
+
+    // Combined log file (7 days retention)
+    transports.push(
+        new winston.transports.DailyRotateFile({
+            filename: path.join(__dirname, '../../logs/combined-%DATE%.log'),
+            datePattern: 'YYYY-MM-DD',
+            maxSize: '20m',
+            maxFiles: '7d',
+            format: logFormat,
+        })
+    );
 }
 
+// Create logger instance
+const logger = winston.createLogger({
+    level: process.env.LOG_LEVEL || (isDevelopment ? 'debug' : 'info'),
+    format: logFormat,
+    transports,
+    exitOnError: false,
+});
+
+// Handle unhandled exceptions
+logger.exceptions.handle(
+    new winston.transports.File({
+        filename: path.join(__dirname, '../../logs/exceptions.log'),
+    })
+);
+
+// Handle unhandled promise rejections
+logger.rejections.handle(
+    new winston.transports.File({
+        filename: path.join(__dirname, '../../logs/rejections.log'),
+    })
+);
+
+/**
+ * Helper to create child logger with correlation ID
+ */
+logger.withCorrelationId = (correlationId) => {
+    return {
+        debug: (message, meta = {}) => logger.debug(message, { ...meta, correlationId }),
+        info: (message, meta = {}) => logger.info(message, { ...meta, correlationId }),
+        warn: (message, meta = {}) => logger.warn(message, { ...meta, correlationId }),
+        error: (message, meta = {}) => logger.error(message, { ...meta, correlationId }),
+    };
+};
+
 module.exports = logger;
+

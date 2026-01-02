@@ -5,6 +5,7 @@
  */
 
 const { verifyWebhookSignature, verifyWebhookChallenge } = require('../../utils/webhookVerification');
+const logger = require('../../config/logger');
 const whatsappAccountRepo = require('../../repositories/whatsappAccountRepository');
 const conversationRepo = require('../../repositories/conversationRepository');
 const messageRepo = require('../../repositories/messageRepository');
@@ -40,7 +41,7 @@ async function handleWebhook(req, res) {
         // Verify signature
         const appSecret = process.env.FB_APP_SECRET;
         if (appSecret && !verifyWebhookSignature(req, appSecret)) {
-            console.warn('[Webhook] Invalid signature');
+            logger.warn('[Webhook] Invalid signature');
             return res.status(401).send('Invalid signature');
         }
 
@@ -52,11 +53,11 @@ async function handleWebhook(req, res) {
             try {
                 await processWebhookData(req.body);
             } catch (error) {
-                console.error('[Webhook] Processing error:', error);
+                logger.error('[Webhook] Processing error:', error);
             }
         });
     } catch (error) {
-        console.error('[Webhook] Handler error:', error);
+        logger.error('[Webhook] Handler error:', error);
         res.status(500).send('Internal error');
     }
 }
@@ -78,7 +79,7 @@ async function processWebhookData(data) {
             const phoneNumberId = value.metadata?.phone_number_id;
 
             if (!phoneNumberId) {
-                console.warn('[Webhook] No phone_number_id in payload');
+                logger.warn('[Webhook] No phone_number_id in payload');
                 continue;
             }
 
@@ -86,7 +87,7 @@ async function processWebhookData(data) {
             const account = await whatsappAccountRepo.findByPhoneNumberId(phoneNumberId, true);
 
             if (!account) {
-                console.warn(`[Webhook] Unmapped phone_number_id: ${phoneNumberId}`);
+                logger.warn(`[Webhook] Unmapped phone_number_id: ${phoneNumberId}`);
                 continue;
             }
 
@@ -145,7 +146,7 @@ async function handleIncomingMessages(messages, storeId, account) {
                         mediaUrl = mediaInfo.url; // Meta's temporary URL
                         mediaType = mediaInfo.mime_type;
                     } catch (err) {
-                        console.error('[Webhook] Failed to fetch media URL:', err);
+                        logger.error('[Webhook] Failed to fetch media URL:', err);
                     }
                 }
             } else if (type === 'document') {
@@ -194,9 +195,9 @@ async function handleIncomingMessages(messages, storeId, account) {
             // Optionally mark as read (auto-read)
             // await whatsappService.markMessageRead(account.phoneNumberId, messageId, account.accessToken);
 
-            console.log(`[Webhook] Saved inbound message ${messageId} for store ${storeId}`);
+            logger.info(`[Webhook] Saved inbound message ${messageId} for store ${storeId}`);
         } catch (error) {
-            console.error('[Webhook] Message processing error:', error);
+            logger.error('[Webhook] Message processing error:', error);
         }
     }
 }
@@ -215,7 +216,7 @@ async function handleStatusUpdates(statuses) {
             const message = await messageRepo.findByProviderMessageId(messageId);
 
             if (!message) {
-                console.warn(`[Webhook] Message not found for status update: ${messageId}`);
+                logger.warn(`[Webhook] Message not found for status update: ${messageId}`);
                 continue;
             }
 
@@ -228,9 +229,9 @@ async function handleStatusUpdates(statuses) {
 
             await messageRepo.updateStatus(messageId, newStatus, updateData);
 
-            console.log(`[Webhook] Updated message ${messageId} status to ${newStatus}`);
+            logger.info(`[Webhook] Updated message ${messageId} status to ${newStatus}`);
         } catch (error) {
-            console.error('[Webhook] Status update error:', error);
+            logger.error('[Webhook] Status update error:', error);
         }
     }
 }
@@ -249,7 +250,7 @@ async function handleTemplateStatusUpdate(value, storeId) {
     try {
         const { event, message_template_id, message_template_name, message_template_language, reason } = value;
 
-        console.log(`[Webhook] Template status update: ${message_template_name} -> ${event}`);
+        logger.info(`[Webhook] Template status update: ${message_template_name} -> ${event}`);
 
         // Find template by name and language (or ID if we stored it)
         // We use name+language as primary key for templates in Meta
@@ -264,11 +265,11 @@ async function handleTemplateStatusUpdate(value, storeId) {
                 templateId: message_template_id,
                 rejectedReason: reason || null,
             });
-            console.log(`[Webhook] Updated template ${template.id} status to ${event}`);
+            logger.info(`[Webhook] Updated template ${template.id} status to ${event}`);
         } else {
-            console.warn(`[Webhook] Template not found for update: ${message_template_name} (${message_template_language})`);
+            logger.warn(`[Webhook] Template not found for update: ${message_template_name} (${message_template_language})`);
         }
     } catch (error) {
-        console.error('[Webhook] Template update error:', error);
+        logger.error('[Webhook] Template update error:', error);
     }
 }

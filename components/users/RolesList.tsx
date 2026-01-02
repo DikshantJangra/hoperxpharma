@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { FiShield, FiUsers, FiCopy, FiEdit2, FiTrash2, FiPlus, FiAlertTriangle } from "react-icons/fi";
+import { toast } from 'react-hot-toast';
 import { rbacApi, Role } from "@/lib/api/rbac";
 import CreateRoleDrawer from "./roles/CreateRoleDrawer";
 
@@ -42,19 +43,25 @@ export default function RolesList() {
             }
         } catch (error) {
             console.error("Failed to clone role:", error);
-            alert("Failed to clone role");
+            toast.error("Failed to clone role", {
+                icon: <FiAlertTriangle className="text-red-500" size={20} />
+            });
         }
     };
 
     const handleDeleteRole = async (role: Role) => {
         if (role.builtIn) {
-            alert("Cannot delete built-in roles");
+            toast.error("Cannot delete built-in roles", {
+                icon: <FiShield className="text-red-500" size={20} />
+            });
             return;
         }
 
         const userCount = role._count?.userRoles || 0;
         if (userCount > 0) {
-            alert(`Cannot delete role. It is assigned to ${userCount} user(s).`);
+            toast.error(`Cannot delete role. It is assigned to ${userCount} user(s).`, {
+                icon: <FiUsers className="text-red-500" size={20} />
+            });
             return;
         }
 
@@ -67,7 +74,9 @@ export default function RolesList() {
             }
         } catch (error) {
             console.error("Failed to delete role:", error);
-            alert("Failed to delete role");
+            toast.error("Failed to delete role", {
+                icon: <FiAlertTriangle className="text-red-500" size={20} />
+            });
         }
     };
 

@@ -5,6 +5,7 @@
  */
 
 const whatsappAccountRepo = require('../../repositories/whatsappAccountRepository');
+const logger = require('../../config/logger');
 const whatsappService = require('../../services/whatsappService');
 
 /**
@@ -19,7 +20,7 @@ async function handleEmbeddedSignup(req, res) {
             return res.status(400).json({ error: 'Missing tempToken or storeId' });
         }
 
-        console.log(`[WhatsApp] Storing tempToken for ${storeId}. Length: ${tempToken.length}, Prefix: ${tempToken.substring(0, 10)}...`);
+        logger.info(`[WhatsApp] Storing tempToken for ${storeId}. Length: ${tempToken.length}, Prefix: ${tempToken.substring(0, 10)}...`);
 
         // Store temporary token
         await whatsappAccountRepo.upsertWhatsAppAccount(storeId, {
@@ -29,7 +30,7 @@ async function handleEmbeddedSignup(req, res) {
 
         res.json({ success: true, message: 'Temporary token stored' });
     } catch (error) {
-        console.error('[WhatsApp] Embedded signup error:', error);
+        logger.error('[WhatsApp] Embedded signup error:', error);
         res.status(500).json({ error: error.message });
     }
 }
@@ -53,7 +54,7 @@ async function finalizeSetup(req, res) {
             return res.status(404).json({ error: 'No temporary token found. Please reconnect.' });
         }
 
-        console.log(`[WhatsApp] Finalizing setup for ${storeId}. Token Length: ${account.tempToken.length}, Prefix: ${account.tempToken.substring(0, 10)}...`);
+        logger.info(`[WhatsApp] Finalizing setup for ${storeId}. Token Length: ${account.tempToken.length}, Prefix: ${account.tempToken.substring(0, 10)}...`);
 
         // Fetch WABA info from Meta
         const wabaInfo = await whatsappService.getWABAInfo(account.tempToken);
@@ -96,7 +97,7 @@ async function finalizeSetup(req, res) {
         try {
             await whatsappService.subscribeWebhook(wabaId, account.tempToken);
         } catch (webhookError) {
-            console.error('[WhatsApp] Webhook subscription failed:', webhookError);
+            logger.error('[WhatsApp] Webhook subscription failed:', webhookError);
             // Continue anyway, can retry later
         }
 
@@ -120,7 +121,7 @@ async function finalizeSetup(req, res) {
             businessName: wabaInfo.name,
         });
     } catch (error) {
-        console.error('[WhatsApp] Finalize setup error:', error);
+        logger.error('[WhatsApp] Finalize setup error:', error);
         res.status(500).json({ error: error.message });
     }
 }
@@ -164,7 +165,7 @@ async function manualTokenSetup(req, res) {
 
         res.json({ success: true, message: 'WhatsApp connected successfully' });
     } catch (error) {
-        console.error('[WhatsApp] Manual token setup error:', error);
+        logger.error('[WhatsApp] Manual token setup error:', error);
         res.status(500).json({ error: error.message });
     }
 }
@@ -193,7 +194,7 @@ async function getStatus(req, res) {
             lastWebhookAt: account.lastWebhookReceivedAt,
         });
     } catch (error) {
-        console.error('[WhatsApp] Get status error:', error);
+        logger.error('[WhatsApp] Get status error:', error);
         res.status(500).json({ error: error.message });
     }
 }
@@ -224,7 +225,7 @@ async function verifyPhone(req, res) {
 
         res.json({ success: true, message: 'Phone verified successfully' });
     } catch (error) {
-        console.error('[WhatsApp] Phone verification error:', error);
+        logger.error('[WhatsApp] Phone verification error:', error);
         res.status(400).json({ error: error.message });
     }
 }
@@ -241,7 +242,7 @@ async function disconnect(req, res) {
 
         res.json({ success: true, message: 'WhatsApp disconnected' });
     } catch (error) {
-        console.error('[WhatsApp] Disconnect error:', error);
+        logger.error('[WhatsApp] Disconnect error:', error);
         res.status(500).json({ error: error.message });
     }
 }
@@ -281,7 +282,7 @@ async function sendTestMessage(req, res) {
             to: phoneNumber
         });
     } catch (error) {
-        console.error('[WhatsApp] Test message error:', error);
+        logger.error('[WhatsApp] Test message error:', error);
         res.status(500).json({ error: error.message });
     }
 }

@@ -79,7 +79,7 @@ export default function InvoicesPage() {
       </div>
 
       {/* Content */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden" data-tour="pos-invoices-tab">
         <div className={`${selectedInvoice ? 'w-[60%]' : 'w-full'} transition-all`}>
           <InvoiceTable
             searchQuery={searchQuery}
@@ -92,11 +92,13 @@ export default function InvoicesPage() {
         </div>
 
         {selectedInvoice && (
-          <InvoiceDrawer
-            invoice={selectedInvoice}
-            onClose={() => setSelectedInvoice(null)}
-            isLoading={isLoading && !selectedInvoice}
-          />
+          <div data-tour="invoice-actions">
+            <InvoiceDrawer
+              invoice={selectedInvoice}
+              onClose={() => setSelectedInvoice(null)}
+              isLoading={isLoading && !selectedInvoice}
+            />
+          </div>
         )}
       </div>
     </div>

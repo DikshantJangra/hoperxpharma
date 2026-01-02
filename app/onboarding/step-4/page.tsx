@@ -10,22 +10,58 @@ export default function Step4Page() {
     const { state, updateInventory, setCurrentStep, markStepComplete } = useOnboarding();
     const router = useRouter();
 
-    const [formData, setFormData] = useState({
+    const [formData, setFormData] = useState<{
+        lowStockThreshold: number;
+        nearExpiryThreshold: number;
+        defaultUoM: string;
+        purchaseRounding: boolean;
+        batchTracking: boolean;
+        autoGenerateCodes: boolean;
+        allowNegativeStock: boolean;
+        defaultGSTSlab: string;
+    }>({
         lowStockThreshold: state.data.inventory?.lowStockThreshold || 10,
         nearExpiryThreshold: state.data.inventory?.nearExpiryThreshold || 90,
         defaultUoM: state.data.inventory?.defaultUoM || "Units",
-        purchaseRounding: state.data.inventory?.purchaseRounding || false,
-        batchTracking: state.data.inventory?.batchTracking || true,
-        autoGenerateCodes: state.data.inventory?.autoGenerateCodes || true,
-        allowNegativeStock: state.data.inventory?.allowNegativeStock || false,
-        defaultGSTSlab: state.data.inventory?.defaultGSTSlab || "12"
+        purchaseRounding: state.data.inventory?.purchaseRounding ?? true,
+        batchTracking: state.data.inventory?.batchTracking ?? true,
+        autoGenerateCodes: state.data.inventory?.autoGenerateCodes ?? true,
+        allowNegativeStock: state.data.inventory?.allowNegativeStock ?? false,
+        defaultGSTSlab: state.data.inventory?.defaultGSTSlab || "5"
     });
 
+    // Sync with context when data loads
     useEffect(() => {
-        setCurrentStep(4);
-    }, [setCurrentStep]);
+        if (state.data.inventory) {
+            setFormData(prev => {
+                const next = {
+                    ...prev,
+                    lowStockThreshold: state.data.inventory?.lowStockThreshold ?? 10,
+                    nearExpiryThreshold: state.data.inventory?.nearExpiryThreshold ?? 90,
+                    defaultUoM: state.data.inventory?.defaultUoM || "Units",
+                    purchaseRounding: state.data.inventory?.purchaseRounding ?? true,
+                    batchTracking: state.data.inventory?.batchTracking ?? true,
+                    autoGenerateCodes: state.data.inventory?.autoGenerateCodes ?? true,
+                    allowNegativeStock: state.data.inventory?.allowNegativeStock ?? false,
+                    defaultGSTSlab: state.data.inventory?.defaultGSTSlab || "5"
+                };
+
+                if (JSON.stringify(prev) === JSON.stringify(next)) {
+                    return prev;
+                }
+                return next;
+            });
+        }
+    }, [state.data.inventory]);
 
     useEffect(() => {
+        if (state.currentStep !== 4) {
+            setCurrentStep(4);
+        }
+    }, [state.currentStep, setCurrentStep]);
+
+    useEffect(() => {
+        // Only save if dirty? For now just debounce
         const timer = setTimeout(() => {
             updateInventory(formData);
         }, 500);

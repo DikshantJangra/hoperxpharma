@@ -1,4 +1,5 @@
 const exportJobRepository = require('../../repositories/exportJobRepository');
+const logger = require('../../config/logger');
 const auditRepository = require('../../repositories/auditRepository');
 const accessLogRepository = require('../../repositories/accessLogRepository');
 const fs = require('fs').promises;
@@ -21,7 +22,7 @@ class ExportService {
         try {
             await fs.mkdir(this.exportDir, { recursive: true });
         } catch (error) {
-            console.error('Failed to create export directory:', error);
+            logger.error('Failed to create export directory:', error);
         }
     }
 
@@ -55,7 +56,7 @@ class ExportService {
 
         // Generate export asynchronously
         this.generateExport(job.id, jobId, storeId, exportType, format, filters).catch((error) => {
-            console.error('Export generation failed:', error);
+            logger.error('Export generation failed:', error);
         });
 
         return {
@@ -114,7 +115,7 @@ class ExportService {
 
             return { success: true, filePath };
         } catch (error) {
-            console.error('Export generation error:', error);
+            logger.error('Export generation error:', error);
             throw error;
         }
     }
@@ -254,7 +255,7 @@ class ExportService {
             try {
                 await fs.unlink(job.filePath);
             } catch (error) {
-                console.error('Failed to delete export file:', error);
+                logger.error('Failed to delete export file:', error);
             }
         }
 

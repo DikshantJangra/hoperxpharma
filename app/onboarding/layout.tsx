@@ -1,12 +1,13 @@
 "use client";
 
 import { OnboardingProvider, useOnboarding } from "@/contexts/OnboardingContext";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
+import Link from "next/link";
 import { FiCheck } from "react-icons/fi";
 import Logo from "@/components/ui/Logo";
 
 function OnboardingLayoutContent({ children }: { children: React.ReactNode }) {
-    const { state } = useOnboarding();
+    const { state, isSaving, lastSaved } = useOnboarding();
     const router = useRouter();
 
     const steps = [
@@ -23,6 +24,26 @@ function OnboardingLayoutContent({ children }: { children: React.ReactNode }) {
     ];
 
     const progress = (state.currentStep / 10) * 100;
+
+    const pathname = usePathname();
+    const isWelcomePage = pathname === '/onboarding/welcome';
+
+    if (isWelcomePage) {
+        return (
+            <div className="min-h-screen bg-gray-50 relative font-sans">
+                {/* Premium Mesh Background */}
+                <div className="fixed inset-0 w-full h-full overflow-hidden pointer-events-none z-0">
+                    <div className="absolute -top-[20%] -left-[10%] w-[50%] h-[50%] rounded-full bg-emerald-500/5 blur-3xl"></div>
+                    <div className="absolute top-[20%] -right-[10%] w-[40%] h-[40%] rounded-full bg-emerald-500/5 blur-3xl"></div>
+                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[60%] h-[30%] rounded-full bg-emerald-500/3 blur-3xl"></div>
+                </div>
+
+                <div className="relative z-10 w-full h-full">
+                    {children}
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen bg-gray-50 relative overflow-x-hidden font-sans">
@@ -131,13 +152,15 @@ function OnboardingLayoutContent({ children }: { children: React.ReactNode }) {
                     <div className="flex items-center gap-4">
                         <span>© 2024 HopeRxPharma</span>
                         <span className="hidden sm:inline">•</span>
-                        <a href="#" className="hidden sm:inline hover:text-emerald-500 transition-colors">Privacy Policy</a>
+                        <Link href="/privacy-policy" target="_blank" className="hidden sm:inline hover:text-emerald-500 transition-colors">Privacy Policy</Link>
                         <span className="hidden sm:inline">•</span>
-                        <a href="#" className="hidden sm:inline hover:text-emerald-500 transition-colors">Terms of Service</a>
+                        <Link href="/terms-of-service" target="_blank" className="hidden sm:inline hover:text-emerald-500 transition-colors">Terms of Service</Link>
                     </div>
                     <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-                        <span className="text-emerald-600 font-medium">Auto-saving enabled</span>
+                        <div className={`w-2 h-2 rounded-full ${isSaving ? 'bg-yellow-400 animate-pulse' : 'bg-emerald-500'}`}></div>
+                        <span className="text-gray-500 font-medium">
+                            {isSaving ? 'Saving...' : lastSaved ? `Saved ${lastSaved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Auto-saving enabled'}
+                        </span>
                     </div>
                 </div>
             </div>

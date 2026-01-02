@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { getApiBaseUrl } from '@/lib/config/env';
+import { tokenManager } from '@/lib/api/client';
 import { PurchaseOrder } from '@/types/po';
 import { HiOutlineDocumentText, HiOutlinePrinter, HiOutlinePaperAirplane, HiOutlineChatBubbleLeftRight } from 'react-icons/hi2';
 import toast from 'react-hot-toast';
@@ -17,7 +19,7 @@ export default function POSummary({ po }: POSummaryProps) {
 
   const handlePreviewPdf = async () => {
     try {
-      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+      const apiBaseUrl = getApiBaseUrl();
       // Use poId or fallback to casting for 'id' if it exists at runtime
       const poId = po.poId || (po as any).id;
       if (!poId) {
@@ -27,7 +29,7 @@ export default function POSummary({ po }: POSummaryProps) {
 
       const response = await fetch(`${apiBaseUrl}/purchase-orders/${poId}/preview.pdf`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+          'Authorization': `Bearer ${tokenManager.getAccessToken()}`
         }
       });
 

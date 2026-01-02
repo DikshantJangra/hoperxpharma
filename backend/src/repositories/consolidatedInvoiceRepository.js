@@ -1,4 +1,5 @@
 const { PrismaClient } = require('@prisma/client');
+const logger = require('../config/logger');
 const prisma = new PrismaClient();
 
 class ConsolidatedInvoiceRepository {
@@ -8,9 +9,9 @@ class ConsolidatedInvoiceRepository {
     async getGRNsForInvoicing(storeId, filters = {}) {
         const { startDate, endDate, supplierId, status = 'all' } = filters;
 
-        console.log('[Repo] getGRNsForInvoicing');
-        console.log(`[Repo] StoreId: ${storeId}`);
-        console.log(`[Repo] Filters:`, filters);
+        logger.info('[Repo] getGRNsForInvoicing');
+        logger.info(`[Repo] StoreId: ${storeId}`);
+        logger.info(`[Repo] Filters:`, filters);
 
         const where = {
             storeId,
@@ -40,7 +41,7 @@ class ConsolidatedInvoiceRepository {
             };
         }
 
-        console.log('[Repo] Generated WHERE:', JSON.stringify(where, null, 2));
+        logger.info('[Repo] Generated WHERE:', JSON.stringify(where, null, 2));
 
         const grns = await prisma.goodsReceivedNote.findMany({
             where,

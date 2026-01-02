@@ -1,4 +1,5 @@
 const accessLogService = require('../../services/audit/accessLogService');
+const logger = require('../../config/logger');
 const asyncHandler = require('../../middlewares/asyncHandler');
 const ApiError = require('../../utils/ApiError');
 
@@ -23,7 +24,7 @@ class AccessLogController {
             sortOrder,
         } = req.query;
 
-        console.log('Fetching Access Logs:', {
+        logger.info('Fetching Access Logs:', {
             storeId: req.storeId,
             userId: req.user.id,
             role: req.user.role,

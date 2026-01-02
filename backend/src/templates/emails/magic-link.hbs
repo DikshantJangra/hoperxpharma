@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{#if isNewUser}}Welcome to HopeRxPharma{{else}}Sign in to HopeRxPharma{{/if}}</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #FAFAFA;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #FAFAFA; padding: 40px 20px;">
+        <tr>
+            <td align="center">
+                <!-- Main Container -->
+                <table width="600" cellpadding="0" cellspacing="0" style="background-color: #FFFFFF; border-radius: 16px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06); overflow: hidden;">
+                    
+                    <!-- Header with Logo -->
+                    <tr>
+                        <td align="center" style="padding: 48px 48px 24px 48px;">
+                            <!-- Logo: Circular Rx design -->
+                            <div style="margin-bottom: 24px;">
+                                <div style="display: inline-block; width: 80px; height: 80px; border-radius: 50%; background: linear-gradient(135deg, #12B981 0%, #10A37F 100%); position: relative;">
+                                    <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: white; font-size: 32px; font-weight: 700; letter-spacing: -1px;">
+                                        <span style="display: inline-block; margin-right: -4px;">R</span><span style="display: inline-block; margin-left: -4px;">x</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Brand Name -->
+                            <h1 style="margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.5px; color: #111827;">
+                                <span style="color: #A0A0A0;">Hope</span><span style="color: #12B981;">Rx</span><span style="color: #A0A0A0;">Pharma</span>
+                            </h1>
+                        </td>
+                    </tr>
+                    
+                    <!-- Main Content -->
+                    <tr>
+                        <td style="padding: 0 48px 48px 48px;">
+                            <!-- Greeting -->
+                            {{#if isNewUser}}
+                            <h2 style="margin: 0 0 16px 0; font-size: 24px; font-weight: 600; color: #111827; line-height: 1.3;">
+                                Welcome! Let's verify your email 🎉
+                            </h2>
+                            <p style="margin: 0 0 24px 0; font-size: 16px; color: #4B5563; line-height: 1.6;">
+                                We're excited to have you join HopeRxPharma! Click the button below to verify your email and complete your account setup.
+                            </p>
+                            {{else}}
+                            <h2 style="margin: 0 0 16px 0; font-size: 24px; font-weight: 600; color: #111827; line-height: 1.3;">
+                                {{#if firstName}}Hi {{firstName}},{{else}}Welcome back!{{/if}}
+                            </h2>
+                            <p style="margin: 0 0 24px 0; font-size: 16px; color: #4B5563; line-height: 1.6;">
+                                Click the button below to securely sign in to your HopeRxPharma account. No password needed!
+                            </p>
+                            {{/if}}
+                            
+                            <!-- CTA Button -->
+                            <table width="100%" cellpadding="0" cellspacing="0" style="margin: 32px 0;">
+                                <tr>
+                                    <td align="center">
+                                        <a href="{{magicLinkUrl}}" 
+                                           style="display: inline-block; padding: 16px 48px; background: linear-gradient(135deg, #12B981 0%, #10A37F 100%); color: #FFFFFF; text-decoration: none; border-radius: 12px; font-size: 16px; font-weight: 600; letter-spacing: 0.3px; box-shadow: 0 4px 12px rgba(18, 185, 129, 0.3); transition: all 0.3s ease;">
+                                            {{#if isNewUser}}Verify Email & Get Started{{else}}Sign In{{/if}}
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+                            
+                            <!-- Security Info -->
+                            <div style="margin: 32px 0; padding: 20px; background-color: #F9FAFB; border-radius: 10px; border-left: 4px solid #12B981;">
+                                <p style="margin: 0 0 12px 0; font-size: 14px; color: #1F2937; font-weight: 500;">
+                                    🔒 Security Information
+                                </p>
+                                <p style="margin: 0; font-size: 13px; color: #6B7280; line-height: 1.6;">
+                                    This link expires in <strong>{{expiryMinutes}} minutes</strong> and can only be used once. If you didn't request this email, you can safely ignore it.
+                                </p>
+                            </div>
+                            
+                            <!-- Alternative Link -->
+                            <div style="margin: 24px 0; padding: 16px; background-color: #FAFAFA; border-radius: 8px;">
+                                <p style="margin: 0 0 8px 0; font-size: 13px; color: #6B7280;">
+                                    Button not working? Copy and paste this link into your browser:
+                                </p>
+                                <p style="margin: 0; font-size: 12px; color: #12B981; word-break: break-all;">
+                                    {{magicLinkUrl}}
+                                </p>
+                            </div>
+                        </td>
+                    </tr>
+                    
+                    <!-- Footer -->
+                    <tr>
+                        <td style="padding: 32px 48px; background-color: #F9FAFB; border-top: 1px solid #E5E7EB;">
+                            <table width="100%" cellpadding="0" cellspacing="0">
+                                <tr>
+                                    <td align="center">
+                                        <!-- Security Badges -->
+                                        <div style="margin-bottom: 16px;">
+                                            <span style="display: inline-block; margin: 0 8px; padding: 6px 12px; background-color: #FFFFFF; border-radius: 6px; font-size: 11px; color: #6B7280;">
+                                                <span style="color: #12B981;">✓</span> HIPAA Compliant
+                                            </span>
+                                            <span style="display: inline-block; margin: 0 8px; padding: 6px 12px; background-color: #FFFFFF; border-radius: 6px; font-size: 11px; color: #6B7280;">
+                                                <span style="color: #12B981;">🔒</span> 256-bit SSL Secured
+                                            </span>
+                                        </div>
+                                        
+                                        <!-- Support Link -->
+                                        <p style="margin: 16px 0 0 0; font-size: 13px; color: #6B7280;">
+                                            Need help? <a href="mailto:support@hoperxpharma.com" style="color: #12B981; text-decoration: none; font-weight: 500;">Contact Support</a>
+                                        </p>
+                                        
+                                        <!-- Copyright -->
+                                        <p style="margin: 12px 0 0 0; font-size: 12px; color: #9CA3AF;">
+                                            © 2026 HopeRxPharma. All rights reserved.
+                                        </p>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

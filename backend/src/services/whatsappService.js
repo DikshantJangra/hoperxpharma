@@ -1,3 +1,5 @@
+const logger = require('../config/logger');
+
 /**
  * WhatsApp Service - Meta Graph API Integration
  * Handles all interactions with Meta's WhatsApp Cloud API
@@ -208,7 +210,7 @@ async function markMessageRead(phoneNumberId, messageId, accessToken) {
 
     if (!response.ok) {
         const error = await response.json();
-        console.warn('Failed to mark message as read:', error);
+        logger.warn('Failed to mark message as read:', error);
         return null; // Non-critical, don't throw
     }
 

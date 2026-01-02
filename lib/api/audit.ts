@@ -1,4 +1,5 @@
-import { apiClient } from './client';
+import { apiClient, tokenManager } from './client';
+import { getApiBaseUrl } from '@/lib/config/env';
 
 export interface AuditLog {
     id: string;
@@ -172,13 +173,14 @@ export const auditApi = {
 
     async downloadExport(id: string): Promise<Blob> {
         // Use direct fetch for blob response
-        const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+        const token = tokenManager.getAccessToken();
         const response = await fetch(
-            `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'}/audit/exports/${id}/download`,
+            `${getApiBaseUrl()}/audit/exports/${id}/download`,
             {
                 headers: {
                     Authorization: `Bearer ${token}`,
                 },
+                credentials: 'include', // Send cookies for httpOnly token
             }
         );
 

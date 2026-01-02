@@ -1,4 +1,5 @@
 const portalService = require('../../services/portal/portalService');
+const logger = require('../../config/logger');
 
 class PortalController {
     /**
@@ -15,7 +16,7 @@ class PortalController {
             const result = await portalService.verifyPatient(phoneNumber, dateOfBirth);
             res.json(result);
         } catch (error) {
-            console.error('Portal verification error:', error);
+            logger.error('Portal verification error:', error);
             res.status(401).json({ error: 'Verification failed. Please check your details.' });
         }
     }
@@ -30,7 +31,7 @@ class PortalController {
             const prescriptions = await portalService.getActivePrescriptions(patientId);
             res.json(prescriptions);
         } catch (error) {
-            console.error('Portal fetch error:', error);
+            logger.error('Portal fetch error:', error);
             res.status(500).json({ error: 'Failed to fetch prescriptions' });
         }
     }
@@ -46,7 +47,7 @@ class PortalController {
             const result = await portalService.requestRefill(patientId, prescriptionId);
             res.json({ success: true, message: 'Refill requested successfully', data: result });
         } catch (error) {
-            console.error('Refill request error:', error);
+            logger.error('Refill request error:', error);
             res.status(400).json({ error: error.message || 'Failed to request refill' });
         }
     }

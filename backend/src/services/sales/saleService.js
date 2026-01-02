@@ -9,6 +9,9 @@ const ApiError = require('../../utils/ApiError');
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 const loyaltyService = require('../loyaltyService');
+const gstCalculator = require('../../utils/gstCalculator');
+const gstRepository = require('../../repositories/gstRepository');
+const configService = require('../configService');
 
 /**
  * Sale Service (Refactored with Dispense Integration)
@@ -54,6 +57,11 @@ class SaleService {
         const prescription = dispense.refill.prescription;
         const prescriptionVersion = dispense.prescriptionVersion;
 
+        // Get defaults from config
+        const defaultGSTRate = await configService.getDefaultGSTRate(saleData.storeId || prescription.storeId);
+        const enableGSTBilling = await configService.getEnableGSTBilling(saleData.storeId || prescription.storeId);
+        const autoRounding = await configService.getAutoRounding(saleData.storeId || prescription.storeId);
+
         // 2. Build sale items from prescription version (clinical snapshot)
         const items = prescriptionVersion.items.map(item => ({
             drugId: item.drugId,
@@ -61,21 +69,38 @@ class SaleService {
             quantity: item.quantityPrescribed,
             mrp: saleData.itemPrices?.[item.drugId]?.mrp || 0, // Financial: editable
             discount: saleData.itemPrices?.[item.drugId]?.discount || 0, // Financial: editable
-            gstRate: item.drug.gstRate || 12,
+            gstRate: enableGSTBilling ? (item.drug.gstRate || defaultGSTRate) : 0,
             lineTotal: 0 // Will be calculated
         }));
 
         // Calculate line totals
+        let saleTotal = 0;
+        let saleTaxTotal = 0;
+
         items.forEach(item => {
             const basePrice = item.mrp * item.quantity;
             const discountAmount = (item.discount / 100) * basePrice;
             const taxableAmount = basePrice - discountAmount;
             const gstAmount = (item.gstRate / 100) * taxableAmount;
             item.lineTotal = taxableAmount + gstAmount;
+
+            saleTotal += item.lineTotal;
+            saleTaxTotal += gstAmount;
         });
+
+        // Apply auto-rounding if enabled
+        let roundOff = 0;
+        if (autoRounding) {
+            const roundedTotal = Math.round(saleTotal);
+            roundOff = roundedTotal - saleTotal;
+            saleTotal = roundedTotal;
+        }
 
         // 3. Prepare sale data
         const { paymentSplits, ...saleInfo } = saleData;
+        saleInfo.total = saleTotal;
+        saleInfo.taxAmount = saleTaxTotal;
+        saleInfo.roundOff = roundOff;
 
         // Generate invoice number
         const invoiceNumber = await saleRepository.generateInvoiceNumber(saleInfo.storeId);
@@ -217,6 +242,9 @@ class SaleService {
                         `Insufficient stock for ${batch.drug.name}.Available: ${batch.quantityInStock}, Required: ${item.quantity} `
                     );
                 }
+
+                // Attach drug details to item for GST computation
+                item.drug = batch.drug;
             }
 
             // Validate payment total matches sale total
@@ -226,14 +254,35 @@ class SaleService {
             }
         }
 
+        // Fetch store details for place of supply
+        const store = await prisma.store.findUnique({
+            where: { id: saleInfo.storeId },
+            select: { state: true }
+        });
+
+        // Compute GST for items
+        const gstResult = await this.computeGSTForItems(
+            items,
+            store.state,
+            saleData.buyerGstin,
+            saleData.customerState
+        );
+
+        // Enrich sale data with GST totals and rounding
+        const enrichedSaleData = await this.enrichSaleDataWithGST(
+            saleInfo,
+            gstResult.saleTotals,
+            saleData.buyerGstin
+        );
+
         // Create sale with transaction
         const result = await saleRepository.createSale(
-            { ...saleInfo, invoiceNumber },
-            items,
+            { ...enrichedSaleData, invoiceNumber },
+            gstResult.items,
             paymentSplits
         );
 
-        logger.info(`Sale created(legacy): ${invoiceNumber} - Total: ${saleInfo.total} `);
+        logger.info(`Sale created(legacy): ${invoiceNumber} - Total: ${saleInfo.total} - GST: ${gstResult.saleTotals.totalTax}`);
 
         return {
             ...result.sale,
@@ -285,6 +334,135 @@ class SaleService {
      */
     async getReadyDispensesForPOS(storeId) {
         return await dispenseService.getWorkbenchDispenses(storeId, 'READY');
+    }
+
+    /**
+     * Compute GST for sale items
+     * @private
+     */
+    async computeGSTForItems(items, storeState, customerGstin = null, customerState = null) {
+        const storeId = items[0]?.storeId || items[0]?.drug?.storeId;
+        const enableGSTBilling = storeId ? await configService.getEnableGSTBilling(storeId) : true;
+
+        // Determine place of supply and whether to apply IGST
+        const placeOfSupply = gstCalculator.determinePlaceOfSupply(
+            { gstin: customerGstin, state: customerState },
+            storeState
+        );
+        const isIgst = placeOfSupply !== storeState;
+
+        // Compute GST for each item
+        const itemsWithGST = [];
+
+        for (const item of items) {
+            // Get tax slab for this item
+            let taxSlab;
+
+            // Try to get from drug's linked HSN code first
+            if (item.drug?.hsnCodeId) {
+                const hsnCode = await gstRepository.findHsnCodeById(item.drug.hsnCodeId);
+                if (hsnCode) {
+                    taxSlab = hsnCode.taxSlab;
+                }
+            }
+
+            // Fallback: construct tax slab from drug's gstRate
+            if (!taxSlab) {
+                const defaultGSTRate = await configService.getDefaultGSTRate(items[0].storeId || storeState);
+                // If GST billing is disabled, rate is 0
+                const rate = enableGSTBilling ? (item.gstRate || item.drug?.gstRate || defaultGSTRate) : 0;
+
+                taxSlab = {
+                    rate,
+                    taxType: enableGSTBilling ? 'GST' : 'EXEMPT',
+                    cgstRate: rate / 2,
+                    sgstRate: rate / 2,
+                    igstRate: rate,
+                    cessRate: 0
+                };
+            } else if (!enableGSTBilling) {
+                // Force exempt if GST billing is disabled
+                taxSlab = { ...taxSlab, rate: 0, taxType: 'EXEMPT', cgstRate: 0, sgstRate: 0, igstRate: 0, cessRate: 0 };
+            }
+
+            // Compute tax breakup using calculator
+            const taxBreakup = gstCalculator.computeItemTax(
+                {
+                    quantity: item.quantity,
+                    mrp: item.mrp,
+                    discount: item.discount || 0
+                },
+                taxSlab,
+                isIgst
+            );
+
+            itemsWithGST.push({
+                ...item,
+                hsnCode: item.drug?.hsnCode || null,
+                taxSlabId: taxSlab.id || null,
+                taxableAmount: taxBreakup.taxableAmount,
+                cgstAmount: taxBreakup.cgstAmount,
+                sgstAmount: taxBreakup.sgstAmount,
+                igstAmount: taxBreakup.igstAmount,
+                cessAmount: taxBreakup.cessAmount,
+                lineTotal: taxBreakup.lineTotal
+            });
+        }
+
+        // Compute sale-level totals
+        const saleTaxTotals = gstCalculator.computeSaleTax(itemsWithGST);
+
+        return {
+            items: itemsWithGST,
+            saleTotals: {
+                taxableAmount: saleTaxTotals.taxableAmount,
+                cgstAmount: saleTaxTotals.cgstAmount,
+                sgstAmount: saleTaxTotals.sgstAmount,
+                igstAmount: saleTaxTotals.igstAmount,
+                cessAmount: saleTaxTotals.cessAmount,
+                totalTax: saleTaxTotals.totalTax,
+                isIgst,
+                placeOfSupply,
+                gstrCategory: null // Will be set later
+            }
+        };
+    }
+
+    /**
+     * Enrich sale data with GST fields and handle rounding
+     * @private
+     */
+    async enrichSaleDataWithGST(saleData, gstTotals, customerGstin = null) {
+        let total = saleData.total;
+        let roundOff = 0;
+
+        // Apply auto-rounding if enabled
+        const autoRounding = await configService.getAutoRounding(saleData.storeId);
+        if (autoRounding) {
+            const roundedTotal = Math.round(total);
+            roundOff = roundedTotal - total;
+            total = roundedTotal;
+        }
+
+        return {
+            ...saleData,
+            total: total,
+            roundOff: roundOff,
+            buyerGstin: customerGstin,
+            placeOfSupply: gstTotals.placeOfSupply,
+            isIgst: gstTotals.isIgst,
+            cgstAmount: gstTotals.cgstAmount,
+            sgstAmount: gstTotals.sgstAmount,
+            igstAmount: gstTotals.igstAmount,
+            cessAmount: gstTotals.cessAmount,
+            taxableAmount: gstTotals.taxableAmount,
+            taxAmount: gstTotals.totalTax,
+            gstrCategory: gstCalculator.classifyGSTRCategory({
+                buyerGstin: customerGstin,
+                total: total,
+                isExport: false
+            })
+        };
     }
 }
 

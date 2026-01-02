@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const logger = require('../../config/logger');
 const sharp = require('sharp');
 const { v4: uuidv4 } = require('uuid');
 const prisma = require('../../db/prisma');
@@ -84,14 +85,14 @@ async function processImage(buffer, mimeType, maxDimension, quality) {
             .toBuffer();
 
         const compressionRatio = compressedBuffer.length / buffer.length;
-        console.log(`[StoreAsset] Image compressed: ${buffer.length} → ${compressedBuffer.length} (${((1 - compressionRatio) * 100).toFixed(1)}% reduction)`);
+        logger.info(`[StoreAsset] Image compressed: ${buffer.length} → ${compressedBuffer.length} (${((1 - compressionRatio) * 100).toFixed(1)}% reduction)`);
 
         return {
             buffer: compressedBuffer,
             mimeType: 'image/webp',
         };
     } catch (error) {
-        console.error('Image processing failed:', error);
+        logger.error('Image processing failed:', error);
         throw new Error('Failed to process image');
     }
 }
@@ -155,7 +156,7 @@ async function processLogoUpload(storeId, tempKey, userId, originalFileName) {
                     await deleteObject(oldKey);
                 }
             } catch (err) {
-                console.warn('Failed to delete old logo:', err);
+                logger.warn('Failed to delete old logo:', err);
             }
         }
 
@@ -178,13 +179,13 @@ async function processLogoUpload(storeId, tempKey, userId, originalFileName) {
             url: publicUrl,
         };
     } catch (error) {
-        console.error('Error processing logo upload:', error);
+        logger.error('Error processing logo upload:', error);
 
         // Try to clean up temp file
         try {
             await deleteObject(tempKey);
         } catch (cleanupError) {
-            console.error('Error cleaning up temp file:', cleanupError);
+            logger.error('Error cleaning up temp file:', cleanupError);
         }
 
         return {
@@ -253,7 +254,7 @@ async function processSignatureUpload(storeId, tempKey, userId, originalFileName
                     await deleteObject(oldKey);
                 }
             } catch (err) {
-                console.warn('Failed to delete old signature:', err);
+                logger.warn('Failed to delete old signature:', err);
             }
         }
 
@@ -276,13 +277,13 @@ async function processSignatureUpload(storeId, tempKey, userId, originalFileName
             url: publicUrl,
         };
     } catch (error) {
-        console.error('Error processing signature upload:', error);
+        logger.error('Error processing signature upload:', error);
 
         // Try to clean up temp file
         try {
             await deleteObject(tempKey);
         } catch (cleanupError) {
-            console.error('Error cleaning up temp file:', cleanupError);
+            logger.error('Error cleaning up temp file:', cleanupError);
         }
 
         return {

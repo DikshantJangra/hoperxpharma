@@ -3,6 +3,8 @@ import { POCalculationEngine, type POLine } from '@/lib/calculations/poCalculati
 import { SuggestedItem } from '@/types/po';
 import toast from 'react-hot-toast';
 import { normalizeGSTRate } from '@/utils/gst-utils';
+import { getApiBaseUrl } from '@/lib/config/env';
+import { tokenManager } from '@/lib/api/client';
 
 export interface Supplier {
     id: string;
@@ -37,7 +39,6 @@ export interface ValidationResult {
 
 export type SaveStatus = 'saved' | 'unsaved' | 'syncing';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 
 /**
  * Efficient PO Composer Hook
@@ -169,12 +170,13 @@ export function useEfficientPOComposer(storeId: string, poId?: string) {
         setSaveStatus('syncing');
 
         try {
-            const response = await fetch(`${API_BASE_URL}/purchase-orders/${po.poId}/autosave`, {
+            const response = await fetch(`${getApiBaseUrl()}/purchase-orders/${po.poId}/autosave`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+                    'Authorization': `Bearer ${tokenManager.getAccessToken()}`
                 },
+                credentials: 'include',
                 body: JSON.stringify({
                     supplierId: po.supplier?.id,
                     items: po.lines.map(line => ({
@@ -261,11 +263,12 @@ export function useEfficientPOComposer(storeId: string, poId?: string) {
     const loadSuggestions = async () => {
         try {
             const response = await fetch(
-                `${API_BASE_URL}/purchase-orders/inventory/suggestions?limit=100`,
+                `${getApiBaseUrl()}/purchase-orders/inventory/suggestions?limit=100`,
                 {
                     headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-                    }
+                        'Authorization': `Bearer ${tokenManager.getAccessToken()}`
+                    },
+                    credentials: 'include'
                 }
             );
 
@@ -356,15 +359,16 @@ export function useEfficientPOComposer(storeId: string, poId?: string) {
         try {
             const method = po.poId ? 'PUT' : 'POST';
             const url = po.poId
-                ? `${API_BASE_URL}/purchase-orders/${po.poId}`
-                : `${API_BASE_URL}/purchase-orders`;
+                ? `${getApiBaseUrl()}/purchase-orders/${po.poId}`
+                : `${getApiBaseUrl()}/purchase-orders`;
 
             const response = await fetch(url, {
                 method,
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+                    'Authorization': `Bearer ${tokenManager.getAccessToken()}`
                 },
+                credentials: 'include',
                 body: JSON.stringify({
                     supplierId: po.supplier?.id,
                     items: po.lines.map(line => ({
@@ -430,12 +434,13 @@ export function useEfficientPOComposer(storeId: string, poId?: string) {
             }
 
             // Send PO
-            const response = await fetch(`${API_BASE_URL}/purchase-orders/${poIdToSend}/send`, {
+            const response = await fetch(`${getApiBaseUrl()}/purchase-orders/${poIdToSend}/send`, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+                    'Authorization': `Bearer ${tokenManager.getAccessToken()}`
                 },
+                credentials: 'include',
                 body: JSON.stringify({ channel: 'email', sendAsPdf: true })
             });
 
@@ -476,13 +481,14 @@ export function useEfficientPOComposer(storeId: string, poId?: string) {
 
             // Request approval
             const response = await fetch(
-                `${API_BASE_URL}/purchase-orders/${poIdToApprove}/request-approval`,
+                `${getApiBaseUrl()}/purchase-orders/${poIdToApprove}/request-approval`,
                 {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+                        'Authorization': `Bearer ${tokenManager.getAccessToken()}`
                     },
+                    credentials: 'include',
                     body: JSON.stringify({
                         approvers: ['manager_01'], // TODO: Make configurable
                         note: 'Please review this purchase order'
@@ -511,12 +517,13 @@ export function useEfficientPOComposer(storeId: string, poId?: string) {
         }
 
         try {
-            const response = await fetch(`${API_BASE_URL}/purchase-orders/templates`, {
+            const response = await fetch(`${getApiBaseUrl()}/purchase-orders/templates`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+                    'Authorization': `Bearer ${tokenManager.getAccessToken()}`
                 },
+                credentials: 'include',
                 body: JSON.stringify({
                     name,
                     description,
@@ -546,11 +553,12 @@ export function useEfficientPOComposer(storeId: string, poId?: string) {
     const loadTemplate = useCallback(async (templateId: string) => {
         setLoading(true);
         try {
-            const response = await fetch(`${API_BASE_URL}/purchase-orders/templates/${templateId}/load`, {
+            const response = await fetch(`${getApiBaseUrl()}/purchase-orders/templates/${templateId}/load`, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-                }
+                    'Authorization': `Bearer ${tokenManager.getAccessToken()}`
+                },
+                credentials: 'include'
             });
 
             if (!response.ok) {
@@ -562,10 +570,11 @@ export function useEfficientPOComposer(storeId: string, poId?: string) {
 
             // Load supplier if present
             if (templateData.supplierId) {
-                const supplierResponse = await fetch(`${API_BASE_URL}/purchase-orders/suppliers/${templateData.supplierId}`, {
+                const supplierResponse = await fetch(`${getApiBaseUrl()}/purchase-orders/suppliers/${templateData.supplierId}`, {
                     headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-                    }
+                        'Authorization': `Bearer ${tokenManager.getAccessToken()}`
+                    },
+                    credentials: 'include'
                 });
                 if (supplierResponse.ok) {
                     const supplierResult = await supplierResponse.json();

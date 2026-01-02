@@ -158,7 +158,7 @@ export default function StockPage() {
               <FiUpload className="w-4 h-4" />
               Import
             </button>
-            <button onClick={() => setShowAddDrug(true)} className="px-3 py-2 bg-[#0ea5a3] text-white rounded-lg hover:bg-[#0d9391] flex items-center gap-2 text-sm">
+            <button onClick={() => setShowAddDrug(true)} className="px-3 py-2 bg-[#0ea5a3] text-white rounded-lg hover:bg-[#0d9391] flex items-center gap-2 text-sm" data-tour="new-sku-button">
               <FiPlus className="w-4 h-4" />
               New SKU
             </button>
@@ -201,7 +201,7 @@ export default function StockPage() {
           onReset={handleResetFilters}
         />
 
-        <div className={`${selectedItem ? 'w-[45%]' : 'flex-1'} transition-all`}>
+        <div className={`${selectedItem ? 'w-[45%]' : 'flex-1'} transition-all`} data-tour="inventory-table">
           <StockTable
             searchQuery={searchQuery}
             onSelectItem={setSelectedItem}

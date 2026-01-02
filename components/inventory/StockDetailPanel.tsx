@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { FiX, FiShoppingCart, FiEdit, FiSend, FiClock, FiPackage, FiAlertCircle, FiCheck, FiTrash2, FiEdit2, FiPlus } from 'react-icons/fi';
 import { BsSnow, BsQrCode } from 'react-icons/bs';
 import { toast } from 'sonner';
+import { getApiBaseUrl } from '@/lib/config/env';
+import { tokenManager } from '@/lib/api/client';
 import AdjustStockModal from './AdjustStockModal';
 import AddBatchModal from './AddBatchModal';
 import DeleteInventoryModal from './DeleteInventoryModal';
@@ -47,11 +49,12 @@ export default function StockDetailPanel({ item, onClose, onUpdate }: any) {
           if (batch.supplierId) {
             try {
               const response = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'}/suppliers/${batch.supplierId}`,
+                `${getApiBaseUrl()}/suppliers/${batch.supplierId}`,
                 {
                   headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-                  }
+                    Authorization: `Bearer ${tokenManager.getAccessToken()}`,
+                  },
+                  credentials: 'include'
                 }
               );
               if (response.ok) {

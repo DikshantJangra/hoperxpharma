@@ -1,4 +1,5 @@
 const attachmentService = require('../services/attachmentService');
+const logger = require('../config/logger');
 
 /**
  * Request presigned URL for attachment upload
@@ -21,7 +22,7 @@ async function requestUpload(req, res) {
             data: result,
         });
     } catch (error) {
-        console.error('[Attachment] Error requesting upload:', error);
+        logger.error('[Attachment] Error requesting upload:', error);
         return res.status(500).json({
             success: false,
             error: error.message || 'Failed to generate upload URL.',
@@ -52,7 +53,7 @@ async function completeUpload(req, res) {
 
         return res.status(200).json(result);
     } catch (error) {
-        console.error('[Attachment] Error completing upload:', error);
+        logger.error('[Attachment] Error completing upload:', error);
         return res.status(500).json({
             success: false,
             error: error.message || 'Failed to process attachment.',
@@ -74,7 +75,7 @@ async function getAttachments(req, res) {
             data: attachments,
         });
     } catch (error) {
-        console.error('[Attachment] Error getting attachments:', error);
+        logger.error('[Attachment] Error getting attachments:', error);
         return res.status(500).json({
             success: false,
             error: 'Failed to retrieve attachments.',
@@ -98,7 +99,7 @@ async function deleteAttachment(req, res) {
 
         return res.status(200).json(result);
     } catch (error) {
-        console.error('[Attachment] Error deleting attachment:', error);
+        logger.error('[Attachment] Error deleting attachment:', error);
         return res.status(500).json({
             success: false,
             error: 'Failed to delete attachment.',
@@ -141,7 +142,7 @@ async function uploadAttachment(req, res) {
             message: 'File uploaded successfully'
         });
     } catch (error) {
-        console.error('[Email Attachment] Upload error:', error);
+        logger.error('[Email Attachment] Upload error:', error);
         return res.status(500).json({
             success: false,
             error: error.message || 'Failed to upload file'
@@ -172,7 +173,7 @@ async function deleteEmailAttachment(req, res) {
             message: 'File deleted successfully'
         });
     } catch (error) {
-        console.error('[Email Attachment] Delete error:', error);
+        logger.error('[Email Attachment] Delete error:', error);
         return res.status(500).json({
             success: false,
             error: error.message || 'Failed to delete file'

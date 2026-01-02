@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { FiArrowLeft, FiCheckCircle, FiMessageSquare, FiDollarSign } from "react-icons/fi";
+import { toast } from 'react-hot-toast';
 import StepIndicator from "@/components/dispense/StepIndicator";
 import ChecklistPanel, { ChecklistItem } from "@/components/dispense/ChecklistPanel";
 
@@ -80,7 +81,10 @@ export default function ReleasePage() {
     };
 
     const handleComplete = () => {
-        alert("Prescription dispensed successfully! 🎉\nPatient counseling documented.");
+        toast.success("Prescription dispensed successfully! Patient counseling documented.", {
+            icon: "🎉",
+            duration: 5000
+        });
     };
 
     return (

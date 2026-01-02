@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { FiCheck, FiAlertTriangle, FiPackage, FiUser } from "react-icons/fi";
+import { toast } from 'react-hot-toast';
 import { dispenseApi, prescriptionApi } from "@/lib/api/prescriptions";
 import { useAuthStore } from "@/lib/store/auth-store";
 
@@ -68,7 +69,10 @@ export default function CheckPage() {
 
             if (response.success) {
                 // Show success and redirect to POS or queue
-                alert(`✅ Prescription released! Sale draft created: ${response.saleDraftId}`);
+                toast.success(`Prescription released! Sale request created: ${response.saleDraftId || ''}`, {
+                    icon: <FiCheck className="text-white" size={20} />,
+                    duration: 4000
+                });
                 router.push('/dispense/queue');
             }
         } catch (error: any) {
@@ -229,8 +233,8 @@ export default function CheckPage() {
                             onClick={handleRelease}
                             disabled={!visualCheckConfirmed || releasing}
                             className={`flex-1 px-6 py-4 rounded-lg font-semibold text-lg transition-all ${visualCheckConfirmed && !releasing
-                                    ? 'bg-green-600 text-white hover:bg-green-700'
-                                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                                ? 'bg-green-600 text-white hover:bg-green-700'
+                                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                                 }`}
                         >
                             {releasing ? 'Releasing...' : '✓ Release & Send to POS'}

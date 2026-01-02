@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { HiOutlineXMark } from 'react-icons/hi2';
 import toast from 'react-hot-toast';
 import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation';
+import { getApiBaseUrl } from '@/lib/config/env';
+import { tokenManager } from '@/lib/api/client';
 
 interface AddCustomItemModalProps {
     isOpen: boolean;
@@ -32,14 +34,13 @@ export default function AddCustomItemModal({ isOpen, onClose, onAdd, initialName
         setIsSubmitting(true);
 
         try {
-            // 1. Create the drug in the backend first
-            const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
-            const response = await fetch(`${apiBaseUrl}/drugs`, {
+            const response = await fetch(`${getApiBaseUrl()}/drugs`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+                    'Authorization': `Bearer ${tokenManager.getAccessToken()}`
                 },
+                credentials: 'include',
                 body: JSON.stringify({
                     name: formData.name,
                     manufacturer: formData.manufacturer || 'Custom',

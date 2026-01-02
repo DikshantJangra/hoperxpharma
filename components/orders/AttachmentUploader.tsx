@@ -41,8 +41,8 @@ export default function AttachmentUploader({
 
       setLoading(true);
       try {
-        const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
-        const token = localStorage.getItem('accessToken');
+        // Using validated API URL
+        const token = tokenManager.getAccessToken();
 
         const response = await fetch(`${apiBaseUrl}/${apiEndpoint}/${poId}`, {
           headers: {
@@ -80,8 +80,8 @@ export default function AttachmentUploader({
     }
 
     try {
-      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
-      const token = localStorage.getItem('accessToken');
+      // Using validated API URL
+      const token = tokenManager.getAccessToken();
 
       const response = await fetch(`${apiBaseUrl}/${apiEndpoint}/${attachmentId}`, {
         method: 'DELETE',
@@ -172,8 +172,8 @@ export default function AttachmentUploader({
       try {
         setUploadProgress(prev => ({ ...prev, [fileId]: 0 }));
 
-        const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
-        const token = localStorage.getItem('accessToken');
+        // Using validated API URL
+        const token = tokenManager.getAccessToken();
 
         console.log(`[Attachment] Starting upload for: ${file.name}`);
 

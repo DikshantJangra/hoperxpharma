@@ -210,27 +210,43 @@ class EmailRepository {
     /**
      * Get email logs for a store
      * @param {string} storeId - Store ID
-     * @param {Object} options - Query options (limit, skip, filters)
-     * @returns {Promise<Array>} Email logs
+     * @param {Object} options - Query options (limit, skip, filters, search)
+     * @returns {Promise<Object>} Email logs with pagination info
      */
     async getEmailLogs(storeId, options = {}) {
-        const { limit = 50, skip = 0, status } = options;
+        const { limit = 50, skip = 0, status, search } = options;
 
-        // First get the email account
-        const emailAccount = await this.getEmailAccountByStoreId(storeId);
-        if (!emailAccount) {
-            return [];
+        // Support multiple email accounts for a store
+        const emailAccounts = await this.getAllEmailAccounts(storeId);
+        if (!emailAccounts || emailAccounts.length === 0) {
+            return { logs: [], total: 0, page: Math.floor(skip / limit) + 1, totalPages: 0 };
         }
 
+        const accountIds = emailAccounts.map(acc => acc.id);
+
         const where = {
-            emailAccountId: emailAccount.id,
+            emailAccountId: { in: accountIds },
         };
 
         if (status) {
             where.status = status;
         }
 
-        return await prisma.emailLog.findMany({
+        // Add search functionality for recipient email or subject
+        if (search && search.trim()) {
+            where.OR = [
+                { subject: { contains: search, mode: 'insensitive' } },
+                { to: { has: search } },
+                { cc: { has: search } },
+                { bcc: { has: search } }
+            ];
+        }
+
+        // Get total count for pagination
+        const total = await prisma.emailLog.count({ where });
+
+        // Get paginated logs
+        const logs = await prisma.emailLog.findMany({
             where,
             orderBy: {
                 createdAt: 'desc',
@@ -248,6 +264,14 @@ class EmailRepository {
                 },
             },
         });
+
+        return {
+            logs,
+            total,
+            page: Math.floor(skip / limit) + 1,
+            totalPages: Math.ceil(total / limit),
+            hasMore: skip + limit < total,
+        };
     }
 
     /**

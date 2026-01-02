@@ -105,7 +105,7 @@ export default function OverviewPage() {
                 </div>
 
                 {/* KPI Bar */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4" data-tour="metrics-cards">
                     <KPICard
                         icon={<FiDollarSign size={20} />}
                         title="Revenue (Today)"

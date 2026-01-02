@@ -1,4 +1,5 @@
 const PDFDocument = require('pdfkit');
+const logger = require('../../config/logger');
 const fs = require('fs');
 const path = require('path');
 const moment = require('moment');
@@ -17,7 +18,7 @@ class PDFService {
     async generatePOPdf(po) {
         return new Promise((resolve, reject) => {
             try {
-                console.log('Generating PDF for PO:', po.poNumber);
+                logger.info('Generating PDF for PO:', po.poNumber);
 
                 const doc = new PDFDocument({
                     size: 'A4',
@@ -162,7 +163,7 @@ class PDFService {
 
                 doc.end();
             } catch (error) {
-                console.error('PDF Generation Error:', error);
+                logger.error('PDF Generation Error:', error);
                 reject(error);
             }
         });
@@ -176,7 +177,7 @@ class PDFService {
     async generateSaleInvoicePdf(sale) {
         return new Promise(async (resolve, reject) => {
             try {
-                console.log('Generating Invoice PDF for:', sale.invoiceNumber);
+                logger.info('Generating Invoice PDF for:', sale.invoiceNumber);
 
                 const doc = new PDFDocument({
                     size: 'A4',
@@ -232,7 +233,7 @@ class PDFService {
 
                 // Patient Info
                 if (sale.patient) {
-                    console.log('[PDF] Patient data:', JSON.stringify(sale.patient, null, 2));
+                    logger.info('[PDF] Patient data:', JSON.stringify(sale.patient, null, 2));
                     doc.text(`Patient: ${sale.patient.firstName} ${sale.patient.lastName || ''}`, leftX);
                     if (sale.patient.phoneNumber) {
                         doc.text(`Phone: ${sale.patient.phoneNumber}`, leftX);
@@ -302,8 +303,8 @@ class PDFService {
 
                     // Extract batch number - prefer batchNumber field, fallback to last 6 chars of ID
                     let batchDisplay = '-';
-                    console.log('[PDF] Item batch data:', JSON.stringify(item.batch, null, 2));
-                    console.log('[PDF] Item batchId:', item.batchId);
+                    logger.info('[PDF] Item batch data:', JSON.stringify(item.batch, null, 2));
+                    logger.info('[PDF] Item batchId:', item.batchId);
 
                     if (item.batch?.batchNumber) {
                         batchDisplay = item.batch.batchNumber;
@@ -384,7 +385,7 @@ class PDFService {
                         doc.text('Scan to Pay', 460, doc.y + 85, { width: 60, align: 'center' });
                     }
                 } catch (qrError) {
-                    console.error('Failed to add QR code to PDF:', qrError);
+                    logger.error('Failed to add QR code to PDF:', qrError);
                 }
 
                 // Footer
@@ -396,7 +397,7 @@ class PDFService {
 
                 doc.end();
             } catch (error) {
-                console.error('Invoice PDF Generation Error:', error);
+                logger.error('Invoice PDF Generation Error:', error);
                 reject(error);
             }
         });
@@ -420,7 +421,7 @@ class PDFService {
             }
             return 'Owner';
         } catch (error) {
-            console.error('Error fetching user name for soldBy:', error);
+            logger.error('Error fetching user name for soldBy:', error);
             return 'Owner';
         }
     }
@@ -433,23 +434,23 @@ class PDFService {
      */
     async generateUPIQRCode(store, amount) {
         try {
-            console.log('=== QR CODE GENERATION ===');
-            console.log('Store object:', JSON.stringify({
+            logger.info('=== QR CODE GENERATION ===');
+            logger.info('Store object:', JSON.stringify({
                 id: store?.id,
                 name: store?.name,
                 bankDetails: store?.bankDetails
             }, null, 2));
-            console.log('Amount:', amount);
+            logger.info('Amount:', amount);
 
             // Check if UPI ID is configured
             const upiId = store?.bankDetails?.upiId;
             if (!upiId) {
-                console.log('⚠️ No UPI ID configured, skipping QR code generation');
-                console.log('Store bankDetails:', store?.bankDetails);
+                logger.info('⚠️ No UPI ID configured, skipping QR code generation');
+                logger.info('Store bankDetails:', store?.bankDetails);
                 return '';
             }
 
-            console.log('✓ UPI ID found:', upiId);
+            logger.info('✓ UPI ID found:', upiId);
 
             // Generate QR code
             const result = await UPIQRCode({
@@ -459,10 +460,10 @@ class PDFService {
                 transactionNote: 'Invoice Payment',
             });
 
-            console.log('✓ QR Code generated successfully');
+            logger.info('✓ QR Code generated successfully');
             return result.qr;
         } catch (error) {
-            console.error('❌ QR Code Generation Error:', error);
+            logger.error('❌ QR Code Generation Error:', error);
             return '';
         }
     }

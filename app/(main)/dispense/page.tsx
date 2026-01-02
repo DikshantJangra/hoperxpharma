@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { FiCommand } from "react-icons/fi";
+import { FiCommand, FiArrowRight } from "react-icons/fi";
+import { toast } from 'react-hot-toast';
 import QueueTabs, { DispenseStep } from "@/components/dispense/QueueTabs";
 import QueueList from "@/components/dispense/QueueList";
 import DispenseDetailPanel from "@/components/dispense/DispenseDetailPanel";
@@ -21,7 +22,7 @@ export default function DispensePage() {
     const [selectedId, setSelectedId] = useState<string | undefined>();
     const [isDrawerOpen, setIsDrawerOpen] = useState(true);
     const [showShortcuts, setShowShortcuts] = useState(false);
-    
+
     const [prescriptions, setPrescriptions] = useState<Record<DispenseStep, any[]>>({ intake: [], verify: [], fill: [], label: [], check: [], release: [] });
     const [queueCounts, setQueueCounts] = useState(initialCounts);
     const [isLoading, setIsLoading] = useState(true);
@@ -98,7 +99,10 @@ export default function DispensePage() {
     const handleAction = (action: string, data?: any) => {
         console.log(`Action: ${action}`, data);
         if (action === "primary") {
-            // alert(`Moving prescription to next step...`);
+            toast.success("Moving prescription to next step...", {
+                icon: <FiArrowRight className="text-white" size={20} />,
+                duration: 2000
+            });
             const currentIndex = currentQueue.findIndex(p => p.id === selectedId);
             if (currentIndex < currentQueue.length - 1) {
                 setSelectedId(currentQueue[currentIndex + 1].id);
@@ -127,7 +131,7 @@ export default function DispensePage() {
                             </div>
                             <div className="px-3 py-1.5 bg-red-50 border border-red-200 rounded-lg min-w-[100px] text-center">
                                 <span className="text-gray-600">Urgent:</span>
-                                 {isLoading ? <span className="ml-2 font-bold text-red-700 animate-pulse">...</span> : <span className="ml-2 font-bold text-red-700">{urgentCount}</span>}
+                                {isLoading ? <span className="ml-2 font-bold text-red-700 animate-pulse">...</span> : <span className="ml-2 font-bold text-red-700">{urgentCount}</span>}
                             </div>
                         </div>
 

@@ -4,7 +4,8 @@ import React, { useState, useEffect } from 'react';
 import ReturnForm, { ReturnData } from '@/components/orders/ReturnForm';
 import OrderStatusBadge from '@/components/orders/OrderStatusBadge';
 import { HiOutlineArrowUturnLeft, HiOutlineCheckCircle, HiOutlineCurrencyRupee } from 'react-icons/hi2';
-import { FiPlus } from 'react-icons/fi';
+import { FiPlus, FiAlertCircle } from 'react-icons/fi';
+import { toast } from 'react-hot-toast';
 
 interface ReturnRequest {
     id: string;
@@ -59,7 +60,9 @@ export default function ReturnsPage() {
         // TODO: Implement when backend API is ready
         // POST /api/v1/returns
         console.log('Return request:', returnData);
-        alert('Returns API not yet implemented. Backend endpoints needed.');
+        toast.error('Returns API not yet implemented. Backend endpoints needed.', {
+            icon: <FiAlertCircle className="text-red-500" size={20} />
+        });
         setShowForm(false);
     };
 

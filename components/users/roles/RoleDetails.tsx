@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { FiEdit2, FiTrash2, FiAlertTriangle, FiUsers, FiUserMinus } from "react-icons/fi";
+import { toast } from 'react-hot-toast';
 import PermissionMatrix from "./PermissionMatrix";
 import UserAssignmentModal from "./UserAssignmentModal";
 import { rbacApi, Role } from "@/lib/api/rbac";
@@ -78,11 +79,15 @@ export default function RoleDetails({ roleId, onEdit, onDelete }: RoleDetailsPro
         setShowDeleteConfirm(false);
         if (onDelete) onDelete();
       } else {
-        alert(response.message || "Failed to delete role");
+        toast.error(response.message || "Failed to delete role", {
+          icon: <FiAlertTriangle className="text-red-500" size={20} />
+        });
       }
     } catch (error: any) {
       console.error("Failed to delete role:", error);
-      alert(error.message || "Failed to delete role");
+      toast.error(error.message || "Failed to delete role", {
+        icon: <FiAlertTriangle className="text-red-500" size={20} />
+      });
     } finally {
       setDeleting(false);
     }
@@ -105,7 +110,9 @@ export default function RoleDetails({ roleId, onEdit, onDelete }: RoleDetailsPro
       setRefreshKey(prev => prev + 1);
     } catch (error) {
       console.error("Failed to remove user:", error);
-      alert("Failed to remove user from role");
+      toast.error("Failed to remove user from role", {
+        icon: <FiAlertTriangle className="text-red-500" size={20} />
+      });
     }
   };
 

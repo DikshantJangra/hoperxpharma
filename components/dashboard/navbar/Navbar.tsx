@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react"
 import Link from "next/link"
 import { useRouter, usePathname } from "next/navigation"
 import {
-    FiMenu, FiSearch, FiChevronDown, FiChevronRight, FiMessageSquare,
+    FiMenu, FiChevronDown, FiChevronRight, FiMessageSquare,
     FiUser, FiSettings, FiHelpCircle, FiLogOut, FiCheck, FiX
 } from "react-icons/fi"
 import { MdStore, MdShoppingCart } from "react-icons/md"
@@ -22,7 +22,7 @@ export default function Navbar({ onToggleSidebar, sidebarOpen }: NavbarProps) {
     const [showNotifications, setShowNotifications] = useState(false)
 
     return (
-        <header className="sticky top-0 h-16 bg-white border-b border-gray-100 flex items-center px-6 z-50 shadow-sm">
+        <header className="sticky top-0 h-16 bg-white border-b border-gray-100 flex items-center px-6 z-40 shadow-sm">
             <LeftSection
                 onToggleSidebar={onToggleSidebar}
                 showStoreMenu={showStoreMenu}
@@ -146,29 +146,7 @@ function StoreMenuItem({ name, location, gst, active, onClick }: any) {
 }
 
 function CenterSection() {
-    const router = useRouter()
     const pathname = usePathname()
-    const [searchQuery, setSearchQuery] = useState("")
-
-    // Disabled "/" keyboard shortcut as per user request
-    // useEffect(() => {
-    //     const handleKeyDown = (e: KeyboardEvent) => {
-    //         if (e.key === '/' && !e.ctrlKey && !e.metaKey) {
-    //             e.preventDefault()
-    //             document.getElementById('global-search')?.focus()
-    //         }
-    //     }
-
-    //     window.addEventListener('keydown', handleKeyDown)
-    //     return () => window.removeEventListener('keydown', handleKeyDown)
-    // }, [])
-
-    const handleSearch = (e: React.FormEvent) => {
-        e.preventDefault()
-        if (searchQuery.trim()) {
-            console.log('Searching for:', searchQuery)
-        }
-    }
 
     const getBreadcrumb = () => {
         const segments = pathname.split('/').filter(Boolean)
@@ -227,19 +205,7 @@ function CenterSection() {
     const { section, page } = getBreadcrumb()
 
     return (
-        <div className="flex-1 flex items-center gap-4 mx-6">
-            <form onSubmit={handleSearch} className="relative flex-1 max-w-xl">
-                <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
-                <input
-                    id="global-search"
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search patients, drugs, invoices..."
-                    className="w-full bg-gray-50 border border-gray-200 rounded-lg pl-10 pr-4 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 focus:bg-white transition-all"
-                />
-            </form>
-
+        <div className="flex-1 flex items-center justify-center">
             <div className="flex items-center gap-2 text-sm text-gray-600">
                 <span className="font-medium text-gray-800">{section}</span>
                 <FiChevronRight size={14} className="text-gray-400" />
@@ -254,9 +220,10 @@ function RightSection({ showNotifications, setShowNotifications, showUserMenu, s
 
     return (
         <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 mr-3 pr-3 border-r border-gray-200">
+            <div className="flex items-center gap-2 mr-3 pr-3 border-r border-gray-200" data-tour="quick-actions">
                 <Link
                     href="/prescriptions"
+                    data-tour="quick-new-rx"
                     className="px-3 py-1.5 bg-emerald-500 text-white text-sm font-medium rounded-lg hover:bg-emerald-600 transition-colors flex items-center gap-1.5"
                 >
                     <TbPrescription size={16} />
@@ -264,6 +231,7 @@ function RightSection({ showNotifications, setShowNotifications, showUserMenu, s
                 </Link>
                 <Link
                     href="/pos"
+                    data-tour="quick-pos"
                     className="px-3 py-1.5 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-1.5"
                 >
                     <MdShoppingCart size={16} />
@@ -321,10 +289,10 @@ function UserMenu({ show, setShow }: any) {
             if (!user) return;
 
             try {
-                const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+                // Using validated API URL
                 const response = await fetch(`${apiBaseUrl}/avatar/me`, {
                     headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+                        'Authorization': `Bearer ${tokenManager.getAccessToken()}`
                     }
                 });
 
@@ -396,10 +364,10 @@ function UserMenu({ show, setShow }: any) {
             {show && (
                 <div className="absolute right-0 top-12 w-56 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50">
                     <div className="px-4 py-3 border-b border-gray-100">
-                        <p className="text-sm font-semibold text-gray-800">
+                        <p className="text-sm font-semibold text-gray-800 truncate">
                             {user ? `${user.firstName} ${user.lastName}` : 'User'}
                         </p>
-                        <p className="text-xs text-gray-500">{user?.email || '-'}</p>
+                        <p className="text-xs text-gray-500 truncate" title={user?.email || '-'}>{user?.email || '-'}</p>
                     </div>
                     <UserMenuItem icon={<FiUser size={16} />} label="Profile" href="/profile" onClick={() => setShow(false)} />
                     <UserMenuItem icon={<FiSettings size={16} />} label="Settings" href="/settings" onClick={() => setShow(false)} />

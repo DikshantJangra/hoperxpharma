@@ -21,6 +21,24 @@ class OnboardingRepository {
      * Get onboarding progress for user
      */
     async getProgress(userId) {
+        // 1. Check persistent progress first (Setup Wizard & Saved Steps)
+        const progress = await prisma.onboardingProgress.findUnique({
+            where: { userId }
+        });
+
+        if (progress) {
+            return {
+                completed: progress.isComplete,
+                steps: {}, // Can optionally populate derived steps if needed
+                currentStep: progress.currentStep,
+                completedSteps: progress.completedSteps || [],
+                data: progress.data || {},
+                mode: progress.mode, // Return value: NULL, "REAL", "DEMO"
+                storeId: null // Store might not exist yet if in wizard
+            };
+        }
+
+        // 2. Fallback: Check existing store (Legacy/Safety)
         const stores = await prisma.store.findMany({
             where: {
                 users: {
@@ -45,7 +63,8 @@ class OnboardingRepository {
                     hoursConfigured: false,
                     subscriptionActive: false,
                 },
-                currentStep: 'store_creation',
+                currentStep: 1, // Default to 1 (numeric) for frontend consistency
+                mode: null
             };
         }
 
@@ -59,16 +78,19 @@ class OnboardingRepository {
 
         const completed = Object.values(steps).every((step) => step === true);
 
-        let currentStep = 'completed';
-        if (!steps.licensesAdded) currentStep = 'licenses';
-        else if (!steps.hoursConfigured) currentStep = 'operating_hours';
-        else if (!steps.subscriptionActive) currentStep = 'subscription';
+        let currentStep = 10; // Default to completed/last step if store exists
+        if (!steps.licensesAdded) currentStep = 2; // Assuming Store is Step 1
+        else if (!steps.hoursConfigured) currentStep = 3;
+        else if (!steps.subscriptionActive) currentStep = 4;
+
+        // This fallback mapping is rough, ideally we rely on OnboardingProgress table
 
         return {
             completed,
             steps,
             currentStep,
             storeId: store.id,
+            mode: 'REAL' // If they have a store, they are in REAL mode
         };
     }
 
@@ -224,16 +246,17 @@ class OnboardingRepository {
             lowStockThreshold: inventoryData?.lowStockThreshold || 10,
             nearExpiryThreshold: inventoryData?.nearExpiryThreshold || 90,
             defaultUoM: inventoryData?.defaultUoM || 'Units',
-            defaultGSTSlab: inventoryData?.defaultGSTSlab || '12',
+            defaultGSTSlab: inventoryData?.defaultGSTSlab || '5',
             batchTracking: inventoryData?.batchTracking !== false,
             autoGenerateCodes: inventoryData?.autoGenerateCodes !== false,
             purchaseRounding: inventoryData?.purchaseRounding || false,
             allowNegativeStock: inventoryData?.allowNegativeStock || false,
             // POS settings
-            invoiceFormat: posData?.invoiceFormat || 'INV/0001',
+            invoiceFormat: posData?.invoiceFormat || 'INV-{YY}{MM}-{SEQ:4}',
             paymentMethods: Array.isArray(posData?.paymentMethods)
                 ? posData.paymentMethods.join(',')
                 : 'Cash',
+            upiId: posData?.upiId || null,
             billingType: posData?.billingType || 'MRP-based',
             printFormat: posData?.printFormat || 'Thermal (80mm)',
             footerText: posData?.footerText || 'Thank you for your business!',

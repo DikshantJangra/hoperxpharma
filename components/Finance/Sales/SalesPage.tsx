@@ -6,6 +6,7 @@ import SalesHeaderKPIs from './SalesHeaderKPIs';
 import SalesFiltersPanel from './SalesFiltersPanel';
 import SalesLedgerTable from './SalesLedgerTable';
 import ReconciliationPanel from './ReconciliationPanel';
+import * as salesLedgerApi from '@/lib/api/salesLedger';
 
 interface SalesPageProps {
   storeId: string;
@@ -17,7 +18,8 @@ export default function SalesPage({ storeId }: SalesPageProps) {
 
   const [filters, setFilters] = useState<SalesFilters>({
     from: weekAgo,
-    to: today
+    to: today,
+    storeId
   });
 
   const [summary, setSummary] = useState<SalesSummary>({
@@ -33,39 +35,70 @@ export default function SalesPage({ storeId }: SalesPageProps) {
 
   const [rows, setRows] = useState<LedgerRow[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const [selectedRow, setSelectedRow] = useState<LedgerRow | null>(null);
   const [candidates, setCandidates] = useState<MatchCandidate[]>([]);
 
+  // Fetch summary and ledger data when filters change
   useEffect(() => {
-    setIsLoading(true);
-    const timer = setTimeout(() => {
+    const fetchData = async () => {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        // Fetch summary and ledger in parallel
+        const [summaryData, ledgerData] = await Promise.all([
+          salesLedgerApi.getSummary(filters.from!, filters.to!),
+          salesLedgerApi.getLedger(filters)
+        ]);
+
+        setSummary(summaryData);
+        setRows(ledgerData.rows);
+      } catch (err: any) {
+        console.error('Error fetching sales data:', err);
+        setError(err.message || 'Failed to load sales data');
+        // Set empty data on error
         setSummary({
-            revenue: 0,
-            cash: 0,
-            card: 0,
-            upi: 0,
-            wallet: 0,
-            outstanding: 0,
-            refunds: { count: 0, amount: 0 },
-            reconRate: 0
+          revenue: 0,
+          cash: 0,
+          card: 0,
+          upi: 0,
+          wallet: 0,
+          outstanding: 0,
+          refunds: { count: 0, amount: 0 },
+          reconRate: 0
         });
         setRows([]);
+      } finally {
         setIsLoading(false);
-    }, 1500)
-    return () => clearTimeout(timer);
-  }, [filters]); // Re-fetch when filters change
+      }
+    };
 
-
-  useEffect(() => {
-    if (selectedRow && selectedRow.reconStatus === 'UNMATCHED') {
-      // Simulate fetching candidates
-      setCandidates([]);
-    } else {
-      setCandidates([]);
+    // Only fetch if we have required filters
+    if (filters.from && filters.to) {
+      fetchData();
     }
-  }, [selectedRow, isLoading]); // Also depend on isLoading to reset candidates when main data loads
+  }, [filters]);
 
+  // Fetch match candidates when row is selected
+  useEffect(() => {
+    const fetchCandidates = async () => {
+      if (selectedRow && selectedRow.reconStatus === 'UNMATCHED') {
+        try {
+          const matchData = await salesLedgerApi.getMatchCandidates(selectedRow.id);
+          setCandidates(matchData);
+        } catch (err) {
+          console.error('Error fetching match candidates:', err);
+          setCandidates([]);
+        }
+      } else {
+        setCandidates([]);
+      }
+    };
+
+    fetchCandidates();
+  }, [selectedRow]);
 
   const handleDateChange = (from: string, to: string) => {
     setFilters({ ...filters, from, to });
@@ -88,10 +121,10 @@ export default function SalesPage({ storeId }: SalesPageProps) {
   };
 
   const handleMatch = async (ledgerId: string, bankTxId: string) => {
-    // Simulate API call
+    // TODO: Implement actual reconciliation API call
     alert(`Matching ledger ${ledgerId} to bank transaction ${bankTxId}...`);
-    setRows(prevRows => prevRows.map(r => 
-      r.id === ledgerId 
+    setRows(prevRows => prevRows.map(r =>
+      r.id === ledgerId
         ? { ...r, reconStatus: 'MATCHED', bankTransactionId: bankTxId }
         : r
     ));
@@ -99,6 +132,7 @@ export default function SalesPage({ storeId }: SalesPageProps) {
   };
 
   const handleAdjustment = (ledgerId: string) => {
+    // TODO: Implement adjustment modal
     alert('Adjustment modal would open here');
   };
 
@@ -106,11 +140,19 @@ export default function SalesPage({ storeId }: SalesPageProps) {
     <div className="min-h-screen bg-gray-50">
       <SalesHeaderKPIs
         summary={summary}
-        dateRange={{ from: filters.from, to: filters.to }}
+        dateRange={{ from: filters.from!, to: filters.to! }}
         onDateChange={handleDateChange}
         onKPIClick={handleKPIClick}
         isLoading={isLoading}
       />
+
+      {error && (
+        <div className="mx-6 my-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-red-800 text-sm">
+            <strong>Error:</strong> {error}
+          </p>
+        </div>
+      )}
 
       <div className="grid grid-cols-12">
         <div className="col-span-3">

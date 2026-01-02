@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import { getApiBaseUrl } from '@/lib/config/env';
+import { tokenManager } from '@/lib/api/client';
 
 export interface Message {
     role: 'user' | 'model';
@@ -56,13 +58,13 @@ export const useChat = () => {
                 // These will be handled by the backend extracting from the JWT token
             };
 
-            const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'}/gemini/chat`, {
+            const response = await fetch(`${getApiBaseUrl()}/gemini/chat`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    // Add Authorization header if you have the token stored
-                    'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+                    'Authorization': `Bearer ${tokenManager.getAccessToken()}`
                 },
+                credentials: 'include', // Send cookies for httpOnly token
                 body: JSON.stringify({
                     message: text,
                     sessionId,
@@ -117,11 +119,12 @@ export const useChat = () => {
     const clearHistory = useCallback(async () => {
         setMessages([]);
         try {
-            await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'}/gemini/session/${sessionId}`, {
+            await fetch(`${getApiBaseUrl()}/gemini/session/${sessionId}`, {
                 method: 'DELETE',
                 headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-                }
+                    'Authorization': `Bearer ${tokenManager.getAccessToken()}`
+                },
+                credentials: 'include'
             });
         } catch (error) {
             console.error('Error clearing session:', error);

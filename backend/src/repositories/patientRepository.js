@@ -1,4 +1,5 @@
 const database = require('../config/database');
+const logger = require('../config/logger');
 const { buildOrderBy } = require('../utils/queryParser');
 
 const prisma = database.getClient();
@@ -471,7 +472,7 @@ class PatientRepository {
 
             return { refills, total };
         } catch (error) {
-            console.error('Error fetching refills due:', error);
+            logger.error('Error fetching refills due:', error);
             // Return empty result instead of throwing error
             return { refills: [], total: 0 };
         }
@@ -763,7 +764,7 @@ class PatientRepository {
      * Process Customer Payment (Debt Settlement)
      */
     async customerPayment(storeId, patientId, amount, paymentMethod, notes, allocations = []) {
-        console.log(`Processing payment for ${patientId}: Amount=${amount}, Allocations=${JSON.stringify(allocations)}`);
+        logger.info(`Processing payment for ${patientId}: Amount=${amount}, Allocations=${JSON.stringify(allocations)}`);
 
         return await prisma.$transaction(async (tx) => {
             const patient = await tx.patient.findUnique({

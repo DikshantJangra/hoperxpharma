@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { getApiBaseUrl } from '@/lib/config/env';
+import { tokenManager } from '@/lib/api/client';
 import { FiX, FiCopy, FiTrash2, FiClock } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
@@ -34,10 +36,10 @@ export default function LoadTemplateModal({ isOpen, onClose, onLoad, storeId }: 
     const loadTemplates = async () => {
         setLoading(true);
         try {
-            const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+            // Using validated API URL
             const response = await fetch(`${apiBaseUrl}/purchase-orders/templates`, {
                 headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+                    'Authorization': `Bearer ${tokenManager.getAccessToken()}`
                 }
             });
 
@@ -66,11 +68,11 @@ export default function LoadTemplateModal({ isOpen, onClose, onLoad, storeId }: 
 
     const handleDuplicate = async (templateId: string) => {
         try {
-            const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+            // Using validated API URL
             const response = await fetch(`${apiBaseUrl}/purchase-orders/templates/${templateId}/duplicate`, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+                    'Authorization': `Bearer ${tokenManager.getAccessToken()}`
                 }
             });
 
@@ -88,11 +90,11 @@ export default function LoadTemplateModal({ isOpen, onClose, onLoad, storeId }: 
         if (!confirm('Are you sure you want to delete this template?')) return;
 
         try {
-            const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+            // Using validated API URL
             const response = await fetch(`${apiBaseUrl}/purchase-orders/templates/${templateId}`, {
                 method: 'DELETE',
                 headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+                    'Authorization': `Bearer ${tokenManager.getAccessToken()}`
                 }
             });
 

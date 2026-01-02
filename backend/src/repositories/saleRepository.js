@@ -1,5 +1,5 @@
 const { PrismaClient } = require('@prisma/client');
-const fs = require('fs');
+const logger = require('../config/logger');
 const prisma = new PrismaClient();
 
 /**
@@ -134,11 +134,16 @@ class SaleRepository {
      * Create sale with items and payments (transaction)
      */
     async createSale(saleData, items, paymentSplits) {
-        // DEBUG: Log incoming payload
-        try {
-            const fs = require('fs');
-            fs.appendFileSync('/tmp/sale_repo_debug.log', `[${new Date().toISOString()}] createSale called. PrescID: ${saleData.prescriptionId}, CreateRefill: ${saleData.shouldCreateRefill}\nJSON: ${JSON.stringify(saleData)}\n`);
-        } catch (e) { console.error('Log failed', e); }
+        // Log incoming payload with proper logger
+        logger.debug('createSale called', {
+            prescriptionId: saleData.prescriptionId,
+            shouldCreateRefill: saleData.shouldCreateRefill,
+            storeId: saleData.storeId,
+            total: saleData.total
+        });
+
+        const TRANSACTION_TIMEOUT = parseInt(process.env.TRANSACTION_TIMEOUT) || 30000;
+        const TRANSACTION_MAX_WAIT = parseInt(process.env.TRANSACTION_MAX_WAIT) || 30000;
 
         return await prisma.$transaction(async (tx) => {
             let attachments = [];
@@ -189,6 +194,7 @@ class SaleRepository {
             const sale = await tx.sale.create({
                 data: {
                     ...saleDataForDB,
+                    roundOff: saleDataForDB.roundOff || 0, // Ensure roundOff is always set
                     attachments: attachments.length > 0 ? attachments : undefined
                 },
             });
@@ -291,8 +297,9 @@ class SaleRepository {
 
             return { sale, items: [], payments: [] };
         }, {
-            maxWait: 20000,
-            timeout: 20000
+            maxWait: TRANSACTION_MAX_WAIT,
+            timeout: TRANSACTION_TIMEOUT,
+            isolationLevel: 'ReadCommitted'
         });
     }
 
@@ -301,9 +308,8 @@ class SaleRepository {
      * @private
      */
     async _processRefillUpdates(tx, saleId, prescriptionId, saleItems, userId) {
-        const log = (msg) => fs.appendFileSync('/tmp/refill_debug.log', `[${new Date().toISOString()}] ${msg}\n`);
         try {
-            log(`START processing refill for Sale ${saleId}, Rx ${prescriptionId}`);
+            logger.debug('START processing refill', { saleId, prescriptionId });
 
             // 1. Fetch prescription with CANONICAL items (Required for FK)
             const prescription = await tx.prescription.findUnique({
@@ -319,10 +325,13 @@ class SaleRepository {
             });
 
             if (!prescription) {
-                log(`ERROR: Prescription ${prescriptionId} not found`);
+                logger.error('Prescription not found', { prescriptionId });
                 return;
             }
-            log(`Prescription found. Canonical Items: ${prescription.prescriptionItems?.length}`);
+            logger.debug('Prescription found', {
+                prescriptionId,
+                canonicalItemsCount: prescription.prescriptionItems?.length
+            });
 
             // Use Canonical Items for RefillItem Creation (matches RefillItem_prescriptionItemId_fkey)
             const canonicalItems = prescription.prescriptionItems || [];
@@ -347,7 +356,10 @@ class SaleRepository {
                 const versionItem = prescription.versions?.[0]?.items?.find(vi => vi.drugId == drugId);
 
                 if (versionItem) {
-                    log(`⚠️ REPAIR: Canonical PrescriptionItem missing for Drug ${drugId}. Re-creating from Version...`);
+                    logger.warn('REPAIR: Canonical PrescriptionItem missing, recreating from version', {
+                        drugId,
+                        prescriptionId
+                    });
                     // Self-Heal: Create the missing PrescriptionItem
                     canonical = await tx.prescriptionItem.create({
                         data: {
@@ -360,7 +372,10 @@ class SaleRepository {
                             isControlled: versionItem.isControlled || false
                         }
                     });
-                    log(`✅ REPAIR SUCCESS: Created PrescriptionItem ${canonical.id}`);
+                    logger.info('REPAIR SUCCESS: Created PrescriptionItem', {
+                        prescriptionItemId: canonical.id,
+                        drugId
+                    });
                     return canonical;
                 }
 
@@ -385,7 +400,7 @@ class SaleRepository {
             }
 
             if (matchedItems.length === 0) {
-                log('No matched items found. Exiting.');
+                logger.debug('No matched items found for refill');
                 return;
             }
 
@@ -491,10 +506,17 @@ class SaleRepository {
                 });
             }
 
-            log(`✅ SUCCESS: Refill #${nextRefillNumber} process completed`);
+            logger.info('Refill process completed successfully', {
+                refillNumber: nextRefillNumber,
+                prescriptionId
+            });
 
         } catch (err) {
-            log(`FATAL ERROR in _processRefillUpdates: ${err.message}`);
+            logger.error('FATAL ERROR in _processRefillUpdates', {
+                error: err.message,
+                saleId,
+                prescriptionId
+            });
             throw err; // Ensure transaction rollback
         }
     }

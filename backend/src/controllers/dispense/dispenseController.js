@@ -1,4 +1,5 @@
 const dispenseService = require('../../services/dispense/dispenseService');
+const logger = require('../../config/logger');
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
@@ -43,7 +44,7 @@ class DispenseController {
                 }
             });
         } catch (error) {
-            console.error('[DispenseController] Get queue error:', error);
+            logger.error('[DispenseController] Get queue error:', error);
             return res.status(500).json({
                 success: false,
                 message: error.message || 'Failed to fetch dispense queue'
@@ -92,7 +93,7 @@ class DispenseController {
                 message: 'Fill started - ready for barcode scanning'
             });
         } catch (error) {
-            console.error('[DispenseController] Start fill error:', error);
+            logger.error('[DispenseController] Start fill error:', error);
             return res.status(500).json({
                 success: false,
                 message: error.message || 'Failed to start fill'
@@ -136,7 +137,7 @@ class DispenseController {
                 warnings: []
             });
         } catch (error) {
-            console.error('[DispenseController] Scan error:', error);
+            logger.error('[DispenseController] Scan error:', error);
 
             // Return detailed error for safety violations
             return res.status(400).json({
@@ -194,7 +195,7 @@ class DispenseController {
                 warnings: []
             });
         } catch (error) {
-            console.error('[DispenseController] Release error:', error);
+            logger.error('[DispenseController] Release error:', error);
             return res.status(500).json({
                 success: false,
                 message: error.message || 'Failed to release prescription',

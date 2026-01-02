@@ -7,6 +7,7 @@ import { FiUpload, FiInfo, FiArrowRight, FiHome, FiMapPin, FiType, FiImage, FiPh
 import { MdStorefront, MdWarehouse, MdLocalHospital, MdDomain } from "react-icons/md";
 import { ReactNode } from "react";
 import OnboardingCard from "@/components/onboarding/OnboardingCard";
+import AssetUploader from "@/components/store/profile/AssetUploader";
 import { useKeyboardNavigation } from "@/hooks/useKeyboardNavigation";
 
 const INDIAN_STATES = [
@@ -87,7 +88,7 @@ export default function Step1Page() {
 
     const [formData, setFormData] = useState({
         pharmacyName: state.data.storeIdentity.pharmacyName || "",
-        businessType: state.data.storeIdentity.businessType || "",
+        businessType: Array.isArray(state.data.storeIdentity.businessType) ? state.data.storeIdentity.businessType : (state.data.storeIdentity.businessType ? [state.data.storeIdentity.businessType] : []),
         address: state.data.storeIdentity.address || "",
         city: state.data.storeIdentity.city || "",
         pinCode: state.data.storeIdentity.pinCode || "",
@@ -105,8 +106,37 @@ export default function Step1Page() {
     const { handleKeyDown } = useKeyboardNavigation();
 
     useEffect(() => {
-        setCurrentStep(1);
-    }, [setCurrentStep]);
+        if (state.currentStep !== 1) {
+            setCurrentStep(1);
+        }
+    }, [state.currentStep, setCurrentStep]);
+
+    // Sync with context when data loads
+    useEffect(() => {
+        if (state.data.storeIdentity) {
+            setFormData(prev => {
+                const next = {
+                    ...prev,
+                    pharmacyName: state.data.storeIdentity.pharmacyName || state.data.storeIdentity.displayName || prev.pharmacyName,
+                    businessType: Array.isArray(state.data.storeIdentity.businessType) ? state.data.storeIdentity.businessType : (state.data.storeIdentity.businessType ? [state.data.storeIdentity.businessType] : prev.businessType),
+                    address: state.data.storeIdentity.address || prev.address,
+                    city: state.data.storeIdentity.city || prev.city,
+                    pinCode: state.data.storeIdentity.pinCode || prev.pinCode,
+                    state: state.data.storeIdentity.state || prev.state,
+                    landmark: state.data.storeIdentity.landmark || prev.landmark,
+                    storeLogo: state.data.storeIdentity.storeLogo || prev.storeLogo,
+                    displayName: state.data.storeIdentity.displayName || prev.displayName,
+                    phoneNumber: state.data.storeIdentity.phoneNumber || prev.phoneNumber,
+                    email: state.data.storeIdentity.email || prev.email
+                };
+
+                if (JSON.stringify(prev) === JSON.stringify(next)) {
+                    return prev;
+                }
+                return next;
+            });
+        }
+    }, [state.data.storeIdentity]);
 
     // Auto-save on field change
     useEffect(() => {
@@ -153,8 +183,8 @@ export default function Step1Page() {
             newErrors.pharmacyName = "Pharmacy name must be at least 3 characters";
         }
 
-        if (!formData.businessType) {
-            newErrors.businessType = "Please select a business type";
+        if (!formData.businessType || formData.businessType.length === 0) {
+            newErrors.businessType = "Please select at least one business type";
         }
 
         if (!formData.address || formData.address.length < 10) {
@@ -242,10 +272,24 @@ export default function Step1Page() {
                         {BUSINESS_TYPES.map((type) => (
                             <div
                                 key={type}
-                                onClick={() => setFormData({ ...formData, businessType: type })}
+                                onClick={() => {
+                                    const currentTypes = formData.businessType || [];
+                                    const isSelected = currentTypes.includes(type);
+                                    let newTypes;
+
+                                    if (isSelected) {
+                                        // Don't allow deselecting if it's the only one
+                                        if (currentTypes.length === 1) return;
+                                        newTypes = currentTypes.filter(t => t !== type);
+                                    } else {
+                                        newTypes = [...currentTypes, type];
+                                    }
+
+                                    setFormData({ ...formData, businessType: newTypes });
+                                }}
                                 className={`
                                         cursor-pointer relative p-4 rounded-xl border-2 transition-all duration-200 flex items-center gap-3
-                                        ${formData.businessType === type
+                                        ${formData.businessType.includes(type)
                                         ? "border-emerald-500 bg-emerald-50/50 ring-1 ring-emerald-500/20"
                                         : "border-gray-100 hover:border-emerald-200 hover:bg-gray-50"
                                     }
@@ -253,15 +297,15 @@ export default function Step1Page() {
                             >
                                 <div className={`
                                         p-2 rounded-lg transition-colors
-                                        ${formData.businessType === type ? "bg-white text-emerald-600 shadow-sm" : "bg-gray-100 text-gray-500"}
+                                        ${formData.businessType.includes(type) ? "bg-white text-emerald-600 shadow-sm" : "bg-gray-100 text-gray-500"}
                                     `}>
                                     {BUSINESS_TYPE_INFO[type]?.icon}
                                 </div>
-                                <span className={`text-sm font-medium ${formData.businessType === type ? "text-emerald-900" : "text-gray-700"}`}>
+                                <span className={`text-sm font-medium ${formData.businessType.includes(type) ? "text-emerald-900" : "text-gray-700"}`}>
                                     {type}
                                 </span>
 
-                                {formData.businessType === type && (
+                                {formData.businessType.includes(type) && (
                                     <div className="absolute top-1/2 right-3 -translate-y-1/2 text-emerald-500">
                                         <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
                                             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
@@ -273,31 +317,71 @@ export default function Step1Page() {
                     </div>
                     {errors.businessType && <p className="mt-1 ml-1 text-xs text-red-500">{errors.businessType}</p>}
 
-                    {/* Business Type Info Card */}
-                    {formData.businessType && BUSINESS_TYPE_INFO[formData.businessType] && (
-                        <div className="mt-3 p-4 bg-gradient-to-br from-emerald-50 to-blue-50 border border-emerald-100 rounded-xl">
-                            <div className="flex items-start gap-3">
-                                <span className="text-3xl">{BUSINESS_TYPE_INFO[formData.businessType].icon}</span>
-                                <div className="flex-1">
-                                    <h4 className="font-semibold text-gray-900 mb-1">{formData.businessType}</h4>
-                                    <p className="text-sm text-gray-600 mb-3">
-                                        {BUSINESS_TYPE_INFO[formData.businessType].description}
-                                    </p>
-                                    <div>
-                                        <p className="text-xs font-semibold text-gray-700 mb-2">Key Features:</p>
-                                        <div className="grid grid-cols-2 gap-2">
-                                            {BUSINESS_TYPE_INFO[formData.businessType].features.map((feature, idx) => (
-                                                <div key={idx} className="flex items-center gap-1.5 text-xs text-gray-700">
-                                                    <svg className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                                                    </svg>
-                                                    <span>{feature}</span>
-                                                </div>
-                                            ))}
-                                        </div>
+                    {/* Pro Feature Warning */}
+                    {formData.businessType.length > 1 && (
+                        <div className="mt-4 p-4 bg-gradient-to-br from-emerald-50 to-white border border-emerald-200/60 rounded-xl shadow-sm relative overflow-hidden group">
+                            <div className="absolute top-0 right-0 p-2 opacity-50">
+                                <div className="w-20 h-20 bg-emerald-100 rounded-full blur-2xl -mr-10 -mt-10"></div>
+                            </div>
+
+                            <div className="flex flex-col gap-2 relative z-10">
+                                <div className="flex items-center gap-2">
+                                    <div className="p-1.5 bg-gradient-to-br from-emerald-100 to-emerald-50 rounded-lg text-emerald-600 shadow-sm border border-emerald-100">
+                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+                                        </svg>
                                     </div>
+                                    <h4 className="text-sm font-bold text-gray-900 tracking-tight">Multi-Business Management</h4>
+                                </div>
+
+                                <div className="pl-1">
+                                    <p className="text-xs font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-emerald-500 uppercase tracking-wider mb-1">
+                                        This is a Premium Feature
+                                    </p>
+                                    <p className="text-xs text-gray-500 leading-relaxed max-w-md">
+                                        Managing multiple business types simultaneously requires a Pro subscription. <span className="text-red-500 underline decoration-red-500 underline-offset-2 font-medium">Please select only one for the Free Trial.</span>
+                                    </p>
                                 </div>
                             </div>
+                        </div>
+                    )}
+
+                    {/* Business Type Info Card */}
+                    {/* Business Type Info Cards (Carousel) */}
+                    {formData.businessType.length > 0 && (
+                        <div className="mt-3 space-y-2">
+                            {/* Show info for the LAST selected type to keep UI clean, or maybe show generic info */}
+                            {/* User requested details, let's just show the most recently clicked or the first one if multiple? */}
+                            {/* Let's iterate but maybe condense them if multiple */}
+
+                            {formData.businessType.map((selectedType) => (
+                                BUSINESS_TYPE_INFO[selectedType] && (
+                                    <div key={selectedType} className="p-4 bg-gradient-to-br from-emerald-50 to-blue-50 border border-emerald-100 rounded-xl">
+                                        <div className="flex items-start gap-3">
+                                            <span className="text-3xl">{BUSINESS_TYPE_INFO[selectedType].icon}</span>
+                                            <div className="flex-1">
+                                                <h4 className="font-semibold text-gray-900 mb-1">{selectedType}</h4>
+                                                <p className="text-sm text-gray-600 mb-3">
+                                                    {BUSINESS_TYPE_INFO[selectedType].description}
+                                                </p>
+                                                <div>
+                                                    <p className="text-xs font-semibold text-gray-700 mb-2">Key Features:</p>
+                                                    <div className="grid grid-cols-2 gap-2">
+                                                        {BUSINESS_TYPE_INFO[selectedType].features.map((feature, idx) => (
+                                                            <div key={idx} className="flex items-center gap-1.5 text-xs text-gray-700">
+                                                                <svg className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                                                </svg>
+                                                                <span>{feature}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )
+                            ))}
                         </div>
                     )}
                 </div>
@@ -494,12 +578,14 @@ export default function Step1Page() {
                     <label className="block text-gray-700 text-xs font-semibold mb-1.5 ml-1">
                         Store Logo <span className="text-gray-400 font-normal">(Optional)</span>
                     </label>
-                    <div className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center hover:border-emerald-500 hover:bg-emerald-50/30 transition-all cursor-pointer group-hover:border-emerald-400">
-                        <div className="w-12 h-12 bg-gray-50 rounded-full flex items-center justify-center mx-auto mb-3 text-gray-400 group-hover:text-emerald-500 transition-colors">
-                            <FiImage size={24} />
-                        </div>
-                        <p className="text-sm text-gray-600 font-medium mb-1">Click to upload or drag and drop</p>
-                        <p className="text-xs text-gray-400">PNG or JPG (max. 2MB)</p>
+                    <div className="bg-white p-1 rounded-xl">
+                        <AssetUploader
+                            type="logo"
+                            currentUrl={formData.storeLogo}
+                            onUploadComplete={(url) => setFormData({ ...formData, storeLogo: url })}
+                            storeId={state.storeId} // Will be undefined during initial onboarding
+                            mode={state.storeId ? 'store' : 'onboarding'}
+                        />
                     </div>
                 </div>
 
@@ -516,10 +602,17 @@ export default function Step1Page() {
                 <div className="pt-4 flex justify-end">
                     <button
                         onClick={handleNext}
-                        className="px-8 py-3.5 bg-emerald-500 text-white rounded-xl font-semibold hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/40 transform hover:-translate-y-0.5 active:translate-y-0 flex items-center gap-2"
+                        disabled={formData.businessType.length > 1}
+                        className={`
+                            px-8 py-3.5 rounded-xl font-semibold transition-all flex items-center gap-2
+                            ${formData.businessType.length > 1
+                                ? "bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200"
+                                : "bg-emerald-500 text-white hover:bg-emerald-600 shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/40 transform hover:-translate-y-0.5 active:translate-y-0"
+                            }
+                        `}
                     >
                         Continue to Licensing
-                        <FiArrowRight className="w-5 h-5" />
+                        <FiArrowRight className={`w-5 h-5 ${formData.businessType.length > 1 ? "opacity-50" : ""}`} />
                     </button>
                 </div>
             </div>

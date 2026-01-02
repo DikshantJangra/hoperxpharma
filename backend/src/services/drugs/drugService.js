@@ -1,6 +1,7 @@
 const drugRepository = require('../../repositories/drugRepository');
 const ApiError = require('../../utils/ApiError');
 const logger = require('../../config/logger');
+const cacheService = require('../cache/cacheService');
 const fs = require('fs');
 const csv = require('csv-parser');
 
@@ -30,8 +31,17 @@ class DrugService {
 
     /**
      * Get drug by ID with additional details
+     * Uses cache-aside pattern for better performance
      */
     async getDrugById(id, storeId) {
+        // Try cache first
+        const cached = cacheService.drug.get(id);
+        if (cached) {
+            logger.debug('Drug cache HIT', { drugId: id });
+            return cached;
+        }
+
+        // Cache miss - fetch from database
         const drug = await drugRepository.findDrugById(id, storeId);
 
         if (!drug) {
@@ -43,6 +53,9 @@ class DrugService {
             const inventory = await drugRepository.getInventoryForDrug(id, storeId);
             drug.inventory = inventory;
         }
+
+        // Store in cache (10 minutes TTL)
+        cacheService.drug.set(id, drug);
 
         return drug;
     }
@@ -161,6 +174,26 @@ class DrugService {
             throw ApiError.badRequest('storeId is required');
         }
 
+        // If hsnCodeId is provided, fetch and populate tax rate from HSN code
+        if (drugData.hsnCodeId) {
+            const gstRepository = require('../../repositories/gstRepository');
+            const hsnCode = await gstRepository.findHsnCodeById(drugData.hsnCodeId);
+
+            if (!hsnCode) {
+                throw ApiError.badRequest('Invalid HSN code');
+            }
+
+            // Auto-populate tax rate and HSN code from linked record
+            drugData.gstRate = hsnCode.taxSlab.rate;
+            drugData.hsnCode = hsnCode.code; // Snapshot for backward compatibility
+
+            logger.info(`Auto-populated GST rate ${drugData.gstRate}% from HSN ${hsnCode.code}`);
+        } else if (!drugData.gstRate) {
+            // Fallback to default GST rate if neither hsnCodeId nor gstRate provided
+            drugData.gstRate = 12; // Default pharmacy rate
+            logger.warn(`No HSN code linked, using default GST rate: 12%`);
+        }
+
         const drug = await drugRepository.createDrug(drugData);
         logger.info(`Drug created: ${drug.name} (ID: ${drug.id}) for store ${drugData.storeId}`);
 
@@ -177,7 +210,27 @@ class DrugService {
             throw ApiError.notFound('Drug not found');
         }
 
+        // If hsnCodeId is being updated, fetch and update tax rate
+        if (drugData.hsnCodeId) {
+            const gstRepository = require('../../repositories/gstRepository');
+            const hsnCode = await gstRepository.findHsnCodeById(drugData.hsnCodeId);
+
+            if (!hsnCode) {
+                throw ApiError.badRequest('Invalid HSN code');
+            }
+
+            // Auto-update tax rate and HSN code
+            drugData.gstRate = hsnCode.taxSlab.rate;
+            drugData.hsnCode = hsnCode.code;
+
+            logger.info(`Updated GST rate to ${drugData.gstRate}% from HSN ${hsnCode.code}`);
+        }
+
         const drug = await drugRepository.updateDrug(id, drugData);
+
+        // Invalidate cache on update
+        cacheService.drug.invalidate(id);
+
         logger.info(`Drug updated: ${drug.name} (ID: ${drug.id})`);
 
         return drug;

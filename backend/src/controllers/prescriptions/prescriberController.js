@@ -1,4 +1,5 @@
 const { PrismaClient } = require('@prisma/client');
+const logger = require('../../config/logger');
 const prisma = new PrismaClient();
 const asyncHandler = require('../../middlewares/asyncHandler');
 const ApiResponse = require('../../utils/ApiResponse');
@@ -64,7 +65,7 @@ const createPrescriber = asyncHandler(async (req, res) => {
         }
     });
 
-    console.log('Existing prescriber check:', {
+    logger.info('Existing prescriber check:', {
         searchedStoreId: targetStoreId,
         searchedLicense: licenseNumber,
         found: existing ? {
@@ -79,7 +80,7 @@ const createPrescriber = asyncHandler(async (req, res) => {
         throw ApiError.conflict('Prescriber with this license number already exists in your store');
     }
 
-    console.log('Creating prescriber with data:', {
+    logger.info('Creating prescriber with data:', {
         storeId: targetStoreId,
         name,
         licenseNumber,
@@ -106,7 +107,7 @@ const createPrescriber = asyncHandler(async (req, res) => {
             ApiResponse.success(prescriber, 'Prescriber added successfully')
         );
     } catch (error) {
-        console.error('Prisma error details:', {
+        logger.error('Prisma error details:', {
             code: error.code,
             meta: error.meta,
             message: error.message,
@@ -116,7 +117,7 @@ const createPrescriber = asyncHandler(async (req, res) => {
         // Handle unique constraint violation
         if (error.code === 'P2002') {
             const fields = error.meta?.target || [];
-            console.log('Unique constraint violated on fields:', fields);
+            logger.info('Unique constraint violated on fields:', fields);
             throw ApiError.conflict(
                 `A prescriber with license number "${licenseNumber}" already exists. Please use a different license number.`
             );

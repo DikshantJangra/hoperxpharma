@@ -4,6 +4,7 @@
  */
 
 const whatsappAccountRepo = require('../../repositories/whatsappAccountRepository');
+const logger = require('../../config/logger');
 const conversationRepo = require('../../repositories/conversationRepository');
 const messageRepo = require('../../repositories/messageRepository');
 const templateRepo = require('../../repositories/templateRepository');
@@ -27,7 +28,7 @@ async function getConversations(req, res) {
 
         res.json({ conversations });
     } catch (error) {
-        console.error('[Messaging] Get conversations error:', error);
+        logger.error('[Messaging] Get conversations error:', error);
         res.status(500).json({ error: error.message });
     }
 }
@@ -52,7 +53,7 @@ async function getMessages(req, res) {
 
         res.json({ messages });
     } catch (error) {
-        console.error('[Messaging] Get messages error:', error);
+        logger.error('[Messaging] Get messages error:', error);
         res.status(500).json({ error: error.message });
     }
 }
@@ -122,7 +123,7 @@ async function sendMessage(req, res) {
 
         res.json({ success: true, message });
     } catch (error) {
-        console.error('[Messaging] Send message error:', error);
+        logger.error('[Messaging] Send message error:', error);
         res.status(500).json({ error: error.message });
     }
 }
@@ -199,7 +200,7 @@ async function sendTemplate(req, res) {
 
         res.json({ success: true, message });
     } catch (error) {
-        console.error('[Messaging] Send template error:', error);
+        logger.error('[Messaging] Send template error:', error);
         res.status(500).json({ error: error.message });
     }
 }
@@ -221,7 +222,7 @@ async function updateConversationStatus(req, res) {
 
         res.json({ success: true, conversation });
     } catch (error) {
-        console.error('[Messaging] Update status error:', error);
+        logger.error('[Messaging] Update status error:', error);
         res.status(500).json({ error: error.message });
     }
 }
@@ -239,7 +240,7 @@ async function assignConversation(req, res) {
 
         res.json({ success: true, conversation });
     } catch (error) {
-        console.error('[Messaging] Assign conversation error:', error);
+        logger.error('[Messaging] Assign conversation error:', error);
         res.status(500).json({ error: error.message });
     }
 }

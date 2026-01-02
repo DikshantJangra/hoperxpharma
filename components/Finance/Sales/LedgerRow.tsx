@@ -32,13 +32,11 @@ export default function LedgerRow({ row, selected, onClick }: LedgerRowProps) {
       <td className="px-4 py-3 text-sm text-gray-900">{formatCurrency(row.gross)}</td>
       <td className="px-4 py-3 text-sm text-gray-600">{formatCurrency(row.tax)}</td>
       <td className="px-4 py-3 text-sm font-medium text-gray-900">{formatCurrency(row.net)}</td>
-      <td className="px-4 py-3 text-sm text-gray-600">{row.paymentMethod}</td>
       <td className="px-4 py-3">
-        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-          row.paymentStatus === 'PAID' ? 'bg-green-100 text-green-800' :
-          row.paymentStatus === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
-          'bg-red-100 text-red-800'
-        }`}>
+        <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${row.paymentStatus === 'PAID' ? 'bg-green-100 text-green-800' :
+            row.paymentStatus === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
+              'bg-red-100 text-red-800'
+          }`}>
           {row.paymentStatus}
         </span>
       </td>

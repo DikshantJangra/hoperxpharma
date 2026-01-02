@@ -1,4 +1,5 @@
 const { PrismaClient } = require('@prisma/client');
+const logger = require('../../config/logger');
 const prisma = new PrismaClient();
 const versionService = require('./versionService');
 const refillService = require('./refillService');
@@ -164,7 +165,7 @@ class PrescriptionService {
 
         const result = await prisma.$transaction(async (tx) => {
             // 1. Update prescription metadata (only fields that are provided)
-            console.log('[updatePrescription] Received data:', {
+            logger.info('[updatePrescription] Received data:', {
                 totalRefills: prescriptionData.totalRefills,
                 status: prescriptionData.status,
                 allData: prescriptionData
@@ -179,14 +180,14 @@ class PrescriptionService {
             if (prescriptionData.totalRefills !== undefined) updateData.totalRefills = prescriptionData.totalRefills;
             updateData.updatedAt = new Date();
 
-            console.log('[updatePrescription] Update data:', updateData);
+            logger.info('[updatePrescription] Update data:', updateData);
 
             const prescription = await tx.prescription.update({
                 where: { id },
                 data: updateData
             });
 
-            console.log('[updatePrescription] ✅ DATABASE UPDATED - Prescription:', {
+            logger.info('[updatePrescription] ✅ DATABASE UPDATED - Prescription:', {
                 id: prescription.id,
                 totalRefills: prescription.totalRefills,
                 status: prescription.status
@@ -197,7 +198,7 @@ class PrescriptionService {
                 where: { id },
                 select: { id: true, totalRefills: true, status: true }
             });
-            console.log('[updatePrescription] ✅ VERIFIED FROM DB:', verifyFromDB);
+            logger.info('[updatePrescription] ✅ VERIFIED FROM DB:', verifyFromDB);
 
             // 2. Get current version number
             const currentVersion = await tx.prescriptionVersion.findFirst({
@@ -260,9 +261,9 @@ class PrescriptionService {
                         });
                     }
                     await tx.refill.createMany({ data: refills });
-                    console.log(`[updatePrescription] ✅ Created ${refills.length} refill records`);
+                    logger.info(`[updatePrescription] ✅ Created ${refills.length} refill records`);
                 } else {
-                    console.log('[updatePrescription] ✅ No refills created (totalRefills = 0)');
+                    logger.info('[updatePrescription] ✅ No refills created (totalRefills = 0)');
                 }
             }
 
@@ -415,7 +416,7 @@ class PrescriptionService {
      * Get prescription by ID with full details
      */
     async getPrescriptionById(id) {
-        console.log('[getPrescriptionById] 🔍 FETCHING prescription:', id);
+        logger.info('[getPrescriptionById] 🔍 FETCHING prescription:', id);
 
         const prescription = await prisma.prescription.findUnique({
             where: { id },
@@ -455,7 +456,7 @@ class PrescriptionService {
 
         if (!prescription) return null;
 
-        console.log('[getPrescriptionById] 📦 RAW FROM DATABASE:', {
+        logger.info('[getPrescriptionById] 📦 RAW FROM DATABASE:', {
             id: prescription.id,
             totalRefills: prescription.totalRefills,
             status: prescription.status
@@ -503,7 +504,7 @@ class PrescriptionService {
         prescription.currentVersion = latestVersion?.versionNumber || 1;
         prescription.auditLogs = auditLogs;
 
-        console.log('[getPrescriptionById] Returning prescription:', {
+        logger.info('[getPrescriptionById] Returning prescription:', {
             id: prescription.id,
             totalRefills: prescription.totalRefills,
             status: prescription.status,

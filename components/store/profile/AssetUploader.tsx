@@ -1,16 +1,19 @@
 'use client';
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { FiUpload, FiX, FiImage, FiCheck, FiAlertCircle } from 'react-icons/fi';
 import { toast } from 'sonner';
+import { getApiBaseUrl } from '@/lib/config/env';
+import { tokenManager } from '@/lib/api/client';
 
 interface AssetUploaderProps {
     type: 'logo' | 'signature';
     currentUrl?: string;
     onUploadComplete: (url: string) => void;
-    storeId: string;
+    storeId?: string;
+    mode?: 'store' | 'onboarding';
 }
 
-export default function AssetUploader({ type, currentUrl, onUploadComplete, storeId }: AssetUploaderProps) {
+export default function AssetUploader({ type, currentUrl, onUploadComplete, storeId, mode = 'store' }: AssetUploaderProps) {
     const [uploading, setUploading] = useState(false);
     const [dragActive, setDragActive] = useState(false);
     const [preview, setPreview] = useState<string | null>(currentUrl || null);
@@ -63,17 +66,34 @@ export default function AssetUploader({ type, currentUrl, onUploadComplete, stor
             return;
         }
 
+        // Validate storeId for store mode
+        if (mode === 'store' && !storeId) {
+            toast.error('Store ID is missing');
+            return;
+        }
+
         setUploading(true);
 
         try {
             // Step 1: Request presigned URL
-            const requestEndpoint = `/stores/${storeId}/${type}/upload-request`;
-            const requestResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'}${requestEndpoint}`, {
+            let requestEndpoint = '';
+            if (mode === 'store') {
+                requestEndpoint = `/stores/${storeId}/${type}/upload-request`;
+            } else {
+                // Onboarding mode - only supports logo currently
+                if (type !== 'logo') {
+                    throw new Error('Only logo upload is supported in onboarding mode');
+                }
+                requestEndpoint = `/onboarding/logo/upload-request`;
+            }
+
+            const requestResponse = await fetch(`${getApiBaseUrl()}${requestEndpoint}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+                    'Authorization': `Bearer ${tokenManager.getAccessToken()}`
                 },
+                credentials: 'include',
                 body: JSON.stringify({ fileName: file.name })
             });
 
@@ -97,13 +117,20 @@ export default function AssetUploader({ type, currentUrl, onUploadComplete, stor
             }
 
             // Step 3: Process upload
-            const processEndpoint = `/stores/${storeId}/${type}/process`;
-            const processResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'}${processEndpoint}`, {
+            let processEndpoint = '';
+            if (mode === 'store') {
+                processEndpoint = `/stores/${storeId}/${type}/process`;
+            } else {
+                processEndpoint = `/onboarding/logo/process`;
+            }
+
+            const processResponse = await fetch(`${getApiBaseUrl()}${processEndpoint}`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+                    'Authorization': `Bearer ${tokenManager.getAccessToken()}`
                 },
+                credentials: 'include',
                 body: JSON.stringify({ tempKey, fileName: file.name })
             });
 

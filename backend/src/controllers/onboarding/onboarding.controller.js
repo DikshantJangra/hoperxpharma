@@ -1,6 +1,7 @@
 // backend/src/controllers/onboarding/onboarding.controller.js
 
 const { PrismaClient } = require('@prisma/client');
+const logger = require('../../config/logger');
 const ApiError = require('../../utils/ApiError');
 const ApiResponse = require('../../utils/ApiResponse');
 const asyncHandler = require('../../middlewares/asyncHandler');
@@ -23,18 +24,21 @@ const DAY_MAP = {
  */
 const getProgress = asyncHandler(async (req, res) => {
     // If no user is authenticated, return empty progress
+    // Authenticated route matching
     if (!req.user || !req.user.id) {
-        return res.status(200).json(new ApiResponse(200, {
-            currentStep: 1,
-            completedSteps: [],
-            data: {},
-            isComplete: false
-        }));
+        throw new ApiError(401, 'User authentication required for progress');
     }
 
     const progress = await prisma.onboardingProgress.findUnique({
         where: { userId: req.user.id }
     });
+
+    if (progress && progress.data) {
+        console.log(`[DEBUG_LOAD] User: ${req.user.id}`);
+        const d = progress.data;
+        if (d.inventory) console.log('[DEBUG_LOAD] Inventory:', JSON.stringify(d.inventory));
+        if (d.pos) console.log('[DEBUG_LOAD] POS:', JSON.stringify(d.pos));
+    }
 
     if (!progress) {
         return res.status(200).json(new ApiResponse(200, {
@@ -57,24 +61,85 @@ const saveProgress = asyncHandler(async (req, res) => {
         return res.status(200).json(new ApiResponse(200, { success: true }));
     }
 
+    // Debug Request
+    console.log('[DEBUG_SAVE_REQ] Content-Type:', req.headers['content-type']);
+    console.log('[DEBUG_SAVE_REQ] Body Keys:', Object.keys(req.body));
+    if (req.body.data) {
+        console.log('[DEBUG_SAVE_REQ] Data Type:', typeof req.body.data);
+    } else {
+        console.log('[DEBUG_SAVE_REQ] req.body.data is MISSING or NULL');
+    }
+
     const { currentStep, completedSteps, data, isComplete } = req.body;
+
+    // Debug Log
+    if (data) {
+        console.log(`[DEBUG_SAVE] User: ${req.user.id} | Step: ${currentStep}`);
+        if (data.storeIdentity) console.log('[DEBUG_SAVE] Identity:', JSON.stringify(data.storeIdentity));
+        if (data.inventory) console.log('[DEBUG_SAVE] Inventory:', JSON.stringify(data.inventory));
+        if (data.pos) console.log('[DEBUG_SAVE] POS:', JSON.stringify(data.pos));
+    }
+
+    // Validate data is not empty if step > 1
+    if (currentStep > 1 && (!data || Object.keys(data).length === 0)) {
+        logger.warn(`User ${req.user.id}: Saving EMPTY data for step > 1`);
+    }
+
+    // Fetch existing progress first
+    const existing = await prisma.onboardingProgress.findUnique({
+        where: { userId: req.user.id }
+    });
+
+    // Deep merge data
+    const existingData = (existing && existing.data) ? existing.data : {};
+    const newData = data || {};
+
+    const mergedData = {
+        ...existingData,
+        ...newData,
+    };
+
+    // Explicitly merge sub-sections to be safe
+    if (existingData.storeIdentity && newData.storeIdentity) {
+        mergedData.storeIdentity = { ...existingData.storeIdentity, ...newData.storeIdentity };
+    }
+    if (existingData.inventory && newData.inventory) {
+        mergedData.inventory = { ...existingData.inventory, ...newData.inventory };
+    }
+    if (existingData.pos && newData.pos) {
+        mergedData.pos = { ...existingData.pos, ...newData.pos };
+    }
+    if (existingData.timings && newData.timings) {
+        mergedData.timings = { ...existingData.timings, ...newData.timings };
+    }
+    if (existingData.licensing && newData.licensing) {
+        mergedData.licensing = { ...existingData.licensing, ...newData.licensing };
+    }
+    if (existingData.integrations && newData.integrations) {
+        mergedData.integrations = { ...existingData.integrations, ...newData.integrations };
+    }
 
     const progress = await prisma.onboardingProgress.upsert({
         where: { userId: req.user.id },
         update: {
-            currentStep: currentStep || 1,
-            completedSteps: completedSteps || [],
-            data: data || {},
-            isComplete: isComplete || false
+            currentStep: currentStep || existing?.currentStep || 1,
+            completedSteps: completedSteps || existing?.completedSteps || [],
+            data: mergedData,
+            isComplete: isComplete !== undefined ? isComplete : (existing?.isComplete || false)
         },
         create: {
             userId: req.user.id,
             currentStep: currentStep || 1,
             completedSteps: completedSteps || [],
-            data: data || {},
+            data: mergedData,
             isComplete: isComplete || false
         }
     });
+
+    if (mergedData.storeIdentity) console.log('[DEBUG_DB_SAVE] Merged Store Identity:', JSON.stringify(mergedData.storeIdentity));
+    if (mergedData.inventory) console.log('[DEBUG_DB_SAVE] Merged Inventory:', JSON.stringify(mergedData.inventory));
+
+    logger.info(`Saved progress for user ${req.user.id}`);
 
     return res.status(200).json(new ApiResponse(200, progress));
 });
@@ -150,14 +215,15 @@ const completeOnboarding = asyncHandler(async (req, res) => {
                     lowStockThreshold: inventory.lowStockThreshold || 10,
                     nearExpiryThreshold: inventory.nearExpiryThreshold || 90,
                     defaultUoM: inventory.defaultUoM || 'Units',
-                    defaultGSTSlab: inventory.defaultGSTSlab || '12',
+                    defaultGSTSlab: inventory.defaultGSTSlab || '5',
                     batchTracking: inventory.batchTracking !== undefined ? inventory.batchTracking : true,
                     autoGenerateCodes: inventory.autoGenerateCodes !== undefined ? inventory.autoGenerateCodes : true,
                     purchaseRounding: inventory.purchaseRounding || false,
                     allowNegativeStock: inventory.allowNegativeStock || false,
                     // POS settings
-                    invoiceFormat: pos.invoiceFormat || 'INV/0001',
+                    invoiceFormat: pos.invoiceFormat || 'INV-{YY}{MM}-{SEQ:4}',
                     paymentMethods: Array.isArray(pos.paymentMethods) ? pos.paymentMethods.join(',') : 'Cash',
+                    upiId: pos.upiId || null,
                     billingType: pos.billingType || 'MRP-based',
                     printFormat: pos.printFormat || 'Thermal',
                     footerText: pos.footerText || 'Thank you for your business!',
@@ -270,6 +336,12 @@ const completeOnboarding = asyncHandler(async (req, res) => {
                 await Promise.all(userCreates);
             }
 
+            // Update User Role to ADMIN (Store Owner)
+            await tx.user.update({
+                where: { id: req.user.id },
+                data: { role: 'ADMIN' }
+            });
+
             // Mark onboarding as complete
             await tx.onboardingProgress.upsert({
                 where: { userId: req.user.id },
@@ -292,7 +364,7 @@ const completeOnboarding = asyncHandler(async (req, res) => {
 
         return res.status(201).json(new ApiResponse(201, result, 'Onboarding completed successfully'));
     } catch (err) {
-        console.error('Onboarding error:', err);
+        logger.error('Onboarding error:', err);
         if (err instanceof ApiError) {
             throw err;
         }

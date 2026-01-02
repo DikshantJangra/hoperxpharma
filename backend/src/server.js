@@ -3,11 +3,15 @@ const dotenv = require('dotenv');
 // Load environment variables FIRST
 dotenv.config();
 
-console.log('Starting HopeRxPharma Backend...');
-console.log(`Environment: ${process.env.NODE_ENV} `);
+// Validate environment variables BEFORE loading other modules
+const { validateEnv } = require('./config/envValidator');
+const validatedEnv = validateEnv();
+
+console.log('Starting HopeRxPharma Backend (Restarted)...');
+console.log(`Environment: ${validatedEnv.NODE_ENV}`);
 console.log(`[System] Backend restarts applied. DB Stability & Dashboard Fixes ENABLED.`);
-console.log(`Port: ${process.env.PORT || 8000} `);
-console.log(`Database URL configured: ${process.env.DATABASE_URL ? 'Yes' : 'No'} `);
+console.log(`Port: ${validatedEnv.PORT}`);
+console.log(`Database URL configured: ${validatedEnv.DATABASE_URL ? 'Yes' : 'No'}`);
 
 try {
     var app = require('./app');
@@ -22,11 +26,15 @@ try {
     process.exit(1);
 }
 
-const PORT = process.env.PORT || 8000;
+const PORT = validatedEnv.PORT;
 
 // Connect to database
 database.connect().then(() => {
     console.log('✅ Database connected');
+    // Initialize Scheduler
+    const schedulerService = require('./services/schedulerService');
+    schedulerService.init();
+
     // Start server
     const server = app.listen(PORT, '0.0.0.0', () => {
         logger.info(`Server is running on port http://localhost:${PORT}`);

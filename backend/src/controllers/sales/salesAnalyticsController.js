@@ -1,4 +1,5 @@
 const salesAnalyticsService = require('../../services/sales/salesAnalyticsService');
+const logger = require('../../config/logger');
 
 /**
  * Sales Analytics Controller
@@ -28,7 +29,7 @@ class SalesAnalyticsController {
                 data: kpis
             });
         } catch (error) {
-            console.error('Error fetching KPIs:', error);
+            logger.error('Error fetching KPIs:', error);
             res.status(500).json({
                 success: false,
                 message: 'Failed to fetch KPI data',
@@ -59,7 +60,7 @@ class SalesAnalyticsController {
                 data: trends
             });
         } catch (error) {
-            console.error('Error fetching trends:', error);
+            logger.error('Error fetching trends:', error);
             res.status(500).json({
                 success: false,
                 message: 'Failed to fetch trend data',
@@ -89,7 +90,7 @@ class SalesAnalyticsController {
                 data: breakdown
             });
         } catch (error) {
-            console.error('Error fetching breakdown:', error);
+            logger.error('Error fetching breakdown:', error);
             res.status(500).json({
                 success: false,
                 message: 'Failed to fetch breakdown data',
@@ -120,7 +121,7 @@ class SalesAnalyticsController {
                 data: performance
             });
         } catch (error) {
-            console.error('Error fetching performance data:', error);
+            logger.error('Error fetching performance data:', error);
             res.status(500).json({
                 success: false,
                 message: 'Failed to fetch performance data',
@@ -150,7 +151,7 @@ class SalesAnalyticsController {
                 data: insights
             });
         } catch (error) {
-            console.error('Error generating insights:', error);
+            logger.error('Error generating insights:', error);
             res.status(500).json({
                 success: false,
                 message: 'Failed to generate insights',
@@ -180,7 +181,7 @@ class SalesAnalyticsController {
                 data: report
             });
         } catch (error) {
-            console.error('Error fetching complete report:', error);
+            logger.error('Error fetching complete report:', error);
             res.status(500).json({
                 success: false,
                 message: 'Failed to fetch complete report',
@@ -212,7 +213,7 @@ class SalesAnalyticsController {
                 message: `Report ready for export as ${format}`
             });
         } catch (error) {
-            console.error('Error exporting report:', error);
+            logger.error('Error exporting report:', error);
             res.status(500).json({
                 success: false,
                 message: 'Failed to export report',

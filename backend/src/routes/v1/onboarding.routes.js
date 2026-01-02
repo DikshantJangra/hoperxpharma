@@ -16,4 +16,24 @@ router.post(
     onboardingController.completeOnboarding
 );
 
+// Asset upload routes for onboarding
+router.post('/logo/upload-request', authenticate, onboardingController.requestLogoUpload);
+router.post('/logo/process', authenticate, onboardingController.processLogoUpload);
+
+// License document upload routes
+router.post('/license/upload-request', authenticate, onboardingController.requestLicenseUpload);
+router.post('/license/process', authenticate, onboardingController.processLicenseUpload);
+
+// Setup Mode
+router.post('/mode', authenticate, onboardingController.setSetupMode);
+// Reset Mode (Demo only)
+router.post('/reset', authenticate, onboardingController.resetMode);
+
+// Data Import Routes
+const multer = require('multer');
+const upload = multer({ dest: 'uploads/' });
+
+router.get('/import/template/:type', authenticate, onboardingController.getImportTemplate);
+router.post('/import/data/:type', authenticate, upload.single('file'), onboardingController.importData);
+
 module.exports = router;

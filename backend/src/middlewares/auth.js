@@ -9,14 +9,20 @@ const { MESSAGES } = require('../constants');
  */
 const authenticate = async (req, res, next) => {
     try {
-        // Get token from header
-        const authHeader = req.headers.authorization;
+        // Get token from cookie (preferred - secure httpOnly) or header (backward compatibility)
+        let token = req.cookies?.accessToken;
 
-        if (!authHeader || !authHeader.startsWith('Bearer ')) {
-            throw ApiError.unauthorized(MESSAGES.AUTH.UNAUTHORIZED);
+        // Fallback to Authorization header if cookie not present
+        if (!token) {
+            const authHeader = req.headers.authorization;
+            if (authHeader && authHeader.startsWith('Bearer ')) {
+                token = authHeader.substring(7); // Remove 'Bearer ' prefix
+            }
         }
 
-        const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+        if (!token) {
+            throw ApiError.unauthorized(MESSAGES.AUTH.UNAUTHORIZED);
+        }
 
         // Debug logging for Auth flow
         // console.log('[Auth] Token verification started');

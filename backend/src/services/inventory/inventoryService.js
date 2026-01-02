@@ -307,7 +307,7 @@ class InventoryService {
 
                 // If no batch found or MRP is 0, skip this drug
                 if (!primaryBatch || !primaryBatch.mrp || Number(primaryBatch.mrp) === 0) {
-                    console.warn(`Drug ${drug.name} has no valid batch with MRP`);
+                    logger.warn(`Drug ${drug.name} has no valid batch with MRP`);
                     return null;
                 }
 

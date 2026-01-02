@@ -1,4 +1,5 @@
 const database = require('../config/database');
+const logger = require('../config/logger');
 
 const prisma = database.getClient();
 
@@ -10,7 +11,7 @@ class StoreRepository {
      * Find stores for a user
      */
     async findUserStores(userId) {
-        console.log('findUserStores called for user:', userId);
+        logger.info('findUserStores called for user:', userId);
         const stores = await prisma.store.findMany({
             where: {
                 users: {
@@ -28,12 +29,12 @@ class StoreRepository {
             },
             orderBy: { createdAt: 'desc' },
         });
-        console.log('findUserStores found:', stores.length, 'stores');
+        logger.info('findUserStores found:', stores.length, 'stores');
         if (stores.length > 0) {
-            console.log('Primary store settings:', JSON.stringify(stores[0].settings, null, 2));
-            console.log('Primary store bankDetails:', JSON.stringify(stores[0].bankDetails, null, 2));
-            console.log('Primary store logoUrl:', stores[0].logoUrl);
-            console.log('Primary store signatureUrl:', stores[0].signatureUrl);
+            logger.info('Primary store settings:', JSON.stringify(stores[0].settings, null, 2));
+            logger.info('Primary store bankDetails:', JSON.stringify(stores[0].bankDetails, null, 2));
+            logger.info('Primary store logoUrl:', stores[0].logoUrl);
+            logger.info('Primary store signatureUrl:', stores[0].signatureUrl);
         }
         return stores;
     }
@@ -82,6 +83,7 @@ class StoreRepository {
                     storeId: store.id,
                     userId,
                     role,
+                    isPrimary: true, // Creator is primary user by default
                 },
             });
 
@@ -93,12 +95,12 @@ class StoreRepository {
      * Update store
      */
     async updateStore(id, storeData) {
-        console.log('UpdateStore Repository Input:', JSON.stringify(storeData, null, 2));
+        logger.info('UpdateStore Repository Input:', JSON.stringify(storeData, null, 2));
         const { settings, ...rest } = storeData;
 
         // Handle settings separately
         if (settings) {
-            console.log('Upserting settings directly:', settings);
+            logger.info('Upserting settings directly:', settings);
             try {
                 const upserted = await prisma.storeSettings.upsert({
                     where: { storeId: id },
@@ -108,17 +110,17 @@ class StoreRepository {
                     },
                     update: settings
                 });
-                console.log('Upsert Success:', upserted);
+                logger.info('Upsert Success:', upserted);
             } catch (upsertError) {
-                console.error('Upsert Failed Detailed Error:', upsertError);
+                logger.error('Upsert Failed Detailed Error:', upsertError);
                 throw upsertError;
             }
         } else {
-            console.log('WARNING: No settings object found in update payload. Keys:', Object.keys(storeData));
+            logger.info('WARNING: No settings object found in update payload. Keys:', Object.keys(storeData));
         }
 
         // Update store fields (including bankDetails JSON field)
-        console.log('Updating store with data:', JSON.stringify(rest, null, 2));
+        logger.info('Updating store with data:', JSON.stringify(rest, null, 2));
         await prisma.store.update({
             where: { id },
             data: rest
@@ -127,7 +129,7 @@ class StoreRepository {
         // Explicitly fetch the complete store with settings to ensure fresh data
         const result = await this.findById(id);
 
-        console.log('UpdateStore Result (Refetched):', JSON.stringify(result, null, 2));
+        logger.info('UpdateStore Result (Refetched):', JSON.stringify(result, null, 2));
         return result;
     }
 

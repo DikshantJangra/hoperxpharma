@@ -1,3 +1,5 @@
+const logger = require('../config/logger');
+
 /**
  * Geolocation Service - IP to location lookup using FreeIPAPI
  * 
@@ -129,7 +131,7 @@ async function lookupIP(ip) {
         clearTimeout(timeout);
 
         if (!response.ok) {
-            console.error(`[Geolocation] API error for ${ip}: ${response.status}`);
+            logger.error(`[Geolocation] API error for ${ip}: ${response.status}`);
             return null;
         }
 
@@ -156,9 +158,9 @@ async function lookupIP(ip) {
 
     } catch (error) {
         if (error.name === 'AbortError') {
-            console.error(`[Geolocation] Timeout for ${ip}`);
+            logger.error(`[Geolocation] Timeout for ${ip}`);
         } else {
-            console.error(`[Geolocation] Error for ${ip}:`, error.message);
+            logger.error(`[Geolocation] Error for ${ip}:`, error.message);
         }
         return null;
     }

@@ -96,14 +96,14 @@ export default function Error({
                     </p>
                     <div className="grid grid-cols-2 gap-4">
                         <a
-                            href="mailto:support@hoperx.com"
+                            href="mailto:hoperxpharma@gmail.com"
                             className="flex flex-col items-center justify-center p-4 rounded-xl bg-gray-50 hover:bg-emerald-50 border border-gray-100 hover:border-emerald-200 transition-colors group cursor-pointer"
                         >
                             <BiEnvelope className="w-6 h-6 text-gray-400 group-hover:text-emerald-500 mb-2 transition-colors" />
                             <span className="text-sm font-medium text-gray-600 group-hover:text-emerald-700">Email Support</span>
                         </a>
                         <a
-                            href="tel:+1234567890"
+                            href="tel:9812080390"
                             className="flex flex-col items-center justify-center p-4 rounded-xl bg-gray-50 hover:bg-emerald-50 border border-gray-100 hover:border-emerald-200 transition-colors group cursor-pointer"
                         >
                             <BiPhone className="w-6 h-6 text-gray-400 group-hover:text-emerald-500 mb-2 transition-colors" />

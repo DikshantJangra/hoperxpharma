@@ -130,6 +130,7 @@ function NavItem({ item, isOpen, expanded, onToggle }: any) {
         return (
             <Link
                 href={item.path}
+                data-tour={`sidebar-${item.label.toLowerCase().replace(/ /g, '-')}`}
                 className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-md transition-colors ${isActive ? 'bg-emerald-50 text-emerald-600 font-semibold' : 'text-gray-700 hover:bg-gray-50'
                     }`}
             >
@@ -146,6 +147,7 @@ function NavItem({ item, isOpen, expanded, onToggle }: any) {
         <div className="mb-0.5">
             <button
                 onClick={hasVisibleSubItems ? onToggle : undefined}
+                data-tour={`sidebar-${item.label.toLowerCase().replace(/ /g, '-')}`}
                 className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-md transition-colors ${isActive ? 'bg-emerald-50 text-emerald-600 font-semibold' : 'text-gray-700 hover:bg-gray-50'
                     }`}
             >

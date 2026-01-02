@@ -1,4 +1,5 @@
 const prisma = require('../db/prisma');
+const logger = require('../config/logger');
 const ApiError = require('../utils/ApiError');
 const permissionService = require('./permissionService');
 
@@ -195,7 +196,7 @@ class UserRoleService {
                 count++;
             } catch (error) {
                 // Skip if already assigned or user doesn't exist
-                console.warn(`Failed to assign role to user ${userId}:`, error.message);
+                logger.warn(`Failed to assign role to user ${userId}:`, error.message);
             }
         }
 

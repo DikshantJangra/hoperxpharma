@@ -1,4 +1,5 @@
 const asyncHandler = require('../../middlewares/asyncHandler');
+const logger = require('../../config/logger');
 const consolidatedInvoiceService = require('../../services/consolidatedInvoices/consolidatedInvoiceService');
 
 /**
@@ -7,7 +8,7 @@ const consolidatedInvoiceService = require('../../services/consolidatedInvoices/
  */
 const getGRNsForInvoicing = asyncHandler(async (req, res) => {
     // Debug logging
-    console.log('[Invoice] User ID:', req.user?.id, 'StoreId:', req.user?.storeId);
+    logger.info('[Invoice] User ID:', req.user?.id, 'StoreId:', req.user?.storeId);
 
     // Validate authentication
     if (!req.user || !req.user.storeId) {

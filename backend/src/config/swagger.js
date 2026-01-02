@@ -15,12 +15,8 @@ const options = {
         },
         servers: [
             {
-                url: 'http://localhost:8000',
-                description: 'Development server',
-            },
-            {
-                url: 'https://api.hoperxpharma.com',
-                description: 'Production server',
+                url: process.env.API_BASE_URL || 'http://localhost:8000',
+                description: process.env.NODE_ENV === 'production' ? 'Production server' : 'Development server',
             },
         ],
         components: {

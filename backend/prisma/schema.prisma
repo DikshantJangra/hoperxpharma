@@ -10,6 +10,11 @@ datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
+  
+  // Connection pooling configuration
+  // Uses connection pooler for better performance
+  // Direct URL used for migrations
+  relationMode = "prisma"
 }
 
 // ============================================================================
@@ -286,11 +291,28 @@ model OnboardingProgress {
   completedSteps Int[]
   data           Json // Store the partial form data here
   isComplete     Boolean @default(false)
+  mode           String? // "REAL" or "DEMO" - Null initially
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// Magic Link Authentication
+model MagicLink {
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  userId    String?  // Optional - for existing users
+  expiresAt DateTime
+  used      Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@index([token])
+  @@index([expiresAt])
 }
 
 model Role {
@@ -422,6 +444,7 @@ model Store {
   whatsapp     String? // WhatsApp number for business communication
   businessType String?
   logoUrl      String?
+  isDemo       Boolean @default(false)
 
   // Store-specific feature overrides (optional)
   // Allows customization beyond business type defaults
@@ -450,6 +473,9 @@ model Store {
   // Operations
   is24x7       Boolean @default(false)
   homeDelivery Boolean @default(false)
+
+  // WhatsApp Integration
+  whatsappMode String? // "platform" or "byo" (Bring Your Own)
 
   // HR & Geofencing
   latitude       Float? // Store GPS latitude for geofencing
@@ -553,12 +579,13 @@ model StoreSettings {
   // Inventory Features
   batchTracking      Boolean @default(true)
   autoGenerateCodes  Boolean @default(true)
-  purchaseRounding   Boolean @default(false)
+  purchaseRounding   Boolean @default(true)
   allowNegativeStock Boolean @default(false)
 
   // POS & Billing Settings
-  invoiceFormat       String  @default("INV/0001")
+  invoiceFormat       String  @default("INV-{YY}{MM}-{SEQ:4}")
   paymentMethods      String  @default("Cash") // Comma-separated values
+  upiId               String? // For UPI payments
   billingType         String  @default("MRP-based")
   printFormat         String  @default("Thermal")
   footerText          String  @default("Thank you for your business!")
@@ -841,17 +868,24 @@ model CustomerLedger {
 // ============================================================================
 
 model Drug {
-  id                   String  @id @default(cuid())
-  storeId              String
-  rxcui                String? // RxNorm ID (removed @unique for multi-store)
-  name                 String
-  genericName          String? // Generic/scientific name
-  strength             String?
-  form                 String? // Tablet, Capsule, Syrup
-  manufacturer         String?
-  schedule             String? // H, H1, X, etc. for controlled substances
-  hsnCode              String?
-  gstRate              Decimal @db.Decimal(5, 2)
+  id           String  @id @default(cuid())
+  storeId      String
+  rxcui        String? // RxNorm ID (removed @unique for multi-store)
+  name         String
+  genericName  String? // Generic/scientific name
+  strength     String?
+  form         String? // Tablet, Capsule, Syrup
+  manufacturer String?
+  schedule     String? // H, H1, X, etc. for controlled substances
+
+  // GST Fields
+  hsnCodeId  String? // FK to HsnCode (NEW)
+  hsnCodeRef HsnCode? @relation(fields: [hsnCodeId], references: [id])
+
+  // DEPRECATED: keeping for migration compatibility
+  hsnCode String?
+  gstRate Decimal @default(0) @db.Decimal(5, 2)
+
   requiresPrescription Boolean @default(false)
   defaultUnit          String? // Strips, Units
   lowStockThreshold    Int?
@@ -874,11 +908,60 @@ model Drug {
 
   @@index([name])
   @@index([hsnCode])
+  @@index([hsnCodeId])
   @@index([storeId])
   @@index([storeId, name])
   @@index([storeId, hsnCode])
 }
 
+// GST Tax Slab Configuration
+model TaxSlab {
+  id       String  @id @default(cuid())
+  storeId  String?
+  name     String // "GST 12%", "GST 18%", "Exempt"
+  rate     Decimal @db.Decimal(5, 2)
+  taxType  String // "GST", "CESS", "EXEMPT"
+  isActive Boolean @default(true)
+
+  // For CGST+SGST split
+  isSplit  Boolean  @default(true)
+  cgstRate Decimal? @db.Decimal(5, 2)
+  sgstRate Decimal? @db.Decimal(5, 2)
+  igstRate Decimal? @db.Decimal(5, 2)
+
+  cessRate Decimal? @db.Decimal(5, 2)
+
+  hsnCodes HsnCode[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([storeId, name])
+  @@index([storeId, isActive])
+}
+
+// HSN Code Master
+model HsnCode {
+  id          String  @id @default(cuid())
+  storeId     String?
+  code        String
+  description String
+  taxSlabId   String
+  category    String?
+  isActive    Boolean @default(true)
+
+  taxSlab TaxSlab @relation(fields: [taxSlabId], references: [id])
+  drugs   Drug[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([storeId, code])
+  @@index([code])
+  @@index([category])
+}
+
+// DEPRECATED: Keeping for backward compatibility
 model TaxRate {
   id          String  @id @default(cuid())
   hsnCode     String  @unique
@@ -918,8 +1001,11 @@ model InventoryBatch {
   prescriptionItemVersions PrescriptionItemVersion[]
 
   @@unique([storeId, batchNumber, drugId])
+  // Performance indexes
   @@index([storeId, drugId])
-  @@index([storeId, expiryDate])
+  @@index([storeId, expiryDate, quantityInStock]) // Expiry reports with stock check
+  @@index([drugId, expiryDate]) // Drug-specific expiry tracking
+  @@index([supplierId, createdAt]) // Supplier analysis
   @@index([batchNumber])
   @@index([storeId, deletedAt])
 }
@@ -938,8 +1024,10 @@ model StockMovement {
 
   createdAt DateTime @default(now())
 
-  @@index([batchId, createdAt])
-  @@index([referenceType, referenceId])
+  // Performance indexes
+  @@index([batchId, createdAt]) // Batch movement history
+  @@index([referenceType, referenceId]) // Track by sale/purchase
+  @@index([userId, createdAt]) // Staff activity tracking
 }
 
 model StockAdjustment {
@@ -1050,11 +1138,15 @@ model Prescription {
   files    PrescriptionFile[]
 
   // Sales (one-to-many for refills support)
-  sales Sale[]
+  sales             Sale[]
   prescriptionItems PrescriptionItem[]
   dispenseEvents    DispenseEvent[]
 
   @@unique([storeId, prescriptionNumber])
+  // Performance indexes
+  @@index([storeId, status, expiryDate]) // Active prescriptions
+  @@index([patientId, status, createdAt]) // Patient prescription history
+  @@index([prescriberId, createdAt]) // Prescriber reports
   @@index([storeId])
   @@index([patientId])
   @@index([prescriberId])
@@ -1173,17 +1265,17 @@ model Refill {
 }
 
 model RefillItem {
-  id                  String   @id @default(cuid())
-  refillId            String
-  prescriptionItemId  String
-  quantityDispensed   Int      @default(0)
-  dispensedAt         DateTime?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
-  
-  refill              Refill            @relation(fields: [refillId], references: [id], onDelete: Cascade)
-  prescriptionItem    PrescriptionItem  @relation(fields: [prescriptionItemId], references: [id])
-  
+  id                 String    @id @default(cuid())
+  refillId           String
+  prescriptionItemId String
+  quantityDispensed  Int       @default(0)
+  dispensedAt        DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  refill           Refill           @relation(fields: [refillId], references: [id], onDelete: Cascade)
+  prescriptionItem PrescriptionItem @relation(fields: [prescriptionItemId], references: [id])
+
   @@index([refillId])
   @@index([prescriptionItemId])
 }
@@ -1669,7 +1761,7 @@ model GRNItem {
   // Relations
   grn      GoodsReceivedNote @relation(fields: [grnId], references: [id], onDelete: Cascade)
   drug     Drug              @relation(fields: [drugId], references: [id])
-  parent   GRNItem?          @relation("GRNItemSplit", fields: [parentItemId], references: [id])
+  parent   GRNItem?          @relation("GRNItemSplit", fields: [parentItemId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   children GRNItem[]         @relation("GRNItemSplit")
 
   @@index([grnId])
@@ -1883,13 +1975,27 @@ model Sale {
   roundOff       Decimal @default(0) @db.Decimal(5, 2)
   total          Decimal @db.Decimal(10, 2)
 
+  // GST Invoice Fields
+  buyerGstin    String? // Customer GSTIN (for B2B)
+  placeOfSupply String? // State code
+  isIgst        Boolean @default(false)
+
+  // Tax Breakup
+  cgstAmount    Decimal @default(0) @db.Decimal(10, 2)
+  sgstAmount    Decimal @default(0) @db.Decimal(10, 2)
+  igstAmount    Decimal @default(0) @db.Decimal(10, 2)
+  cessAmount    Decimal @default(0) @db.Decimal(10, 2)
+  taxableAmount Decimal @default(0) @db.Decimal(10, 2)
+
+  gstrCategory String?
+
   // For credit notes
   originalSaleId String?
   creditReason   String?
 
   soldBy String
 
-  attachments Json? // Array of { name, url, type }
+  attachments Json?
 
   store              Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
   prescription       Prescription?  @relation(fields: [prescriptionId], references: [id])
@@ -1898,27 +2004,33 @@ model Sale {
   dispenseId         String?        @unique
   patient            Patient?       @relation(fields: [patientId], references: [id])
   dispenseForPatient Patient?       @relation("DispenseFor", fields: [dispenseForPatientId], references: [id])
-  originalSale       Sale?          @relation("CreditNotes", fields: [originalSaleId], references: [id])
+  originalSale       Sale?          @relation("CreditNotes", fields: [originalSaleId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   creditNotes        Sale[]         @relation("CreditNotes")
   items              SaleItem[]
   paymentSplits      PaymentSplit[]
   refunds            SaleRefund[]
 
-  // NEW: Bill-wise settlement fields
   balance       Decimal             @default(0.00) @db.Decimal(10, 2)
-  paymentStatus PaymentStatus       @default(PAID) // Default to PAID for migration safety, new credit sales will be UNPAID
+  paymentStatus PaymentStatus       @default(PAID)
   allocations   InvoiceAllocation[]
 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
+  // Performance indexes for frequently accessed queries
+  @@index([storeId, createdAt, status]) // Dashboard queries
+  @@index([storeId, patientId, createdAt]) // Customer purchase history
+  @@index([createdAt, status]) // Time-based reports
+  @@index([soldBy, createdAt]) // Staff performance reports
   @@index([storeId, createdAt])
   @@index([storeId, patientId])
   @@index([storeId, status])
   @@index([invoiceNumber])
   @@index([storeId, deletedAt])
   @@index([paymentStatus])
+  @@index([placeOfSupply])
+  @@index([gstrCategory])
 }
 
 enum PaymentStatus {
@@ -1939,11 +2051,23 @@ model SaleItem {
   gstRate   Decimal @db.Decimal(5, 2)
   lineTotal Decimal @db.Decimal(10, 2)
 
+  // GST Item Fields
+  hsnCode   String? // Snapshot from drug
+  taxSlabId String? // FK for audit
+
+  // Item-level tax
+  taxableAmount Decimal @default(0) @db.Decimal(10, 2)
+  cgstAmount    Decimal @default(0) @db.Decimal(10, 2)
+  sgstAmount    Decimal @default(0) @db.Decimal(10, 2)
+  igstAmount    Decimal @default(0) @db.Decimal(10, 2)
+  cessAmount    Decimal @default(0) @db.Decimal(10, 2)
+
   sale  Sale           @relation(fields: [saleId], references: [id], onDelete: Cascade)
   drug  Drug           @relation(fields: [drugId], references: [id])
   batch InventoryBatch @relation(fields: [batchId], references: [id])
 
   @@index([saleId])
+  @@index([hsnCode])
 }
 
 model PaymentSplit {
@@ -2026,7 +2150,7 @@ model SaleRefund {
 
   items SaleRefundItem[]
 
-  originalSale Sale  @relation(fields: [originalSaleId], references: [id])
+  originalSale Sale  @relation(fields: [originalSaleId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   store        Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
   requestedBy String
@@ -3068,96 +3192,96 @@ model PatientRelation {
 // ============================================================================
 
 model LoyaltyProfile {
-  id        String   @id @default(cuid())
-  patientId String   @unique
+  id        String @id @default(cuid())
+  patientId String @unique
   storeId   String
-  
+
   // Current Status
-  status         LoyaltyStatus @default(NEW)
-  statusSince    DateTime      @default(now())
-  
+  status      LoyaltyStatus @default(NEW)
+  statusSince DateTime      @default(now())
+
   // Progress Metrics (computed from events)
-  totalPoints        Int      @default(0)
-  purchaseCount      Int      @default(0)
-  feedbackCount      Int      @default(0)
-  daysSinceFirst     Int      @default(0)
-  consistencyScore   Decimal  @default(0) @db.Decimal(5, 2) // 0-100
-  engagementScore    Decimal  @default(0) @db.Decimal(5, 2) // 0-100
-  
+  totalPoints      Int     @default(0)
+  purchaseCount    Int     @default(0)
+  feedbackCount    Int     @default(0)
+  daysSinceFirst   Int     @default(0)
+  consistencyScore Decimal @default(0) @db.Decimal(5, 2) // 0-100
+  engagementScore  Decimal @default(0) @db.Decimal(5, 2) // 0-100
+
   // Milestones
-  lastPurchaseAt     DateTime?
-  nextMilestoneAt    DateTime?
-  milestoneProgress  Decimal   @default(0) @db.Decimal(5, 2) // 0-100 percentage
-  
+  lastPurchaseAt    DateTime?
+  nextMilestoneAt   DateTime?
+  milestoneProgress Decimal   @default(0) @db.Decimal(5, 2) // 0-100 percentage
+
   // Recognition
-  recognitionMessage String?  @db.Text
+  recognitionMessage String?   @db.Text
   recognizedAt       DateTime?
-  
-  patient Patient        @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  patient Patient         @relation(fields: [patientId], references: [id], onDelete: Cascade)
   events  LoyaltyEvent[]
   rewards LoyaltyReward[]
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   @@index([patientId])
   @@index([storeId, status])
   @@index([storeId, updatedAt])
 }
 
 model LoyaltyEvent {
-  id        String   @id @default(cuid())
+  id        String @id @default(cuid())
   profileId String
   storeId   String
-  
-  eventType      LoyaltyEventType
-  eventSource    String? // sale_id, feedback_id, etc.
-  
+
+  eventType   LoyaltyEventType
+  eventSource String? // sale_id, feedback_id, etc.
+
   // Signal weights (computed at event creation)
-  points         Int     @default(0)
-  frequencyBonus Int     @default(0)
-  timeBonus      Int     @default(0)
-  
+  points         Int @default(0)
+  frequencyBonus Int @default(0)
+  timeBonus      Int @default(0)
+
   // Context
-  metadata       Json? // Event-specific data
-  description    String?
-  
+  metadata    Json? // Event-specific data
+  description String?
+
   profile LoyaltyProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  
+
   createdAt DateTime @default(now())
-  
+
   @@index([profileId, createdAt])
   @@index([storeId, eventType, createdAt])
 }
 
 model LoyaltyReward {
-  id        String   @id @default(cuid())
+  id        String @id @default(cuid())
   profileId String
   storeId   String
-  
-  type         LoyaltyRewardType
-  status       LoyaltyRewardStatus @default(LOCKED)
-  
-  title        String
-  description  String? @db.Text
-  
+
+  type   LoyaltyRewardType
+  status LoyaltyRewardStatus @default(LOCKED)
+
+  title       String
+  description String? @db.Text
+
   // Unlock criteria (optional, can be null for automatic)
-  minStatus    LoyaltyStatus?
-  minPoints    Int?
-  
+  minStatus LoyaltyStatus?
+  minPoints Int?
+
   // Monetary value (optional)
   creditAmount Decimal? @db.Decimal(10, 2)
-  
+
   // Lifecycle
-  unlockedAt   DateTime?
-  redeemedAt   DateTime?
-  expiresAt    DateTime?
-  
+  unlockedAt DateTime?
+  redeemedAt DateTime?
+  expiresAt  DateTime?
+
   profile LoyaltyProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   @@index([profileId, status])
   @@index([storeId, type])
 }

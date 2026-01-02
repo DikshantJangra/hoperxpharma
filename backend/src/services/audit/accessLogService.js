@@ -1,4 +1,5 @@
 const accessLogRepository = require('../../repositories/accessLogRepository');
+const logger = require('../../config/logger');
 const geolocationService = require('../geolocationService');
 
 /**
@@ -13,12 +14,12 @@ class AccessLogService {
             // Lookup geolocation for the IP (async, cached for 24h)
             let geolocation = null;
             try {
-                console.log('[AccessLog] Looking up geolocation for IP:', ipAddress);
+                logger.info('[AccessLog] Looking up geolocation for IP:', ipAddress);
                 geolocation = await geolocationService.lookupIP(ipAddress);
-                console.log('[AccessLog] Geolocation result:', geolocation);
+                logger.info('[AccessLog] Geolocation result:', geolocation);
             } catch (geoError) {
                 // Don't fail the log creation if geolocation fails
-                console.error('Geolocation lookup failed:', geoError);
+                logger.error('Geolocation lookup failed:', geoError);
             }
 
             const result = await accessLogRepository.createAccessLog({
@@ -30,10 +31,10 @@ class AccessLogService {
                 geolocation, // Can be null
             });
 
-            console.log('[AccessLog] Created with geolocation:', result.geolocation ? 'YES' : 'NO');
+            logger.info('[AccessLog] Created with geolocation:', result.geolocation ? 'YES' : 'NO');
             return result;
         } catch (error) {
-            console.error('[AccessLogService] Error logging access:', error);
+            logger.error('[AccessLogService] Error logging access:', error);
             throw error;
         }
     }

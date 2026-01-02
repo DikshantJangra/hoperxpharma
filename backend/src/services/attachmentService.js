@@ -1,4 +1,5 @@
 const crypto = require('crypto');
+const logger = require('../config/logger');
 const sharp = require('sharp');
 const { v4: uuidv4 } = require('uuid');
 const prisma = require('../db/prisma');
@@ -76,7 +77,7 @@ async function processFile(buffer, mimeType) {
                 .toBuffer();
 
             const compressionRatio = compressedBuffer.length / buffer.length;
-            console.log(`[Attachment] Image compressed: ${buffer.length} → ${compressedBuffer.length} (${((1 - compressionRatio) * 100).toFixed(1)}% reduction)`);
+            logger.info(`[Attachment] Image compressed: ${buffer.length} → ${compressedBuffer.length} (${((1 - compressionRatio) * 100).toFixed(1)}% reduction)`);
 
             return {
                 buffer: compressedBuffer,
@@ -84,7 +85,7 @@ async function processFile(buffer, mimeType) {
                 wasCompressed: true,
             };
         } catch (error) {
-            console.error('Image processing failed, using original:', error);
+            logger.error('Image processing failed, using original:', error);
             return { buffer, mimeType, wasCompressed: false };
         }
     }
@@ -113,17 +114,17 @@ async function processFile(buffer, mimeType) {
             // Use compressed version if it provides any reduction (even small)
             // Target is 55%+ compression, but accept any improvement
             if (compressionRatio < 0.98) { // Accept if at least 2% smaller
-                console.log(`[Attachment] PDF compressed: ${buffer.length} → ${compressedBuffer.length} (${((1 - compressionRatio) * 100).toFixed(1)}% reduction)`);
+                logger.info(`[Attachment] PDF compressed: ${buffer.length} → ${compressedBuffer.length} (${((1 - compressionRatio) * 100).toFixed(1)}% reduction)`);
                 return {
                     buffer: Buffer.from(compressedBuffer),
                     mimeType,
                     wasCompressed: true,
                 };
             } else {
-                console.log(`[Attachment] PDF compression minimal, using original`);
+                logger.info(`[Attachment] PDF compression minimal, using original`);
             }
         } catch (error) {
-            console.error('PDF compression failed, using original:', error);
+            logger.error('PDF compression failed, using original:', error);
         }
     }
 
@@ -215,13 +216,13 @@ async function processUpload(poId, tempKey, userId, originalFileName) {
             },
         };
     } catch (error) {
-        console.error('Error processing attachment upload:', error);
+        logger.error('Error processing attachment upload:', error);
 
         // Try to clean up temp file
         try {
             await deleteObject(tempKey);
         } catch (cleanupError) {
-            console.error('Error cleaning up temp file:', cleanupError);
+            logger.error('Error cleaning up temp file:', cleanupError);
         }
 
         return {
@@ -279,7 +280,7 @@ async function deleteAttachment(attachmentId, userId) {
 
         return { success: true };
     } catch (error) {
-        console.error('Error deleting attachment:', error);
+        logger.error('Error deleting attachment:', error);
         return { success: false, error: error.message || 'Failed to delete attachment.' };
     }
 }
@@ -387,13 +388,13 @@ async function processGRNUpload(grnId, tempKey, userId, originalFileName) {
             },
         };
     } catch (error) {
-        console.error('Error processing GRN attachment upload:', error);
+        logger.error('Error processing GRN attachment upload:', error);
 
         // Try to clean up temp file
         try {
             await deleteObject(tempKey);
         } catch (cleanupError) {
-            console.error('Error cleaning up temp file:', cleanupError);
+            logger.error('Error cleaning up temp file:', cleanupError);
         }
 
         return {
@@ -451,7 +452,7 @@ async function deleteGRNAttachment(attachmentId, userId) {
 
         return { success: true };
     } catch (error) {
-        console.error('Error deleting GRN attachment:', error);
+        logger.error('Error deleting GRN attachment:', error);
         return { success: false, error: error.message || 'Failed to delete attachment.' };
     }
 }

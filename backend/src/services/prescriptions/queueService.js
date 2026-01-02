@@ -1,4 +1,5 @@
 const { PrismaClient } = require('@prisma/client');
+const logger = require('../../config/logger');
 const prisma = new PrismaClient();
 
 class QueueService {
@@ -184,7 +185,7 @@ class QueueService {
 
                 results.success.push(id);
             } catch (error) {
-                console.error(`Failed to update Rx ${id}:`, error);
+                logger.error(`Failed to update Rx ${id}:`, error);
                 results.failed.push({ id, error: error.message });
             }
         }

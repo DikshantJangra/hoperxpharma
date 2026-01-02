@@ -1,4 +1,6 @@
 'use client';
+import { getApiBaseUrl } from '@/lib/config/env';
+import { tokenManager } from '@/lib/api/client';
 
 import React, { useEffect, useState } from 'react';
 import { usePOComposer } from '@/hooks/usePOComposer';
@@ -62,10 +64,10 @@ export default function NewPOPage({ storeId, poId }: NewPOPageProps) {
   const loadExistingPO = async (id: string) => {
     setIsLoadingPO(true);
     try {
-      const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+      const apiBaseUrl = getApiBaseUrl();
       const response = await fetch(`${apiBaseUrl}/purchase-orders/${id}`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+          'Authorization': `Bearer ${tokenManager.getAccessToken()}`
         }
       });
 

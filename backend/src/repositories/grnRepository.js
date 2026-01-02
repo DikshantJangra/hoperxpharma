@@ -1,4 +1,5 @@
 const database = require('../config/database');
+const logger = require('../config/logger');
 const prisma = database.getClient();
 
 /**
@@ -313,8 +314,8 @@ class GRNRepository {
 
             // 1. Create inventory batches for each GRN item
             // Flatten items to include children of split batches
-            // console.log('🔍 GRN Items before flattening:', updatedGrn.items.length);
-            // console.log('🔍 Items:', JSON.stringify(updatedGrn.items.map(i => ({
+            // logger.info('🔍 GRN Items before flattening:', updatedGrn.items.length);
+            // logger.info('🔍 Items:', JSON.stringify(updatedGrn.items.map(i => ({
             //     id: i.id,
             //     batchNumber: i.batchNumber,
             //     isSplit: i.isSplit,
@@ -327,16 +328,16 @@ class GRNRepository {
             const allItems = updatedGrn.items.flatMap(item => {
                 // Skip parent items that are split - only return their children
                 if (item.isSplit) {
-                    // console.log(`🔍 Item ${item.batchNumber} is SPLIT, returning ${item.children?.length || 0} children`);
+                    // logger.info(`🔍 Item ${item.batchNumber} is SPLIT, returning ${item.children?.length || 0} children`);
                     return item.children || [];
                 }
                 // Return non-split items
-                // console.log(`🔍 Item ${item.batchNumber} is NOT split, returning itself`);
+                // logger.info(`🔍 Item ${item.batchNumber} is NOT split, returning itself`);
                 return [item];
             });
 
-            // console.log('🔍 Flattened items count:', allItems.length);
-            // console.log('🔍 Flattened items:', JSON.stringify(allItems.map(i => ({
+            // logger.info('🔍 Flattened items count:', allItems.length);
+            // logger.info('🔍 Flattened items:', JSON.stringify(allItems.map(i => ({
             //     id: i.id,
             //     batchNumber: i.batchNumber,
             //     receivedQty: i.receivedQty,
@@ -351,10 +352,10 @@ class GRNRepository {
 
             for (const item of allItems) {
                 const totalQty = item.receivedQty + item.freeQty;
-                // console.log(`🔍 Processing item ${item.batchNumber}, totalQty: ${totalQty}`);
+                // logger.info(`🔍 Processing item ${item.batchNumber}, totalQty: ${totalQty}`);
 
                 if (totalQty > 0) {
-                    // console.log(`🔍 Creating/updating inventory for batch ${item.batchNumber}`);
+                    // logger.info(`🔍 Creating/updating inventory for batch ${item.batchNumber}`);
                     const batch = await tx.inventoryBatch.upsert({
                         where: {
                             storeId_batchNumber_drugId: {
@@ -386,7 +387,7 @@ class GRNRepository {
                         }
                     });
 
-                    // console.log(`✅ Inventory batch ${item.batchNumber} created/updated, qty: ${totalQty}`);
+                    // logger.info(`✅ Inventory batch ${item.batchNumber} created/updated, qty: ${totalQty}`);
 
                     // Create stock movement
                     const createdBatch = await tx.inventoryBatch.findFirst({

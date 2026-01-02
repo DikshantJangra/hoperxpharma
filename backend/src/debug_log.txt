@@ -1,0 +1,138 @@
+
+[2026-01-02T19:18:52.021Z] SAVING for cmjwzuel90000it7j0469hzeh: Step 1, DataKeys: storeIdentity,licensing,timings,inventory,suppliers,pos,users,integrations,imports
+[SUCCESS] Saved ID: cmjwzuel90001it7jkpj8assu
+
+[2026-01-02T19:18:55.600Z] SAVING for cmjwzuel90000it7j0469hzeh: Step 1, DataKeys: storeIdentity,licensing,timings,inventory,suppliers,pos,users,integrations,imports
+[SUCCESS] Saved ID: cmjwzuel90001it7jkpj8assu
+
+[2026-01-02T19:19:01.883Z] SAVING for cmjwzuel90000it7j0469hzeh: Step 1, DataKeys: storeIdentity,licensing,timings,inventory,suppliers,pos,users,integrations,imports
+[SUCCESS] Saved ID: cmjwzuel90001it7jkpj8assu
+
+[2026-01-02T19:19:03.975Z] SAVING for cmjwzuel90000it7j0469hzeh: Step 1, DataKeys: storeIdentity,licensing,timings,inventory,suppliers,pos,users,integrations,imports
+[SUCCESS] Saved ID: cmjwzuel90001it7jkpj8assu
+
+[2026-01-02T19:19:05.386Z] SAVING for cmjwzuel90000it7j0469hzeh: Step 1, DataKeys: storeIdentity,licensing,timings,inventory,suppliers,pos,users,integrations,imports
+[SUCCESS] Saved ID: cmjwzuel90001it7jkpj8assu
+
+[2026-01-02T19:19:08.094Z] SAVING for cmjwzuel90000it7j0469hzeh: Step 1, DataKeys: storeIdentity,licensing,timings,inventory,suppliers,pos,users,integrations,imports
+[SUCCESS] Saved ID: cmjwzuel90001it7jkpj8assu
+
+[2026-01-02T19:19:09.393Z] SAVING for cmjwzuel90000it7j0469hzeh: Step 7, DataKeys: storeIdentity,licensing,timings,inventory,suppliers,pos,users,integrations,imports
+[SUCCESS] Saved ID: cmjwzuel90001it7jkpj8assu
+
+[2026-01-02T19:19:12.268Z] SAVING for cmjwzuel90000it7j0469hzeh: Step 6, DataKeys: storeIdentity,licensing,timings,inventory,suppliers,pos,users,integrations,imports
+[SUCCESS] Saved ID: cmjwzuel90001it7jkpj8assu
+
+[2026-01-02T19:19:15.706Z] SAVING for cmjwzuel90000it7j0469hzeh: Step 1, DataKeys: storeIdentity,licensing,timings,inventory,suppliers,pos,users,integrations,imports
+[SUCCESS] Saved ID: cmjwzuel90001it7jkpj8assu
+[READ] User cmjwzuel90000it7j0469hzeh: Found progress. Step 1, Inventory: {"defaultUoM":"Units","batchTracking":true,"defaultGSTSlab":"5","purchaseRounding":true,"autoGenerateCodes":true,"lowStockThreshold":10,"allowNegativeStock":false,"nearExpiryThreshold":90}
+[READ] User cmjwzuel90000it7j0469hzeh: Found progress. Step 1, Inventory: {"defaultUoM":"Units","batchTracking":true,"defaultGSTSlab":"5","purchaseRounding":true,"autoGenerateCodes":true,"lowStockThreshold":10,"allowNegativeStock":false,"nearExpiryThreshold":90}
+
+[2026-01-02T19:20:33.846Z] SAVING for cmjwzuel90000it7j0469hzeh: Step 1, Inventory: {"lowStockThreshold":10,"nearExpiryThreshold":90,"defaultUoM":"Units","purchaseRounding":true,"batchTracking":true,"autoGenerateCodes":true,"allowNegativeStock":false,"defaultGSTSlab":"5"}
+[SUCCESS] Saved ID: cmjwzuel90001it7jkpj8assu
+
+[2026-01-02T19:20:36.367Z] SAVING for cmjwzuel90000it7j0469hzeh: Step 1, Inventory: {"lowStockThreshold":10,"nearExpiryThreshold":90,"defaultUoM":"Units","purchaseRounding":false,"batchTracking":true,"autoGenerateCodes":true,"allowNegativeStock":false,"defaultGSTSlab":"5"}
+[SUCCESS] Saved ID: cmjwzuel90001it7jkpj8assu
+[READ] User cmjwzuel90000it7j0469hzeh: Found progress. Step 1, Inventory: {"defaultUoM":"Units","batchTracking":true,"defaultGSTSlab":"5","purchaseRounding":false,"autoGenerateCodes":true,"lowStockThreshold":10,"allowNegativeStock":false,"nearExpiryThreshold":90}
+[READ] User cmjwzuel90000it7j0469hzeh: Found progress. Step 1, Inventory: {"defaultUoM":"Units","batchTracking":true,"defaultGSTSlab":"5","purchaseRounding":false,"autoGenerateCodes":true,"lowStockThreshold":10,"allowNegativeStock":false,"nearExpiryThreshold":90}
+
+[2026-01-02T19:20:42.003Z] SAVING for cmjwzuel90000it7j0469hzeh: Step 1, Inventory: {"lowStockThreshold":10,"nearExpiryThreshold":90,"defaultUoM":"Units","purchaseRounding":true,"batchTracking":true,"autoGenerateCodes":true,"allowNegativeStock":false,"defaultGSTSlab":"5"}
+
+[2026-01-02T19:20:42.550Z] SAVING for cmjwzuel90000it7j0469hzeh: Step 1, Inventory: {"lowStockThreshold":10,"nearExpiryThreshold":90,"defaultUoM":"Units","purchaseRounding":true,"batchTracking":true,"autoGenerateCodes":true,"allowNegativeStock":false,"defaultGSTSlab":"5"}
+[SUCCESS] Saved ID: cmjwzuel90001it7jkpj8assu
+[SUCCESS] Saved ID: cmjwzuel90001it7jkpj8assu
+
+[2026-01-02T19:21:28.790Z] SAVING for cmjwzuel90000it7j0469hzeh: Step 4, Inventory: {"lowStockThreshold":10,"nearExpiryThreshold":90,"defaultUoM":"Units","purchaseRounding":false,"batchTracking":true,"autoGenerateCodes":true,"allowNegativeStock":false,"defaultGSTSlab":"5"}
+
+[2026-01-02T19:21:29.561Z] SAVING for cmjwzuel90000it7j0469hzeh: Step 4, Inventory: {"lowStockThreshold":10,"nearExpiryThreshold":90,"defaultUoM":"Units","purchaseRounding":false,"batchTracking":true,"autoGenerateCodes":true,"allowNegativeStock":false,"defaultGSTSlab":"5"}
+[SUCCESS] Saved ID: cmjwzuel90001it7jkpj8assu
+[SUCCESS] Saved ID: cmjwzuel90001it7jkpj8assu
+
+[2026-01-02T19:21:30.528Z] SAVING for cmjwzuel90000it7j0469hzeh: Step 4, Inventory: {"lowStockThreshold":10,"nearExpiryThreshold":90,"defaultUoM":"Units","purchaseRounding":false,"batchTracking":true,"autoGenerateCodes":true,"allowNegativeStock":false,"defaultGSTSlab":"5"}
+[SUCCESS] Saved ID: cmjwzuel90001it7jkpj8assu
+
+[2026-01-02T19:21:32.105Z] SAVING for cmjwzuel90000it7j0469hzeh: Step 4, Inventory: {"lowStockThreshold":10,"nearExpiryThreshold":90,"defaultUoM":"Units","purchaseRounding":false,"batchTracking":true,"autoGenerateCodes":true,"allowNegativeStock":false,"defaultGSTSlab":"5"}
+[SUCCESS] Saved ID: cmjwzuel90001it7jkpj8assu
+
+[2026-01-02T19:21:33.524Z] SAVING for cmjwzuel90000it7j0469hzeh: Step 4, Inventory: {"lowStockThreshold":10,"nearExpiryThreshold":90,"defaultUoM":"Units","purchaseRounding":false,"batchTracking":true,"autoGenerateCodes":true,"allowNegativeStock":false,"defaultGSTSlab":"5"}
+[SUCCESS] Saved ID: cmjwzuel90001it7jkpj8assu
+
+[2026-01-02T19:21:34.546Z] SAVING for cmjwzuel90000it7j0469hzeh: Step 4, Inventory: {"lowStockThreshold":10,"nearExpiryThreshold":90,"defaultUoM":"Units","purchaseRounding":false,"batchTracking":true,"autoGenerateCodes":true,"allowNegativeStock":false,"defaultGSTSlab":"5"}
+[SUCCESS] Saved ID: cmjwzuel90001it7jkpj8assu
+
+[2026-01-02T19:21:35.493Z] SAVING for cmjwzuel90000it7j0469hzeh: Step 4, Inventory: {"lowStockThreshold":10,"nearExpiryThreshold":90,"defaultUoM":"Units","purchaseRounding":false,"batchTracking":true,"autoGenerateCodes":true,"allowNegativeStock":false,"defaultGSTSlab":"5"}
+[SUCCESS] Saved ID: cmjwzuel90001it7jkpj8assu
+
+[2026-01-02T19:21:36.497Z] SAVING for cmjwzuel90000it7j0469hzeh: Step 4, Inventory: {"lowStockThreshold":10,"nearExpiryThreshold":90,"defaultUoM":"Units","purchaseRounding":false,"batchTracking":true,"autoGenerateCodes":true,"allowNegativeStock":false,"defaultGSTSlab":"5"}
+[SUCCESS] Saved ID: cmjwzuel90001it7jkpj8assu
+
+[2026-01-02T19:21:37.531Z] SAVING for cmjwzuel90000it7j0469hzeh: Step 4, Inventory: {"lowStockThreshold":10,"nearExpiryThreshold":90,"defaultUoM":"Units","purchaseRounding":false,"batchTracking":true,"autoGenerateCodes":true,"allowNegativeStock":false,"defaultGSTSlab":"5"}
+[SUCCESS] Saved ID: cmjwzuel90001it7jkpj8assu
+
+[2026-01-02T19:21:38.507Z] SAVING for cmjwzuel90000it7j0469hzeh: Step 4, Inventory: {"lowStockThreshold":10,"nearExpiryThreshold":90,"defaultUoM":"Units","purchaseRounding":false,"batchTracking":true,"autoGenerateCodes":true,"allowNegativeStock":false,"defaultGSTSlab":"5"}
+[SUCCESS] Saved ID: cmjwzuel90001it7jkpj8assu
+
+[2026-01-02T19:21:39.497Z] SAVING for cmjwzuel90000it7j0469hzeh: Step 4, Inventory: {"lowStockThreshold":10,"nearExpiryThreshold":90,"defaultUoM":"Units","purchaseRounding":false,"batchTracking":true,"autoGenerateCodes":true,"allowNegativeStock":false,"defaultGSTSlab":"5"}
+[SUCCESS] Saved ID: cmjwzuel90001it7jkpj8assu
+
+[2026-01-02T19:21:40.495Z] SAVING for cmjwzuel90000it7j0469hzeh: Step 4, Inventory: {"lowStockThreshold":10,"nearExpiryThreshold":90,"defaultUoM":"Units","purchaseRounding":false,"batchTracking":true,"autoGenerateCodes":true,"allowNegativeStock":false,"defaultGSTSlab":"5"}
+[SUCCESS] Saved ID: cmjwzuel90001it7jkpj8assu
+
+[2026-01-02T19:21:42.053Z] SAVING for cmjwzuel90000it7j0469hzeh: Step 4, Inventory: {"lowStockThreshold":10,"nearExpiryThreshold":90,"defaultUoM":"Units","purchaseRounding":false,"batchTracking":true,"autoGenerateCodes":true,"allowNegativeStock":false,"defaultGSTSlab":"5"}
+
+[2026-01-02T19:21:42.532Z] SAVING for cmjwzuel90000it7j0469hzeh: Step 4, Inventory: {"lowStockThreshold":10,"nearExpiryThreshold":90,"defaultUoM":"Units","purchaseRounding":false,"batchTracking":true,"autoGenerateCodes":true,"allowNegativeStock":false,"defaultGSTSlab":"5"}
+[SUCCESS] Saved ID: cmjwzuel90001it7jkpj8assu
+[SUCCESS] Saved ID: cmjwzuel90001it7jkpj8assu
+
+[2026-01-02T19:21:43.639Z] SAVING for cmjwzuel90000it7j0469hzeh: Step 4, Inventory: {"lowStockThreshold":10,"nearExpiryThreshold":90,"defaultUoM":"Units","purchaseRounding":false,"batchTracking":true,"autoGenerateCodes":true,"allowNegativeStock":false,"defaultGSTSlab":"5"}
+[SUCCESS] Saved ID: cmjwzuel90001it7jkpj8assu
+
+[2026-01-02T19:21:44.646Z] SAVING for cmjwzuel90000it7j0469hzeh: Step 4, Inventory: {"lowStockThreshold":10,"nearExpiryThreshold":90,"defaultUoM":"Units","purchaseRounding":false,"batchTracking":true,"autoGenerateCodes":true,"allowNegativeStock":false,"defaultGSTSlab":"5"}
+[SUCCESS] Saved ID: cmjwzuel90001it7jkpj8assu
+
+[2026-01-02T19:21:45.516Z] SAVING for cmjwzuel90000it7j0469hzeh: Step 4, Inventory: {"lowStockThreshold":10,"nearExpiryThreshold":90,"defaultUoM":"Units","purchaseRounding":false,"batchTracking":true,"autoGenerateCodes":true,"allowNegativeStock":false,"defaultGSTSlab":"5"}
+[SUCCESS] Saved ID: cmjwzuel90001it7jkpj8assu
+
+[2026-01-02T19:21:46.543Z] SAVING for cmjwzuel90000it7j0469hzeh: Step 4, Inventory: {"lowStockThreshold":10,"nearExpiryThreshold":90,"defaultUoM":"Units","purchaseRounding":false,"batchTracking":true,"autoGenerateCodes":true,"allowNegativeStock":false,"defaultGSTSlab":"5"}
+[SUCCESS] Saved ID: cmjwzuel90001it7jkpj8assu
+
+[2026-01-02T19:21:47.586Z] SAVING for cmjwzuel90000it7j0469hzeh: Step 4, Inventory: {"lowStockThreshold":10,"nearExpiryThreshold":90,"defaultUoM":"Units","purchaseRounding":false,"batchTracking":true,"autoGenerateCodes":true,"allowNegativeStock":false,"defaultGSTSlab":"5"}
+[SUCCESS] Saved ID: cmjwzuel90001it7jkpj8assu
+
+[2026-01-02T19:21:48.573Z] SAVING for cmjwzuel90000it7j0469hzeh: Step 4, Inventory: {"lowStockThreshold":10,"nearExpiryThreshold":90,"defaultUoM":"Units","purchaseRounding":false,"batchTracking":true,"autoGenerateCodes":true,"allowNegativeStock":false,"defaultGSTSlab":"5"}
+[SUCCESS] Saved ID: cmjwzuel90001it7jkpj8assu
+
+[2026-01-02T19:21:49.495Z] SAVING for cmjwzuel90000it7j0469hzeh: Step 4, Inventory: {"lowStockThreshold":10,"nearExpiryThreshold":90,"defaultUoM":"Units","purchaseRounding":false,"batchTracking":true,"autoGenerateCodes":true,"allowNegativeStock":false,"defaultGSTSlab":"5"}
+[SUCCESS] Saved ID: cmjwzuel90001it7jkpj8assu
+
+[2026-01-02T19:21:50.552Z] SAVING for cmjwzuel90000it7j0469hzeh: Step 4, Inventory: {"lowStockThreshold":10,"nearExpiryThreshold":90,"defaultUoM":"Units","purchaseRounding":false,"batchTracking":true,"autoGenerateCodes":true,"allowNegativeStock":false,"defaultGSTSlab":"5"}
+[SUCCESS] Saved ID: cmjwzuel90001it7jkpj8assu
+
+[2026-01-02T19:21:51.934Z] SAVING for cmjwzuel90000it7j0469hzeh: Step 4, Inventory: {"lowStockThreshold":10,"nearExpiryThreshold":90,"defaultUoM":"Units","purchaseRounding":false,"batchTracking":true,"autoGenerateCodes":true,"allowNegativeStock":false,"defaultGSTSlab":"5"}
+
+[2026-01-02T19:21:52.566Z] SAVING for cmjwzuel90000it7j0469hzeh: Step 4, Inventory: {"lowStockThreshold":10,"nearExpiryThreshold":90,"defaultUoM":"Units","purchaseRounding":false,"batchTracking":true,"autoGenerateCodes":true,"allowNegativeStock":false,"defaultGSTSlab":"5"}
+[SUCCESS] Saved ID: cmjwzuel90001it7jkpj8assu
+[SUCCESS] Saved ID: cmjwzuel90001it7jkpj8assu
+
+[2026-01-02T19:21:53.556Z] SAVING for cmjwzuel90000it7j0469hzeh: Step 4, Inventory: {"lowStockThreshold":10,"nearExpiryThreshold":90,"defaultUoM":"Units","purchaseRounding":false,"batchTracking":true,"autoGenerateCodes":true,"allowNegativeStock":false,"defaultGSTSlab":"5"}
+[SUCCESS] Saved ID: cmjwzuel90001it7jkpj8assu
+
+[2026-01-02T19:21:54.597Z] SAVING for cmjwzuel90000it7j0469hzeh: Step 4, Inventory: {"lowStockThreshold":10,"nearExpiryThreshold":90,"defaultUoM":"Units","purchaseRounding":false,"batchTracking":true,"autoGenerateCodes":true,"allowNegativeStock":false,"defaultGSTSlab":"5"}
+[SUCCESS] Saved ID: cmjwzuel90001it7jkpj8assu
+
+[2026-01-02T19:21:55.527Z] SAVING for cmjwzuel90000it7j0469hzeh: Step 4, Inventory: {"lowStockThreshold":10,"nearExpiryThreshold":90,"defaultUoM":"Units","purchaseRounding":false,"batchTracking":true,"autoGenerateCodes":true,"allowNegativeStock":false,"defaultGSTSlab":"5"}
+[SUCCESS] Saved ID: cmjwzuel90001it7jkpj8assu
+
+[2026-01-02T19:21:56.562Z] SAVING for cmjwzuel90000it7j0469hzeh: Step 4, Inventory: {"lowStockThreshold":10,"nearExpiryThreshold":90,"defaultUoM":"Units","purchaseRounding":false,"batchTracking":true,"autoGenerateCodes":true,"allowNegativeStock":false,"defaultGSTSlab":"5"}
+[SUCCESS] Saved ID: cmjwzuel90001it7jkpj8assu
+
+[2026-01-02T19:21:57.531Z] SAVING for cmjwzuel90000it7j0469hzeh: Step 4, Inventory: {"lowStockThreshold":10,"nearExpiryThreshold":90,"defaultUoM":"Units","purchaseRounding":false,"batchTracking":true,"autoGenerateCodes":true,"allowNegativeStock":false,"defaultGSTSlab":"5"}
+[SUCCESS] Saved ID: cmjwzuel90001it7jkpj8assu
+
+[2026-01-02T19:21:58.601Z] SAVING for cmjwzuel90000it7j0469hzeh: Step 4, Inventory: {"lowStockThreshold":10,"nearExpiryThreshold":90,"defaultUoM":"Units","purchaseRounding":false,"batchTracking":true,"autoGenerateCodes":true,"allowNegativeStock":false,"defaultGSTSlab":"5"}
+[SUCCESS] Saved ID: cmjwzuel90001it7jkpj8assu
+
+[2026-01-02T19:21:59.527Z] SAVING for cmjwzuel90000it7j0469hzeh: Step 4, Inventory: {"lowStockThreshold":10,"nearExpiryThreshold":90,"defaultUoM":"Units","purchaseRounding":false,"batchTracking":true,"autoGenerateCodes":true,"allowNegativeStock":false,"defaultGSTSlab":"5"}
+[SUCCESS] Saved ID: cmjwzuel90001it7jkpj8assu
+
+[2026-01-02T19:22:00.827Z] SAVING for cmjwzuel90000it7j0469hzeh: Step 4, Inventory: {"lowStockThreshold":10,"nearExpiryThreshold":90,"defaultUoM":"Units","purchaseRounding":false,"batchTracking":true,"autoGenerateCodes":true,"allowNegativeStock":false,"defaultGSTSlab":"5"}

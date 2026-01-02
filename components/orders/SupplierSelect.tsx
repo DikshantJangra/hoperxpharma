@@ -7,6 +7,7 @@ import { Supplier as ApiSupplier, supplierApi } from '@/lib/api/supplier';
 import { HiOutlineChevronDown, HiOutlineMagnifyingGlass } from 'react-icons/hi2';
 import SupplierForm from '@/components/suppliers/SupplierForm';
 import { FiPlus, FiAlertCircle } from 'react-icons/fi';
+import { toast } from 'react-hot-toast';
 
 interface SupplierSelectProps {
   value?: Supplier;
@@ -132,7 +133,9 @@ export default function SupplierSelect({ value, onChange }: SupplierSelectProps)
       console.log('🎉 [SupplierSelect] Supplier created and selected:', newSupplier);
     } catch (err: any) {
       console.error('❌ [SupplierSelect] Failed to create supplier:', err);
-      alert(err.message || 'Failed to create supplier. Please try again.');
+      toast.error(err.message || 'Failed to create supplier. Please try again.', {
+        icon: <FiAlertCircle className="text-red-500" size={20} />
+      });
     }
   };
 

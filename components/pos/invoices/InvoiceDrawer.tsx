@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { FiX, FiPrinter, FiMail, FiMessageSquare, FiRotateCcw, FiDownload, FiClock } from 'react-icons/fi';
 import { BsQrCode } from 'react-icons/bs';
 import { salesApi } from '@/lib/api/sales';
+import InvoiceEmailModal from './InvoiceEmailModal';
 
 const DrawerSkeleton = () => (
   <div className="w-[40%] bg-white border-l border-[#e2e8f0] flex flex-col h-full animate-pulse">
@@ -37,6 +38,7 @@ export default function InvoiceDrawer({ invoice, onClose, isLoading }: any) {
   const router = useRouter();
   const [showAuditLog, setShowAuditLog] = useState(false);
   const [showReturnModal, setShowReturnModal] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
 
   const handlePrint = async () => {
@@ -340,7 +342,10 @@ export default function InvoiceDrawer({ invoice, onClose, isLoading }: any) {
             </button>
           </div>
           <div className="grid grid-cols-2 gap-2">
-            <button className="py-2 border border-[#cbd5e1] rounded-lg hover:bg-[#f8fafc] flex items-center justify-center gap-2">
+            <button
+              onClick={() => setShowEmailModal(true)}
+              className="py-2 border border-[#cbd5e1] rounded-lg hover:bg-[#f8fafc] flex items-center justify-center gap-2"
+            >
               <FiMail className="w-4 h-4" />
               Email
             </button>
@@ -420,6 +425,15 @@ export default function InvoiceDrawer({ invoice, onClose, isLoading }: any) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Invoice Email Modal */}
+      {showEmailModal && (
+        <InvoiceEmailModal
+          isOpen={showEmailModal}
+          invoice={invoice}
+          onClose={() => setShowEmailModal(false)}
+        />
       )}
     </>
   );

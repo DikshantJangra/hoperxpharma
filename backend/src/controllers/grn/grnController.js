@@ -27,7 +27,7 @@ class GRNController {
                 message: 'GRN initialized successfully'
             });
         } catch (error) {
-            console.error('Error in createGRN:', error);
+            logger.error('Error in createGRN:', error);
             next(error);
         }
     }

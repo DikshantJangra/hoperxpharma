@@ -1,5 +1,6 @@
+import { getApiBaseUrl } from '@/lib/config/env';
 
-const PORTAL_API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api/v1';
+const PORTAL_API_URL = getApiBaseUrl();
 
 // Helper to handle fetch errors similarly to axios
 async function handleResponse(response: Response) {

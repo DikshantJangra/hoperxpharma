@@ -1,4 +1,5 @@
 const express = require('express');
+const healthRoutes = require('./health.routes');
 const authRoutes = require('./auth.routes');
 const inventoryRoutes = require('./inventory.routes');
 const patientRoutes = require('./patients.routes');
@@ -29,6 +30,10 @@ const consolidatedInvoicesRoutes = require('./consolidatedInvoices.routes');
 const emailRoutes = require('../emailRoutes');
 const loyaltyRoutes = require('../loyaltyRoutes');
 const salesAnalyticsRoutes = require('../salesAnalyticsRoutes');
+const gstRoutes = require('../gstRoutes');
+const gdprRoutes = require('../gdprRoutes');
+const cacheRoutes = require('../cacheRoutes');
+const featuresRoutes = require('./features');
 
 
 const router = express.Router();
@@ -36,6 +41,10 @@ const router = express.Router();
 /**
  * API v1 Routes
  */
+// Health checks (no authentication required)
+router.use('/health', healthRoutes);
+
+// Authentication routes
 router.use('/auth', authRoutes);
 router.use('/onboarding', onboardingRoutes);
 router.use('/stores', storeRoutes);
@@ -67,6 +76,10 @@ router.use('/consolidated-invoices', consolidatedInvoicesRoutes);
 router.use('/email', emailRoutes);
 router.use('/engage/loyalty', loyaltyRoutes);
 router.use('/sales/analytics', salesAnalyticsRoutes);
+router.use('/gst', gstRoutes);
+router.use('/gdpr', gdprRoutes);  // GDPR compliance routes
+router.use('/cache', cacheRoutes);  // Cache management (admin only)
+router.use('/features', featuresRoutes);  // Feature toggle system
 
 
 
