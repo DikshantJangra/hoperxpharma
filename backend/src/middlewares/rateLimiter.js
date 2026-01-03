@@ -52,7 +52,7 @@ if (process.env.REDIS_ENABLED === 'true' && process.env.REDIS_URL) {
  */
 const generalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 300, // 300 requests per window
+    max: 1000, // 1000 requests per window (increased for development)
     message: {
         success: false,
         message: 'Too many requests from this IP, please try again later',
@@ -115,7 +115,8 @@ const authLimiter = rateLimit({
  */
 const userLimiter = rateLimit({
     windowMs: 60 * 1000, // 1 minute
-    max: 60, // 60 requests per minute per user
+    max: 200, // 200 requests per minute per user (increased for development)
+    validate: { trustProxy: false, xForwardedForHeader: false }, // Disable validation warnings
     keyGenerator: (req) => {
         // Use user ID if authenticated, else IP address
         return req.user?.id || req.ip;

@@ -3285,3 +3285,23 @@ model LoyaltyReward {
   @@index([profileId, status])
   @@index([storeId, type])
 }
+
+// ============================================================================
+// PLATFORM CONFIGURATION (Singleton tables for platform-wide settings)
+// ============================================================================
+
+model PlatformEmailConfig {
+  id                    String    @id @default("platform_email")
+  smtpHost              String    @default("smtp.gmail.com")
+  smtpPort              Int       @default(587)
+  smtpUser              String    // Gmail address
+  smtpPasswordEncrypted String    @db.Text
+  smtpFromName          String    @default("HopeRxPharma")
+  useTLS                Boolean   @default(true)
+  isActive              Boolean   @default(false)
+  lastTestedAt          DateTime?
+  lastTestResult        Boolean?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

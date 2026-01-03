@@ -80,23 +80,29 @@ class MagicLinkService {
             firstName: existingUser?.firstName || ''
         });
 
-        // Send email using a basic transporter (simplified for magic links)
+        // Send email using platform config (database or env fallback)
         try {
-            const nodemailer = require('nodemailer');
+            const platformConfigService = require('../platformConfigService');
 
-            // Use environment SMTP settings or a default configuration
-            const transporter = nodemailer.createTransporter({
-                host: process.env.SMTP_HOST || 'smtp.gmail.com',
-                port: parseInt(process.env.SMTP_PORT || '587'),
-                secure: process.env.SMTP_SECURE === 'true',
-                auth: {
-                    user: process.env.SMTP_USER,
-                    pass: process.env.SMTP_PASSWORD
-                }
-            });
+            // Get transporter from platform config (checks DB first, then env vars)
+            const transporter = await platformConfigService.getTransporter();
+
+            if (!transporter) {
+                logger.error('No SMTP configuration available for magic links');
+                // Clean up the magic link if email fails
+                await prisma.magicLink.delete({
+                    where: { token }
+                }).catch(() => { }); // Ignore cleanup errors
+                throw ApiError.serviceUnavailable(
+                    'Email service not configured. Please contact administrator to set up SMTP.'
+                );
+            }
+
+            // Get from address
+            const fromAddress = await platformConfigService.getFromAddress();
 
             await transporter.sendMail({
-                from: process.env.SMTP_FROM || process.env.SMTP_USER,
+                from: fromAddress || 'noreply@hoperxpharma.com',
                 to: normalizedEmail,
                 subject: isNewUser ? 'Welcome to HopeRxPharma - Verify your email' : 'Sign in to HopeRxPharma',
                 html: emailHtml
@@ -115,6 +121,12 @@ class MagicLinkService {
             await prisma.magicLink.delete({
                 where: { token }
             }).catch(() => { }); // Ignore cleanup errors
+
+            // Re-throw service unavailable errors with clear message
+            if (error.statusCode === 503) {
+                throw error;
+            }
+
             throw ApiError.internal('Failed to send magic link. Please check your email configuration.');
         }
     }

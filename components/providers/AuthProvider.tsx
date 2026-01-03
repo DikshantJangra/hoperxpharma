@@ -22,7 +22,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (!pathname) return;
 
         const publicRoutes = ['/', '/login', '/signup', '/verify-magic-link', '/auth/callback'];
-        const isPublicRoute = publicRoutes.includes(pathname);
+        const isPublicRoute = publicRoutes.includes(pathname) || pathname.startsWith('/setup') || pathname.startsWith('/magic-link');
 
         // If trying to access private route while unauthenticated, check auth/redirect
         if (!isPublicRoute && !isAuthenticated && !isLoading) {
@@ -56,7 +56,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     useEffect(() => {
         if (!isLoading && !isAuthenticated && pathname) {
             const publicRoutes = ['/login', '/signup', '/', '/verify-magic-link', '/auth/callback'];
-            const isPublicRoute = publicRoutes.includes(pathname);
+            const isPublicRoute = publicRoutes.includes(pathname) || pathname.startsWith('/setup') || pathname.startsWith('/magic-link');
 
             // If user is not authenticated and not on a public route, redirect to login
             if (!isPublicRoute) {
@@ -78,7 +78,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (!isLoading && onboardingComplete !== null && pathname) {
             if (isAuthenticated) {
-                const isPublicRoute = ['/login', '/signup', '/', '/verify-magic-link', '/auth/callback'].includes(pathname);
+                const isPublicRoute = ['/login', '/signup', '/', '/verify-magic-link', '/auth/callback'].includes(pathname) || pathname.startsWith('/setup') || pathname.startsWith('/magic-link');
                 const isOnboardingRoute = pathname.startsWith('/onboarding');
                 const isDashboardRoute = pathname.startsWith('/dashboard') || pathname.startsWith('/(main)');
                 const isAdmin = user?.role === 'ADMIN';
@@ -114,7 +114,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Skip loading screen for public routes
     const publicRoutes = ['/', '/login', '/signup', '/verify-magic-link', '/auth/callback'];
-    const isPublicRoute = publicRoutes.includes(pathname || '');
+    const isPublicRoute = publicRoutes.includes(pathname || '') || (pathname?.startsWith('/setup') ?? false) || (pathname?.startsWith('/magic-link') ?? false);
 
     if (!isPublicRoute && (isLoading || (isAuthenticated && onboardingComplete === null))) {
         return <LoadingScreen />;

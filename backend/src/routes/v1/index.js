@@ -34,6 +34,7 @@ const gstRoutes = require('../gstRoutes');
 const gdprRoutes = require('../gdprRoutes');
 const cacheRoutes = require('../cacheRoutes');
 const featuresRoutes = require('./features');
+const platformConfigRoutes = require('../platformConfigRoutes');
 
 
 const router = express.Router();
@@ -80,6 +81,7 @@ router.use('/gst', gstRoutes);
 router.use('/gdpr', gdprRoutes);  // GDPR compliance routes
 router.use('/cache', cacheRoutes);  // Cache management (admin only)
 router.use('/features', featuresRoutes);  // Feature toggle system
+router.use('/platform', platformConfigRoutes);  // Platform configuration (SMTP setup)
 
 
 

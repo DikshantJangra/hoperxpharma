@@ -1,5 +1,6 @@
 const nodemailer = require('nodemailer');
 const logger = require('../config/logger');
+const platformConfigService = require('./platformConfigService');
 
 class EmailService {
     constructor() {
@@ -44,9 +45,13 @@ class EmailService {
     }
 
     async sendMagicLinkEmail(email, magicLink, mode = 'login') {
-        if (!this.transporter) {
-            logger.error('Email service not initialized (missing SMTP config)');
-            throw new Error('Email service configuration missing');
+        // Use platform config transporter (prioritizes database config from /setup page)
+        const transporter = await platformConfigService.getTransporter();
+        const fromAddress = await platformConfigService.getFromAddress();
+
+        if (!transporter) {
+            logger.error('Email service not configured. Please configure email at /setup/hrp-2026ml');
+            throw new Error('Email service not configured. Please contact administrator.');
         }
 
         const subject = mode === 'login'
@@ -56,8 +61,8 @@ class EmailService {
         const html = this.getMagicLinkTemplate(magicLink, mode);
 
         try {
-            const info = await this.transporter.sendMail({
-                from: `"${process.env.SMTP_FROM_NAME}" <${process.env.SMTP_FROM_EMAIL}>`,
+            const info = await transporter.sendMail({
+                from: fromAddress || `"HopeRxPharma" <noreply@hoperxpharma.com>`,
                 to: email,
                 subject,
                 html
