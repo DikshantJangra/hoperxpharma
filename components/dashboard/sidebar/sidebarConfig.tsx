@@ -290,6 +290,7 @@ export const sidebarConfig: SidebarSection[] = [
                 requiredPermission: "system.store.manage",
                 subItems: [
                     { label: "Profile", path: "/store/profile" },
+                    { label: "Plan & Billing", path: "/store/billing" },
                     { label: "Invoice Design", path: "/store/invoice-design" },
                     { label: "Licenses", path: "/store/licenses" },
                     { label: "Timings", path: "/store/timings" },

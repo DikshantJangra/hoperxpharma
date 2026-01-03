@@ -58,6 +58,43 @@ export default function ProfilePage() {
         pinCode: ""
     });
 
+    // Helper to render subscription badge based on status
+    const renderSubscriptionBadge = () => {
+        const subscription = primaryStore?.subscription;
+        const isPro = subscription?.status === 'ACTIVE' || subscription?.status === 'PAID';
+        // Treat as Trial if status is TRIAL OR if no subscription but business type is set (Legacy/Implicit Trial)
+        const isTrial = subscription?.status === 'TRIAL' || (!subscription && primaryStore?.businessType && primaryStore.businessType !== 'Free');
+
+        if (isPro) {
+            return (
+                <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full border border-emerald-200">
+                    <FiAward className="w-4 h-4 text-emerald-600" />
+                    <span className="text-xs font-bold uppercase tracking-wide">Pro Member</span>
+                </div>
+            );
+        }
+
+        if (isTrial) {
+            return (
+                <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-700 rounded-full border border-amber-200" title="14 days remaining">
+                        <FiClock className="w-3.5 h-3.5" />
+                        <span className="text-xs font-bold uppercase tracking-wide">Free Trial</span>
+                    </div>
+                    <button
+                        onClick={() => router.push('/store/profile')}
+                        className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 hover:underline flex items-center gap-1"
+                    >
+                        Upgrade Now &rarr;
+                    </button>
+                </div>
+            );
+        }
+
+        // Default: Free Plan / No Plan
+        return null;
+    };
+
     // Initialize store data when primaryStore loads
     useEffect(() => {
         if (primaryStore) {
@@ -423,53 +460,13 @@ export default function ProfilePage() {
                                         </div>
                                         <div className="flex items-center gap-3 mb-1">
                                             <h2 className="text-2xl font-bold text-[#0f172a]">{isLoading ? "Loading..." : fullName}</h2>
-
-                                            {/* Subscription Status Badge */}
-                                            {primaryStore?.businessType && primaryStore.businessType !== 'Free' ? (
-                                                <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full border border-emerald-200">
-                                                    <FiAward className="w-4 h-4 text-emerald-600" />
-                                                    <span className="text-xs font-bold uppercase tracking-wide">Pro Member</span>
-                                                </div>
-                                            ) : (
-                                                <div className="flex items-center gap-2">
-                                                    <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-700 rounded-full border border-amber-200" title="14 days remaining">
-                                                        <FiClock className="w-3.5 h-3.5" />
-                                                        <span className="text-xs font-bold uppercase tracking-wide">Free Trial</span>
-                                                    </div>
-                                                    <button
-                                                        onClick={() => router.push('/store/profile')}
-                                                        className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 hover:underline flex items-center gap-1"
-                                                    >
-                                                        Upgrade Now &rarr;
-                                                    </button>
-                                                </div>
-                                            )}
+                                            {renderSubscriptionBadge()}
                                         </div>
                                     </>
                                 ) : (
                                     <div className="flex items-center gap-3 mb-1">
                                         <h2 className="text-2xl font-bold text-[#0f172a]">{isLoading ? "Loading..." : fullName}</h2>
-
-                                        {/* Subscription Status Badge */}
-                                        {primaryStore?.businessType && primaryStore.businessType !== 'Free' ? (
-                                            <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full border border-emerald-200">
-                                                <FiAward className="w-4 h-4 text-emerald-600" />
-                                                <span className="text-xs font-bold uppercase tracking-wide">Pro Member</span>
-                                            </div>
-                                        ) : (
-                                            <div className="flex items-center gap-2">
-                                                <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-700 rounded-full border border-amber-200" title="14 days remaining">
-                                                    <FiClock className="w-3.5 h-3.5" />
-                                                    <span className="text-xs font-bold uppercase tracking-wide">Free Trial</span>
-                                                </div>
-                                                <button
-                                                    onClick={() => router.push('/store/profile')}
-                                                    className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 hover:underline flex items-center gap-1"
-                                                >
-                                                    Upgrade Now &rarr;
-                                                </button>
-                                            </div>
-                                        )}
+                                        {renderSubscriptionBadge()}
                                     </div>
                                 )}
                                 <p className="text-[#64748b]">{user?.role || "-"}</p>
