@@ -123,11 +123,17 @@ class PlatformConfigService {
                 },
                 tls: {
                     rejectUnauthorized: false
-                }
+                },
+                connectionTimeout: 15000, // 15 seconds timeout
+                socketTimeout: 15000
             });
 
-            // Verify connection
-            await transporter.verify();
+            // Verify connection with timeout
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error('Connection timed out after 15 seconds')), 15000)
+            );
+
+            await Promise.race([transporter.verify(), timeoutPromise]);
 
             // Update config with test result
             await prisma.platformEmailConfig.update({
@@ -167,51 +173,56 @@ class PlatformConfigService {
 
     /**
      * Get nodemailer transporter using platform config
-     * Falls back to env vars if no database config exists
      * @returns {Promise<nodemailer.Transporter|null>}
      */
     async getTransporter() {
-        // Try database config first
-        const config = await prisma.platformEmailConfig.findUnique({
-            where: { id: PLATFORM_EMAIL_CONFIG_ID }
-        });
-
-        if (config && config.isActive) {
-            try {
-                const password = decryptSMTPPassword(config.smtpPasswordEncrypted);
-
-                return nodemailer.createTransport({
-                    host: config.smtpHost,
-                    port: config.smtpPort,
-                    secure: config.smtpPort === 465,
-                    auth: {
-                        user: config.smtpUser,
-                        pass: password
-                    },
-                    tls: {
-                        rejectUnauthorized: false
-                    }
-                });
-            } catch (error) {
-                logger.error('Failed to create transporter from platform config:', error);
-            }
-        }
-
-        // Fall back to environment variables
-        if (process.env.SMTP_USER && process.env.SMTP_PASSWORD) {
-            return nodemailer.createTransport({
-                host: process.env.SMTP_HOST || 'smtp.gmail.com',
-                port: parseInt(process.env.SMTP_PORT || '587'),
-                secure: process.env.SMTP_SECURE === 'true',
-                auth: {
-                    user: process.env.SMTP_USER,
-                    pass: process.env.SMTP_PASSWORD
-                }
+        try {
+            // Get config from database
+            const config = await prisma.platformEmailConfig.findUnique({
+                where: { id: PLATFORM_EMAIL_CONFIG_ID }
             });
-        }
 
-        // No config available
-        return null;
+            if (!config) {
+                logger.warn('No platform email config found. Please configure at /setup/hrp-2026ml');
+                return null;
+            }
+
+            if (!config.isActive) {
+                logger.warn('Platform email config exists but is not active. Please test the connection at /setup/hrp-2026ml');
+                return null;
+            }
+
+            // Decrypt password
+            let password;
+            try {
+                password = decryptSMTPPassword(config.smtpPasswordEncrypted);
+            } catch (decryptError) {
+                logger.error('Failed to decrypt SMTP password. Check if SMTP_ENCRYPTION_KEY matches:', decryptError.message);
+                return null;
+            }
+
+            // Create transporter
+            const transporter = nodemailer.createTransport({
+                host: config.smtpHost,
+                port: config.smtpPort,
+                secure: config.smtpPort === 465,
+                auth: {
+                    user: config.smtpUser,
+                    pass: password
+                },
+                tls: {
+                    rejectUnauthorized: false
+                },
+                connectionTimeout: 30000, // 30 seconds
+                socketTimeout: 30000
+            });
+
+            logger.info('Created email transporter using platform config', { smtpUser: config.smtpUser });
+            return transporter;
+        } catch (error) {
+            logger.error('Failed to get email transporter:', error);
+            return null;
+        }
     }
 
     /**

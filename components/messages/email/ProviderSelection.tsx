@@ -1,10 +1,10 @@
 'use client';
 
-import { FiMail, FiSettings } from 'react-icons/fi';
-import { SiGmail } from 'react-icons/si';
+import { FiMail } from 'react-icons/fi';
+import { FcGoogle } from 'react-icons/fc';
 
 interface ProviderSelectionProps {
-    onSelectProvider: (provider: 'GMAIL' | 'ZOHO' | 'OUTLOOK' | 'OTHER') => void;
+    onSelectProvider: (provider: 'GMAIL' | 'ZOHO' | 'OUTLOOK' | 'YAHOO') => void;
     onBack: () => void;
 }
 
@@ -12,47 +12,60 @@ const providers = [
     {
         id: 'GMAIL' as const,
         name: 'Gmail',
-        icon: SiGmail,
-        color: 'from-[#EA4335] to-[#FBBC05]',
-        description: 'Most common for individuals',
-        smtpHost: 'smtp.gmail.com',
-        smtpPort: 587,
+        icon: FcGoogle,  // Google colored icon
+        iconColor: undefined,
+        bgColor: 'bg-white',
+        borderColor: 'border-[#e5e7eb]',
+        hoverBorder: 'hover:border-[#4285f4]',
+        description: 'Connect with your Google account',
+        available: true,
+        recommended: true,
+    },
+    {
+        id: 'OUTLOOK' as const,
+        name: 'Outlook',
+        icon: FiMail,
+        iconColor: '#0078d4',
+        bgColor: 'bg-white',
+        borderColor: 'border-[#e5e7eb]',
+        hoverBorder: 'hover:border-[#0078d4]',
+        description: 'Microsoft Outlook & Office 365',
+        available: false,
+        recommended: false,
+    },
+    {
+        id: 'YAHOO' as const,
+        name: 'Yahoo Mail',
+        icon: FiMail,
+        iconColor: '#6001d2',
+        bgColor: 'bg-white',
+        borderColor: 'border-[#e5e7eb]',
+        hoverBorder: 'hover:border-[#6001d2]',
+        description: 'Yahoo Mail accounts',
+        available: false,
+        recommended: false,
     },
     {
         id: 'ZOHO' as const,
         name: 'Zoho Mail',
-        icon: FiMail, color: 'from-[#C8161D] to-[#E54C3C]',
-        description: 'Popular for businesses',
-        smtpHost: 'smtp.zoho.in',
-        smtpPort: 587,
-    },
-    {
-        id: 'OUTLOOK' as const,
-        name: 'Outlook / Office 365',
         icon: FiMail,
-        color: 'from-[#0078D4] to-[#0063B1]',
-        description: 'Microsoft email services',
-        smtpHost: 'smtp-mail.outlook.com',
-        smtpPort: 587,
-    },
-    {
-        id: 'OTHER' as const,
-        name: 'Other Email',
-        icon: FiSettings,
-        color: 'from-[#64748b] to-[#475569]',
-        description: 'Custom SMTP configuration',
-        smtpHost: '',
-        smtpPort: 587,
+        iconColor: '#c8161d',
+        bgColor: 'bg-white',
+        borderColor: 'border-[#e5e7eb]',
+        hoverBorder: 'hover:border-[#c8161d]',
+        description: 'Zoho business email',
+        available: false,
+        recommended: false,
     },
 ];
 
 export default function ProviderSelection({ onSelectProvider, onBack }: ProviderSelectionProps) {
     return (
-        <div className="max-w-3xl mx-auto px-6 py-12">
+        <div className="max-w-2xl mx-auto px-8 py-10">
             {/* Back Button */}
             <button
                 onClick={onBack}
-                className="text-sm text-[#64748b] hover:text-[#0f172a] flex items-center gap-2 mb-6 transition-colors"
+                className="text-sm text-[#6b7280] hover:text-[#111827] flex items-center gap-2 mb-8 transition-colors"
             >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -62,67 +75,88 @@ export default function ProviderSelection({ onSelectProvider, onBack }: Provider
 
             {/* Header */}
             <div className="text-center mb-10">
-                <h2 className="text-3xl font-bold text-[#0f172a] mb-3">
-                    Which email do you use?
+                <h2 className="text-2xl font-semibold text-[#111827] mb-2">
+                    Connect Your Email
                 </h2>
-                <p className="text-[#64748b]">
-                    Select your email provider to get started
+                <p className="text-[#6b7280] text-sm">
+                    Choose your email provider to send emails from your own account
                 </p>
             </div>
 
             {/* Provider Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-3">
                 {providers.map((provider) => {
                     const Icon = provider.icon;
+                    const isAvailable = provider.available;
+
                     return (
                         <button
                             key={provider.id}
-                            onClick={() => onSelectProvider(provider.id)}
-                            className="group relative p-6 bg-white border-2 border-[#e2e8f0] rounded-xl hover:border-[#10b981] hover:shadow-lg transition-all duration-200 text-left"
+                            onClick={() => isAvailable && onSelectProvider(provider.id)}
+                            disabled={!isAvailable}
+                            className={`group relative w-full p-4 ${provider.bgColor} border-2 ${provider.borderColor} rounded-xl text-left transition-all duration-200 ${isAvailable
+                                ? `${provider.hoverBorder} hover:shadow-md cursor-pointer`
+                                : 'opacity-50 cursor-not-allowed'
+                                }`}
                         >
-                            {/* Gradient Background on Hover */}
-                            <div className={`absolute inset-0 bg-gradient-to-br ${provider.color} opacity-0 group-hover:opacity-5 rounded-xl transition-opacity duration-200`}></div>
-
-                            {/* Content */}
-                            <div className="relative z-10">
+                            <div className="flex items-center gap-4">
                                 {/* Icon */}
-                                <div className={`w-14 h-14 mb-4 bg-gradient-to-br ${provider.color} rounded-xl flex items-center justify-center shadow-md`}>
-                                    <Icon className="w-7 h-7 text-white" />
+                                <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${isAvailable ? 'bg-[#f9fafb]' : 'bg-[#f3f4f6]'
+                                    }`}>
+                                    <Icon
+                                        className="w-7 h-7"
+                                        style={provider.iconColor ? { color: provider.iconColor } : undefined}
+                                    />
                                 </div>
 
-                                {/* Provider Name */}
-                                <h3 className="text-lg font-semibold text-[#0f172a] mb-1">
-                                    {provider.name}
-                                </h3>
+                                {/* Text */}
+                                <div className="flex-1">
+                                    <div className="flex items-center gap-2">
+                                        <h3 className="text-base font-medium text-[#111827]">
+                                            {provider.name}
+                                        </h3>
+                                        {provider.recommended && (
+                                            <span className="text-xs font-medium text-[#059669] bg-[#d1fae5] px-2 py-0.5 rounded-full">
+                                                Recommended
+                                            </span>
+                                        )}
+                                        {!isAvailable && (
+                                            <span className="text-xs font-medium text-[#6b7280] bg-[#f3f4f6] px-2 py-0.5 rounded-full">
+                                                Coming Soon
+                                            </span>
+                                        )}
+                                    </div>
+                                    <p className="text-sm text-[#6b7280] mt-0.5">
+                                        {provider.description}
+                                    </p>
+                                </div>
 
-                                {/* Description */}
-                                <p className="text-sm text-[#64748b]">
-                                    {provider.description}
-                                </p>
-
-                                {/* Arrow Icon */}
-                                <div className="absolute top-6 right-6 text-[#cbd5e1] group-hover:text-[#10b981] transition-colors">
-                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                {/* Arrow */}
+                                {isAvailable && (
+                                    <svg className="w-5 h-5 text-[#d1d5db] group-hover:text-[#4285f4] transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                                     </svg>
-                                </div>
+                                )}
                             </div>
                         </button>
                     );
                 })}
             </div>
 
-            {/* Help Text */}
-            <div className="mt-8 p-4 bg-[#d1fae5] border border-[#a7f3d0] rounded-lg">
-                <p className="text-sm text-[#065f46] flex items-start gap-2">
-                    <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            {/* Security Note */}
+            <div className="mt-8 p-4 bg-[#f9fafb] border border-[#e5e7eb] rounded-xl">
+                <div className="flex items-start gap-3">
+                    <svg className="w-5 h-5 text-[#059669] mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                     </svg>
-                    <span>
-                        <strong>Don't worry!</strong> We'll guide you through the setup process step-by-step.
-                        No technical knowledge required.
-                    </span>
-                </p>
+                    <div>
+                        <p className="text-sm font-medium text-[#111827]">Secure OAuth Connection</p>
+                        <p className="text-sm text-[#6b7280] mt-0.5">
+                            We use Google's official OAuth to connect. No passwords stored.
+                            We can only send emails — we never access your inbox.
+                        </p>
+                    </div>
+                </div>
             </div>
         </div>
     );

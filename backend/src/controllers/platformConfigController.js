@@ -4,19 +4,36 @@
  */
 
 const platformConfigService = require('../services/platformConfigService');
+const platformGmailOAuthService = require('../services/platformGmailOAuthService');
 const logger = require('../config/logger');
 
 // Setup password (hardcoded for simplicity)
 const SETUP_PASSWORD = '2005';
+// Enforce specific secret URL
+const SETUP_SECRET = 'hrp-ml-config';
 
 // Rate limiting for password attempts (in-memory)
 const attemptTracker = new Map(); // IP -> { attempts: number, resetAt: timestamp }
+
+const validateSecret = (req, res) => {
+    const { secret } = req.params;
+    if (secret !== SETUP_SECRET) {
+        res.status(404).json({
+            success: false,
+            message: 'Invalid setup URL'
+        });
+        return false;
+    }
+    return true;
+};
 
 /**
  * Verify setup password
  * POST /api/v1/platform/setup/:secret/verify-password
  */
 const verifyPassword = async (req, res) => {
+    if (!validateSecret(req, res)) return;
+
     const clientIP = req.ip || req.connection.remoteAddress;
     const { password } = req.body;
     const now = Date.now();
@@ -64,18 +81,23 @@ const verifyPassword = async (req, res) => {
 };
 
 /**
- * Get email configuration
+ * Get email configuration (OAuth status only)
  * GET /api/platform/setup/:secret/email
  */
 const getEmailConfig = async (req, res) => {
+    if (!validateSecret(req, res)) return;
+
     try {
-        const config = await platformConfigService.getEmailConfig();
+        // Get OAuth status
+        const oauthStatus = await platformGmailOAuthService.getStatus();
 
         return res.json({
             success: true,
-            data: config,
-            configured: !!config,
-            active: config?.isActive || false
+            data: null, // No SMTP config
+            oauth: oauthStatus,
+            configured: oauthStatus.configured,
+            active: oauthStatus.isActive,
+            oauthAvailable: true
         });
     } catch (error) {
         logger.error('Error getting platform email config:', error);
@@ -87,75 +109,18 @@ const getEmailConfig = async (req, res) => {
 };
 
 /**
- * Save email configuration
- * POST /api/platform/setup/:secret/email
- */
-const saveEmailConfig = async (req, res) => {
-    try {
-        const { smtpHost, smtpPort, smtpUser, smtpPassword, smtpFromName, useTLS } = req.body;
-
-        if (!smtpUser || !smtpPassword) {
-            return res.status(400).json({
-                success: false,
-                message: 'Gmail address and App Password are required'
-            });
-        }
-
-        const config = await platformConfigService.setEmailConfig({
-            smtpHost: smtpHost || 'smtp.gmail.com',
-            smtpPort: smtpPort || 587,
-            smtpUser,
-            smtpPassword,
-            smtpFromName: smtpFromName || 'HopeRxPharma',
-            useTLS: useTLS !== false
-        });
-
-        return res.json({
-            success: true,
-            message: 'Email configuration saved. Please test the connection.',
-            data: config
-        });
-    } catch (error) {
-        logger.error('Error saving platform email config:', error);
-        return res.status(500).json({
-            success: false,
-            message: error.message || 'Failed to save email configuration'
-        });
-    }
-};
-
-/**
- * Test email connection
- * POST /api/platform/setup/:secret/email/test
- */
-const testEmailConnection = async (req, res) => {
-    try {
-        const result = await platformConfigService.testConnection();
-
-        return res.json({
-            success: result.success,
-            message: result.message
-        });
-    } catch (error) {
-        logger.error('Error testing platform email connection:', error);
-        return res.status(500).json({
-            success: false,
-            message: 'Failed to test connection'
-        });
-    }
-};
-
-/**
- * Delete email configuration
+ * Delete email configuration (OAuth only)
  * DELETE /api/platform/setup/:secret/email
  */
 const deleteEmailConfig = async (req, res) => {
+    if (!validateSecret(req, res)) return;
+
     try {
-        const deleted = await platformConfigService.deleteEmailConfig();
+        const result = await platformGmailOAuthService.disconnect();
 
         return res.json({
             success: true,
-            message: deleted ? 'Email configuration deleted' : 'No configuration to delete'
+            message: 'Email configuration disconnected'
         });
     } catch (error) {
         logger.error('Error deleting platform email config:', error);
@@ -167,16 +132,47 @@ const deleteEmailConfig = async (req, res) => {
 };
 
 /**
+ * Test email connection (OAuth only)
+ * POST /api/platform/setup/:secret/email/test
+ */
+const testEmailConnection = async (req, res) => {
+    if (!validateSecret(req, res)) return;
+
+    try {
+        const result = await platformGmailOAuthService.testConnection();
+        return res.json({
+            success: result.success,
+            message: result.message,
+            method: 'oauth'
+        });
+    } catch (error) {
+        logger.error('Error testing platform email connection:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Failed to test connection'
+        });
+    }
+};
+
+/**
  * Get email status (public, for login page)
  * GET /api/platform/email-status
  */
 const getEmailStatus = async (req, res) => {
     try {
-        const isConfigured = await platformConfigService.isEmailConfigured();
+        const oauthStatus = await platformGmailOAuthService.getStatus();
+        if (oauthStatus.configured && oauthStatus.isActive) {
+            return res.json({
+                success: true,
+                configured: true,
+                method: 'oauth'
+            });
+        }
 
         return res.json({
             success: true,
-            configured: isConfigured
+            configured: false,
+            method: null
         });
     } catch (error) {
         logger.error('Error checking email status:', error);
@@ -187,11 +183,60 @@ const getEmailStatus = async (req, res) => {
     }
 };
 
+/**
+ * Get Gmail OAuth authorization URL
+ * GET /api/platform/setup/:secret/gmail/auth
+ */
+const getGmailAuthUrl = async (req, res) => {
+    if (!validateSecret(req, res)) return;
+
+    try {
+        const { secret } = req.params; // Get secret from URL params
+        const authUrl = platformGmailOAuthService.getAuthUrl(secret);
+
+        return res.json({
+            success: true,
+            authUrl
+        });
+    } catch (error) {
+        logger.error('Error getting Gmail auth URL:', error);
+        return res.status(500).json({
+            success: false,
+            message: error.message || 'Failed to get OAuth URL'
+        });
+    }
+};
+
+/**
+ * Disconnect Gmail OAuth
+ * POST /api/platform/setup/:secret/gmail/disconnect
+ */
+const disconnectGmail = async (req, res) => {
+    if (!validateSecret(req, res)) return;
+
+    try {
+        const result = await platformGmailOAuthService.disconnect();
+
+        return res.json({
+            success: true,
+            message: result.message
+        });
+    } catch (error) {
+        logger.error('Error disconnecting Gmail:', error);
+        return res.status(500).json({
+            success: false,
+            message: error.message || 'Failed to disconnect Gmail'
+        });
+    }
+};
+
 module.exports = {
     verifyPassword,
     getEmailConfig,
-    saveEmailConfig,
     testEmailConnection,
     deleteEmailConfig,
-    getEmailStatus
+    getEmailStatus,
+    getGmailAuthUrl,
+    disconnectGmail
 };
+

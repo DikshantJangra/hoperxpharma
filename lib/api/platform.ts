@@ -17,6 +17,16 @@ interface EmailConfig {
     hasPassword: boolean;
 }
 
+interface OAuthStatus {
+    configured: boolean;
+    authMethod: 'OAUTH' | 'SMTP' | null;
+    email: string | null;
+    isActive: boolean;
+    connectedAt: string | null;
+    lastTestedAt: string | null;
+    lastTestResult: boolean | null;
+}
+
 interface EmailConfigInput {
     smtpUser: string;
     smtpPassword: string;
@@ -68,13 +78,15 @@ export async function verifySetupPassword(secret: string, password: string): Pro
 }
 
 /**
- * Get current email configuration
+ * Get current email configuration (includes OAuth status)
  */
 export async function getEmailConfig(secret: string): Promise<{
     success: boolean;
     data: EmailConfig | null;
+    oauth: OAuthStatus;
     configured: boolean;
     active: boolean;
+    oauthAvailable: boolean;
 }> {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
@@ -108,7 +120,7 @@ export async function getEmailConfig(secret: string): Promise<{
 }
 
 /**
- * Save email configuration
+ * Save email configuration (SMTP)
  */
 export async function saveEmailConfig(secret: string, config: EmailConfigInput): Promise<{
     success: boolean;
@@ -135,11 +147,12 @@ export async function saveEmailConfig(secret: string, config: EmailConfigInput):
 }
 
 /**
- * Test email connection
+ * Test email connection (works for both OAuth and SMTP)
  */
 export async function testEmailConnection(secret: string): Promise<{
     success: boolean;
     message: string;
+    method?: 'oauth' | 'smtp';
 }> {
     const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1'}/platform/setup/${secret}/email/test`, {
         method: 'POST',
@@ -159,11 +172,56 @@ export async function testEmailConnection(secret: string): Promise<{
 }
 
 /**
+ * Get Gmail OAuth authorization URL
+ */
+export async function getGmailAuthUrl(secret: string): Promise<{
+    success: boolean;
+    authUrl: string;
+}> {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1'}/platform/setup/${secret}/gmail/auth`, {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to get OAuth URL');
+    }
+
+    return response.json();
+}
+
+/**
+ * Disconnect Gmail OAuth
+ */
+export async function disconnectGmail(secret: string): Promise<{
+    success: boolean;
+    message: string;
+}> {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1'}/platform/setup/${secret}/gmail/disconnect`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to disconnect Gmail');
+    }
+
+    return response.json();
+}
+
+/**
  * Check if email is configured (public endpoint for login page)
  */
 export async function checkEmailStatus(): Promise<{
     success: boolean;
     configured: boolean;
+    method?: 'oauth' | 'smtp' | null;
 }> {
     try {
         const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1'}/platform/email-status`, {
@@ -182,3 +240,4 @@ export async function checkEmailStatus(): Promise<{
         return { success: true, configured: false };
     }
 }
+

@@ -68,6 +68,11 @@ function checkValue(value, path = '') {
         return null;
     }
 
+    // Skip check for known safe HTML fields in email
+    if (path.endsWith('bodyHtml') || path.endsWith('html') || path.endsWith('body')) {
+        return null;
+    }
+
     if (typeof value === 'string') {
         if (containsSQLInjection(value)) {
             return {

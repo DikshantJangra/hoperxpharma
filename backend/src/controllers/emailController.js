@@ -197,7 +197,7 @@ class EmailController {
 
         const success = await emailService.testConnection(accountId, storeId);
         res.status(200).json(
-            new ApiResponse(200, { success, verified: true }, 'SMTP connection test successful')
+            new ApiResponse(200, { success, verified: true }, 'Connection test successful')
         );
     }
 

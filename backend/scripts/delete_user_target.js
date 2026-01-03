@@ -3,14 +3,12 @@ const prisma = new PrismaClient();
 
 async function deleteUser() {
     try {
-        const email = 'dikshant.jangra2024@gmail.com';
+        const email = 'dikshant.jangra2024@nst.rishihood.edu.in';
         console.log(`Searching for user with email: ${email}`);
 
         const user = await prisma.user.findFirst({
             where: {
-                email: {
-                    startsWith: 'dikshant.jangra2024'
-                }
+                email: email
             }
         });
 
@@ -21,19 +19,31 @@ async function deleteUser() {
 
         console.log(`Found user: ${user.email} (ID: ${user.id})`);
 
-        // Delete magic links first (foreign key constraint likely, though cascade might handle it)
-        try {
-            const links = await prisma.magicLink.deleteMany({
-                where: { userId: user.id } // Assuming relation exists, or email
-            });
-            console.log(`Deleted ${links.count} magic links.`);
-        } catch (e) {
-            // MagicLink might link by email or userId, trying email if above failed or just generic catch
-            const linksByEmail = await prisma.magicLink.deleteMany({
-                where: { email: user.email }
-            });
-            console.log(`Deleted ${linksByEmail.count} magic links by email.`);
-        }
+        // Delete all related records first
+
+        // Delete magic links
+        const links = await prisma.magicLink.deleteMany({
+            where: { email: user.email }
+        });
+        console.log(`Deleted ${links.count} magic links.`);
+
+        // Delete access logs
+        const accessLogs = await prisma.accessLog.deleteMany({
+            where: { userId: user.id }
+        });
+        console.log(`Deleted ${accessLogs.count} access logs.`);
+
+        // Delete onboarding data
+        const onboarding = await prisma.onboardingProgress.deleteMany({
+            where: { userId: user.id }
+        });
+        console.log(`Deleted ${onboarding.count} onboarding records.`);
+
+        // Delete store user associations
+        const storeUsers = await prisma.storeUser.deleteMany({
+            where: { userId: user.id }
+        });
+        console.log(`Deleted ${storeUsers.count} store user records.`);
 
         // Delete the user
         await prisma.user.delete({

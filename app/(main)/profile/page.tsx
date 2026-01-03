@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { FiUser, FiMail, FiPhone, FiMapPin, FiBriefcase, FiCalendar, FiEdit2, FiSave, FiCamera, FiX } from "react-icons/fi";
+import { FiUser, FiMail, FiPhone, FiMapPin, FiBriefcase, FiCalendar, FiEdit2, FiSave, FiCamera, FiX, FiAward, FiClock, FiCheckCircle } from "react-icons/fi";
 import { HiOutlineShoppingBag } from "react-icons/hi";
+
 import { useAuthStore } from "@/lib/store/auth-store";
 import { userApi, getUserInitials, getStoreGSTIN } from "@/lib/api/user";
 import { useRouter } from "next/navigation";
@@ -295,6 +296,20 @@ export default function ProfilePage() {
     const gstin = primaryStore ? getStoreGSTIN(primaryStore) : "-";
     const isAdmin = user?.role === "ADMIN";
 
+    const isPro = primaryStore?.businessType && primaryStore.businessType !== 'Free';
+
+    // Helper to render role badge
+    const RoleBadge = ({ role }: { role: string }) => {
+        const isAdmin = role === 'ADMIN';
+        return (
+            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium ${isAdmin ? 'bg-purple-100 text-purple-700 border border-purple-200' : 'bg-slate-100 text-slate-600 border border-slate-200'
+                }`}>
+                {isAdmin ? <FiCheckCircle className="w-3 h-3" /> : <FiUser className="w-3 h-3" />}
+                {role}
+            </span>
+        );
+    }
+
     return (
         <div className="min-h-screen bg-[#f8fafc] pb-20">
             {/* Header */}
@@ -385,28 +400,77 @@ export default function ProfilePage() {
                             {/* Name & Role */}
                             <div>
                                 {isEditing ? (
-                                    <div className="grid grid-cols-2 gap-4 mb-2">
-                                        <div>
-                                            <label className="block text-sm font-semibold text-[#0f172a] mb-2">First Name</label>
-                                            <input
-                                                type="text"
-                                                value={editedData.firstName}
-                                                onChange={(e) => setEditedData({ ...editedData, firstName: e.target.value })}
-                                                className="w-full px-4 py-3 border border-[#cbd5e1] rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                                            />
+                                    <>
+                                        <div className="grid grid-cols-2 gap-4 mb-2">
+                                            <div>
+                                                <label className="block text-sm font-semibold text-[#0f172a] mb-2">First Name</label>
+                                                <input
+                                                    type="text"
+                                                    value={editedData.firstName}
+                                                    onChange={(e) => setEditedData({ ...editedData, firstName: e.target.value })}
+                                                    className="w-full px-4 py-3 border border-[#cbd5e1] rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-semibold text-[#0f172a] mb-2">Last Name</label>
+                                                <input
+                                                    type="text"
+                                                    value={editedData.lastName}
+                                                    onChange={(e) => setEditedData({ ...editedData, lastName: e.target.value })}
+                                                    className="w-full px-4 py-3 border border-[#cbd5e1] rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                                                />
+                                            </div>
                                         </div>
-                                        <div>
-                                            <label className="block text-sm font-semibold text-[#0f172a] mb-2">Last Name</label>
-                                            <input
-                                                type="text"
-                                                value={editedData.lastName}
-                                                onChange={(e) => setEditedData({ ...editedData, lastName: e.target.value })}
-                                                className="w-full px-4 py-3 border border-[#cbd5e1] rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                                            />
+                                        <div className="flex items-center gap-3 mb-1">
+                                            <h2 className="text-2xl font-bold text-[#0f172a]">{isLoading ? "Loading..." : fullName}</h2>
+
+                                            {/* Subscription Status Badge */}
+                                            {primaryStore?.businessType && primaryStore.businessType !== 'Free' ? (
+                                                <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full border border-emerald-200">
+                                                    <FiAward className="w-4 h-4 text-emerald-600" />
+                                                    <span className="text-xs font-bold uppercase tracking-wide">Pro Member</span>
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center gap-2">
+                                                    <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-700 rounded-full border border-amber-200" title="14 days remaining">
+                                                        <FiClock className="w-3.5 h-3.5" />
+                                                        <span className="text-xs font-bold uppercase tracking-wide">Free Trial</span>
+                                                    </div>
+                                                    <button
+                                                        onClick={() => router.push('/store/profile')}
+                                                        className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 hover:underline flex items-center gap-1"
+                                                    >
+                                                        Upgrade Now &rarr;
+                                                    </button>
+                                                </div>
+                                            )}
                                         </div>
-                                    </div>
+                                    </>
                                 ) : (
-                                    <h2 className="text-2xl font-bold text-[#0f172a] mb-1">{isLoading ? "Loading..." : fullName}</h2>
+                                    <div className="flex items-center gap-3 mb-1">
+                                        <h2 className="text-2xl font-bold text-[#0f172a]">{isLoading ? "Loading..." : fullName}</h2>
+
+                                        {/* Subscription Status Badge */}
+                                        {primaryStore?.businessType && primaryStore.businessType !== 'Free' ? (
+                                            <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full border border-emerald-200">
+                                                <FiAward className="w-4 h-4 text-emerald-600" />
+                                                <span className="text-xs font-bold uppercase tracking-wide">Pro Member</span>
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-center gap-2">
+                                                <div className="flex items-center gap-1.5 px-3 py-1 bg-amber-50 text-amber-700 rounded-full border border-amber-200" title="14 days remaining">
+                                                    <FiClock className="w-3.5 h-3.5" />
+                                                    <span className="text-xs font-bold uppercase tracking-wide">Free Trial</span>
+                                                </div>
+                                                <button
+                                                    onClick={() => router.push('/store/profile')}
+                                                    className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 hover:underline flex items-center gap-1"
+                                                >
+                                                    Upgrade Now &rarr;
+                                                </button>
+                                            </div>
+                                        )}
+                                    </div>
                                 )}
                                 <p className="text-[#64748b]">{user?.role || "-"}</p>
                             </div>
@@ -458,6 +522,8 @@ export default function ProfilePage() {
                         </div>
                     </div>
                 </div>
+
+
 
                 {/* Primary Store Information */}
                 {primaryStore && (

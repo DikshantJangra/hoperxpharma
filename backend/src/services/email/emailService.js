@@ -2,6 +2,8 @@ const nodemailer = require('nodemailer');
 const emailRepository = require('../../repositories/emailRepository');
 const { encryptSMTPPassword, decryptSMTPPassword } = require('../../utils/encryption');
 const ApiError = require('../../utils/ApiError');
+const storeGmailOAuthService = require('../storeGmailOAuthService');
+const logger = require('../../config/logger');
 
 class EmailService {
     /**
@@ -220,14 +222,14 @@ class EmailService {
     }
 
     /**
-     * Test SMTP connection for specific account
+     * Test connection for specific account (OAuth only)
      * @param {string} accountId - Account ID to test (optional)
      * @param {string} storeId - Store ID
      * @returns {Promise<boolean>} Connection success
      */
     async testConnection(accountId, storeId) {
         let emailAccount;
-        
+
         if (accountId) {
             // Test specific account by ID
             emailAccount = await emailRepository.getEmailAccountById(accountId);
@@ -242,29 +244,16 @@ class EmailService {
             }
         }
 
-        const decryptedPassword = decryptSMTPPassword(emailAccount.smtpPasswordEncrypted);
-        const transporter = this._createTransporter(emailAccount, decryptedPassword);
+        // OAuth only - no SMTP support
+        if (emailAccount.authMethod !== 'OAUTH') {
+            throw new ApiError(400, 'Please reconnect your email via Gmail OAuth');
+        }
 
-        try {
-            await transporter.verify();
-
-            // Update last tested timestamp and verification status
-            await emailRepository.updateEmailAccountById(emailAccount.id, {
-                lastTestedAt: new Date(),
-                isVerified: true,
-                isActive: true,
-            });
-
+        const result = await storeGmailOAuthService.testConnection(emailAccount.id);
+        if (result.success) {
             return true;
-        } catch (error) {
-            // Mark as failed
-            await emailRepository.updateEmailAccountById(emailAccount.id, {
-                lastTestedAt: new Date(),
-                isVerified: false,
-                isActive: false,
-            });
-            
-            throw new ApiError(500, `SMTP connection failed: ${error.message}`);
+        } else {
+            throw new ApiError(500, result.message || 'Gmail connection failed');
         }
     }
 
@@ -317,15 +306,34 @@ class EmailService {
     async sendEmail(storeId, emailData, sentBy, context = {}) {
         const { to, subject, bodyHtml, cc = [], bcc = [], attachments = [], accountId } = emailData;
 
+        logger.info('[EmailService] Sending email request:', {
+            storeId, accountId, to, subject,
+            hasBody: !!bodyHtml,
+            sentBy,
+            data: emailData
+        });
+
         // Get email account (specific one or primary)
         let emailAccount;
         if (accountId) {
             emailAccount = await emailRepository.getEmailAccountById(accountId);
+            logger.info('[EmailService] Retrieved specific account:', {
+                found: !!emailAccount,
+                id: emailAccount?.id,
+                storeId: emailAccount?.storeId,
+                matchStore: emailAccount?.storeId === storeId
+            });
+
             if (!emailAccount || emailAccount.storeId !== storeId) {
                 throw new ApiError(404, 'Email account not found or access denied');
             }
         } else {
             emailAccount = await emailRepository.getPrimaryEmailAccount(storeId);
+            logger.info('[EmailService] Retrieved primary account:', {
+                found: !!emailAccount,
+                id: emailAccount?.id
+            });
+
             if (!emailAccount) {
                 throw new ApiError(404, 'No email account configured for this store');
             }
@@ -334,9 +342,6 @@ class EmailService {
         if (!emailAccount.isActive) {
             throw new ApiError(403, 'Email account is inactive');
         }
-
-        const decryptedPassword = decryptSMTPPassword(emailAccount.smtpPasswordEncrypted);
-        const transporter = this._createTransporter(emailAccount, decryptedPassword);
 
         // Create log entry with PENDING status
         const logEntry = await emailRepository.createEmailLog({
@@ -354,22 +359,20 @@ class EmailService {
         });
 
         try {
-            // Send email
-            const mailOptions = {
-                from: emailAccount.email,
-                to: Array.isArray(to) ? to.join(', ') : to,
-                cc: cc.length > 0 ? (Array.isArray(cc) ? cc.join(', ') : cc) : undefined,
-                bcc: bcc.length > 0 ? (Array.isArray(bcc) ? bcc.join(', ') : bcc) : undefined,
+            // OAuth-only - no SMTP fallback (Render blocks SMTP)
+            if (emailAccount.authMethod !== 'OAUTH') {
+                throw new ApiError(400, 'Email account not connected via OAuth. Please connect your Gmail account.');
+            }
+
+            // Send via Gmail API (OAuth)
+            logger.info(`Sending email via Gmail OAuth for account ${emailAccount.id}`);
+            const result = await storeGmailOAuthService.sendEmail(emailAccount.id, {
+                to,
                 subject,
                 html: bodyHtml,
-                attachments: attachments.map(att => ({
-                    filename: att.filename,
-                    path: att.path || att.content,
-                    contentType: att.contentType,
-                })),
-            };
-
-            const info = await transporter.sendMail(mailOptions);
+                cc,
+                bcc
+            });
 
             // Update log entry to SENT
             await prisma.emailLog.update({
@@ -379,9 +382,10 @@ class EmailService {
 
             return {
                 success: true,
-                messageId: info.messageId,
+                messageId: result.messageId,
                 logId: logEntry.id,
-                sentFrom: emailAccount.email, // Include which account was used
+                sentFrom: emailAccount.email,
+                method: 'gmail_api'
             };
         } catch (error) {
             // Update log entry to FAILED

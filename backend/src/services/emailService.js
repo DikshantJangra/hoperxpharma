@@ -1,84 +1,40 @@
 const nodemailer = require('nodemailer');
 const logger = require('../config/logger');
 const platformConfigService = require('./platformConfigService');
+const platformGmailOAuthService = require('./platformGmailOAuthService');
 
 class EmailService {
-    constructor() {
-        this.transporter = null;
-        this.initialize();
-    }
-
-    initialize() {
-        try {
-            const smtpConfig = {
-                pool: true, // Enable connection pooling for faster delivery
-                maxConnections: 5, // Limit concurrent connections
-                host: process.env.SMTP_HOST,
-                port: parseInt(process.env.SMTP_PORT || '587'),
-                secure: false, // true for 465, false for other ports
-                auth: {
-                    user: process.env.SMTP_USER,
-                    pass: process.env.SMTP_PASSWORD,
-                },
-                connectionTimeout: 10000, // 10 seconds timeout for initial connection
-                socketTimeout: 10000, // 10 seconds timeout for socket operations
-            };
-
-            if (!smtpConfig.host || !smtpConfig.auth.user || !smtpConfig.auth.pass) {
-                logger.warn('SMTP configuration is missing. Email service will not work.');
-                return;
-            }
-
-            this.transporter = nodemailer.createTransport(smtpConfig);
-
-            // Verify connection
-            this.transporter.verify((error, success) => {
-                if (error) {
-                    logger.error('SMTP Connection Error:', error);
-                } else {
-                    logger.info('Email service (SMTP/Gmail) initialized successfully');
-                }
-            });
-        } catch (error) {
-            logger.error('Failed to initialize email service:', error);
-        }
-    }
+    // Email transporter is now fetched dynamically
+    // Prioritizes Gmail OAuth API over SMTP
+    // Configure email at /setup/hrp-ml-config
 
     async sendMagicLinkEmail(email, magicLink, mode = 'login') {
-        // Use platform config transporter (prioritizes database config from /setup page)
-        const transporter = await platformConfigService.getTransporter();
-        const fromAddress = await platformConfigService.getFromAddress();
-
-        if (!transporter) {
-            logger.error('Email service not configured. Please configure email at /setup/hrp-2026ml');
-            throw new Error('Email service not configured. Please contact administrator.');
-        }
-
         const subject = mode === 'login'
             ? 'Your Sign-In Link for HopeRxPharma'
             : 'Welcome to HopeRx! Verify your email';
 
         const html = this.getMagicLinkTemplate(magicLink, mode);
 
+        // Send via Platform Gmail OAuth API (Exclusive Method)
         try {
-            const info = await transporter.sendMail({
-                from: fromAddress || `"HopeRxPharma" <noreply@hoperxpharma.com>`,
-                to: email,
-                subject,
-                html
-            });
+            const oauthStatus = await platformGmailOAuthService.getStatus();
 
-            logger.info(`Magic link email sent to ${email}: ${info.messageId}`);
-            return { success: true, messageId: info.messageId };
+            if (!oauthStatus.configured || !oauthStatus.isActive) {
+                logger.error('Platform Email not configured. Please setup at /setup/hrp-ml-config');
+                throw new Error('Platform email service is not configured.');
+            }
+
+            logger.info('Sending magic link via Gmail OAuth API...');
+            const result = await platformGmailOAuthService.sendEmail({ to: email, subject, html });
+            logger.info(`Magic link email sent via Gmail API to ${email}: ${result.messageId}`);
+            return { success: true, messageId: result.messageId, method: 'oauth' };
+
         } catch (error) {
             logger.error(`Failed to send magic link email to ${email}:`, {
                 message: error.message,
-                code: error.code,
-                command: error.command,
-                responseCode: error.responseCode,
                 stack: error.stack
             });
-            throw new Error(`Failed to send email via SMTP: ${error.message}`);
+            throw new Error(`Failed to send email: ${error.message}`);
         }
     }
 

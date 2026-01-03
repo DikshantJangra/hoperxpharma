@@ -134,7 +134,7 @@ async function handleRefreshError(error: any) {
 
 async function baseFetch(
     endpoint: string,
-    options: RequestInit & { responseType?: 'json' | 'blob' } = {}
+    options: RequestInit & { responseType?: 'json' | 'blob'; timeout?: number } = {}
 ): Promise<any> {
     // Auto-refresh token if needed (except for auth endpoints)
     if (!endpoint.includes('/auth/')) {
@@ -164,7 +164,8 @@ async function baseFetch(
     }
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), config.timeout);
+    const requestTimeout = options.timeout || config.timeout;
+    const timeoutId = setTimeout(() => controller.abort(), requestTimeout);
 
     try {
         const response = await fetch(url, {
@@ -248,11 +249,11 @@ async function baseFetch(
  * API client with automatic token refresh
  */
 export const apiClient = {
-    async get(endpoint: string, options?: RequestInit & { responseType?: 'json' | 'blob' }) {
+    async get(endpoint: string, options?: RequestInit & { responseType?: 'json' | 'blob'; timeout?: number }) {
         return baseFetch(endpoint, { ...options, method: 'GET' });
     },
 
-    async post(endpoint: string, data?: any, options?: RequestInit & { responseType?: 'json' | 'blob' }) {
+    async post(endpoint: string, data?: any, options?: RequestInit & { responseType?: 'json' | 'blob'; timeout?: number }) {
         return baseFetch(endpoint, {
             ...options,
             method: 'POST',
@@ -260,7 +261,7 @@ export const apiClient = {
         });
     },
 
-    async put(endpoint: string, data?: any, options?: RequestInit & { responseType?: 'json' | 'blob' }) {
+    async put(endpoint: string, data?: any, options?: RequestInit & { responseType?: 'json' | 'blob'; timeout?: number }) {
         return baseFetch(endpoint, {
             ...options,
             method: 'PUT',
@@ -268,7 +269,7 @@ export const apiClient = {
         });
     },
 
-    async patch(endpoint: string, data?: any, options?: RequestInit & { responseType?: 'json' | 'blob' }) {
+    async patch(endpoint: string, data?: any, options?: RequestInit & { responseType?: 'json' | 'blob'; timeout?: number }) {
         return baseFetch(endpoint, {
             ...options,
             method: 'PATCH',
@@ -276,7 +277,7 @@ export const apiClient = {
         });
     },
 
-    async delete(endpoint: string, options?: RequestInit & { responseType?: 'json' | 'blob' }) {
+    async delete(endpoint: string, options?: RequestInit & { responseType?: 'json' | 'blob'; timeout?: number }) {
         return baseFetch(endpoint, { ...options, method: 'DELETE' });
     },
 };

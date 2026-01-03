@@ -32,12 +32,15 @@ const authenticate = async (req, res, next) => {
         // Get user from database with store information
         const user = await userRepository.findById(decoded.userId);
 
-        if (!user) // console.log('[Auth] User not found for ID:', decoded.userId);
-            if (user && !user.isActive) // console.log('[Auth] User found but inactive:', decoded.userId);
+        if (!user) {
+            // console.log('[Auth] User not found for ID:', decoded.userId);
+            throw ApiError.unauthorized('User not found');
+        }
 
-                if (!user || !user.isActive) {
-                    throw ApiError.unauthorized('User not found or inactive');
-                }
+        if (!user.isActive) {
+            // console.log('[Auth] User found but inactive:', decoded.userId);
+            throw ApiError.unauthorized('User account is inactive');
+        }
 
         // console.log('[Auth] User found:', user.email);
         // console.log('[Auth] StoreUsers:', user.storeUsers?.length);

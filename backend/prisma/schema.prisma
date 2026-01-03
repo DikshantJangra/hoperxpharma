@@ -524,6 +524,7 @@ model Store {
 
   // Email System
   emailAccounts EmailAccount[]
+  payments      Payment[]
 
   @@index([email])
   @@index([deletedAt])
@@ -657,6 +658,7 @@ model Subscription {
   store      Store            @relation(fields: [storeId], references: [id], onDelete: Cascade)
   plan       SubscriptionPlan @relation(fields: [planId], references: [id])
   usageQuota UsageQuota?
+  payments   Payment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -678,6 +680,32 @@ model UsageQuota {
   subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
 
   updatedAt DateTime @updatedAt
+}
+
+model Payment {
+  id          String   @id @default(cuid())
+  storeId     String
+  subscriptionId String?
+  amount      Decimal  @db.Decimal(10, 2)
+  currency    String   @default("INR")
+  status      String   // PENDING, COMPLETED, FAILED
+  method      String?  // UPI, etc.
+  
+  // Razorpay specific
+  razorpayOrderId   String   @unique
+  razorpayPaymentId String?  @unique
+  razorpaySignature String?
+  
+  metadata    Json?    // Any extra info
+  
+  store         Store         @relation(fields: [storeId], references: [id])
+  subscription  Subscription? @relation(fields: [subscriptionId], references: [id])
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([storeId])
+  @@index([razorpayOrderId])
 }
 
 // ============================================================================
@@ -3099,11 +3127,21 @@ model EmailAccount {
   storeId               String
   email                 String
   provider              String
-  smtpHost              String
-  smtpPort              Int
-  smtpUser              String
-  smtpPasswordEncrypted String    @db.Text
+  authMethod            String    @default("SMTP")  // "SMTP" or "OAUTH"
+  
+  // SMTP fields (optional - only for SMTP auth)
+  smtpHost              String?
+  smtpPort              Int?
+  smtpUser              String?
+  smtpPasswordEncrypted String?   @db.Text
   useTLS                Boolean   @default(true)
+  
+  // OAuth fields (for Gmail OAuth)
+  gmailRefreshToken     String?   @db.Text  // Encrypted
+  gmailAccessToken      String?   @db.Text  // Encrypted
+  gmailTokenExpiry      DateTime?
+  oauthConnectedAt      DateTime?
+  
   isPrimary             Boolean   @default(false)
   isVerified            Boolean   @default(false)
   isActive              Boolean   @default(true)
@@ -3292,12 +3330,18 @@ model LoyaltyReward {
 
 model PlatformEmailConfig {
   id                    String    @id @default("platform_email")
-  smtpHost              String    @default("smtp.gmail.com")
-  smtpPort              Int       @default(587)
-  smtpUser              String    // Gmail address
-  smtpPasswordEncrypted String    @db.Text
-  smtpFromName          String    @default("HopeRxPharma")
-  useTLS                Boolean   @default(true)
+  
+  // Auth method: "OAUTH" only
+  authMethod            String    @default("OAUTH")
+  
+  // OAuth fields (new)
+  gmailEmail            String?   // Connected Gmail address
+  gmailRefreshToken     String?   @db.Text // Encrypted
+  gmailAccessToken      String?   @db.Text // Encrypted
+  gmailTokenExpiry      DateTime?
+  connectedAt           DateTime?
+  
+  // Status
   isActive              Boolean   @default(false)
   lastTestedAt          DateTime?
   lastTestResult        Boolean?

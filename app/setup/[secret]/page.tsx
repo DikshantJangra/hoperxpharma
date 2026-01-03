@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useEffect, use } from "react";
+import { useSearchParams } from "next/navigation";
 import { toast } from "react-hot-toast";
-import { HiOutlineMail, HiOutlineKey, HiOutlineServer, HiCheck, HiX, HiExternalLink, HiLockClosed } from "react-icons/hi";
-import { FiLoader, FiSend, FiSave } from "react-icons/fi";
-import { getEmailConfig, saveEmailConfig, testEmailConnection, verifySetupPassword } from "@/lib/api/platform";
+import { HiOutlineMail, HiOutlineKey, HiCheck, HiX, HiExternalLink, HiLockClosed } from "react-icons/hi";
+import { FiLoader, FiSend, FiSave, FiRefreshCw } from "react-icons/fi";
+import { FcGoogle } from "react-icons/fc";
+import { getEmailConfig, saveEmailConfig, testEmailConnection, verifySetupPassword, getGmailAuthUrl, disconnectGmail } from "@/lib/api/platform";
 
 interface PageProps {
     params: Promise<{ secret: string }>;
@@ -12,6 +14,7 @@ interface PageProps {
 
 export default function SetupPage({ params }: PageProps) {
     const { secret } = use(params);
+    const searchParams = useSearchParams();
 
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [password, setPassword] = useState("");
@@ -23,17 +26,37 @@ export default function SetupPage({ params }: PageProps) {
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
     const [testing, setTesting] = useState(false);
+    const [connecting, setConnecting] = useState(false);
+    const [disconnecting, setDisconnecting] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    // Form state
-    const [smtpUser, setSmtpUser] = useState("");
-    const [smtpPassword, setSmtpPassword] = useState("");
-    const [smtpFromName, setSmtpFromName] = useState("HopeRxPharma");
+    // OAuth state
+    const [oauthConfigured, setOauthConfigured] = useState(false);
+    const [oauthEmail, setOauthEmail] = useState<string | null>(null);
+    const [oauthAvailable, setOauthAvailable] = useState(false);
 
     // Config state
     const [isConfigured, setIsConfigured] = useState(false);
     const [isActive, setIsActive] = useState(false);
     const [lastTestResult, setLastTestResult] = useState<boolean | null>(null);
+    const [authMethod, setAuthMethod] = useState<'oauth' | 'smtp' | null>(null);
+
+    // Handle OAuth callback
+    useEffect(() => {
+        const success = searchParams?.get('success');
+        const err = searchParams?.get('error');
+
+        if (success === 'gmail_connected') {
+            toast.success('Gmail connected successfully!');
+            setIsAuthenticated(true);
+            loadConfig();
+            // Clean URL
+            window.history.replaceState({}, '', `/setup/${secret}`);
+        } else if (err) {
+            toast.error(decodeURIComponent(err));
+            window.history.replaceState({}, '', `/setup/${secret}`);
+        }
+    }, [searchParams, secret]);
 
     // Countdown timer for rate limit
     useEffect(() => {
@@ -59,7 +82,7 @@ export default function SetupPage({ params }: PageProps) {
 
             if (result.success) {
                 setIsAuthenticated(true);
-                setLoading(true); // Show loading state immediately
+                setLoading(true);
                 toast.success("Access granted!");
                 loadConfig();
             }
@@ -85,12 +108,18 @@ export default function SetupPage({ params }: PageProps) {
             setError(null);
             const result = await getEmailConfig(secret);
 
-            if (result.data) {
-                setSmtpUser(result.data.smtpUser || "");
-                setSmtpFromName(result.data.smtpFromName || "HopeRxPharma");
-                setIsActive(result.data.isActive);
-                setLastTestResult(result.data.lastTestResult);
+            // Check OAuth status
+            if (result.oauth) {
+                setOauthConfigured(result.oauth.configured);
+                setOauthEmail(result.oauth.email);
+                if (result.oauth.configured) {
+                    setAuthMethod('oauth');
+                    setIsActive(result.oauth.isActive);
+                    setLastTestResult(result.oauth.lastTestResult);
+                }
             }
+
+            setOauthAvailable(result.oauthAvailable);
             setIsConfigured(result.configured);
         } catch (err: any) {
             if (err.message === "Invalid setup URL") {
@@ -103,30 +132,35 @@ export default function SetupPage({ params }: PageProps) {
         }
     };
 
-    const handleSave = async () => {
-        if (!smtpUser || !smtpPassword) {
-            toast.error("Please fill in all required fields");
-            return;
-        }
-
+    const handleConnectGmail = async () => {
         try {
-            setSaving(true);
-            const result = await saveEmailConfig(secret, {
-                smtpUser,
-                smtpPassword,
-                smtpFromName
-            });
-
-            if (result.success) {
-                toast.success(result.message);
-                setIsConfigured(true);
-                setSmtpPassword(""); // Clear password after save
-                await loadConfig();
+            setConnecting(true);
+            const result = await getGmailAuthUrl(secret);
+            if (result.authUrl) {
+                window.location.href = result.authUrl;
             }
         } catch (err: any) {
-            toast.error(err.message || "Failed to save configuration");
+            toast.error(err.message || "Failed to connect Gmail");
+            setConnecting(false);
+        }
+    };
+
+    const handleDisconnectGmail = async () => {
+        if (!confirm('Are you sure you want to disconnect Gmail?')) return;
+
+        try {
+            setDisconnecting(true);
+            await disconnectGmail(secret);
+            toast.success('Gmail disconnected');
+            setOauthConfigured(false);
+            setOauthEmail(null);
+            setIsActive(false);
+            setAuthMethod(null);
+            setIsConfigured(false);
+        } catch (err: any) {
+            toast.error(err.message || "Failed to disconnect");
         } finally {
-            setSaving(false);
+            setDisconnecting(false);
         }
     };
 
@@ -188,7 +222,7 @@ export default function SetupPage({ params }: PageProps) {
 
                         {retryAfter && (
                             <div className="bg-yellow-50 text-yellow-700 p-3 rounded-lg text-sm text-center">
-                                ⏳ Wait {retryAfter} seconds before trying again
+                                Wait {retryAfter} seconds before trying again
                             </div>
                         )}
 
@@ -212,7 +246,7 @@ export default function SetupPage({ params }: PageProps) {
                     </form>
 
                     <p className="text-center text-gray-400 text-xs mt-6">
-                        3 attempts per minute • Contact admin for password
+                        3 attempts per minute
                     </p>
                 </div>
             </div>
@@ -253,7 +287,7 @@ export default function SetupPage({ params }: PageProps) {
                         <HiOutlineMail className="w-8 h-8 text-emerald-600" />
                     </div>
                     <h1 className="text-2xl font-bold text-gray-900 mb-2">Platform Email Setup</h1>
-                    <p className="text-gray-600">Configure Gmail SMTP for magic link authentication</p>
+                    <p className="text-gray-600">Connect Gmail for magic link authentication</p>
                 </div>
 
                 {/* Status Banner */}
@@ -262,7 +296,10 @@ export default function SetupPage({ params }: PageProps) {
                     {isActive ? (
                         <>
                             <HiCheck className="w-5 h-5 text-emerald-600" />
-                            <span className="text-emerald-700 font-medium">Email is configured and active</span>
+                            <span className="text-emerald-700 font-medium">
+                                Email active via {authMethod === 'oauth' ? 'Gmail OAuth' : 'SMTP'}
+                                {oauthEmail && ` (${oauthEmail})`}
+                            </span>
                         </>
                     ) : isConfigured ? (
                         <>
@@ -277,139 +314,91 @@ export default function SetupPage({ params }: PageProps) {
                     )}
                 </div>
 
-                {/* Main Form */}
+                {/* Main Content */}
                 <div className="bg-white rounded-2xl shadow-lg p-8">
-                    {/* Gmail Instructions */}
-                    <div className="bg-blue-50 rounded-lg p-4 mb-6">
-                        <h3 className="font-semibold text-blue-900 mb-2">📧 Gmail App Password Required</h3>
-                        <p className="text-blue-800 text-sm mb-3">
-                            Gmail requires an App Password for SMTP. Regular passwords won&apos;t work.
-                        </p>
-                        <a
-                            href="https://myaccount.google.com/apppasswords"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 text-blue-600 hover:text-blue-700 text-sm font-medium"
-                        >
-                            Generate App Password
-                            <HiExternalLink className="w-4 h-4" />
-                        </a>
-                        <ol className="text-blue-800 text-sm mt-3 space-y-1 list-decimal list-inside">
-                            <li>Enable 2-Factor Authentication on your Google account</li>
-                            <li>Go to App Passwords (link above)</li>
-                            <li>Create a new app password for &quot;Mail&quot;</li>
-                            <li>Copy the 16-character password here</li>
-                        </ol>
-                    </div>
+                    {/* Gmail OAuth Section */}
+                    <div className="mb-8">
+                        <h2 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                            <FcGoogle className="w-6 h-6" />
+                            Gmail OAuth (Recommended)
+                        </h2>
 
-                    <div className="space-y-5">
-                        {/* Gmail Address */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                                Gmail Address <span className="text-red-500">*</span>
-                            </label>
-                            <div className="relative">
-                                <HiOutlineMail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                                <input
-                                    type="email"
-                                    value={smtpUser}
-                                    onChange={(e) => setSmtpUser(e.target.value)}
-                                    placeholder="your-email@gmail.com"
-                                    className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                                />
-                            </div>
+                        <div className="bg-emerald-50 rounded-lg p-4 mb-4">
+                            <p className="text-emerald-800 text-sm">
+                                Connect your Gmail account securely via OAuth. No passwords stored - Google-recommended for SaaS platforms.
+                            </p>
                         </div>
 
-                        {/* App Password */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                                App Password <span className="text-red-500">*</span>
-                                {isConfigured && <span className="text-gray-500 font-normal ml-2">(leave blank to keep existing)</span>}
-                            </label>
-                            <div className="relative">
-                                <HiOutlineKey className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                                <input
-                                    type="password"
-                                    value={smtpPassword}
-                                    onChange={(e) => setSmtpPassword(e.target.value)}
-                                    placeholder={isConfigured ? "••••••••••••••••" : "16-character app password"}
-                                    className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                                />
+                        {oauthConfigured ? (
+                            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                                <div className="flex items-center gap-3">
+                                    <FcGoogle className="w-8 h-8" />
+                                    <div>
+                                        <p className="font-medium text-gray-900">{oauthEmail}</p>
+                                        <p className="text-sm text-gray-500">Connected via OAuth</p>
+                                    </div>
+                                </div>
+                                <button
+                                    onClick={handleDisconnectGmail}
+                                    disabled={disconnecting}
+                                    className="px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors text-sm font-medium"
+                                >
+                                    {disconnecting ? 'Disconnecting...' : 'Disconnect'}
+                                </button>
                             </div>
-                        </div>
-
-                        {/* From Name */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-                                From Name
-                            </label>
-                            <div className="relative">
-                                <HiOutlineServer className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-5 h-5" />
-                                <input
-                                    type="text"
-                                    value={smtpFromName}
-                                    onChange={(e) => setSmtpFromName(e.target.value)}
-                                    placeholder="HopeRxPharma"
-                                    className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                                />
+                        ) : oauthAvailable ? (
+                            <button
+                                onClick={handleConnectGmail}
+                                disabled={connecting}
+                                className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-white border-2 border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium text-gray-700"
+                            >
+                                {connecting ? (
+                                    <>
+                                        <FiLoader className="w-5 h-5 animate-spin" />
+                                        Connecting...
+                                    </>
+                                ) : (
+                                    <>
+                                        <FcGoogle className="w-6 h-6" />
+                                        Connect Gmail Account
+                                    </>
+                                )}
+                            </button>
+                        ) : (
+                            <div className="p-4 bg-yellow-50 rounded-lg text-yellow-800 text-sm">
+                                <p className="font-medium mb-1">Gmail OAuth not configured</p>
+                                <p>Set <code className="bg-yellow-100 px-1 rounded">GMAIL_CLIENT_ID</code> and <code className="bg-yellow-100 px-1 rounded">GMAIL_CLIENT_SECRET</code> environment variables.</p>
                             </div>
-                            <p className="text-xs text-gray-500 mt-1">This name appears in the &quot;From&quot; field of emails</p>
-                        </div>
+                        )}
                     </div>
 
-                    {/* Action Buttons */}
-                    <div className="flex gap-3 mt-8">
-                        <button
-                            onClick={handleSave}
-                            disabled={saving || (!smtpPassword && !isConfigured)}
-                            className="flex-1 bg-emerald-500 hover:bg-emerald-600 disabled:bg-gray-300 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
-                        >
-                            {saving ? (
-                                <>
-                                    <FiLoader className="w-4 h-4 animate-spin" />
-                                    Saving...
-                                </>
-                            ) : (
-                                <>
-                                    <FiSave className="w-4 h-4" />
-                                    Save Configuration
-                                </>
-                            )}
-                        </button>
-
-                        <button
-                            onClick={handleTest}
-                            disabled={testing || !isConfigured}
-                            className="flex-1 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 text-white font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
-                        >
-                            {testing ? (
-                                <>
-                                    <FiLoader className="w-4 h-4 animate-spin" />
-                                    Testing...
-                                </>
-                            ) : (
-                                <>
-                                    <FiSend className="w-4 h-4" />
-                                    Test Connection
-                                </>
-                            )}
-                        </button>
-                    </div>
-
-                    {/* Last Test Result */}
-                    {lastTestResult !== null && (
-                        <div className={`mt-4 p-3 rounded-lg text-sm ${lastTestResult ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
-                            {lastTestResult
-                                ? "✓ Last connection test was successful"
-                                : "✗ Last connection test failed - please check credentials"
-                            }
+                    {/* Test Connection Button */}
+                    {isConfigured && (
+                        <div className="mt-6 pt-6 border-t border-gray-200">
+                            <button
+                                onClick={handleTest}
+                                disabled={testing}
+                                className="w-full bg-gray-100 hover:bg-gray-200 disabled:bg-gray-100 text-gray-700 font-medium py-3 rounded-lg transition-colors flex items-center justify-center gap-2"
+                            >
+                                {testing ? (
+                                    <>
+                                        <FiLoader className="w-4 h-4 animate-spin" />
+                                        Testing Connection...
+                                    </>
+                                ) : (
+                                    <>
+                                        <FiRefreshCw className="w-4 h-4" />
+                                        Test Connection
+                                    </>
+                                )}
+                            </button>
                         </div>
                     )}
                 </div>
 
-                {/* Footer Note */}
-                <p className="text-center text-gray-500 text-sm mt-6">
-                    This is a secret configuration page. Keep this URL private.
+                {/* Footer */}
+                <p className="text-center text-gray-400 text-sm mt-8">
+                    This configuration is used for magic link authentication emails
                 </p>
             </div>
         </div>

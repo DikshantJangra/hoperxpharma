@@ -21,7 +21,7 @@ const getAuthHeaders = () => {
   };
 };
 
-type EmailSection = 'compose' | 'sent' | 'settings';
+type EmailSection = 'compose' | 'sent' | 'templates' | 'settings';
 
 export default function EmailPage() {
   const [emailAccounts, setEmailAccounts] = useState<any[]>([]);
@@ -229,16 +229,19 @@ export default function EmailPage() {
   }
 
   if (emailAccounts.length === 0) {
-    return (
-      <>
-        <EmptyState onConfigure={() => setShowConfigModal(true)} />
-        <EmailConfigModal
-          isOpen={showConfigModal}
-          onClose={() => setShowConfigModal(false)}
-          onSuccess={fetchEmailAccounts}
-        />
-      </>
-    );
+    // When no accounts: show config modal OR empty state, not both
+    if (showConfigModal) {
+      return (
+        <div className="h-screen flex flex-col bg-white">
+          <EmailConfigModal
+            isOpen={showConfigModal}
+            onClose={() => setShowConfigModal(false)}
+            onSuccess={fetchEmailAccounts}
+          />
+        </div>
+      );
+    }
+    return <EmptyState onConfigure={() => setShowConfigModal(true)} />;
   }
 
   const primaryAccount = emailAccounts.find(acc => acc.isPrimary) || emailAccounts[0];
@@ -299,96 +302,104 @@ export default function EmailPage() {
         <div className="p-4 border-t border-[#e2e8f0]">
           <div className="flex items-center gap-2 text-xs text-[#64748b]">
             <div className="w-2 h-2 bg-[#10b981] rounded-full"></div>
-            <span>{emailAccounts.length} account{emailAccounts.length !== 1 ? 's' : ''}</span>
+            <span>{emailAccounts.length} account{emailAccounts.length !== 1 ? 's' : ''} connected</span>
           </div>
-          <p className="text-xs text-[#94a3b8] mt-1">SMTP: {primaryAccount.smtpHost}</p>
+          <p className="text-xs text-[#94a3b8] mt-1 flex items-center gap-1">
+            <span>via</span>
+            <span className="font-medium text-[#4285f4]">Gmail OAuth</span>
+          </p>
         </div>
       </div>
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col">
-        {/* Section Header */}
-        <div className="bg-white border-b border-[#e2e8f0] px-8 py-4">
-          <h1 className="text-2xl font-bold text-[#0f172a]">
-            {activeSection === 'compose' && 'Compose Email'}
-            {activeSection === 'sent' && 'Sent Emails'}
-            {activeSection === 'settings' && 'Email Settings'}
-          </h1>
-          <p className="text-sm text-[#64748b] mt-1">
-            {activeSection === 'compose' && 'Send emails from your configured accounts'}
-            {activeSection === 'sent' && 'View all sent emails and their status'}
-            {activeSection === 'templates' && 'Manage your email templates'}
-            {activeSection === 'settings' && `Manage your ${emailAccounts.length} email account${emailAccounts.length !== 1 ? 's' : ''}`}
-          </p>
-        </div>
+        {showConfigModal ? (
+          /* Email Config Panel - replaces content when open */
+          <EmailConfigModal
+            isOpen={showConfigModal}
+            onClose={() => setShowConfigModal(false)}
+            onSuccess={fetchEmailAccounts}
+          />
+        ) : (
+          <>
+            {/* Section Header */}
+            <div className="bg-white border-b border-[#e2e8f0] px-8 py-4">
+              <h1 className="text-2xl font-bold text-[#0f172a]">
+                {activeSection === 'compose' && 'Compose Email'}
+                {activeSection === 'sent' && 'Sent Emails'}
+                {activeSection === 'settings' && 'Email Settings'}
+              </h1>
+              <p className="text-sm text-[#64748b] mt-1">
+                {activeSection === 'compose' && 'Send emails from your configured accounts'}
+                {activeSection === 'sent' && 'View all sent emails and their status'}
+                {activeSection === 'templates' && 'Manage your email templates'}
+                {activeSection === 'settings' && `Manage your ${emailAccounts.length} email account${emailAccounts.length !== 1 ? 's' : ''}`}
+              </p>
+            </div>
 
-        {/* Content */}
-        <div className="flex-1 overflow-auto p-8">
-          {activeSection === 'compose' && (
-            <ComposeSection
-              emailAccounts={emailAccounts}
-              selectedAccountId={selectedAccountId}
-              setSelectedAccountId={setSelectedAccountId}
-              toRecipients={toRecipients}
-              setToRecipients={setToRecipients}
-              ccRecipients={ccRecipients}
-              setCcRecipients={setCcRecipients}
-              bccRecipients={bccRecipients}
-              setBccRecipients={setBccRecipients}
-              showCC={showCC}
-              setShowCC={setShowCC}
-              showBCC={showBCC}
-              setShowBCC={setShowBCC}
-              subject={subject}
-              setSubject={setSubject}
-              body={body}
-              setBody={setBody}
-              attachments={attachments}
-              setAttachments={setAttachments}
-              isSending={isSending}
-              sendSuccess={sendSuccess}
-              sendError={sendError}
-              onSubmit={handleSendEmail}
-            />
-          )}
+            {/* Content */}
+            <div className="flex-1 overflow-auto p-8">
+              {activeSection === 'compose' && (
+                <ComposeSection
+                  emailAccounts={emailAccounts}
+                  selectedAccountId={selectedAccountId}
+                  setSelectedAccountId={setSelectedAccountId}
+                  toRecipients={toRecipients}
+                  setToRecipients={setToRecipients}
+                  ccRecipients={ccRecipients}
+                  setCcRecipients={setCcRecipients}
+                  bccRecipients={bccRecipients}
+                  setBccRecipients={setBccRecipients}
+                  showCC={showCC}
+                  setShowCC={setShowCC}
+                  showBCC={showBCC}
+                  setShowBCC={setShowBCC}
+                  subject={subject}
+                  setSubject={setSubject}
+                  body={body}
+                  setBody={setBody}
+                  attachments={attachments}
+                  setAttachments={setAttachments}
+                  isSending={isSending}
+                  sendSuccess={sendSuccess}
+                  sendError={sendError}
+                  onSubmit={handleSendEmail}
+                />
+              )}
 
-          {activeSection === 'sent' && (
-            <SentSection
-              logs={emailLogs}
-              loading={logsLoading}
-              pagination={logsPagination}
-              search={logsSearch}
-              onSearch={(query: string) => {
-                setLogsSearch(query);
-                setLogsPagination(prev => ({ ...prev, page: 1 }));
-                fetchEmailLogs(1, query);
-              }}
-              onPageChange={(page: number) => {
-                setLogsPagination(prev => ({ ...prev, page }));
-                fetchEmailLogs(page, logsSearch);
-              }}
-              onRefresh={() => fetchEmailLogs(logsPagination.page, logsSearch)}
-            />
-          )}
+              {activeSection === 'sent' && (
+                <SentSection
+                  logs={emailLogs}
+                  loading={logsLoading}
+                  pagination={logsPagination}
+                  search={logsSearch}
+                  onSearch={(query: string) => {
+                    setLogsSearch(query);
+                    setLogsPagination(prev => ({ ...prev, page: 1 }));
+                    fetchEmailLogs(1, query);
+                  }}
+                  onPageChange={(page: number) => {
+                    setLogsPagination(prev => ({ ...prev, page }));
+                    fetchEmailLogs(page, logsSearch);
+                  }}
+                  onRefresh={() => fetchEmailLogs(logsPagination.page, logsSearch)}
+                />
+              )}
 
 
-          {activeSection === 'settings' && (
-            <SettingsSection
-              emailAccounts={emailAccounts}
-              onAddAccount={() => setShowConfigModal(true)}
-              onSetPrimary={handleSetPrimary}
-              onDelete={handleDeleteAccount}
-              onRefreshAccounts={fetchEmailAccounts}
-            />
-          )}
-        </div>
+              {activeSection === 'settings' && (
+                <SettingsSection
+                  emailAccounts={emailAccounts}
+                  onAddAccount={() => setShowConfigModal(true)}
+                  onSetPrimary={handleSetPrimary}
+                  onDelete={handleDeleteAccount}
+                  onRefreshAccounts={fetchEmailAccounts}
+                />
+              )}
+            </div>
+          </>
+        )}
       </div>
-
-      <EmailConfigModal
-        isOpen={showConfigModal}
-        onClose={() => setShowConfigModal(false)}
-        onSuccess={fetchEmailAccounts}
-      />
 
       <DeleteConfirmModal
         isOpen={showDeleteModal}
@@ -1526,7 +1537,7 @@ function SettingsSection({ emailAccounts, onAddAccount, onSetPrimary, onDelete, 
         className="w-full px-6 py-4 border-2 border-dashed border-[#cbd5e1] rounded-lg hover:border-[#10b981] hover:bg-[#f0fdf4] transition-colors flex items-center justify-center gap-3 text-[#64748b] hover:text-[#10b981]"
       >
         <FiPlus className="w-5 h-5" />
-        <span className="font-medium">Add Email Account</span>
+        <span className="font-medium">Connect Gmail Account</span>
       </button>
 
       {/* Account Cards */}
@@ -1569,7 +1580,22 @@ function SettingsSection({ emailAccounts, onAddAccount, onSetPrimary, onDelete, 
                     </div>
                   )}
                   <div className="flex items-center gap-4 mt-2 text-xs text-[#94a3b8]">
-                    <span>SMTP: {account.smtpHost}:{account.smtpPort}</span>
+                    {account.authMethod === 'OAUTH' ? (
+                      <span className="flex items-center gap-1">
+                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24">
+                          <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
+                          <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
+                          <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
+                          <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
+                        </svg>
+                        <span className="font-medium text-[#4285f4]">Gmail OAuth</span>
+                        {account.oauthConnectedAt && (
+                          <span className="text-[#94a3b8]">• Connected {new Date(account.oauthConnectedAt).toLocaleDateString()}</span>
+                        )}
+                      </span>
+                    ) : (
+                      <span className="text-[#94a3b8]">SMTP Configuration</span>
+                    )}
                   </div>
                 </div>
               </div>

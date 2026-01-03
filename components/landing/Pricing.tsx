@@ -4,8 +4,13 @@ import { useState } from 'react';
 import { FiCheck, FiX, FiHelpCircle } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { FadeIn, FadeInStagger, FadeInItem } from '@/components/landing/animations/FadeIn';
+import { useAuthStore } from '@/lib/store/auth-store';
+import { useRouter } from 'next/navigation';
+import { PaymentButton } from '@/components/payments/PaymentButton';
 
 const Pricing = () => {
+    const { isAuthenticated, user } = useAuthStore();
+    const router = useRouter();
     const [isAnnual, setIsAnnual] = useState(true);
 
     const plans = [
@@ -26,7 +31,8 @@ const Pricing = () => {
                 "Priority Support"
             ],
             cta: "Start Free",
-            popular: false
+            popular: false,
+            action: () => router.push('/signup')
         },
         {
             name: "Pro Growth",
@@ -43,7 +49,8 @@ const Pricing = () => {
             ],
             notIncluded: [],
             cta: "Start 14-Day Trial",
-            popular: true
+            popular: true,
+            isPayment: true
         },
         {
             name: "Enterprise",
@@ -59,7 +66,8 @@ const Pricing = () => {
             ],
             notIncluded: [],
             cta: "Contact Sales",
-            popular: false
+            popular: false,
+            action: () => window.location.href = 'mailto:sales@hoperxpharma.com'
         }
     ];
 
@@ -147,12 +155,31 @@ const Pricing = () => {
                                     </ul>
                                 </div>
 
-                                <button className={`w-full py-4 rounded-xl font-bold transition-all ${plan.popular
-                                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/40 hover:scale-[1.02]'
-                                        : 'bg-slate-50 hover:bg-slate-100 text-slate-900 border border-slate-200'
-                                    }`}>
-                                    {plan.cta}
-                                </button>
+                                {plan.isPayment && isAuthenticated ? (
+                                    <PaymentButton
+                                        amount={isAnnual ? 799 * 12 : 999}
+                                        user={{
+                                            firstName: user?.firstName,
+                                            lastName: user?.lastName,
+                                            email: user?.email,
+                                            phoneNumber: user?.phoneNumber,
+                                            storeId: user?.storeUsers?.[0]?.storeId
+                                        }}
+                                        className={`w-full py-4 rounded-xl font-bold transition-all ${plan.popular
+                                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/40 hover:scale-[1.02]'
+                                            : 'bg-slate-50 hover:bg-slate-100 text-slate-900 border border-slate-200'
+                                            }`}
+                                    />
+                                ) : (
+                                    <button
+                                        onClick={plan.action || (() => router.push('/signup'))}
+                                        className={`w-full py-4 rounded-xl font-bold transition-all ${plan.popular
+                                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/40 hover:scale-[1.02]'
+                                            : 'bg-slate-50 hover:bg-slate-100 text-slate-900 border border-slate-200'
+                                            }`}>
+                                        {plan.cta}
+                                    </button>
+                                )}
                             </div>
                         </FadeInItem>
                     ))}

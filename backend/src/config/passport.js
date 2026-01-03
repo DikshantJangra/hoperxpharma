@@ -43,18 +43,18 @@ passport.use(
                     }
                 });
 
-                // STRICT LOGIN ENFORCEMENT - DISABLED to allow auto-signup
-                // if (intent === 'login' && !user) {
-                //     logger.warn(`Login failed: User ${email} does not exist.`);
-                //     return done(null, false, { message: 'Account not found. Please sign up.' });
-                // }
+                // STRICT LOGIN ENFORCEMENT
+                if (intent === 'login' && !user) {
+                    logger.warn(`Login failed: User ${email} does not exist.`);
+                    return done(null, false, { message: 'Account not found. Please sign up first.' });
+                }
 
                 if (user) {
                     logger.info(`User found: ${user.email}`);
                     return done(null, user);
                 }
 
-                // SIGNUP LOGIC (Only runs if intent != 'login' AND user doesn't exist)
+                // SIGNUP LOGIC (Only runs if intent === 'signup' AND user doesn't exist)
                 logger.info(`Creating new user from Google: ${email}`);
 
                 const uniqueId = Date.now().toString(36) + Math.random().toString(36).substr(2, 5);

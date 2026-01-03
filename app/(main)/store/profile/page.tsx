@@ -15,6 +15,8 @@ import QuickActions from "@/components/store/profile/QuickActions";
 import ExportProfileModal from "@/components/store/profile/ExportProfileModal";
 import { useStoreProfile } from "@/hooks/useStoreProfile";
 
+import PlanAndBilling from "@/components/store/profile/PlanAndBilling";
+
 export default function StoreProfilePage() {
   const {
     profile,
@@ -30,6 +32,7 @@ export default function StoreProfilePage() {
     toggleEdit
   } = useStoreProfile("store_01");
 
+  const [activeTab, setActiveTab] = React.useState<'profile' | 'billing'>('profile');
   const [showExport, setShowExport] = React.useState(false);
 
   if (loading) {
@@ -43,102 +46,131 @@ export default function StoreProfilePage() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Store Profile</h1>
-            <p className="text-sm text-gray-500 mt-1">Manage your pharmacy's identity and settings</p>
+      <div className="bg-white border-b border-gray-200 px-6 pt-4 pb-0">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">Store Profile</h1>
+              <p className="text-sm text-gray-500 mt-1">Manage your pharmacy's identity and subscription</p>
+            </div>
+            <div className="flex items-center gap-3">
+              {activeTab === 'profile' && (
+                !isEditing ? (
+                  <>
+                    <button
+                      onClick={() => setShowExport(true)}
+                      className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2"
+                    >
+                      <FiDownload size={18} />
+                      Export
+                    </button>
+                    <button
+                      onClick={toggleEdit}
+                      className="px-4 py-2 text-white bg-teal-600 rounded-lg hover:bg-teal-700 flex items-center gap-2"
+                    >
+                      <FiEdit2 size={18} />
+                      Edit Profile
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      onClick={toggleEdit}
+                      className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                      disabled={saving}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={save}
+                      disabled={saving}
+                      className="px-4 py-2 text-white bg-teal-600 rounded-lg hover:bg-teal-700 flex items-center gap-2 disabled:opacity-50"
+                    >
+                      {saving ? (
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      ) : (
+                        <FiSave size={18} />
+                      )}
+                      Save Changes
+                    </button>
+                  </>
+                ))}
+            </div>
           </div>
-          <div className="flex items-center gap-3">
-            {!isEditing ? (
-              <>
-                <button
-                  onClick={() => setShowExport(true)}
-                  className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 flex items-center gap-2"
-                >
-                  <FiDownload size={18} />
-                  Export
-                </button>
-                <button
-                  onClick={toggleEdit}
-                  className="px-4 py-2 text-white bg-teal-600 rounded-lg hover:bg-teal-700 flex items-center gap-2"
-                >
-                  <FiEdit2 size={18} />
-                  Edit Profile
-                </button>
-              </>
-            ) : (
-              <>
-                <button
-                  onClick={toggleEdit}
-                  className="px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
-                  disabled={saving}
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={save}
-                  disabled={saving}
-                  className="px-4 py-2 text-white bg-teal-600 rounded-lg hover:bg-teal-700 flex items-center gap-2 disabled:opacity-50"
-                >
-                  {saving ? (
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <FiSave size={18} />
-                  )}
-                  Save Changes
-                </button>
-              </>
-            )}
+
+          {/* Tabs */}
+          <div className="flex gap-8 border-b border-gray-200">
+            <button
+              onClick={() => setActiveTab('profile')}
+              className={`pb-4 text-sm font-medium border-b-2 transition-colors ${activeTab === 'profile'
+                  ? 'border-emerald-500 text-emerald-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+            >
+              Profile Details
+            </button>
+            <button
+              onClick={() => setActiveTab('billing')}
+              className={`pb-4 text-sm font-medium border-b-2 transition-colors ${activeTab === 'billing'
+                  ? 'border-emerald-500 text-emerald-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+            >
+              Plan & Billing
+            </button>
           </div>
         </div>
       </div>
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto px-6 py-6">
-        <div className="grid grid-cols-12 gap-6">
-          {/* Left Column - Forms */}
-          <div className="col-span-8 space-y-6">
-            <IdentityCard
-              profile={isEditing ? draftProfile : profile}
-              onChange={updateField}
-              errors={errors}
-              isEditing={isEditing}
-            />
-            <ContactCard
-              profile={isEditing ? draftProfile : profile}
-              onChange={updateField}
-              errors={errors}
-              isEditing={isEditing}
-            />
-            <TaxCard
-              profile={isEditing ? draftProfile : profile}
-              onChange={updateField}
-              errors={errors}
-              isEditing={isEditing}
-            />
-            <BankCard
-              profile={isEditing ? draftProfile : profile}
-              onChange={updateField}
-              isEditing={isEditing}
-            />
-            <BusinessCard
-              profile={isEditing ? draftProfile : profile}
-              onChange={updateField}
-              isEditing={isEditing}
-            />
-          </div>
-
-          {/* Right Column - Preview & Actions */}
-          <aside className="col-span-4 space-y-6">
-            <div className="sticky top-6 space-y-6">
-              <VisitingCard profile={isEditing ? draftProfile : profile} />
-              <KycStatus status={profile?.kycStatus} storeId={profile?.id} />
-              <QuickActions storeId={profile?.id} />
-              <AuditTimeline storeId={profile?.id} />
+        {activeTab === 'profile' ? (
+          <div className="grid grid-cols-12 gap-6">
+            {/* Left Column - Forms */}
+            <div className="col-span-8 space-y-6">
+              <IdentityCard
+                profile={isEditing ? draftProfile : profile}
+                onChange={updateField}
+                errors={errors}
+                isEditing={isEditing}
+              />
+              <ContactCard
+                profile={isEditing ? draftProfile : profile}
+                onChange={updateField}
+                errors={errors}
+                isEditing={isEditing}
+              />
+              <TaxCard
+                profile={isEditing ? draftProfile : profile}
+                onChange={updateField}
+                errors={errors}
+                isEditing={isEditing}
+              />
+              <BankCard
+                profile={isEditing ? draftProfile : profile}
+                onChange={updateField}
+                isEditing={isEditing}
+              />
+              <BusinessCard
+                profile={isEditing ? draftProfile : profile}
+                onChange={updateField}
+                isEditing={isEditing}
+              />
             </div>
-          </aside>
-        </div>
+
+            {/* Right Column - Preview & Actions */}
+            <aside className="col-span-4 space-y-6">
+              <div className="sticky top-6 space-y-6">
+                <VisitingCard profile={isEditing ? draftProfile : profile} />
+                <KycStatus status={profile?.kycStatus} storeId={profile?.id} />
+                <QuickActions storeId={profile?.id} />
+                <AuditTimeline storeId={profile?.id} />
+              </div>
+            </aside>
+          </div>
+        ) : (
+          <PlanAndBilling />
+        )}
       </div>
 
       {/* Modals */}
