@@ -86,7 +86,7 @@ export default function OverviewPage() {
             <OfflineIndicator />
             <div className="p-6 space-y-5 bg-[#f7fafc]" role="main" aria-label="Dashboard Overview">
                 {/* Header */}
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
                     <div>
                         <h1 className="text-2xl font-semibold text-gray-800">Welcome back, {user?.firstName || 'User'}!</h1>
                         <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
@@ -98,7 +98,7 @@ export default function OverviewPage() {
                             <span>Shift: <span className="font-medium text-gray-800">Morning</span></span>
                         </div>
                     </div>
-                    <div className="text-right text-sm text-gray-600">
+                    <div className="text-right text-sm text-gray-600 hidden sm:block">
                         <p>Last sync: <span className="font-medium text-gray-800">{new Date().toLocaleTimeString()}</span></p>
                         <p className="text-xs text-emerald-600 mt-1">Auto-sync ON</p>
                     </div>
@@ -185,7 +185,7 @@ export default function OverviewPage() {
                 </div>
 
                 {/* Keyboard hint */}
-                <div className="fixed bottom-6 right-6 bg-[#0f172a] text-white px-3 py-2 rounded-lg text-xs font-semibold" style={{ boxShadow: '0 10px 30px rgba(2,6,23,0.12)' }}>
+                <div className="hidden lg:block fixed bottom-6 right-6 bg-[#0f172a] text-white px-3 py-2 rounded-lg text-xs font-semibold" style={{ boxShadow: '0 10px 30px rgba(2,6,23,0.12)' }}>
                     Press <kbd className="px-1.5 py-0.5 bg-white/20 rounded mx-1">Shift</kbd> + <kbd className="px-1.5 py-0.5 bg-white/20 rounded mx-1">?</kbd> for shortcuts
                 </div>
             </div>

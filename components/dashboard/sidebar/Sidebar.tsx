@@ -11,22 +11,30 @@ import { useBusinessType } from "@/contexts/BusinessTypeContext"
 
 interface SidebarProps {
     isOpen: boolean
+    isMobile?: boolean
     expandedItems: string[]
     onToggleItem: (item: string) => void
+    onClose?: () => void
 }
 
-export default function Sidebar({ isOpen, expandedItems, onToggleItem }: SidebarProps) {
+export default function Sidebar({ isOpen, isMobile, expandedItems, onToggleItem, onClose }: SidebarProps) {
     if (!Array.isArray(sidebarConfig)) return null;
 
     return (
-        <aside className={`${isOpen ? 'w-64' : 'w-20'} bg-white border-r border-gray-100 transition-all duration-300 flex flex-col`}>
-            <SidebarHeader isOpen={isOpen} />
+        <aside className={`
+            ${isMobile
+                ? `fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'}`
+                : `${isOpen ? 'w-64' : 'w-20'} transition-all duration-300`
+            }
+            bg-white border-r border-gray-100 flex flex-col
+        `}>
+            <SidebarHeader isOpen={isOpen || !!isMobile} />
             <nav className="flex-1 py-4 px-3 overflow-y-auto">
                 {sidebarConfig.map((section, idx) => (
                     <SidebarSection
                         key={idx}
                         section={section}
-                        isOpen={isOpen}
+                        isOpen={isOpen || !!isMobile}
                         expandedItems={expandedItems || []}
                         onToggleItem={onToggleItem}
                     />

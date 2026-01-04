@@ -22,7 +22,7 @@ export default function Navbar({ onToggleSidebar, sidebarOpen }: NavbarProps) {
     const [showNotifications, setShowNotifications] = useState(false)
 
     return (
-        <header className="sticky top-0 h-16 bg-white border-b border-gray-100 flex items-center px-6 z-40 shadow-sm">
+        <header className="sticky top-0 h-14 md:h-16 bg-white border-b border-gray-100 flex items-center justify-between px-3 sm:px-4 md:px-6 z-40 shadow-sm">
             <LeftSection
                 onToggleSidebar={onToggleSidebar}
                 showStoreMenu={showStoreMenu}
@@ -63,22 +63,26 @@ function LeftSection({ onToggleSidebar, showStoreMenu, setShowStoreMenu, sidebar
     }, [showStoreMenu, setShowStoreMenu]);
 
     return (
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 md:gap-4 shrink-0">
             <button
                 onClick={onToggleSidebar}
-                className="text-gray-500 hover:text-gray-900 transition-colors"
+                className="p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all"
                 aria-label="Toggle sidebar"
             >
                 {sidebarOpen ? <FiX size={22} /> : <FiMenu size={22} />}
             </button>
 
-            <div className="relative" ref={storeMenuRef}>
+            {/* Store Selector - Hidden on mobile */}
+            <div className="relative hidden md:block" ref={storeMenuRef}>
                 <button
                     onClick={() => setShowStoreMenu(!showStoreMenu)}
-                    className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 rounded-lg transition-colors max-w-xs"
+                    className="flex items-center gap-2 px-2 md:px-3 py-1.5 hover:bg-gray-50 rounded-lg transition-all border border-transparent hover:border-gray-200"
+                    title={primaryStore?.displayName || primaryStore?.name || 'My Store'}
                 >
-                    <MdStore size={18} className="text-emerald-600 shrink-0" />
-                    <div className="text-left min-w-0 flex-1">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center">
+                        <MdStore size={18} className="text-emerald-600" />
+                    </div>
+                    <div className="hidden md:block text-left min-w-0 max-w-[140px] lg:max-w-[200px]">
                         <p className="text-sm font-medium text-gray-800 truncate">
                             {isLoading ? 'Loading...' : (primaryStore?.displayName || primaryStore?.name || 'My Store')}
                         </p>
@@ -86,11 +90,11 @@ function LeftSection({ onToggleSidebar, showStoreMenu, setShowStoreMenu, sidebar
                             {isLoading ? '-' : (primaryStore?.city ? `${primaryStore.city}, ${primaryStore.state}` : '-')}
                         </p>
                     </div>
-                    <FiChevronDown size={16} className={`text-gray-400 transition-transform shrink-0 ${showStoreMenu ? 'rotate-180' : ''}`} />
+                    <FiChevronDown size={16} className={`text-gray-400 transition-transform ${showStoreMenu ? 'rotate-180' : ''} hidden md:block`} />
                 </button>
 
                 {showStoreMenu && (
-                    <div className="absolute left-0 top-14 w-80 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50">
+                    <div className="absolute left-0 sm:left-auto top-14 w-[calc(100vw-24px)] sm:w-80 max-w-80 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50">
                         <div className="px-4 py-2 border-b border-gray-100">
                             <h3 className="text-sm font-semibold text-gray-800">Your Stores</h3>
                         </div>
@@ -149,6 +153,7 @@ function CenterSection() {
     const pathname = usePathname()
 
     const getBreadcrumb = () => {
+        if (!pathname) return { section: 'Dashboard', page: 'Overview' }
         const segments = pathname.split('/').filter(Boolean)
 
         if (segments.length === 0) {
@@ -171,7 +176,10 @@ function CenterSection() {
             'profile': 'Profile',
             'help': 'Help',
             'knowledge': 'Knowledge',
-            'multi-store': 'Multi-Store'
+            'multi-store': 'Multi-Store',
+            'store': 'Store',
+            'finance': 'Finance',
+            'users': 'Team'
         }
 
         const pageMap: Record<string, string> = {
@@ -193,7 +201,11 @@ function CenterSection() {
             'transfer': 'Transfer',
             'summary': 'Summary',
             'drug-info': 'Drug Info',
-            'interactions': 'Interactions'
+            'interactions': 'Interactions',
+            'billing': 'Plan & Billing',
+            'overview': 'Overview',
+            'sales': 'Sales',
+            'list': 'All Patients'
         }
 
         const section = sectionMap[segments[0]] || segments[0].charAt(0).toUpperCase() + segments[0].slice(1)
@@ -205,13 +217,21 @@ function CenterSection() {
     const { section, page } = getBreadcrumb()
 
     return (
-        <div className="flex-1 flex items-center justify-center">
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-                <span className="font-medium text-gray-800">{section}</span>
-                <FiChevronRight size={14} className="text-gray-400" />
-                <span>{page}</span>
+        <>
+            {/* Mobile: Show page title */}
+            <div className="flex-1 md:hidden px-2">
+                <h1 className="text-sm font-semibold text-gray-800 truncate">{section}</h1>
+                <p className="text-xs text-gray-500 truncate">{page}</p>
             </div>
-        </div>
+            {/* Desktop: Show breadcrumb in center */}
+            <div className="hidden md:flex flex-1 items-center justify-center">
+                <div className="flex items-center gap-2 text-sm">
+                    <span className="font-medium text-gray-800">{section}</span>
+                    <FiChevronRight size={14} className="text-gray-400 hidden lg:block" />
+                    <span className="text-gray-600 hidden lg:block">{page}</span>
+                </div>
+            </div>
+        </>
     )
 }
 
@@ -219,42 +239,53 @@ function RightSection({ showNotifications, setShowNotifications, showUserMenu, s
     const router = useRouter()
 
     return (
-        <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 mr-3 pr-3 border-r border-gray-200" data-tour="quick-actions">
+        <div className="flex items-center shrink-0">
+            {/* Quick Actions - Only primary action on mobile */}
+            <div className="flex items-center gap-1 md:gap-2 pr-2 md:pr-4 md:mr-4 md:border-r border-gray-200" data-tour="quick-actions">
                 <Link
-                    href="/prescriptions"
+                    href="/prescriptions/all-prescriptions"
                     data-tour="quick-new-rx"
-                    className="px-3 py-1.5 bg-emerald-500 text-white text-sm font-medium rounded-lg hover:bg-emerald-600 transition-colors flex items-center gap-1.5"
+                    className="p-2 md:px-3 md:py-1.5 bg-emerald-500 text-white text-sm font-medium rounded-lg hover:bg-emerald-600 transition-all flex items-center gap-1.5"
+                    title="New Prescription"
                 >
-                    <TbPrescription size={16} />
-                    New Rx
+                    <TbPrescription size={18} />
+                    <span className="hidden lg:inline">New Rx</span>
                 </Link>
                 <Link
                     href="/pos"
                     data-tour="quick-pos"
-                    className="px-3 py-1.5 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 transition-colors flex items-center gap-1.5"
+                    className="p-2 md:px-3 md:py-1.5 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 transition-all flex items-center gap-1.5"
+                    title="Point of Sale"
                 >
-                    <MdShoppingCart size={16} />
-                    POS
+                    <MdShoppingCart size={18} />
+                    <span className="hidden lg:inline">POS</span>
                 </Link>
             </div>
 
-            <Link
-                href="/messages"
-                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors relative"
-            >
-                <FiMessageSquare size={20} />
-                <span className="absolute top-1 right-1 w-2 h-2 bg-green-500 rounded-full border-2 border-white"></span>
-            </Link>
+            {/* Utilities - Hide messages on small mobile */}
+            <div className="flex items-center gap-1 md:gap-2">
+                <Link
+                    href="/messages"
+                    className="hidden xs:flex p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-all relative"
+                    title="Messages"
+                >
+                    <FiMessageSquare size={20} />
+                    <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-green-500 rounded-full border-2 border-white"></span>
+                </Link>
 
-            <NotificationButton show={showNotifications} setShow={setShowNotifications} />
+                <NotificationButton show={showNotifications} setShow={setShowNotifications} />
 
-            <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 rounded-lg">
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                <span className="text-xs font-medium text-green-700">Synced</span>
+                {/* Synced Status - visible on lg+ */}
+                <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-green-50 rounded-lg ml-1">
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                    <span className="text-xs font-medium text-green-700">Synced</span>
+                </div>
             </div>
 
-            <UserMenu show={showUserMenu} setShow={setShowUserMenu} />
+            {/* User Menu - always visible */}
+            <div className="ml-1 md:ml-3 pl-1 md:pl-3 border-l border-gray-200">
+                <UserMenu show={showUserMenu} setShow={setShowUserMenu} />
+            </div>
         </div>
     )
 }

@@ -26,7 +26,7 @@ export default function POSHeader({ saleId, onOpenCustomer, onOpenPrescription, 
   };
 
   return (
-    <div className="bg-white border-b border-[#e2e8f0] px-6 py-3 flex items-center justify-between shadow-sm z-10 relative">
+    <div className="bg-white border-b border-[#e2e8f0] px-3 sm:px-6 py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 shadow-sm z-10 relative">
       <div className="flex items-center gap-4">
         {/* Branch / Context */}
         {activePrescription ? (

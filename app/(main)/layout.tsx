@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import Sidebar from "@/components/dashboard/sidebar/Sidebar"
+import MobileNav from "@/components/dashboard/sidebar/MobileNav"
 import Navbar from "@/components/dashboard/navbar/Navbar"
 import DemoModeBanner from "@/components/layout/DemoModeBanner"
 import ProductTour from "@/components/tour/ProductTour"
@@ -13,9 +14,31 @@ import { useAuthStore } from "@/lib/store/auth-store"
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
     const router = useRouter();
-    const [sidebarOpen, setSidebarOpen] = useState(true)
+    const pathname = usePathname();
+    const [sidebarOpen, setSidebarOpen] = useState(false) // Default closed, will open on desktop
+    const [mobileNavOpen, setMobileNavOpen] = useState(false)
+    const [isMobile, setIsMobile] = useState(false)
     const [expandedItems, setExpandedItems] = useState<string[]>([])
     const { permissions, isAuthenticated, hasStore, isLoading, primaryStore } = useAuthStore()
+
+    // Detect mobile viewport and set initial sidebar state
+    useEffect(() => {
+        const checkMobile = () => {
+            const mobile = window.innerWidth < 768
+            setIsMobile(mobile)
+            // On desktop, default to open; on mobile, default to closed
+            if (!mobile && !sidebarOpen) {
+                setSidebarOpen(true)
+            }
+            // Close mobile nav when switching to desktop
+            if (!mobile && mobileNavOpen) {
+                setMobileNavOpen(false)
+            }
+        }
+        checkMobile()
+        window.addEventListener('resize', checkMobile)
+        return () => window.removeEventListener('resize', checkMobile)
+    }, [])
 
     useEffect(() => {
         if (!isLoading && isAuthenticated && !hasStore) {
@@ -44,6 +67,15 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         )
     }
 
+    // Handle toggle for mobile vs desktop
+    const handleToggleSidebar = () => {
+        if (isMobile) {
+            setMobileNavOpen(!mobileNavOpen)
+        } else {
+            setSidebarOpen(!sidebarOpen)
+        }
+    }
+
     return (
         <PermissionProvider initialPermissions={permissions}>
             <BusinessTypeProvider>
@@ -53,15 +85,24 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 {/* Product Tour - Only active in demo mode */}
                 {primaryStore?.isDemo && <ProductTour />}
 
+                {/* Fullscreen Mobile Navigation */}
+                <MobileNav isOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
+
                 {/* Main layout - use margin-top instead of padding for better positioning */}
                 <div className={`flex h-screen bg-gray-50 ${primaryStore?.isDemo ? 'mt-[52px]' : ''}`}>
-                    <Sidebar
-                        isOpen={sidebarOpen}
-                        expandedItems={expandedItems}
-                        onToggleItem={toggleItem}
-                    />
+                    {/* Desktop Sidebar - hidden on mobile */}
+                    <div className="hidden md:block">
+                        <Sidebar
+                            isOpen={sidebarOpen}
+                            expandedItems={expandedItems}
+                            onToggleItem={toggleItem}
+                        />
+                    </div>
                     <div className="flex-1 flex flex-col overflow-hidden">
-                        <Navbar onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} sidebarOpen={sidebarOpen} />
+                        <Navbar
+                            onToggleSidebar={handleToggleSidebar}
+                            sidebarOpen={isMobile ? mobileNavOpen : sidebarOpen}
+                        />
                         <main className="flex-1 overflow-auto">
                             {children}
                         </main>
