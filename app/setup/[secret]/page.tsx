@@ -8,6 +8,9 @@ import { FiLoader, FiSend, FiSave, FiRefreshCw } from "react-icons/fi";
 import { FcGoogle } from "react-icons/fc";
 import { getEmailConfig, saveEmailConfig, testEmailConnection, verifySetupPassword, getGmailAuthUrl, disconnectGmail } from "@/lib/api/platform";
 
+// Valid secret - must match backend SETUP_SECRET
+const VALID_SECRET = 'hrp-ml-config';
+
 interface PageProps {
     params: Promise<{ secret: string }>;
 }
@@ -15,6 +18,9 @@ interface PageProps {
 export default function SetupPage({ params }: PageProps) {
     const { secret } = use(params);
     const searchParams = useSearchParams();
+
+    // Secret validation - check FIRST before everything
+    const [secretValid, setSecretValid] = useState<boolean | null>(null);
 
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [password, setPassword] = useState("");
@@ -41,8 +47,20 @@ export default function SetupPage({ params }: PageProps) {
     const [lastTestResult, setLastTestResult] = useState<boolean | null>(null);
     const [authMethod, setAuthMethod] = useState<'oauth' | 'smtp' | null>(null);
 
+    // Validate secret on mount - BEFORE showing anything
+    useEffect(() => {
+        // Simple client-side check - the secret must match exactly
+        if (secret === VALID_SECRET) {
+            setSecretValid(true);
+        } else {
+            setSecretValid(false);
+        }
+    }, [secret]);
+
     // Handle OAuth callback
     useEffect(() => {
+        if (!secretValid) return;
+
         const success = searchParams?.get('success');
         const err = searchParams?.get('error');
 
@@ -56,7 +74,7 @@ export default function SetupPage({ params }: PageProps) {
             toast.error(decodeURIComponent(err));
             window.history.replaceState({}, '', `/setup/${secret}`);
         }
-    }, [searchParams, secret]);
+    }, [searchParams, secret, secretValid]);
 
     // Countdown timer for rate limit
     useEffect(() => {
@@ -185,7 +203,31 @@ export default function SetupPage({ params }: PageProps) {
         }
     };
 
-    // Password Gate UI
+    // Loading state while validating secret
+    if (secretValid === null) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <FiLoader className="w-8 h-8 animate-spin text-gray-400" />
+            </div>
+        );
+    }
+
+    // Invalid secret - show generic 404 (don't reveal the setup page exists!)
+    if (!secretValid) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
+                <div className="text-center">
+                    <h1 className="text-6xl font-bold text-gray-300 mb-4">404</h1>
+                    <p className="text-gray-600 mb-6">Page not found</p>
+                    <a href="/" className="text-emerald-600 hover:text-emerald-700 font-medium">
+                        Go to Homepage
+                    </a>
+                </div>
+            </div>
+        );
+    }
+
+    // Password Gate UI - only shown if secret is valid
     if (!isAuthenticated) {
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center p-6">
