@@ -9,6 +9,7 @@ import {
 import { MdStore, MdShoppingCart } from "react-icons/md"
 import { TbPrescription } from "react-icons/tb"
 import { useAuthStore } from "@/lib/store/auth-store"
+import { apiClient } from "@/lib/api/client"
 import NotificationButton from "./NotificationButton"
 
 interface NavbarProps {
@@ -320,18 +321,10 @@ function UserMenu({ show, setShow }: any) {
             if (!user) return;
 
             try {
-                // Using validated API URL
-                const response = await fetch(`${apiBaseUrl}/avatar/me`, {
-                    headers: {
-                        'Authorization': `Bearer ${tokenManager.getAccessToken()}`
-                    }
-                });
+                const response = await apiClient.get('/avatar/me');
 
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.success && data.avatarUrl) {
-                        setAvatarUrl(data.avatarUrl);
-                    }
+                if (response.success && response.avatarUrl) {
+                    setAvatarUrl(response.avatarUrl);
                 }
             } catch (error) {
                 // Silently fail - will show initials
