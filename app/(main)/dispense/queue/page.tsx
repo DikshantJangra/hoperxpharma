@@ -99,7 +99,7 @@ export default function QueuePage() {
     };
 
     return (
-        <div className="h-screen flex flex-col bg-[#f8fafc]">
+        <div className="h-full flex flex-col bg-[#f8fafc]">
             {/* Header */}
             <div className="bg-white border-b border-[#e2e8f0] p-6">
                 <div className="max-w-7xl mx-auto">

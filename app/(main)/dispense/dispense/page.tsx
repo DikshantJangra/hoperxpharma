@@ -19,7 +19,7 @@ export default function DispensePage() {
     const copayAmount = 150;
 
     return (
-        <div className="h-screen flex flex-col bg-[#f8fafc]">
+        <div className="h-full flex flex-col bg-[#f8fafc]">
             <div className="bg-white border-b border-[#e2e8f0] p-6">
                 <h1 className="text-2xl font-bold text-[#0f172a] mb-2">Dispense to Patient</h1>
                 <p className="text-sm text-[#64748b]">Final handoff and patient counseling</p>

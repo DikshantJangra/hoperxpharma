@@ -156,7 +156,7 @@ export default function PatientConsentsPage() {
     };
 
     return (
-        <div className="h-screen flex flex-col bg-[#f8fafc] overflow-hidden">
+        <div className="h-full flex flex-col bg-[#f8fafc] overflow-hidden">
             {/* Fixed Header */}
             <div className="bg-white border-b border-[#e2e8f0] p-6 flex-shrink-0">
                 <div className="max-w-7xl mx-auto">

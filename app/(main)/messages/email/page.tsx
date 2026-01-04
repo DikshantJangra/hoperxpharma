@@ -232,7 +232,7 @@ export default function EmailPage() {
     // When no accounts: show config modal OR empty state, not both
     if (showConfigModal) {
       return (
-        <div className="h-screen flex flex-col bg-white">
+        <div className="h-full flex flex-col bg-white">
           <EmailConfigModal
             isOpen={showConfigModal}
             onClose={() => setShowConfigModal(false)}

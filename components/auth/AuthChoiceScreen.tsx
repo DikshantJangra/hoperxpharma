@@ -1,8 +1,10 @@
 "use client";
 
-import React from 'react';
+import React, { useState } from 'react';
 import { FcGoogle } from 'react-icons/fc';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
+import { AiOutlineLoading3Quarters } from 'react-icons/ai';
 
 interface AuthChoiceScreenProps {
     mode: 'login' | 'signup';
@@ -12,6 +14,64 @@ interface AuthChoiceScreenProps {
 export function AuthChoiceScreen({ mode, onSelectMethod }: AuthChoiceScreenProps) {
     const isLogin = mode === 'login';
     const router = useRouter();
+    const [isCheckingServer, setIsCheckingServer] = useState(false);
+    const [showRetry, setShowRetry] = useState(false);
+
+    // Check if backend is ready by polling health endpoint
+    const waitForBackend = async (): Promise<boolean> => {
+        const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api').replace(/\/v1\/?$/, '');
+        const healthUrl = `${baseUrl}/v1/health`;
+        const maxAttempts = 25; // ~50 seconds total
+        const initialDelay = 1000;
+
+        for (let attempt = 0; attempt < maxAttempts; attempt++) {
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+                const response = await fetch(healthUrl, {
+                    method: 'GET',
+                    signal: controller.signal,
+                });
+
+                clearTimeout(timeoutId);
+
+                if (response.ok) {
+                    return true;
+                }
+            } catch (error) {
+                // Server not ready yet, continue polling
+            }
+
+            // Wait before next attempt (fixed 2s delay for consistent ~50s total)
+            await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+
+        return false;
+    };
+
+    const handleGoogleAuth = async () => {
+        setIsCheckingServer(true);
+        setShowRetry(false);
+
+        try {
+            const isReady = await waitForBackend();
+
+            if (isReady) {
+                const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api').replace(/\/v1\/?$/, '');
+                const intent = isLogin ? 'login' : 'signup';
+                window.location.href = `${baseUrl}/v1/auth/google?intent=${intent}`;
+            } else {
+                toast.error('Server is taking too long to respond.');
+                setIsCheckingServer(false);
+                setShowRetry(true);
+            }
+        } catch (error) {
+            toast.error('Failed to connect to server.');
+            setIsCheckingServer(false);
+            setShowRetry(true);
+        }
+    };
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-300">
@@ -30,29 +90,47 @@ export function AuthChoiceScreen({ mode, onSelectMethod }: AuthChoiceScreenProps
 
                 {/* Google - First */}
                 <button
-                    onClick={() => {
-                        // Ensure we don't double stack /api/v1
-                        const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api').replace(/\/v1\/?$/, '');
-                        const intent = isLogin ? 'login' : 'signup';
-                        window.location.href = `${baseUrl}/v1/auth/google?intent=${intent}`;
-                    }}
-                    className="w-full h-12 bg-white hover:bg-gray-50 border-2 border-gray-200 hover:border-gray-300 rounded-xl transition-all duration-200 flex items-center gap-3 px-4 group"
+                    onClick={handleGoogleAuth}
+                    disabled={isCheckingServer}
+                    className={`w-full h-12 bg-white border-2 border-gray-200 rounded-xl transition-all duration-200 flex items-center gap-3 px-4 group ${isCheckingServer
+                        ? 'opacity-80 cursor-wait'
+                        : 'hover:bg-gray-50 hover:border-gray-300'
+                        }`}
                 >
-                    <FcGoogle size={20} className="flex-shrink-0" />
+                    {isCheckingServer ? (
+                        <AiOutlineLoading3Quarters size={20} className="flex-shrink-0 animate-spin text-emerald-500" />
+                    ) : (
+                        <FcGoogle size={20} className="flex-shrink-0" />
+                    )}
                     <div className="flex-1 text-left">
-                        <p className="font-medium text-gray-700 text-sm">
-                            Continue with Google
+                        <p className={`font-medium text-sm ${isCheckingServer ? 'text-emerald-600' : 'text-gray-700'}`}>
+                            {isCheckingServer ? 'Connecting...' : 'Continue with Google'}
                         </p>
                     </div>
-                    <svg
-                        className="w-4 h-4 text-gray-400 group-hover:text-gray-600 transition-colors flex-shrink-0"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                    >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
+                    {!isCheckingServer && (
+                        <svg
+                            className="w-4 h-4 text-gray-400 group-hover:text-gray-600 transition-colors flex-shrink-0"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                        >
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                    )}
                 </button>
+
+                {/* Retry Button - Shows after timeout */}
+                {showRetry && (
+                    <button
+                        onClick={handleGoogleAuth}
+                        className="w-full h-10 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 font-medium text-sm rounded-lg transition-colors flex items-center justify-center gap-2"
+                    >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        Retry Connection
+                    </button>
+                )}
 
                 {/* Password - Visible for both, but different text */}
                 <button

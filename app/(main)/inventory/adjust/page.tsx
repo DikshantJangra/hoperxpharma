@@ -10,7 +10,7 @@ export default function AdjustPage() {
   const [activeTab, setActiveTab] = useState<'new' | 'past'>('new');
 
   return (
-    <div className="h-screen flex flex-col bg-[#f8fafc]">
+    <div className="h-full flex flex-col bg-[#f8fafc]">
       {/* Header */}
       <div className="bg-white border-b border-[#e2e8f0]">
         <div className="flex items-center justify-between p-4 pb-0">

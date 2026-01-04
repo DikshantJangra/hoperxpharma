@@ -62,6 +62,11 @@ export function EmailLinkForm({ mode, onBack }: EmailLinkFormProps) {
                     duration: 5000,
                     icon: '⚠️',
                 });
+            } else if (error.message?.includes('No account found')) {
+                toast.error('No account found with this email. Please sign up first!', {
+                    duration: 5000,
+                    icon: '❌',
+                });
             } else {
                 toast.error(error.message || 'Failed to send email. Please try again.');
             }

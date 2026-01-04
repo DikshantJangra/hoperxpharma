@@ -1058,7 +1058,7 @@ export default function NewSalePage() {
     };
 
     return (
-        <div className="h-screen flex flex-col bg-[#f8fafc] relative">
+        <div className="h-full flex flex-col bg-[#f8fafc] relative">
             <POSHeader
                 saleId={saleId}
                 onOpenCustomer={() => setShowCustomerModal(true)}

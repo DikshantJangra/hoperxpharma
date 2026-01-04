@@ -88,22 +88,22 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 {/* Fullscreen Mobile Navigation */}
                 <MobileNav isOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
 
-                {/* Main layout - use margin-top instead of padding for better positioning */}
-                <div className={`flex h-screen bg-gray-50 ${primaryStore?.isDemo ? 'mt-[52px]' : ''}`}>
+                {/* Main layout - fixed height accounting for demo banner */}
+                <div className={`flex ${primaryStore?.isDemo ? 'h-[calc(100vh-52px)] mt-[52px]' : 'h-screen'} bg-gray-50 overflow-hidden`}>
                     {/* Desktop Sidebar - hidden on mobile */}
-                    <div className="hidden md:block">
+                    <div className="hidden md:flex h-full">
                         <Sidebar
                             isOpen={sidebarOpen}
                             expandedItems={expandedItems}
                             onToggleItem={toggleItem}
                         />
                     </div>
-                    <div className="flex-1 flex flex-col overflow-hidden">
+                    <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
                         <Navbar
                             onToggleSidebar={handleToggleSidebar}
                             sidebarOpen={isMobile ? mobileNavOpen : sidebarOpen}
                         />
-                        <main className="flex-1 overflow-auto">
+                        <main className="flex-1 overflow-y-auto overflow-x-hidden">
                             {children}
                         </main>
                     </div>

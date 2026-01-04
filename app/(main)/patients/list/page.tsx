@@ -122,7 +122,7 @@ export default function PatientsListPage() {
 
   return (
     <ErrorBoundary>
-      <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
+      <div className="h-full flex flex-col bg-gray-50 overflow-hidden">
         {/* Fixed Header */}
         <div className="flex-shrink-0">
           <PatientsHeader

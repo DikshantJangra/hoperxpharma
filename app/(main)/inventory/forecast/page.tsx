@@ -12,7 +12,7 @@ export default function ForecastPage() {
   const [forecastWindow, setForecastWindow] = useState<'7' | '14' | '30' | '60' | '90'>('14');
 
   return (
-    <div className="h-screen flex flex-col bg-[#f8fafc]">
+    <div className="h-full flex flex-col bg-[#f8fafc]">
       {/* Header */}
       <div className="bg-white border-b border-[#e2e8f0] p-4">
         <div className="flex items-center justify-between mb-4">

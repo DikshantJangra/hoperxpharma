@@ -137,7 +137,7 @@ export default function StockPage() {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-[#f8fafc]">
+    <div className="h-full flex flex-col bg-[#f8fafc]">
       {/* Header */}
       <div className="bg-white border-b border-[#e2e8f0] p-4">
         {/* ... (header content remains same) ... */}

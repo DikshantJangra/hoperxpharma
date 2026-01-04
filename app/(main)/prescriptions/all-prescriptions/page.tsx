@@ -215,7 +215,7 @@ export default function PrescriptionsListPage() {
     };
 
     return (
-        <div className="h-screen flex flex-col bg-gradient-to-br from-gray-50 to-gray-100">
+        <div className="h-full flex flex-col bg-gradient-to-br from-gray-50 to-gray-100">
             <Toaster position="top-right" />
 
             {/* Header */}

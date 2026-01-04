@@ -14,7 +14,7 @@ export default function BackupsPage() {
   const [activeTab, setActiveTab] = useState<'overview' | 'plans' | 'restore' | 'snapshots' | 'storage' | 'retention' | 'activity'>('overview');
 
   return (
-    <div className="h-screen flex flex-col bg-[#f8fafc]">
+    <div className="h-full flex flex-col bg-[#f8fafc]">
       <div className="bg-white border-b border-[#e2e8f0] px-6 py-4">
         <div className="flex items-center justify-between mb-4">
           <div>

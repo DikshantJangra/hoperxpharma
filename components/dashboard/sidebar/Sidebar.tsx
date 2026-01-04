@@ -24,9 +24,9 @@ export default function Sidebar({ isOpen, isMobile, expandedItems, onToggleItem,
         <aside className={`
             ${isMobile
                 ? `fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'}`
-                : `${isOpen ? 'w-64' : 'w-20'} transition-all duration-300`
+                : `${isOpen ? 'w-64' : 'w-20'} h-full transition-all duration-300`
             }
-            bg-white border-r border-gray-100 flex flex-col
+            bg-white border-r border-gray-100 flex flex-col overflow-hidden
         `}>
             <SidebarHeader isOpen={isOpen || !!isMobile} />
             <nav className="flex-1 py-4 px-3 overflow-y-auto">
@@ -131,7 +131,13 @@ function NavItem({ item, isOpen, expanded, onToggle }: any) {
         : []
 
     const hasVisibleSubItems = visibleSubItems.length > 0
-    const isActive = item.path ? pathname === item.path : (hasVisibleSubItems && visibleSubItems.some((sub: any) => pathname === sub.path))
+
+    // Check if this exact item path is active
+    const isExactActive = item.path ? pathname === item.path : false
+    // Check if any child is active (for parent highlighting)
+    const hasActiveChild = hasVisibleSubItems && visibleSubItems.some((sub: any) => pathname === sub.path)
+    // Combined: either exact match or has active child
+    const isActive = isExactActive || hasActiveChild
 
     // If item has a direct path (no subitems), render as Link
     if (item.path && !hasVisibleSubItems) {
@@ -151,20 +157,23 @@ function NavItem({ item, isOpen, expanded, onToggle }: any) {
     }
 
     // If item has subitems, render as expandable button
+    // Parent only gets text color (no bg) when child is active
     return (
         <div className="mb-0.5">
             <button
                 onClick={hasVisibleSubItems ? onToggle : undefined}
                 data-tour={`sidebar-${item.label.toLowerCase().replace(/ /g, '-')}`}
-                className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-md transition-colors ${isActive ? 'bg-emerald-50 text-emerald-600 font-semibold' : 'text-gray-700 hover:bg-gray-50'
+                className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-md transition-colors ${hasActiveChild
+                        ? 'text-emerald-600 font-semibold'
+                        : 'text-gray-700 hover:bg-gray-50'
                     }`}
             >
                 <div className="flex items-center gap-3">
-                    <span className="shrink-0">{item.icon}</span>
+                    <span className={`shrink-0 ${hasActiveChild ? 'text-emerald-600' : ''}`}>{item.icon}</span>
                     {isOpen && <span className="text-sm">{item.label}</span>}
                 </div>
                 {isOpen && hasVisibleSubItems && (
-                    <FiChevronRight size={16} className={`text-gray-400 transition-transform duration-200 ${expanded ? 'rotate-90' : ''}`} />
+                    <FiChevronRight size={16} className={`${hasActiveChild ? 'text-emerald-500' : 'text-gray-400'} transition-transform duration-200 ${expanded ? 'rotate-90' : ''}`} />
                 )}
             </button>
             {isOpen && expanded && hasVisibleSubItems && (

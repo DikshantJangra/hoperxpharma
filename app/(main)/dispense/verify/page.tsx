@@ -20,7 +20,7 @@ export default function VerifyPage() {
     const interactions: any[] = [];
 
     return (
-        <div className="h-screen flex flex-col bg-[#f8fafc]">
+        <div className="h-full flex flex-col bg-[#f8fafc]">
             <div className="bg-white border-b border-[#e2e8f0] p-6">
                 <h1 className="text-2xl font-bold text-[#0f172a] mb-2">Prescription Verification</h1>
                 <p className="text-sm text-[#64748b]">Verify prescription accuracy and patient safety</p>
