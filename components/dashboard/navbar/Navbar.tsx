@@ -11,6 +11,8 @@ import { TbPrescription } from "react-icons/tb"
 import { useAuthStore } from "@/lib/store/auth-store"
 import { apiClient } from "@/lib/api/client"
 import NotificationButton from "./NotificationButton"
+import { useTrialStatus, getUrgencyColors } from "@/lib/hooks/useTrialStatus"
+import { StatusPill } from "@/components/billing/StatusPill"
 
 interface NavbarProps {
     onToggleSidebar: () => void
@@ -241,6 +243,11 @@ function RightSection({ showNotifications, setShowNotifications, showUserMenu, s
 
     return (
         <div className="flex items-center shrink-0">
+            {/* StatusPill - Billing awareness (hidden on mobile) */}
+            <div className="hidden md:flex items-center mr-3">
+                <StatusPill />
+            </div>
+
             {/* Quick Actions - Only primary action on mobile */}
             <div className="flex items-center gap-1 md:gap-2 pr-2 md:pr-4 md:mr-4 md:border-r border-gray-200" data-tour="quick-actions">
                 <Link
@@ -366,23 +373,35 @@ function UserMenu({ show, setShow }: any) {
         }
     }, [show, setShow]);
 
+    const { isOnTrial, daysLeft, urgency } = useTrialStatus();
+    const trialColors = getUrgencyColors(urgency);
+
     return (
         <div className="relative ml-2" ref={userMenuRef}>
             <button
                 onClick={() => setShow(!show)}
                 className="flex items-center gap-2 p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
             >
-                {avatarUrl ? (
-                    <img
-                        src={avatarUrl}
-                        alt="User avatar"
-                        className="w-9 h-9 rounded-full object-cover border-2 border-emerald-200"
-                    />
-                ) : (
-                    <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-semibold text-sm">
-                        {isLoading ? '-' : getInitials()}
-                    </div>
-                )}
+                <div className="relative">
+                    {avatarUrl ? (
+                        <img
+                            src={avatarUrl}
+                            alt="User avatar"
+                            className="w-9 h-9 rounded-full object-cover border-2 border-emerald-200"
+                        />
+                    ) : (
+                        <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-semibold text-sm">
+                            {isLoading ? '-' : getInitials()}
+                        </div>
+                    )}
+                    {/* Trial indicator dot */}
+                    {isOnTrial && (
+                        <span
+                            className={`absolute -top-0.5 -right-0.5 w-3 h-3 ${trialColors.dot} rounded-full border-2 border-white`}
+                            title={`${daysLeft} days left in trial`}
+                        />
+                    )}
+                </div>
                 <FiChevronDown size={16} className={`text-gray-400 transition-transform ${show ? 'rotate-180' : ''}`} />
             </button>
             {show && (

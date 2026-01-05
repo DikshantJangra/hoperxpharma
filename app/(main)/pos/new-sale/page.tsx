@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import ProductSearch from '@/components/pos/ProductSearch';
 import Basket from '@/components/pos/Basket';
@@ -20,8 +20,11 @@ import { salesApi, Sale } from '@/lib/api/sales';
 import { prescriptionApi } from '@/lib/api/prescriptions';
 import PrescriptionImportModal from '@/components/pos/PrescriptionImportModal';
 import { inventoryApi } from '@/lib/api/inventory';
+import { useBarcodeScanner } from '@/hooks/useBarcodeScanner';
+import { useMedicineMaster } from '@/contexts/MedicineMasterContext';
 
 export default function NewSalePage() {
+    const router = useRouter();
     const [basketItems, setBasketItems] = useState<any[]>([]);
     const [customer, setCustomer] = useState<any>(null);
     const [showShortcuts, setShowShortcuts] = useState(false);
@@ -49,6 +52,52 @@ export default function NewSalePage() {
     const [overallDiscount, setOverallDiscount] = useState<{ type: 'percentage' | 'amount' | null, value: number }>({ type: null, value: 0 });
     const [dispenseFor, setDispenseFor] = useState<any>(null); // Track who medication is dispensed for
     const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Barcode Scanner Integration
+    const { lookupByBarcode } = useMedicineMaster();
+
+    const handleScan = (barcode: string) => {
+        console.log('🔫 Scanned Barcode:', barcode);
+
+        // 1. Lookup in Master Data (O(1))
+        const masterItem = lookupByBarcode(barcode);
+
+        if (masterItem) {
+            toast.success(`Scanned: ${masterItem.name}`);
+
+            // 2. Convert to Product format for basket
+            // Note: We don't have batch info from barcode yet, so we set stock/batches to 0
+            // This will trigger addToBasket to open the BatchModal, which is correct for Phase 1
+            const productToAdd = {
+                id: masterItem.sku || masterItem.barcode, // Prefer SKU if available
+                name: masterItem.name,
+                mrp: masterItem.mrp,
+                gstRate: masterItem.gstRate,
+                manufacturer: masterItem.manufacturer,
+                type: masterItem.type || 'OTC',
+                requiresPrescription: masterItem.requiresPrescription || masterItem.type === 'RX',
+                stock: 0,
+                batches: 0,
+                batchCount: 0,
+                // Pass barcode to help with batch lookup later if needed
+                barcode: listBarcode(masterItem)
+            };
+
+            addToBasket(productToAdd);
+        } else {
+            toast.error(`Item not found in Master Data: ${barcode}`);
+            // Optional: Open search with this barcode pre-filled?
+        }
+    };
+
+    // Helper to get barcode string
+    const listBarcode = (item: any) => item.barcode;
+
+    useBarcodeScanner({
+        onScan: handleScan,
+        minLength: 3,
+        timeThreshold: 50
+    });
 
     // Get storeId from localStorage
     useEffect(() => {
@@ -1085,6 +1134,7 @@ export default function NewSalePage() {
                             onAddProduct={addToBasket}
                             searchFocus={searchFocus}
                             setSearchFocus={setSearchFocus}
+                            onManualScan={handleScan}
                         />
                     </div>
                     <QuickAddGrid onAddProduct={addToBasket} storeId={storeId} />

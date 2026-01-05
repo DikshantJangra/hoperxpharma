@@ -142,7 +142,7 @@ interface OnboardingContextType {
     markStepComplete: (step: number) => void;
     completeOnboarding: () => void;
     resetOnboarding: () => void;
-    setMode: (mode: 'REAL' | 'DEMO') => Promise<void>;
+    setMode: (mode: 'REAL' | 'DEMO', businessType?: string) => Promise<void>;
     isSaving: boolean;
     lastSaved: Date | null;
     error: string | null;
@@ -435,9 +435,9 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
         // Progress is automatically saved to API via useEffect
     }, []);
 
-    const setMode = useCallback(async (mode: 'REAL' | 'DEMO') => {
+    const setMode = useCallback(async (mode: 'REAL' | 'DEMO', businessType?: string) => {
         try {
-            const response = await onboardingApi.setMode(mode);
+            const response = await onboardingApi.setMode(mode, businessType);
             const data = response.data || {}; // Fallback if data is missing
 
             setState(prev => ({

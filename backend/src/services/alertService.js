@@ -1,33 +1,188 @@
 const database = require('../config/database');
+const ruleEngine = require('./alerts/ruleEngine');
+const logger = require('../config/logger');
 
 const prisma = database.getClient();
 
 /**
- * Alert Service - Manages system alerts and notifications
+ * Alert Service - Manages system alerts and notifications with event-driven architecture
  */
 class AlertService {
     /**
-     * Create a new alert
+     * Create alert from event (NEW - event-driven entry point)
+     * @param {object} event - Event object with eventType and payload
+     */
+    async createAlertFromEvent(event) {
+        try {
+            // Process event through rule engine
+            const alertConfigs = await ruleEngine.processEvent(event);
+
+            if (alertConfigs.length === 0) {
+                logger.debug(`No alerts to create for event: ${event.eventType}`);
+                return [];
+            }
+
+            const createdAlerts = [];
+
+            for (const config of alertConfigs) {
+                // Check for duplicate alerts
+                const duplicate = await this.findDuplicateAlert(config);
+
+                if (duplicate) {
+                    logger.info(`Duplicate alert found, skipping creation`, {
+                        duplicateId: duplicate.id,
+                        ruleId: config.metadata?.ruleId,
+                    });
+                    continue;
+                }
+
+                // Create the alert
+                const alert = await this.createAlert(config.storeId, config);
+                createdAlerts.push(alert);
+
+                logger.info(`Alert created from event`, {
+                    alertId: alert.id,
+                    priority: alert.priority,
+                    category: alert.category,
+                });
+            }
+
+            return createdAlerts;
+        } catch (error) {
+            logger.error('Error creating alert from event:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Find duplicate alert based on criteria and time window
+     */
+    async findDuplicateAlert(config) {
+        const { storeId, relatedType, relatedId, category, deduplicationWindow } = config;
+
+        if (!deduplicationWindow) {
+            return null; // No de-duplication configured
+        }
+
+        const windowStart = new Date(Date.now() - deduplicationWindow);
+
+        try {
+            const duplicate = await prisma.alert.findFirst({
+                where: {
+                    storeId,
+                    relatedType,
+                    relatedId,
+                    category,
+                    status: { in: ['NEW', 'SNOOZED'] }, // Only consider active alerts
+                    createdAt: { gte: windowStart },
+                },
+                orderBy: { createdAt: 'desc' },
+            });
+
+            return duplicate;
+        } catch (error) {
+            logger.error('Error checking for duplicate alert:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Create a new alert (enhanced version)
      */
     async createAlert(storeId, alertData) {
+        // Map priority to severity if severity not provided
+        const priorityToSeverity = {
+            'CRITICAL': 'CRITICAL',
+            'HIGH': 'CRITICAL',
+            'MEDIUM': 'MODERATE',
+            'LOW': 'MINOR'
+        };
+
+        const severity = alertData.severity || priorityToSeverity[alertData.priority] || 'MODERATE';
+
         return await prisma.alert.create({
             data: {
                 storeId,
-                type: alertData.type,
-                severity: alertData.severity,
+                type: alertData.type || alertData.category || 'SYSTEM',
+                category: alertData.category || 'INVENTORY',
+                severity,
+                priority: alertData.priority || 'MEDIUM',
                 title: alertData.title,
                 description: alertData.description,
                 source: alertData.source,
-                priority: alertData.priority || this.getPriorityFromSeverity(alertData.severity),
                 status: 'NEW',
                 relatedType: alertData.relatedType || null,
                 relatedId: alertData.relatedId || null,
-            }
+                actionUrl: alertData.actionUrl || null,
+                actionLabel: alertData.actionLabel || null,
+                blockAction: alertData.blockAction || false,
+                metadata: alertData.metadata || null,
+                channels: alertData.channels || ['IN_APP'],
+                expiresAt: alertData.expiresAt || null,
+            },
         });
     }
 
     /**
-     * Get active alerts for a store
+     * Get user alerts with filtering (NEW)
+     * @param {string} userId - User ID
+     * @param {string} storeId - Store ID
+     * @param {object} filters - Filter options
+     */
+    async getUserAlerts(userId, storeId, filters = {}) {
+        const where = {
+            storeId,
+        };
+
+        // Status filter (default to active alerts)
+        if (filters.status) {
+            where.status = filters.status;
+        } else {
+            where.status = { in: ['NEW', 'SNOOZED'] };
+        }
+
+        // Category filter
+        if (filters.category) {
+            where.category = filters.category;
+        }
+
+        // Priority filter
+        if (filters.priority) {
+            if (Array.isArray(filters.priority)) {
+                where.priority = { in: filters.priority };
+            } else {
+                where.priority = filters.priority;
+            }
+        }
+
+        // Seen/unseen filter
+        if (filters.seen === true) {
+            where.seenAt = { not: null };
+        } else if (filters.seen === false) {
+            where.seenAt = null;
+        }
+
+        // Search
+        if (filters.search) {
+            where.OR = [
+                { title: { contains: filters.search, mode: 'insensitive' } },
+                { description: { contains: filters.search, mode: 'insensitive' } }
+            ];
+        }
+
+        return await prisma.alert.findMany({
+            where,
+            orderBy: [
+                { priority: 'desc' }, // CRITICAL, HIGH, MEDIUM, LOW
+                { createdAt: 'desc' }
+            ],
+            take: filters.limit || 50,
+            skip: filters.offset || 0,
+        });
+    }
+
+    /**
+     * Get active alerts for a store (existing method - kept for backward compatibility)
      */
     async getActiveAlerts(storeId, filters = {}) {
         const where = {
@@ -57,10 +212,40 @@ class AlertService {
     }
 
     /**
+     * Get unread count (NEW)
+     */
+    async getUnreadCount(storeId, priority = null) {
+        const where = {
+            storeId,
+            status: { in: ['NEW', 'SNOOZED'] },
+            seenAt: null, // Unseen alerts
+        };
+
+        if (priority) {
+            where.priority = Array.isArray(priority) ? { in: priority } : priority;
+        }
+
+        return await prisma.alert.count({ where });
+    }
+
+    /**
+     * Mark alert as seen (NEW)
+     */
+    async markAsSeen(alertId, userId) {
+        return await prisma.alert.update({
+            where: { id: alertId },
+            data: {
+                seenAt: new Date(),
+                seenBy: userId,
+            }
+        });
+    }
+
+    /**
      * Get alert counts by status and severity
      */
     async getAlertCounts(storeId) {
-        const [total, byStatus, bySeverity] = await Promise.all([
+        const [total, byStatus, bySeverity, byPriority] = await Promise.all([
             prisma.alert.count({ where: { storeId, status: { in: ['NEW', 'SNOOZED'] } } }),
             prisma.alert.groupBy({
                 by: ['status'],
@@ -69,6 +254,11 @@ class AlertService {
             }),
             prisma.alert.groupBy({
                 by: ['severity'],
+                where: { storeId, status: { in: ['NEW', 'SNOOZED'] } },
+                _count: true
+            }),
+            prisma.alert.groupBy({
+                by: ['priority'],
                 where: { storeId, status: { in: ['NEW', 'SNOOZED'] } },
                 _count: true
             })
@@ -83,7 +273,11 @@ class AlertService {
             bySeverity: bySeverity.reduce((acc, item) => {
                 acc[item.severity] = item._count;
                 return acc;
-            }, {})
+            }, {}),
+            byPriority: byPriority.reduce((acc, item) => {
+                acc[item.priority] = item._count;
+                return acc;
+            }, {}),
         };
     }
 
@@ -112,17 +306,9 @@ class AlertService {
         return await prisma.alert.update({
             where: { id: alertId },
             data: {
-                status: 'SNOOZED', // 'ACKNOWLEDGED' not in enum, mapping to 'SNOOZED' or just keeping 'NEW' is better but let's use 'SNOOZED' to hide it or keep it 'NEW' if just seen.
-                // Actually, if 'ACKNOWLEDGED' means "I saw it but didn't fix it", maybe SNOOZED is best approximation.
-                // Or we can just log the acknowledgement without status change if 'NEW' is the only active state.
-                // But typically UI expects status change.
-                // For now, let's map acknowledge to SNOOZED to keep it "active but handled" or just don't change status?
-                // The prompt says "Invalid value for argument `in`. Expected AlertStatus."
-                // AlertStatus in schema is NEW, SNOOZED, RESOLVED.
-                // I will change 'ACKNOWLEDGED' to 'SNOOZED' for now.
                 status: 'SNOOZED',
-                acknowledgedBy: userId,
-                acknowledgedAt: new Date()
+                seenAt: new Date(),
+                seenBy: userId,
             }
         });
     }
@@ -137,7 +323,6 @@ class AlertService {
                 status: 'RESOLVED',
                 resolvedBy: userId,
                 resolvedAt: new Date(),
-                resolution: resolution || null
             }
         });
     }
@@ -156,13 +341,25 @@ class AlertService {
     }
 
     /**
-     * Dismiss alert
+     * Dismiss alert (bulk operation)
+     */
+    async dismissAlerts(alertIds) {
+        return await prisma.alert.updateMany({
+            where: { id: { in: alertIds } },
+            data: {
+                status: 'RESOLVED'
+            }
+        });
+    }
+
+    /**
+     * Dismiss single alert
      */
     async dismissAlert(alertId) {
         return await prisma.alert.update({
             where: { id: alertId },
             data: {
-                status: 'RESOLVED' // DISMISSED not in enum, mapping to RESOLVED
+                status: 'RESOLVED'
             }
         });
     }
@@ -177,21 +374,19 @@ class AlertService {
     }
 
     /**
-     * Get priority from severity
+     * Get priority from severity (for backward compatibility)
      */
     getPriorityFromSeverity(severity) {
         const priorityMap = {
-            'CRITICAL': 'High',
-            'HIGH': 'High',
-            'MEDIUM': 'Medium',
-            'LOW': 'Low',
-            'INFO': 'Low'
+            'CRITICAL': 'CRITICAL',
+            'WARNING': 'HIGH',
+            'INFO': 'MEDIUM',
         };
-        return priorityMap[severity] || 'Medium';
+        return priorityMap[severity] || 'MEDIUM';
     }
 
     /**
-     * Check for and unsnoozed alerts
+     * Unsnooze alerts that have passed their snooze time
      */
     async unsnoozedAlerts() {
         const now = new Date();

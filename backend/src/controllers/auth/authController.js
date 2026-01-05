@@ -169,7 +169,8 @@ const login = asyncHandler(async (req, res) => {
             eventType: 'login_success',
             ipAddress,
             userAgent,
-            deviceInfo: userAgent // Simple mapping for now
+            deviceInfo: userAgent, // Simple mapping for now
+            loginMethod: 'password' // Track authentication method
         });
 
         const response = ApiResponse.success(
@@ -197,7 +198,8 @@ const login = asyncHandler(async (req, res) => {
                     eventType: 'login_failure',
                     ipAddress,
                     userAgent,
-                    deviceInfo: userAgent
+                    deviceInfo: userAgent,
+                    loginMethod: 'password' // Track authentication method
                 });
             }
         } catch (logError) {

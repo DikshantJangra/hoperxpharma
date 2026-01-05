@@ -2,49 +2,17 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useOnboarding } from "@/contexts/OnboardingContext";
-import { FiDatabase, FiCheckCircle, FiArrowRight, FiPlayCircle, FiBriefcase } from "react-icons/fi";
-import { toast } from "sonner";
+import { FiCheckCircle, FiArrowRight, FiPlayCircle, FiBriefcase } from "react-icons/fi";
 import Logo from "@/components/ui/Logo";
-import { useAuthStore } from "@/lib/store/auth-store";
-import { useTourStore } from "@/lib/store/tour-store";
 
 export default function WelcomePage() {
-    const { setMode } = useOnboarding();
-    const { refreshUserData } = useAuthStore();
-    const { setShouldAutoStart } = useTourStore();
     const router = useRouter();
     const [loading, setLoading] = useState<string | null>(null);
 
     const handleModeSelect = async (mode: 'REAL' | 'DEMO') => {
         setLoading(mode);
-        try {
-            // 1. Set mode in backend (creates demo store if DEMO)
-            const response = await setMode(mode);
-
-            if (mode === 'DEMO') {
-                toast.success("Demo store created successfully!");
-
-                // 2. CRITICAL: Refresh auth store to detect the new store
-                // This updates 'hasStore' to true, allowing access to Dashboard
-                await refreshUserData();
-
-                // 3. Set flag to auto-start tour after redirect
-                setShouldAutoStart(true);
-
-                // Wait a moment for toast
-                setTimeout(() => {
-                    router.push('/dashboard/overview');
-                }, 1000);
-            } else {
-                toast.success("Let's get started with your store setup!");
-                router.push('/onboarding/step-1');
-            }
-        } catch (error) {
-            console.error(error);
-            toast.error("Failed to select mode. Please try again.");
-            setLoading(null);
-        }
+        // Navigate to business type selection page with mode param
+        router.push(`/onboarding/business-type?mode=${mode.toLowerCase()}`);
     };
 
     return (

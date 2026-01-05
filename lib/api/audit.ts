@@ -33,6 +33,7 @@ export interface AccessLog {
         role: string;
     };
     eventType: string;
+    loginMethod?: string; // password, magic_link, google_oauth
     ipAddress: string;
     userAgent?: string;
     deviceInfo?: string;

@@ -1,6 +1,8 @@
 const inventoryRepository = require('../../repositories/inventoryRepository');
 const ApiError = require('../../utils/ApiError');
 const logger = require('../../config/logger');
+const eventBus = require('../../events/eventBus');
+const { INVENTORY_EVENTS } = require('../../events/eventTypes');
 
 /**
  * Inventory Service - Business logic for inventory management
@@ -111,7 +113,50 @@ class InventoryService {
         });
 
         logger.info(`Batch created: ${batch.batchNumber} for drug ${batch.drug.name}`);
+
+        // Check for expiry alerts on batch creation
+        this.checkBatchExpiry(batch);
+
         return batch;
+    }
+
+    /**
+     * Check batch expiry and emit events
+     */
+    checkBatchExpiry(batch) {
+        const now = new Date();
+        const expiryDate = new Date(batch.expiryDate);
+        const daysLeft = Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24));
+
+        // Emit expired event
+        if (daysLeft <= 0) {
+            eventBus.emitEvent(INVENTORY_EVENTS.EXPIRED, {
+                storeId: batch.storeId,
+                entityType: 'batch',
+                entityId: batch.id,
+                drugId: batch.drugId,
+                drugName: batch.drug?.name || 'Unknown',
+                batchNumber: batch.batchNumber,
+                expiryDate: batch.expiryDate,
+                quantityInStock: batch.quantityInStock,
+                mrp: batch.mrp,
+            });
+        }
+        // Emit near expiry event (within 90 days)
+        else if (daysLeft <= 90) {
+            eventBus.emitEvent(INVENTORY_EVENTS.EXPIRY_NEAR, {
+                storeId: batch.storeId,
+                entityType: 'batch',
+                entityId: batch.id,
+                drugId: batch.drugId,
+                drugName: batch.drug?.name || 'Unknown',
+                batchNumber: batch.batchNumber,
+                expiryDate: batch.expiryDate,
+                daysLeft,
+                quantityInStock: batch.quantityInStock,
+                mrp: batch.mrp,
+            });
+        }
     }
 
     /**

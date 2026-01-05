@@ -67,7 +67,7 @@ const getAlertById = asyncHandler(async (req, res) => {
     }
 
     // Verify user has access to this store's alerts
-    if (alert.storeId !== req.user.primaryStoreId) {
+    if (alert.storeId !== req.user.storeId) {
         throw new ApiError(403, 'Access denied');
     }
 
@@ -117,7 +117,7 @@ const acknowledgeAlert = asyncHandler(async (req, res) => {
         throw new ApiError(404, 'Alert not found');
     }
 
-    if (alert.storeId !== req.user.primaryStoreId) {
+    if (alert.storeId !== req.user.storeId) {
         throw new ApiError(403, 'Access denied');
     }
 
@@ -138,7 +138,7 @@ const resolveAlert = asyncHandler(async (req, res) => {
         throw new ApiError(404, 'Alert not found');
     }
 
-    if (alert.storeId !== req.user.primaryStoreId) {
+    if (alert.storeId !== req.user.storeId) {
         throw new ApiError(403, 'Access denied');
     }
 
@@ -160,7 +160,7 @@ const snoozeAlert = asyncHandler(async (req, res) => {
         throw new ApiError(404, 'Alert not found');
     }
 
-    if (alert.storeId !== req.user.primaryStoreId) {
+    if (alert.storeId !== req.user.storeId) {
         throw new ApiError(403, 'Access denied');
     }
 
@@ -187,7 +187,7 @@ const dismissAlert = asyncHandler(async (req, res) => {
         throw new ApiError(404, 'Alert not found');
     }
 
-    if (alert.storeId !== req.user.primaryStoreId) {
+    if (alert.storeId !== req.user.storeId) {
         throw new ApiError(403, 'Access denied');
     }
 
@@ -208,7 +208,7 @@ const deleteAlert = asyncHandler(async (req, res) => {
         throw new ApiError(404, 'Alert not found');
     }
 
-    if (alert.storeId !== req.user.primaryStoreId) {
+    if (alert.storeId !== req.user.storeId) {
         throw new ApiError(403, 'Access denied');
     }
 
@@ -222,6 +222,23 @@ const deleteAlert = asyncHandler(async (req, res) => {
     return res.status(200).json(new ApiResponse(200, null, 'Alert deleted'));
 });
 
+/**
+ * @desc    Bulk dismiss alerts
+ * @route   POST /api/v1/alerts/bulk/dismiss
+ * @access  Private
+ */
+const bulkDismiss = asyncHandler(async (req, res) => {
+    const { alertIds } = req.body;
+
+    if (!alertIds || !Array.isArray(alertIds) || alertIds.length === 0) {
+        throw new ApiError(400, 'alertIds array is required');
+    }
+
+    const result = await alertService.dismissAlerts(alertIds);
+
+    return res.status(200).json(new ApiResponse(200, result, `${result.count} alerts dismissed`));
+});
+
 module.exports = {
     getAlerts,
     getAlertCounts,
@@ -231,5 +248,6 @@ module.exports = {
     resolveAlert,
     snoozeAlert,
     dismissAlert,
-    deleteAlert
+    deleteAlert,
+    bulkDismiss
 };

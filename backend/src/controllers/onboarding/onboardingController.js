@@ -160,7 +160,7 @@ const processLicenseUpload = asyncHandler(async (req, res) => {
  * Set Setup Mode (Demo vs Real)
  */
 const setSetupMode = asyncHandler(async (req, res) => {
-    const { mode } = req.body; // "REAL" or "DEMO"
+    const { mode, businessType } = req.body; // "REAL" or "DEMO", optional businessType
     const userId = req.user.id;
 
     if (!['REAL', 'DEMO'].includes(mode)) {
@@ -184,9 +184,9 @@ const setSetupMode = asyncHandler(async (req, res) => {
     let result = { mode };
 
     if (mode === 'DEMO') {
-        // Create Demo Store
+        // Create Demo Store with business type (defaults to 'Retail Pharmacy' if not provided)
         const demoDataService = require('../../services/onboarding/demoDataService');
-        const store = await demoDataService.createDemoStore(userId);
+        const store = await demoDataService.createDemoStore(userId, businessType || 'Retail Pharmacy');
 
         // Mark onboarding as complete
         await require('../../db/prisma').onboardingProgress.update({

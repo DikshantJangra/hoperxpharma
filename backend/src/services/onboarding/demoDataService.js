@@ -9,10 +9,11 @@ class DemoDataService {
     /**
      * Create a demo store for the user with seeded data
      * @param {string} userId - The ID of the user creating the demo store
+     * @param {string} businessType - The business type for the demo store (defaults to 'Retail Pharmacy')
      * @returns {Promise<Object>} The created demo store
      */
-    async createDemoStore(userId) {
-        logger.info(`Creating demo store for user ${userId}`);
+    async createDemoStore(userId, businessType = 'Retail Pharmacy') {
+        logger.info(`Creating demo store for user ${userId} with business type: ${businessType}`);
 
         return await prisma.$transaction(async (tx) => {
             // 1. Create the Demo Store
@@ -22,7 +23,7 @@ class DemoDataService {
                     displayName: 'HopeRx Demo Pharmacy',
                     email: `demo-${uuidv4().substring(0, 8)}@hoperx.com`, // Unique dummy email
                     phoneNumber: '9876543210',
-                    businessType: 'Retail Pharmacy',
+                    businessType: businessType,
                     addressLine1: '123 Health Street',
                     city: 'Mumbai',
                     state: 'Maharashtra',

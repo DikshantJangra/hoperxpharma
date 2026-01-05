@@ -1,13 +1,15 @@
 "use client"
 import { useState } from "react"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import Link from "next/link"
-import { FiChevronRight } from "react-icons/fi"
+import { FiChevronRight, FiLock } from "react-icons/fi"
 import { sidebarConfig } from "./sidebarConfig"
 import Logo from "@/components/ui/Logo"
 import { usePermissions } from "@/contexts/PermissionContext"
 import { useAuthStore } from "@/lib/store/auth-store"
 import { useBusinessType } from "@/contexts/BusinessTypeContext"
+import { TrialBadge } from "./TrialBadge"
+import { useFeatureAccess } from "@/lib/hooks/useFeatureAccess"
 
 interface SidebarProps {
     isOpen: boolean
@@ -40,6 +42,8 @@ export default function Sidebar({ isOpen, isMobile, expandedItems, onToggleItem,
                     />
                 ))}
             </nav>
+            {/* Trial Badge at bottom */}
+            <TrialBadge isOpen={isOpen || !!isMobile} />
         </aside>
     )
 }
@@ -110,8 +114,15 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
 
 function NavItem({ item, isOpen, expanded, onToggle }: any) {
     const pathname = usePathname()
+    const router = useRouter()
     const { permissions } = usePermissions()
     const { user } = useAuthStore()
+
+    // Check if feature is gated
+    const featureAccess = item.gatedFeature
+        ? useFeatureAccess(item.gatedFeature)
+        : { hasAccess: true, reason: '', upgradePrompt: '', requiredModules: [], isCore: false }
+    const isLocked = !featureAccess.hasAccess
 
     const hasSubItems = item.subItems && Array.isArray(item.subItems) && item.subItems.length > 0
 
@@ -139,8 +150,26 @@ function NavItem({ item, isOpen, expanded, onToggle }: any) {
     // Combined: either exact match or has active child
     const isActive = isExactActive || hasActiveChild
 
-    // If item has a direct path (no subitems), render as Link
+    // If item has a direct path (no subitems), render as Link or locked button
     if (item.path && !hasVisibleSubItems) {
+        // If locked, show as button that redirects to upgrade
+        if (isLocked) {
+            return (
+                <button
+                    onClick={() => router.push('/store/billing')}
+                    className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-md transition-colors text-gray-400 hover:bg-gray-50 opacity-60 cursor-help"
+                    title={featureAccess.reason}
+                >
+                    <div className="flex items-center gap-3">
+                        <span className="shrink-0">{item.icon}</span>
+                        {isOpen && <span className="text-sm">{item.label}</span>}
+                    </div>
+                    {isOpen && <FiLock className="w-3.5 h-3.5" />}
+                </button>
+            )
+        }
+
+        // Not locked - normal link
         return (
             <Link
                 href={item.path}
@@ -157,26 +186,41 @@ function NavItem({ item, isOpen, expanded, onToggle }: any) {
     }
 
     // If item has subitems, render as expandable button
-    // Parent only gets text color (no bg) when child is active
+    // Show lock icon if gated
+    const handleClick = () => {
+        if (isLocked) {
+            router.push('/store/billing')
+        } else if (hasVisibleSubItems) {
+            onToggle()
+        }
+    }
+
     return (
         <div className="mb-0.5">
             <button
-                onClick={hasVisibleSubItems ? onToggle : undefined}
+                onClick={handleClick}
                 data-tour={`sidebar-${item.label.toLowerCase().replace(/ /g, '-')}`}
-                className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-md transition-colors ${hasActiveChild
+                title={isLocked ? featureAccess.reason : undefined}
+                className={`w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-md transition-colors ${isLocked
+                    ? 'text-gray-400 hover:bg-gray-50 opacity-60 cursor-help'
+                    : hasActiveChild
                         ? 'text-emerald-600 font-semibold'
                         : 'text-gray-700 hover:bg-gray-50'
                     }`}
             >
                 <div className="flex items-center gap-3">
-                    <span className={`shrink-0 ${hasActiveChild ? 'text-emerald-600' : ''}`}>{item.icon}</span>
+                    <span className={`shrink-0 ${hasActiveChild && !isLocked ? 'text-emerald-600' : ''}`}>{item.icon}</span>
                     {isOpen && <span className="text-sm">{item.label}</span>}
                 </div>
-                {isOpen && hasVisibleSubItems && (
-                    <FiChevronRight size={16} className={`${hasActiveChild ? 'text-emerald-500' : 'text-gray-400'} transition-transform duration-200 ${expanded ? 'rotate-90' : ''}`} />
+                {isOpen && (
+                    isLocked ? (
+                        <FiLock className="w-3.5 h-3.5" />
+                    ) : hasVisibleSubItems ? (
+                        <FiChevronRight size={16} className={`${hasActiveChild ? 'text-emerald-500' : 'text-gray-400'} transition-transform duration-200 ${expanded ? 'rotate-90' : ''}`} />
+                    ) : null
                 )}
             </button>
-            {isOpen && expanded && hasVisibleSubItems && (
+            {isOpen && expanded && hasVisibleSubItems && !isLocked && (
                 <div className="ml-9 mt-1 space-y-0.5">{visibleSubItems.map((subItem: any, idx: number) => (
                     <SubItem key={idx} label={subItem.label} path={subItem.path} active={pathname === subItem.path} />
                 ))}</div>

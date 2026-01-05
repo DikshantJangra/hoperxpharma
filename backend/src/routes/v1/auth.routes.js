@@ -77,7 +77,7 @@ router.get('/google', (req, res, next) => {
 });
 
 router.get('/google/callback', (req, res, next) => {
-    passport.authenticate('google', { session: false }, (err, user, info) => {
+    passport.authenticate('google', { session: false }, async (err, user, info) => {
         if (err) {
             logger.error('Passport Auth Error:', err);
             const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
@@ -94,6 +94,32 @@ router.get('/google/callback', (req, res, next) => {
 
         // Successful authentication
         const { accessToken, refreshToken } = generateTokens(user.id, user.role);
+
+        // Get IP address for logging
+        let ipAddress = req.ip || req.connection.remoteAddress;
+        if (req.headers['x-forwarded-for']) {
+            const forwardedIps = req.headers['x-forwarded-for'].split(',');
+            ipAddress = forwardedIps[0].trim();
+        }
+        if (ipAddress && ipAddress.startsWith('::ffff:')) {
+            ipAddress = ipAddress.substring(7);
+        }
+
+        const userAgent = req.headers['user-agent'];
+
+        // Log successful Google OAuth login
+        const accessLogService = require('../../services/audit/accessLogService');
+        await accessLogService.logAccess({
+            userId: user.id,
+            eventType: 'login_success',
+            ipAddress,
+            userAgent,
+            deviceInfo: userAgent,
+            loginMethod: 'google_oauth' // Track authentication method
+        }).catch(err => {
+            // Don't fail authentication if logging fails
+            logger.error('Failed to log Google OAuth access:', err);
+        });
 
         // Set refresh token in httpOnly cookie
         res.cookie('refreshToken', refreshToken, {

@@ -1,21 +1,33 @@
 const cron = require('node-cron');
 const prisma = require('../config/database').getClient();
 const alertService = require('./alertService');
+const { runExpiryCheck } = require('../jobs/expiryCheckJob');
+const { runLowStockCheck } = require('../jobs/lowStockCheckJob');
 const logger = require('../config/logger');
 
 class SchedulerService {
     init() {
         logger.info('Initializing Scheduler Service...');
 
-        // Run daily at midnight: 0 0 * * *
+        // Run daily at midnight: Check licenses and batch expiry
         cron.schedule('0 0 * * *', async () => {
-            logger.info('Running Daily Jobs: License Expiry Check');
+            logger.info('Running Daily Jobs: License & Batch Expiry Check');
             await this.checkLicenseExpiry();
+            await runExpiryCheck(); // Alert system: batch expiry
+        });
+
+        // Run every 6 hours: Low stock check
+        cron.schedule('0 */6 * * *', async () => {
+            logger.info('Running Low Stock Check');
+            await runLowStockCheck();
         });
 
         // Run immediately on startup for testing/dev (optional, maybe controlled by ENV)
         if (process.env.NODE_ENV === 'development') {
-            // this.checkLicenseExpiry(); // Uncomment if immediate check needed
+            // Uncomment if immediate check needed
+            this.checkLicenseExpiry();
+            runExpiryCheck();
+            runLowStockCheck();
         }
     }
 

@@ -8,9 +8,10 @@ interface FadeInProps {
     delay?: number;
     className?: string;
     direction?: 'up' | 'down' | 'left' | 'right';
+    id?: string;
 }
 
-export const FadeIn = ({ children, delay = 0, className = "", direction = 'up' }: FadeInProps) => {
+export const FadeIn = ({ children, delay = 0, className = "", direction = 'up', id }: FadeInProps) => {
     const ref = useRef(null);
     const isInView = useInView(ref, { once: true, margin: "-50px" });
 
@@ -28,6 +29,7 @@ export const FadeIn = ({ children, delay = 0, className = "", direction = 'up' }
             animate={isInView ? { opacity: 1, x: 0, y: 0 } : { opacity: 0, ...directionOffset[direction] }}
             transition={{ duration: 0.8, delay: delay, ease: [0.21, 0.47, 0.32, 0.98] }}
             className={className}
+            id={id}
         >
             {children}
         </motion.div>

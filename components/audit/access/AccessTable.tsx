@@ -1,7 +1,8 @@
 "use client";
 import { useState, useEffect } from "react";
-import { FiMonitor, FiSmartphone, FiAlertTriangle, FiShield, FiExternalLink } from "react-icons/fi";
+import { FiMonitor, FiSmartphone, FiAlertTriangle, FiShield, FiExternalLink, FiMail, FiKey, FiLogOut } from "react-icons/fi";
 import { MdBlock, MdLock, MdCheckCircle, MdWarning } from "react-icons/md";
+import { FcGoogle } from "react-icons/fc";
 import { auditApi } from "@/lib/api/audit";
 import toast from "react-hot-toast";
 
@@ -104,6 +105,22 @@ export default function AccessTable({ searchQuery, isLive, activeFilter, onEvent
                         console.log('Built userName:', userName, 'from', { firstName, lastName, email: log.user.email });
                     }
 
+                    // Format login method for display
+                    const formatLoginMethod = (method: string | null | undefined, eventType: string) => {
+                        // Logout events don't have a login method
+                        if (eventType === 'logout') return 'N/A';
+
+                        if (!method) return 'Unknown';
+
+                        const methodMap: Record<string, string> = {
+                            'password': 'Password',
+                            'magic_link': 'Magic Link',
+                            'google_oauth': 'Google OAuth'
+                        };
+
+                        return methodMap[method] || method;
+                    };
+
                     return {
                         id: log.id,
                         timestamp: log.timestamp || log.createdAt,  // Backend sends 'timestamp' after formatting
@@ -130,7 +147,8 @@ export default function AccessTable({ searchQuery, isLive, activeFilter, onEvent
                         },
                         flags: [],
                         sessionId: log.sessionId || null,
-                        method: 'password',
+                        method: formatLoginMethod(log.loginMethod, log.eventType), // Pass eventType for logout handling
+                        rawMethod: log.loginMethod, // Keep raw for icons
                         risk: 'low' as const
                     };
                 });
@@ -338,8 +356,26 @@ export default function AccessTable({ searchQuery, isLive, activeFilter, onEvent
                                 </td>
 
                                 <td className="px-4 py-3">
-                                    <div className="flex items-center gap-1">
-                                        {event.method.includes("mfa") && <FiShield size={14} className="text-purple-600" />}
+                                    <div className="flex items-center gap-1.5">
+                                        {(() => {
+                                            const rawMethod = (event as any).rawMethod;
+                                            const eventType = event.event;
+
+                                            // Special handling for logout events
+                                            if (eventType === 'logout') {
+                                                return <FiLogOut size={14} className="text-gray-600" title="Logout" />;
+                                            }
+
+                                            if (rawMethod === 'password') {
+                                                return <FiKey size={14} className="text-blue-600" title="Password Authentication" />;
+                                            } else if (rawMethod === 'magic_link') {
+                                                return <FiMail size={14} className="text-purple-600" title="Magic Link" />;
+                                            } else if (rawMethod === 'google_oauth') {
+                                                return <FcGoogle size={14} title="Google OAuth" />;
+                                            } else {
+                                                return <FiShield size={14} className="text-gray-400" title="Unknown Method" />;
+                                            }
+                                        })()}
                                         <span className="text-sm text-gray-700">{event.method}</span>
                                     </div>
                                 </td>

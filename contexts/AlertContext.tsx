@@ -1,0 +1,212 @@
+'use client';
+
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+
+interface Alert {
+    id: string;
+    title: string;
+    description: string;
+    category: 'INVENTORY' | 'SECURITY' | 'PATIENT' | 'BILLING' | ' SYSTEM' | 'CLINICAL';
+    priority: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+    status: ' NEW' | 'SNOOZED' | 'RESOLVED';
+    seenAt?: string;
+    actionUrl?: string;
+    actionLabel?: string;
+    createdAt: string;
+}
+
+interface AlertCounts {
+    total: number;
+    unread: {
+        total: number;
+        criticalHigh: number;
+    };
+    byPriority: {
+        CRITICAL?: number;
+        HIGH?: number;
+        MEDIUM?: number;
+        LOW?: number;
+    };
+}
+
+interface AlertContextType {
+    alerts: Alert[];
+    counts: AlertCounts | null;
+    isLoading: boolean;
+    refreshAlerts: () => Promise<void>;
+    markAsSeen: (id: string) => Promise<void>;
+    resolveAlert: (id: string) => Promise<void>;
+    snoozeAlert: (id: string, until: Date) => Promise<void>;
+    bulkDismiss: (ids: string[]) => Promise<void>;
+}
+
+const AlertContext = createContext<AlertContextType | undefined>(undefined);
+
+export function AlertProvider({ children }: { children: React.ReactNode }) {
+    const [alerts, setAlerts] = useState<Alert[]>([]);
+    const [counts, setCounts] = useState<AlertCounts | null>(null);
+    const [isLoading, setIsLoading] = useState(false);
+
+    const fetchAlerts = useCallback(async () => {
+        try {
+            setIsLoading(true);
+            const response = await fetch('/api/v1/alerts?limit=50', {
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'include',
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setAlerts(data.data || []);
+            }
+        } catch (error) {
+            console.error('Error fetching alerts:', error);
+        } finally {
+            setIsLoading(false);
+        }
+    }, []);
+
+    const fetchCounts = useCallback(async () => {
+        try {
+            const response = await fetch('/api/v1/alerts/counts', {
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'include',
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                setCounts(data.data);
+            }
+        } catch (error) {
+            console.error('Error fetching alert counts:', error);
+        }
+    }, []);
+
+    const refreshAlerts = useCallback(async () => {
+        await Promise.all([fetchAlerts(), fetchCounts()]);
+    }, [fetchAlerts, fetchCounts]);
+
+    const markAsSeen = useCallback(async (id: string) => {
+        try {
+            const response = await fetch(`/api/v1/alerts/${id}/seen`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'include',
+            });
+
+            if (response.ok) {
+                // Update local state
+                setAlerts((prev) =>
+                    prev.map((alert) =>
+                        alert.id === id ? { ...alert, seenAt: new Date().toISOString() } : alert
+                    )
+                );
+                await fetchCounts(); // Refresh counts
+            }
+        } catch (error) {
+            console.error('Error marking alert as seen:', error);
+        }
+    }, [fetchCounts]);
+
+    const resolveAlert = useCallback(async (id: string) => {
+        try {
+            const response = await fetch(`/api/v1/alerts/${id}/resolve`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'include',
+            });
+
+            if (response.ok) {
+                // Remove from local state
+                setAlerts((prev) => prev.filter((alert) => alert.id !== id));
+                await fetchCounts();
+            }
+        } catch (error) {
+            console.error('Error resolving alert:', error);
+        }
+    }, [fetchCounts]);
+
+    const snoozeAlert = useCallback(async (id: string, until: Date) => {
+        try {
+            const response = await fetch(`/api/v1/alerts/${id}/snooze`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'include',
+                body: JSON.stringify({ snoozeUntil: until.toISOString() }),
+            });
+
+            if (response.ok) {
+                // Remove from current view
+                setAlerts((prev) => prev.filter((alert) => alert.id !== id));
+                await fetchCounts();
+            }
+        } catch (error) {
+            console.error('Error snoozing alert:', error);
+        }
+    }, [fetchCounts]);
+
+    const bulkDismiss = useCallback(async (ids: string[]) => {
+        try {
+            const response = await fetch('/api/v1/alerts/bulk/dismiss', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'include',
+                body: JSON.stringify({ alertIds: ids }),
+            });
+
+            if (response.ok) {
+                setAlerts((prev) => prev.filter((alert) => !ids.includes(alert.id)));
+                await fetchCounts();
+            }
+        } catch (error) {
+            console.error('Error bulk dismissing:', error);
+        }
+    }, [fetchCounts]);
+
+    // Initial load and polling
+    useEffect(() => {
+        refreshAlerts();
+
+        // Poll every 30 seconds
+        const interval = setInterval(refreshAlerts, 30000);
+
+        return () => clearInterval(interval);
+    }, [refreshAlerts]);
+
+    return (
+        <AlertContext.Provider
+            value={{
+                alerts,
+                counts,
+                isLoading,
+                refreshAlerts,
+                markAsSeen,
+                resolveAlert,
+                snoozeAlert,
+                bulkDismiss,
+            }}
+        >
+            {children}
+        </AlertContext.Provider>
+    );
+}
+
+export function useAlerts() {
+    const context = useContext(AlertContext);
+    if (context === undefined) {
+        throw new Error('useAlerts must be used within AlertProvider');
+    }
+    return context;
+}

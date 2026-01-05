@@ -82,7 +82,7 @@ export default function ProfilePage() {
                         <span className="text-xs font-bold uppercase tracking-wide">Free Trial</span>
                     </div>
                     <button
-                        onClick={() => router.push('/store/profile')}
+                        onClick={() => router.push('/store/billing')}
                         className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 hover:underline flex items-center gap-1"
                     >
                         Upgrade Now &rarr;

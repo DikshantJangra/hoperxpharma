@@ -33,6 +33,12 @@ const PORT = validatedEnv.PORT;
 // Connect to database
 database.connect().then(() => {
     console.log('✅ Database connected');
+
+    // Initialize Alert Event Listener (connects events to alerts)
+    const alertEventListener = require('./events/alertEventListener');
+    alertEventListener.initialize();
+    logger.info('✅ Alert event system initialized');
+
     // Initialize Scheduler
     const schedulerService = require('./services/schedulerService');
     schedulerService.init();

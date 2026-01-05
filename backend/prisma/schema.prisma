@@ -164,6 +164,30 @@ enum AlertStatus {
   RESOLVED
 }
 
+enum AlertCategory {
+  INVENTORY
+  SECURITY
+  PATIENT
+  BILLING
+  SYSTEM
+  CLINICAL
+}
+
+enum AlertPriority {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+enum AlertChannel {
+  IN_APP
+  WHATSAPP
+  EMAIL
+  SMS
+}
+
+
 enum GRNStatus {
   DRAFT
   IN_PROGRESS
@@ -267,6 +291,7 @@ model User {
   savedFilters     SavedFilter[]
   avatars          UserAvatar[]
   preferences      Json? // User-specific UI preferences (e.g., keyboard shortcuts)
+  alertPreferences AlertPreference[]
 
   // HR Relations
   attendanceLogs     AttendanceLog[]
@@ -505,6 +530,7 @@ model Store {
   campaigns       Campaign[]
   auditLogs       AuditLog[]
   alerts          Alert[]
+  alertPreferences AlertPreference[]
   returns         SupplierReturn[]
   whatsappAccount WhatsAppAccount?
 
@@ -2921,6 +2947,7 @@ model AccessLog {
   id          String  @id @default(cuid())
   userId      String
   eventType   String // login_success, login_failure, logout
+  loginMethod String? // password, magic_link, google_oauth
   ipAddress   String
   userAgent   String?
   deviceInfo  String?
@@ -2932,32 +2959,85 @@ model AccessLog {
 
   @@index([userId, createdAt])
   @@index([eventType, createdAt])
+  @@index([loginMethod, createdAt])
 }
 
 model Alert {
   id          String        @id @default(cuid())
   storeId     String
-  type        String // inventory, compliance, workflow, system
+  
+  // Classification
+  type        String // inventory, compliance, workflow, system (DEPRECATED - use category)
+  category    AlertCategory @default(INVENTORY)
   severity    AlertSeverity
+  priority    AlertPriority @default(MEDIUM)
+  
+  // Content
   title       String
   description String        @db.Text
   source      String
-  priority    String // High, Medium, Low
+  
+  // Status tracking
   status      AlertStatus   @default(NEW)
-
+  
+  // Entity reference (what triggered this alert)
   relatedType String?
   relatedId   String?
-
+  
+  // Actions
+  actionUrl   String? // Deep link to resolve (e.g., /inventory/batches/:id)
+  actionLabel String? // Button text (e.g., "View Batch")
+  blockAction Boolean @default(false) // If true, blocks operation until resolved
+  
+  // Metadata
+  metadata    Json? // Event-specific data (batch details, stock levels, etc.)
+  channels    AlertChannel[] @default([IN_APP]) // Delivery channels
+  
+  // User interaction tracking
+  seenAt      DateTime?
+  seenBy      String? // User ID who viewed it
+  
   resolvedBy  String?
   resolvedAt  DateTime?
   snoozeUntil DateTime?
-
+  expiresAt   DateTime? // Auto-dismiss after this time
+  
   store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
 
+  @@index([storeId, status, priority])
+  @@index([storeId, category])
   @@index([storeId, status, severity])
   @@index([snoozeUntil])
+  @@index([seenAt])
+  @@index([expiresAt])
+  @@index([relatedType, relatedId])
+}
+
+model AlertPreference {
+  id          String          @id @default(cuid())
+  userId      String
+  storeId     String
+  category    AlertCategory
+  channels    AlertChannel[]  @default([IN_APP])
+  enabled     Boolean         @default(true)
+  
+  // Quiet hours (HH:MM format in 24h, e.g., "22:00" to "08:00")
+  quietHoursStart  String?
+  quietHoursEnd    String?
+  
+  // Digest mode: batch low-priority alerts into daily summary
+  digestMode  Boolean         @default(false)
+  
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@unique([userId, storeId, category])
+  @@index([userId, storeId])
 }
 
 // ============================================================================

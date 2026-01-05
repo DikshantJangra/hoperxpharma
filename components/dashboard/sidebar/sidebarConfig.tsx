@@ -19,6 +19,7 @@ import {
 import {
     AiOutlineAudit
 } from "react-icons/ai"
+import { Feature } from "@/lib/constants/billing-states"
 
 export interface SubMenuItem {
     label: string
@@ -35,6 +36,7 @@ export interface MenuItem {
     businessTypes?: string[] // Which business types can see this (undefined = all types)
     availability?: 'essential' | 'optional' | 'hidden' // Availability level for business type
     featureCode?: string // Feature code for business type filtering (e.g., 'prescriptions', 'pos')
+    gatedFeature?: Feature // Billing feature gate (if requires subscription)
 }
 
 export interface SidebarSection {
@@ -177,6 +179,7 @@ export const sidebarConfig: SidebarSection[] = [
                 icon: <MdReceipt size={18} />,
                 label: "GST",
                 requiredPermission: "report.financial",
+                gatedFeature: Feature.REPORTS,
                 subItems: [
                     { label: "Dashboard", path: "/gst" },
                     { label: "Invoices", path: "/gst/invoices" },
@@ -207,6 +210,7 @@ export const sidebarConfig: SidebarSection[] = [
                 icon: <TbReportAnalytics size={18} />,
                 label: "Reports",
                 requiredPermission: "report.sales",
+                gatedFeature: Feature.REPORTS,
                 subItems: [
                     { label: "Sales", path: "/reports/sales" },
                     { label: "Purchase", path: "/reports/purchase" },
@@ -219,6 +223,7 @@ export const sidebarConfig: SidebarSection[] = [
                 icon: <FiTrendingUp size={18} />,
                 label: "Insights",
                 requiredPermission: "report.sales",
+                gatedFeature: Feature.ADVANCED_REPORTS,
                 subItems: [
                     { label: "Forecast", path: "/insights/forecast" },
                     { label: "Adherence", path: "/insights/adherence" },
@@ -234,6 +239,7 @@ export const sidebarConfig: SidebarSection[] = [
                 icon: <FiMessageSquare size={18} />,
                 label: "Messages",
                 requiredPermission: "communication.send",
+                gatedFeature: Feature.WHATSAPP,
                 subItems: [
                     { label: "WhatsApp", path: "/messages/whatsapp", requiredPermission: "communication.send" },
                     { label: "SMS", path: "/messages/sms", requiredPermission: "communication.send" },
@@ -246,6 +252,7 @@ export const sidebarConfig: SidebarSection[] = [
                 label: "Engage",
                 requiredPermission: "marketing.loyalty",
                 featureCode: "engage",
+                gatedFeature: Feature.LOYALTY,
                 businessTypes: ["Retail Pharmacy", "Multi-store Chain"],
                 subItems: [
                     { label: "Loyalty", path: "/engage/loyalty", requiredPermission: "marketing.loyalty" },
@@ -301,6 +308,7 @@ export const sidebarConfig: SidebarSection[] = [
                 icon: <FiUsers size={18} />,
                 label: "Team",
                 requiredPermission: "system.user.manage",
+                gatedFeature: Feature.AUTOMATION,
                 subItems: [
                     { label: "Manage Users", path: "/users" },
                     { label: "Roles & Access", path: "/users?tab=roles" }
@@ -310,6 +318,7 @@ export const sidebarConfig: SidebarSection[] = [
                 icon: <MdIntegrationInstructions size={18} />,
                 label: "Integrations",
                 requiredPermission: "system.settings",
+                gatedFeature: Feature.AUTOMATION,
                 subItems: [
                     { label: "APIs", path: "/integrations/apis" },
                     { label: "WhatsApp", path: "/integrations/whatsapp" },

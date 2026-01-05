@@ -6,6 +6,7 @@ import Sidebar from "@/components/dashboard/sidebar/Sidebar"
 import MobileNav from "@/components/dashboard/sidebar/MobileNav"
 import Navbar from "@/components/dashboard/navbar/Navbar"
 import DemoModeBanner from "@/components/layout/DemoModeBanner"
+import { TrialBanner, PaymentOverdueBanner } from "@/components/billing/TrialBanner"
 import ProductTour from "@/components/tour/ProductTour"
 import TourButton from "@/components/tour/TourButton"
 import { PermissionProvider } from "@/contexts/PermissionContext"
@@ -81,6 +82,10 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
             <BusinessTypeProvider>
                 {/* Demo Banner - Fixed Full Width Above Everything */}
                 <DemoModeBanner isDemo={!!primaryStore?.isDemo} />
+
+                {/* Billing Banners - Shows below demo banner */}
+                <TrialBanner />
+                <PaymentOverdueBanner />
 
                 {/* Product Tour - Only active in demo mode */}
                 {primaryStore?.isDemo && <ProductTour />}

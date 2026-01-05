@@ -220,6 +220,20 @@ class MagicLinkService {
         const authService = require('./authService');
         const tokens = authService.generateTokens(user.id);
 
+        // Log successful magic link authentication
+        const accessLogService = require('../audit/accessLogService');
+        await accessLogService.logAccess({
+            userId: user.id,
+            eventType: 'login_success',
+            ipAddress: '0.0.0.0', // Would need to pass this from route
+            userAgent: null,
+            deviceInfo: null,
+            loginMethod: 'magic_link' // Track authentication method
+        }).catch(err => {
+            // Don't fail authentication if logging fails
+            logger.error('Failed to log magic link access:', err);
+        });
+
         // Clean up user object (remove sensitive data)
         const { passwordHash, pinHash, ...safeUser } = user;
 

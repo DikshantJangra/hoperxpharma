@@ -1,6 +1,8 @@
 const accessLogRepository = require('../../repositories/accessLogRepository');
 const logger = require('../../config/logger');
 const geolocationService = require('../geolocationService');
+const accessAlertService = require('./accessAlertService');
+const prisma = require('../../db/prisma');
 
 /**
  * Access Log Service - Business logic for access logging
@@ -9,7 +11,7 @@ class AccessLogService {
     /**
      * Log an access event (login, logout, etc.)
      */
-    async logAccess({ userId, eventType, ipAddress, userAgent, deviceInfo }) {
+    async logAccess({ userId, eventType, ipAddress, userAgent, deviceInfo, loginMethod }) {
         try {
             // Lookup geolocation for the IP (async, cached for 24h)
             let geolocation = null;
@@ -29,9 +31,48 @@ class AccessLogService {
                 userAgent: userAgent || null,
                 deviceInfo: deviceInfo || null,
                 geolocation, // Can be null
+                loginMethod: loginMethod || null, // Track authentication method
             });
 
             logger.info('[AccessLog] Created with geolocation:', result.geolocation ? 'YES' : 'NO');
+            logger.info('[AccessLog] Login method:', result.loginMethod || 'not specified');
+
+            // Create security alert for failed logins
+            if (eventType === 'login_failure') {
+                try {
+                    // Get user's store to create alert
+                    const user = await prisma.user.findUnique({
+                        where: { id: userId },
+                        include: {
+                            storeUsers: {
+                                select: { storeId: true },
+                                take: 1
+                            }
+                        }
+                    });
+
+                    if (user && user.storeUsers.length > 0) {
+                        await accessAlertService.createAccessAlert({
+                            userId,
+                            storeId: user.storeUsers[0].storeId,
+                            eventType,
+                            ipAddress,
+                            loginMethod,
+                            metadata: {
+                                accessLogId: result.id,
+                                userAgent,
+                                deviceInfo,
+                                geolocation
+                            }
+                        });
+                        logger.info('[AccessLog] Security alert created for failed login');
+                    }
+                } catch (alertError) {
+                    // Don't fail access logging if alert creation fails
+                    logger.error('[AccessLog] Failed to create security alert:', alertError);
+                }
+            }
+
             return result;
         } catch (error) {
             logger.error('[AccessLogService] Error logging access:', error);
@@ -120,6 +161,7 @@ class AccessLogService {
                 role: log.user.role.toLowerCase(),
             },
             eventType: log.eventType,
+            loginMethod: log.loginMethod, // Include authentication method
             ipAddress: log.ipAddress,
             userAgent: log.userAgent,
             deviceInfo: log.deviceInfo,

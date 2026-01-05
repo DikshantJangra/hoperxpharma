@@ -3,6 +3,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { FiSearch } from 'react-icons/fi';
 import { BsUpcScan } from 'react-icons/bs';
+import dynamic from 'next/dynamic';
+
+// Dynamic import for the scanner to avoid SSR issues with html5-qrcode
+const BarcodeScannerModal = dynamic(() => import('./BarcodeScannerModal'), { ssr: false });
 
 interface Product {
   id: string;
@@ -36,15 +40,17 @@ const ProductSkeleton = () => (
   </div>
 )
 
-export default function ProductSearch({ onAddProduct, searchFocus, setSearchFocus }: {
+export default function ProductSearch({ onAddProduct, searchFocus, setSearchFocus, onManualScan }: {
   onAddProduct: (product: any) => void;
   searchFocus?: boolean;
   setSearchFocus?: (focus: boolean) => void;
+  onManualScan?: (barcode: string) => void;
 }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Product[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const isTypingRef = useRef(false);
@@ -156,13 +162,42 @@ export default function ProductSearch({ onAddProduct, searchFocus, setSearchFocu
           onKeyDown={handleKeyDown}
           onFocus={() => setSearchFocus?.(true)}
           placeholder="Scan barcode or search product... (/)"
-          className={`w-full pl-10 pr-4 py-3 border-2 rounded-lg text-[#0f172a] placeholder:text-[#94a3b8] focus:outline-none transition-all ${searchFocus && query.length === 0
+          className={`w-full pl-10 pr-10 py-3 border-2 rounded-lg text-[#0f172a] placeholder:text-[#94a3b8] focus:outline-none transition-all ${searchFocus && query.length === 0
             ? 'border-[#0ea5a3] ring-2 ring-[#0ea5a3]/20'
             : 'border-[#cbd5e1] focus:border-[#0ea5a3]'
             }`}
         />
-        <BsUpcScan className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#94a3b8]" />
+        <button
+          type="button"
+          onClick={(e) => {
+            e.preventDefault();
+            // If text is present, treat as manual submission
+            if (query) {
+              if (onManualScan) {
+                onManualScan(query);
+                setQuery('');
+              }
+            } else {
+              // If empty, open Camera Scanner
+              setShowScanner(true);
+            }
+          }}
+          className="absolute right-3 top-1/2 -translate-y-1/2 p-2 hover:bg-gray-100 rounded-full transition-colors"
+          title={query ? "Submit Code" : "Open Camera Scanner"}
+        >
+          <BsUpcScan className={`w-5 h-5 ${query ? 'text-blue-600' : 'text-[#94a3b8] hover:text-[#0ea5a3]'}`} />
+        </button>
       </div>
+
+      {showScanner && onManualScan && (
+        <BarcodeScannerModal
+          onClose={() => setShowScanner(false)}
+          onScan={(code) => {
+            onManualScan(code);
+            setShowScanner(false);
+          }}
+        />
+      )}
 
       {isLoading && query.length >= 2 && (
         <div className="mt-2 bg-white border border-[#e2e8f0] rounded-lg shadow-lg max-h-[300px] overflow-y-auto">

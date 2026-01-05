@@ -26,9 +26,9 @@ function OnboardingLayoutContent({ children }: { children: React.ReactNode }) {
     const progress = (state.currentStep / 10) * 100;
 
     const pathname = usePathname();
-    const isWelcomePage = pathname === '/onboarding/welcome';
+    const isFullScreenPage = pathname === '/onboarding/welcome' || pathname === '/onboarding/business-type';
 
-    if (isWelcomePage) {
+    if (isFullScreenPage) {
         return (
             <div className="min-h-screen bg-gray-50 relative font-sans">
                 {/* Premium Mesh Background */}

@@ -73,8 +73,8 @@ export const onboardingApi = {
      * Set onboarding mode (REAL or DEMO)
      * Note: DEMO mode triggers heavy demo data seeding, so we use a longer timeout
      */
-    async setMode(mode: 'REAL' | 'DEMO') {
-        const response = await apiClient.post('/onboarding/mode', { mode }, { timeout: 120000 });
+    async setMode(mode: 'REAL' | 'DEMO', businessType?: string) {
+        const response = await apiClient.post('/onboarding/mode', { mode, businessType }, { timeout: 120000 });
         return response.data;
     },
 
