@@ -41,30 +41,33 @@ class SubscriptionService {
         const startDate = new Date();
         const endDate = new Date();
 
-        // Calculate end date based on plan billing cycle
-        if (plan.billingCycle === 'monthly') {
+        const isTrial = plan.name === 'free_trial';
+        const status = isTrial ? 'TRIAL' : 'ACTIVE';
+
+        // Calculate end date
+        if (isTrial) {
+            endDate.setDate(endDate.getDate() + 14);
+        } else if (plan.billingCycle === 'monthly') {
             endDate.setMonth(endDate.getMonth() + 1);
         } else if (plan.billingCycle === 'yearly') {
             endDate.setFullYear(endDate.getFullYear() + 1);
         }
 
+        const subscriptionData = {
+            storeId,
+            planId,
+            status,
+            currentPeriodStart: startDate,
+            currentPeriodEnd: endDate,
+            trialEndsAt: isTrial ? endDate : null
+        };
+
         let subscription;
         if (existingSubscription) {
-            subscription = await subscriptionRepository.updateSubscription(existingSubscription.id, {
-                planId,
-                status: 'active',
-                startDate,
-                endDate,
-            });
+            subscription = await subscriptionRepository.updateSubscription(existingSubscription.id, subscriptionData);
             logger.info(`Subscription updated for store ${storeId} to plan ${plan.name}`);
         } else {
-            subscription = await subscriptionRepository.createSubscription({
-                storeId,
-                planId,
-                status: 'active',
-                startDate,
-                endDate,
-            });
+            subscription = await subscriptionRepository.createSubscription(subscriptionData);
             logger.info(`Subscription created for store ${storeId}: ${plan.name}`);
         }
 

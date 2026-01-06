@@ -51,12 +51,14 @@ class GRNRepository {
                             supplier: true
                         }
                     },
+                    /*
                     receivedByUser: {
                         select: {
                             firstName: true,
                             lastName: true
                         }
                     },
+                    */
                     attachments: {
                         orderBy: {
                             uploadedAt: 'desc'
@@ -104,12 +106,14 @@ class GRNRepository {
                         supplier: true
                     }
                 },
+                /*
                 receivedByUser: {
                     select: {
                         firstName: true,
                         lastName: true
                     }
                 },
+                */
                 attachments: {
                     orderBy: {
                         uploadedAt: 'desc'
@@ -537,12 +541,14 @@ class GRNRepository {
                         supplier: true
                     }
                 },
+                /*
                 receivedByUser: {
                     select: {
                         firstName: true,
                         lastName: true
                     }
                 },
+                */
                 attachments: {
                     orderBy: {
                         uploadedAt: 'desc'

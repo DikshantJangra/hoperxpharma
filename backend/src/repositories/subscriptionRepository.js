@@ -101,8 +101,8 @@ class SubscriptionRepository {
 
         const now = new Date();
         return (
-            subscription.status === 'active' &&
-            subscription.endDate > now
+            (subscription.status === 'ACTIVE' || subscription.status === 'TRIAL') &&
+            subscription.currentPeriodEnd > now
         );
     }
 

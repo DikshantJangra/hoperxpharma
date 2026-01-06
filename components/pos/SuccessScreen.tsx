@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { FiPrinter, FiMail, FiShoppingCart } from 'react-icons/fi';
 import PremiumSuccess from './animations/PremiumSuccess';
 import InvoiceEmailModal from './invoices/InvoiceEmailModal';
+import { salesApi } from '@/lib/api/sales';
 import { toast } from 'sonner';
 
 export default function SuccessScreen({ saleData, onNewSale, onClose }: any) {
@@ -34,15 +35,8 @@ export default function SuccessScreen({ saleData, onNewSale, onClose }: any) {
 
     setIsPrinting(true);
     try {
-      const response = await fetch(`/api/v1/sales/${saleId}/invoice/pdf`, {
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to generate invoice');
-      }
-
-      const blob = await response.blob();
+      // Use salesApi which handles authentication properly
+      const blob = await salesApi.downloadInvoicePDF(saleId);
       const url = window.URL.createObjectURL(blob);
 
       // Open in new tab for printing
@@ -70,17 +64,9 @@ export default function SuccessScreen({ saleData, onNewSale, onClose }: any) {
 
     setIsLoadingInvoice(true);
     try {
-      // Fetch full sale data for email modal
-      const response = await fetch(`/api/v1/sales/${saleId}`, {
-        credentials: 'include',
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to fetch invoice data');
-      }
-
-      const data = await response.json();
-      const saleDetails = data.data || data;
+      // Use salesApi which handles authentication properly
+      const response = await salesApi.getSaleById(saleId);
+      const saleDetails = response.data || response;
 
       // Transform to invoice format expected by InvoiceEmailModal
       const invoiceData = {

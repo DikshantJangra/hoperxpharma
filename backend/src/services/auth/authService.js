@@ -6,6 +6,7 @@ const { MESSAGES } = require('../../constants');
 const logger = require('../../config/logger');
 const eventBus = require('../../events/eventBus');
 const { AUTH_EVENTS } = require('../../events/eventTypes');
+const accessLogService = require('../audit/accessLogService');
 
 /**
  * Authentication Service - Business logic for authentication
@@ -87,6 +88,15 @@ class AuthService {
         const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
 
         if (!isPasswordValid) {
+            // Log failed attempt
+            await accessLogService.logAccess({
+                userId: user.id,
+                eventType: 'login_failure',
+                ipAddress: loginContext.ipAddress || '127.0.0.1',
+                userAgent: loginContext.userAgent,
+                loginMethod: 'EMAIL_PASSWORD'
+            });
+
             throw ApiError.unauthorized(MESSAGES.AUTH.INVALID_CREDENTIALS);
         }
 
@@ -114,6 +124,15 @@ class AuthService {
                 timestamp: new Date(),
             });
         }
+
+        // Log access
+        await accessLogService.logAccess({
+            userId: user.id,
+            eventType: 'login_success',
+            ipAddress: loginContext.ipAddress || '127.0.0.1',
+            userAgent: loginContext.userAgent,
+            loginMethod: 'EMAIL_PASSWORD'
+        });
 
         logger.info(`User logged in: ${user.email}`);
 

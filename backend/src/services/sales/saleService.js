@@ -100,6 +100,7 @@ class SaleService {
         const { paymentSplits, ...saleInfo } = saleData;
         saleInfo.total = saleTotal;
         saleInfo.taxAmount = saleTaxTotal;
+        saleInfo.subtotal = saleTotal - saleTaxTotal;
         saleInfo.roundOff = roundOff;
 
         // Generate invoice number

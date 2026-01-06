@@ -84,7 +84,7 @@ class OnboardingService {
 
         // Auto-create trial subscription
         const trialPlan = await subscriptionService.getPlans().then((plans) =>
-            plans.find((p) => p.name === 'Free Trial')
+            plans.find((p) => p.name === 'free_trial')
         );
 
         if (trialPlan) {

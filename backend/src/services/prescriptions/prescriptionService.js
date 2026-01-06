@@ -56,9 +56,9 @@ class PrescriptionService {
         const result = await prisma.$transaction(async (tx) => {
             // 1. Create Prescription (Master Record)
             const prescriptionData = {
-                storeId,
+                store: { connect: { id: storeId } },
                 prescriptionNumber,
-                patientId,
+                patient: patientId ? { connect: { id: patientId } } : undefined,
                 issueDate: new Date(),
                 expiryDate: calculatedExpiryDate,
                 totalRefills,
