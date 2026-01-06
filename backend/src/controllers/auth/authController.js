@@ -148,11 +148,14 @@ const login = asyncHandler(async (req, res) => {
             ipAddress,
         });
 
+        // Determine production mode securely
+        const isProduction = process.env.NODE_ENV === 'production' || (process.env.FRONTEND_URL && process.env.FRONTEND_URL.startsWith('https'));
+
         // Set refresh token in httpOnly cookie
         res.cookie('refreshToken', result.refreshToken, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+            secure: isProduction,
+            sameSite: isProduction ? 'none' : 'lax',
             maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
             path: '/',
         });
@@ -160,8 +163,8 @@ const login = asyncHandler(async (req, res) => {
         // Set access token in httpOnly cookie (XSS protection)
         res.cookie('accessToken', result.accessToken, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+            secure: isProduction,
+            sameSite: isProduction ? 'none' : 'lax',
             maxAge: 15 * 60 * 1000, // 15 minutes
             path: '/',
         });

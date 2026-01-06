@@ -9,15 +9,17 @@ const { MESSAGES } = require('../constants');
  */
 const authenticate = async (req, res, next) => {
     try {
-        // Get token from cookie (preferred - secure httpOnly) or header (backward compatibility)
-        let token = req.cookies?.accessToken;
+        // Get token from header (preferred for explicit auth) or cookie (implicit)
+        let token;
 
-        // Fallback to Authorization header if cookie not present
-        if (!token) {
-            const authHeader = req.headers.authorization;
-            if (authHeader && authHeader.startsWith('Bearer ')) {
-                token = authHeader.substring(7); // Remove 'Bearer ' prefix
-            }
+        const authHeader = req.headers.authorization;
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+            token = authHeader.substring(7); // Remove 'Bearer ' prefix
+        }
+
+        // Fallback to cookie if header not present
+        if (!token && req.cookies?.accessToken) {
+            token = req.cookies.accessToken;
         }
 
         if (!token) {

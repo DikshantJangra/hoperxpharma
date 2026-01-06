@@ -178,6 +178,24 @@ async function baseFetch(
         clearTimeout(timeoutId);
 
         if (!response.ok) {
+            // SPECIAL HANDLING: If we get a 401 (Unauthorized) from a regular API call,
+            // it means our token is invalid/expired and refresh failed or wasn't tried.
+            // We must force a logout to prevent infinite error loops.
+            if (response.status === 401 && !endpoint.includes('/auth/')) {
+                console.error('Received 401 from API - forcing logout');
+
+                // Clear tokens immediately
+                tokenManager.clearTokens();
+
+                // Redirect if not already on login page
+                if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+                    // Use window.location for hard redirect to ensure state clean slate
+                    window.location.href = '/login?error=session_expired';
+                    // Return empty promise to halt execution chain
+                    return new Promise(() => { });
+                }
+            }
+
             let data;
             try {
                 const text = await response.text();

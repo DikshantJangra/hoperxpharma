@@ -136,11 +136,14 @@ router.get('/verify-magic-link', async (req, res) => {
         // Extract tokens from service result (tokens generated in service)
         const { accessToken, refreshToken } = result;
 
+        // Determine production mode securely
+        const isProduction = process.env.NODE_ENV === 'production' || (process.env.FRONTEND_URL && process.env.FRONTEND_URL.startsWith('https'));
+
         // Set refresh token in httpOnly cookie
         res.cookie('refreshToken', refreshToken, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+            secure: isProduction,
+            sameSite: isProduction ? 'none' : 'lax',
             maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
             path: '/',
         });
@@ -148,8 +151,8 @@ router.get('/verify-magic-link', async (req, res) => {
         // Set access token in httpOnly cookie
         res.cookie('accessToken', accessToken, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+            secure: isProduction,
+            sameSite: isProduction ? 'none' : 'lax',
             maxAge: 15 * 60 * 1000, // 15 minutes
             path: '/',
         });
