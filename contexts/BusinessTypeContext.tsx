@@ -30,6 +30,12 @@ export function BusinessTypeProvider({ children }: { children: React.ReactNode }
 
     useEffect(() => {
         async function fetchBusinessTypeConfig() {
+            // Guard against unauthenticated fetching
+            if (!authState.isAuthenticated) {
+                setLoading(false);
+                return;
+            }
+
             // Get store ID from auth state using correct properties
             // AuthState has primaryStore object, not stores array
             const storeId = authState.primaryStore?.id ||

@@ -28,6 +28,12 @@ function CallbackContent() {
                     // Store the token
                     localStorage.setItem('accessToken', token);
 
+                    // Store refresh token if present (for cross-domain fallback)
+                    const refreshToken = searchParams.get('refreshToken');
+                    if (refreshToken) {
+                        localStorage.setItem('refreshToken', refreshToken);
+                    }
+
                     // Set cookies for middleware
                     document.cookie = `logged_in=true; path=/; max-age=${7 * 24 * 60 * 60}`; // 7 days
                     document.cookie = `token=${token}; path=/; max-age=${15 * 60}`; // 15 mins

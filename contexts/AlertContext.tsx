@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { useAuthStore } from '@/lib/store/auth-store';
 
 interface Alert {
     id: string;
@@ -227,15 +228,19 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
         }
     }, [fetchCounts]);
 
+    const { isAuthenticated } = useAuthStore();
+
     // Initial load and polling
     useEffect(() => {
+        if (!isAuthenticated) return;
+
         refreshAlerts();
 
         // Poll every 30 seconds
         const interval = setInterval(refreshAlerts, 30000);
 
         return () => clearInterval(interval);
-    }, [refreshAlerts]);
+    }, [refreshAlerts, isAuthenticated]);
 
     return (
         <AlertContext.Provider

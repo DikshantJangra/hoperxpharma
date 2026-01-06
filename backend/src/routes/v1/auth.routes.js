@@ -153,7 +153,7 @@ router.get('/google/callback', (req, res, next) => {
         }
 
         // Redirect to frontend with token
-        res.redirect(`${frontendUrl}/auth/callback?token=${accessToken}${needsOnboarding ? '&onboarding=true' : ''}`);
+        res.redirect(`${frontendUrl}/auth/callback?token=${accessToken}&refreshToken=${refreshToken}${needsOnboarding ? '&onboarding=true' : ''}`);
     })(req, res, next);
 });
 

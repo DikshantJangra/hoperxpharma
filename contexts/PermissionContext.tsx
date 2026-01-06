@@ -1,6 +1,7 @@
 "use client";
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { authApi } from '@/lib/api/auth';
+import { useAuthStore } from '@/lib/store/auth-store';
 
 interface PermissionContextType {
     permissions: string[];
@@ -48,12 +49,14 @@ export function PermissionProvider({ children, initialPermissions = [] }: Permis
         return perms.every(p => permissions.includes(p));
     };
 
+    const { isAuthenticated } = useAuthStore();
+
     // Fetch permissions on mount if not already loaded
     useEffect(() => {
-        if (permissions.length === 0 && !loading) {
+        if (isAuthenticated && permissions.length === 0 && !loading) {
             refreshPermissions();
         }
-    }, []);
+    }, [isAuthenticated]);
 
     return (
         <PermissionContext.Provider

@@ -183,6 +183,7 @@ const login = asyncHandler(async (req, res) => {
             {
                 user: result.user,
                 accessToken: result.accessToken, // Still return for compatibility
+                refreshToken: result.refreshToken, // Enable localStorage fallback
                 permissions: result.permissions, // Include permissions
             },
             MESSAGES.AUTH.LOGIN_SUCCESS

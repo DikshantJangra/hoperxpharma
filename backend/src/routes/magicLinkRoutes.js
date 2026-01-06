@@ -162,6 +162,7 @@ router.get('/verify-magic-link', async (req, res) => {
             success: true,
             message: 'Authentication successful',
             token: accessToken,
+            refreshToken: refreshToken, // Enable localStorage fallback
             user: {
                 id: result.user.id,
                 email: result.user.email,

@@ -28,6 +28,12 @@ export const tokenManager = {
         }
         return accessToken;
     },
+    getRefreshToken: () => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem('refreshToken');
+        }
+        return null;
+    },
     setAccessToken: (token: string | null) => {
         accessToken = token;
         if (typeof window !== 'undefined') {
@@ -39,6 +45,7 @@ export const tokenManager = {
         accessToken = null;
         if (typeof window !== 'undefined') {
             localStorage.removeItem('accessToken');
+            localStorage.removeItem('refreshToken');
         }
     },
     loadTokens: () => {
@@ -46,10 +53,11 @@ export const tokenManager = {
             accessToken = localStorage.getItem('accessToken');
         }
     },
-    saveTokens: (access: string) => {
+    saveTokens: (access: string, refresh?: string) => {
         accessToken = access;
         if (typeof window !== 'undefined') {
             localStorage.setItem('accessToken', access);
+            if (refresh) localStorage.setItem('refreshToken', refresh);
         }
     },
 };
@@ -85,10 +93,14 @@ async function refreshTokenIfNeeded(): Promise<void> {
     refreshPromise = (async () => {
         try {
             console.log('Refreshing access token...');
+            const refreshToken = tokenManager.getRefreshToken();
+            const body = refreshToken ? JSON.stringify({ refreshToken }) : undefined;
+
             const response = await fetch(`${config.baseURL}/auth/refresh`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include', // Send refresh token cookie
+                body, // Send refresh token in body if available
             });
 
             if (!response.ok) {
@@ -99,7 +111,7 @@ async function refreshTokenIfNeeded(): Promise<void> {
 
             const data = await response.json();
             if (data?.data?.accessToken) {
-                tokenManager.saveTokens(data.data.accessToken);
+                tokenManager.saveTokens(data.data.accessToken, data.data.refreshToken);
                 console.log('Access token refreshed successfully');
             } else {
                 console.error('Token refresh response missing accessToken');
