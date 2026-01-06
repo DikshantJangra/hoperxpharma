@@ -61,11 +61,16 @@ const signup = asyncHandler(async (req, res) => {
 
         const result = await authService.signup(req.body);
 
+        // Determine production mode for cookie security
+        const isProduction = process.env.NODE_ENV === 'production' ||
+            (process.env.FRONTEND_URL && process.env.FRONTEND_URL.startsWith('https'));
+
         // Set refresh token in httpOnly cookie
         res.cookie('refreshToken', result.refreshToken, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+            secure: isProduction,
+            sameSite: isProduction ? 'none' : 'lax',
+            partitioned: isProduction, // CHIPS support for Arc and strict browsers
             maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
             path: '/',
         });
@@ -73,8 +78,9 @@ const signup = asyncHandler(async (req, res) => {
         // Set access token in httpOnly cookie (XSS protection)
         res.cookie('accessToken', result.accessToken, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+            secure: isProduction,
+            sameSite: isProduction ? 'none' : 'lax',
+            partitioned: isProduction, // CHIPS support for Arc and strict browsers
             maxAge: 15 * 60 * 1000, // 15 minutes
             path: '/',
         });
@@ -156,6 +162,7 @@ const login = asyncHandler(async (req, res) => {
             httpOnly: true,
             secure: isProduction,
             sameSite: isProduction ? 'none' : 'lax',
+            partitioned: isProduction, // CHIPS support for Arc and strict browsers
             maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
             path: '/',
         });
@@ -165,6 +172,7 @@ const login = asyncHandler(async (req, res) => {
             httpOnly: true,
             secure: isProduction,
             sameSite: isProduction ? 'none' : 'lax',
+            partitioned: isProduction, // CHIPS support for Arc and strict browsers
             maxAge: 15 * 60 * 1000, // 15 minutes
             path: '/',
         });
@@ -248,6 +256,7 @@ const refresh = asyncHandler(async (req, res) => {
         httpOnly: true,
         secure: isProduction,
         sameSite: isProduction ? 'none' : 'lax',
+        partitioned: isProduction, // CHIPS support for Arc and strict browsers
         maxAge: 7 * 24 * 60 * 60 * 1000,
         path: '/',
     });
@@ -257,6 +266,7 @@ const refresh = asyncHandler(async (req, res) => {
         httpOnly: true,
         secure: isProduction,
         sameSite: isProduction ? 'none' : 'lax',
+        partitioned: isProduction, // CHIPS support for Arc and strict browsers
         maxAge: 15 * 60 * 1000, // 15 minutes
         path: '/',
     });

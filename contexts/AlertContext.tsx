@@ -1,7 +1,8 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuthStore } from '@/lib/store/auth-store';
+import { getApiBaseUrl } from '@/lib/config/env';
 
 interface Alert {
     id: string;
@@ -57,6 +58,15 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
     const [isLoading, setIsLoading] = useState(false);
     const [isPanelOpen, setIsPanelOpen] = useState(false);
 
+    // Get API base URL for direct backend access (critical for cross-browser cookie support)
+    const apiBaseUrl = useMemo(() => {
+        try {
+            return getApiBaseUrl();
+        } catch {
+            return '';
+        }
+    }, []);
+
     const unreadCount = alerts.filter(a => a.status === 'NEW').length;
 
     const togglePanel = useCallback(() => {
@@ -64,9 +74,10 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     const fetchAlerts = useCallback(async () => {
+        if (!apiBaseUrl) return;
         try {
             setIsLoading(true);
-            const response = await fetch('/api/v1/alerts?limit=50', {
+            const response = await fetch(`${apiBaseUrl}/alerts?limit=50`, {
                 headers: {
                     'Content-Type': 'application/json',
                 },
@@ -82,11 +93,12 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, [apiBaseUrl]);
 
     const fetchCounts = useCallback(async () => {
+        if (!apiBaseUrl) return;
         try {
-            const response = await fetch('/api/v1/alerts/counts', {
+            const response = await fetch(`${apiBaseUrl}/alerts/counts`, {
                 headers: {
                     'Content-Type': 'application/json',
                 },
@@ -100,15 +112,16 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
         } catch (error) {
             console.error('Error fetching alert counts:', error);
         }
-    }, []);
+    }, [apiBaseUrl]);
 
     const refreshAlerts = useCallback(async () => {
         await Promise.all([fetchAlerts(), fetchCounts()]);
     }, [fetchAlerts, fetchCounts]);
 
     const markAsSeen = useCallback(async (id: string) => {
+        if (!apiBaseUrl) return;
         try {
-            const response = await fetch(`/api/v1/alerts/${id}/seen`, {
+            const response = await fetch(`${apiBaseUrl}/alerts/${id}/seen`, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
@@ -128,7 +141,7 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
             console.error('Error marking alert as seen:', error);
             refreshAlerts(); // Revert on error
         }
-    }, [refreshAlerts]);
+    }, [refreshAlerts, apiBaseUrl]);
 
     const markAllAsSeen = useCallback(async () => {
         const newAlerts = alerts.filter(a => a.status === 'NEW');
@@ -140,7 +153,7 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
         );
         try {
             await Promise.all(newAlerts.map(a =>
-                fetch(`/api/v1/alerts/${a.id}/seen`, {
+                fetch(`${apiBaseUrl}/alerts/${a.id}/seen`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
                     credentials: 'include',
@@ -150,13 +163,13 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
             console.error('Error marking all as seen:', error);
             refreshAlerts(); // Revert on error
         }
-    }, [alerts, refreshAlerts]);
+    }, [alerts, refreshAlerts, apiBaseUrl]);
 
     const dismissAlert = useCallback(async (id: string) => {
         // Optimistic update - remove immediately
         setAlerts((prev) => prev.filter((alert) => alert.id !== id));
         try {
-            await fetch(`/api/v1/alerts/${id}/dismiss`, {
+            await fetch(`${apiBaseUrl}/alerts/${id}/dismiss`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
@@ -165,11 +178,12 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
             console.error('Error dismissing alert:', error);
             refreshAlerts(); // Revert on error
         }
-    }, [refreshAlerts]);
+    }, [refreshAlerts, apiBaseUrl]);
 
     const resolveAlert = useCallback(async (id: string) => {
+        if (!apiBaseUrl) return;
         try {
-            const response = await fetch(`/api/v1/alerts/${id}/resolve`, {
+            const response = await fetch(`${apiBaseUrl}/alerts/${id}/resolve`, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
@@ -185,11 +199,12 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
         } catch (error) {
             console.error('Error resolving alert:', error);
         }
-    }, [fetchCounts]);
+    }, [fetchCounts, apiBaseUrl]);
 
     const snoozeAlert = useCallback(async (id: string, until: Date) => {
+        if (!apiBaseUrl) return;
         try {
-            const response = await fetch(`/api/v1/alerts/${id}/snooze`, {
+            const response = await fetch(`${apiBaseUrl}/alerts/${id}/snooze`, {
                 method: 'PATCH',
                 headers: {
                     'Content-Type': 'application/json',
@@ -206,11 +221,12 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
         } catch (error) {
             console.error('Error snoozing alert:', error);
         }
-    }, [fetchCounts]);
+    }, [fetchCounts, apiBaseUrl]);
 
     const bulkDismiss = useCallback(async (ids: string[]) => {
+        if (!apiBaseUrl) return;
         try {
-            const response = await fetch('/api/v1/alerts/bulk/dismiss', {
+            const response = await fetch(`${apiBaseUrl}/alerts/bulk/dismiss`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -226,7 +242,7 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
         } catch (error) {
             console.error('Error bulk dismissing:', error);
         }
-    }, [fetchCounts]);
+    }, [fetchCounts, apiBaseUrl]);
 
     const { isAuthenticated } = useAuthStore();
 

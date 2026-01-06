@@ -129,6 +129,7 @@ router.get('/google/callback', (req, res, next) => {
             httpOnly: true,
             secure: isProduction,
             sameSite: isProduction ? 'none' : 'lax',
+            partitioned: isProduction, // CHIPS support for Arc and strict browsers
             maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
             path: '/',
         });
@@ -138,6 +139,7 @@ router.get('/google/callback', (req, res, next) => {
             httpOnly: true,
             secure: isProduction,
             sameSite: isProduction ? 'none' : 'lax',
+            partitioned: isProduction, // CHIPS support for Arc and strict browsers
             maxAge: 15 * 60 * 1000, // 15 minutes
             path: '/',
         });
