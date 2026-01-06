@@ -96,6 +96,13 @@ export const useAuthStore = create<AuthState>()(
                     tokenManager.clearTokens();
                     authApi.clearLoggedInCookie();
 
+                    // CRITICAL SECURITY FIX: Clear Zustand persisted state to prevent auto-login on refresh
+                    // The persist middleware stores isAuthenticated=true in localStorage['auth-storage']
+                    // which would cause the user to be logged back in after page refresh
+                    if (typeof window !== 'undefined') {
+                        localStorage.removeItem('auth-storage');
+                    }
+
                     // Clear user state but keep isLoggingOut true to prevent flash of empty state
                     set({
                         user: null,
@@ -124,9 +131,20 @@ export const useAuthStore = create<AuthState>()(
             checkAuth: async () => {
                 let token = tokenManager.getAccessToken();
 
-                // If no access token, try to refresh
+                // If no access token, check if we should even try to refresh
+                // Only attempt refresh if there's evidence of a prior session (logged_in cookie)
                 if (!token) {
-                    console.log('No access token found, attempting refresh...');
+                    // Check for logged_in cookie (indicates prior successful auth)
+                    const hasLoggedInCookie = typeof document !== 'undefined' &&
+                        document.cookie.includes('logged_in=true');
+
+                    if (!hasLoggedInCookie) {
+                        // No prior session - don't attempt refresh, just mark as not authenticated
+                        set({ isAuthenticated: false, user: null, primaryStore: null, hasStore: false, permissions: [], isLoading: false });
+                        return;
+                    }
+
+                    console.log('No access token in memory, attempting refresh via httpOnly cookie...');
                     try {
                         const refreshResponse = await authApi.refreshToken();
                         if (refreshResponse?.accessToken) {
@@ -143,8 +161,8 @@ export const useAuthStore = create<AuthState>()(
                             set({ isLoading: false });
                             return;
                         } else {
-                            // Downgrade to warn or info as this is expected when user is not logged in
-                            console.warn('Token refresh failed - user is unauthenticated:', refreshError?.message);
+                            // This is expected when refresh token is invalid/expired - don't log as error
+                            console.log('Session expired or invalid');
                             // Clear all auth data including tokens and cookies
                             tokenManager.clearTokens();
                             authApi.clearLoggedInCookie();

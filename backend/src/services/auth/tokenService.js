@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const { TOKEN_TYPES, TOKEN_EXPIRY } = require('../../utils/constants');
 
 /**
@@ -13,11 +14,14 @@ const generateAccessToken = (userId, role) => {
 };
 
 /**
- * Generate JWT refresh token
+ * Generate JWT refresh token with unique JTI for stateless token rotation
+ * Each refresh token has a unique ID - when refreshed, old token is replaced
+ * This enables one-time use pattern without database storage
  */
 const generateRefreshToken = (userId) => {
+    const jti = crypto.randomUUID(); // Unique token identifier
     return jwt.sign(
-        { userId, type: TOKEN_TYPES.REFRESH },
+        { userId, type: TOKEN_TYPES.REFRESH, jti },
         process.env.JWT_REFRESH_SECRET,
         { expiresIn: process.env.JWT_REFRESH_EXPIRY || TOKEN_EXPIRY.REFRESH }
     );

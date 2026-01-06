@@ -1,4 +1,4 @@
-import { apiClient, tokenManager, ApiError } from './client';
+import { apiClient, tokenManager } from './client';
 
 export interface SignupData {
     email: string;
@@ -119,6 +119,22 @@ export const authApi = {
         } finally {
             tokenManager.clearTokens();
             this.clearLoggedInCookie();
+
+            // SECURITY FIX: Clear all auth-related cookies with multiple attribute combinations
+            // Production cookies may be set with Secure/SameSite=None which requires matching attributes to clear
+            if (typeof document !== 'undefined') {
+                const cookiesToClear = ['token', 'accessToken', 'refreshToken', 'logged_in'];
+                cookiesToClear.forEach(name => {
+                    // Clear with basic path
+                    document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT`;
+                    // Clear with Secure flag (for HTTPS contexts)
+                    document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; Secure`;
+                    // Clear with Secure + SameSite=None (for cross-origin production setup)
+                    document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; Secure; SameSite=None`;
+                    // Clear with SameSite=Lax (for development)
+                    document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; SameSite=Lax`;
+                });
+            }
         }
     },
 

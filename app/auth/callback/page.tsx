@@ -25,18 +25,14 @@ function CallbackContent() {
         if (token) {
             const handleCallback = async () => {
                 try {
-                    // Store the token
-                    localStorage.setItem('accessToken', token);
+                    // SECURITY: Access token is stored in memory only
+                    // Refresh token is already set as httpOnly cookie by the backend OAuth redirect
+                    const { tokenManager } = await import('@/lib/api/client');
+                    tokenManager.saveTokens(token); // Only saves to memory, not localStorage
 
-                    // Store refresh token if present (for cross-domain fallback)
-                    const refreshToken = searchParams.get('refreshToken');
-                    if (refreshToken) {
-                        localStorage.setItem('refreshToken', refreshToken);
-                    }
-
-                    // Set cookies for middleware
-                    document.cookie = `logged_in=true; path=/; max-age=${7 * 24 * 60 * 60}`; // 7 days
-                    document.cookie = `token=${token}; path=/; max-age=${15 * 60}`; // 15 mins
+                    // Set logged_in cookie for middleware routing (not sensitive, just a flag)
+                    document.cookie = `logged_in=true; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
+                    // NOTE: We no longer set a non-httpOnly 'token' cookie - that was a security risk
 
                     // IMPORTANT: Call checkAuth to properly initialize the auth store
                     // This fetches user profile and sets all state correctly

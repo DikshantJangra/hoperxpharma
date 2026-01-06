@@ -152,8 +152,10 @@ router.get('/google/callback', (req, res, next) => {
             return res.status(500).send('Configuration Error: Login cannot complete.');
         }
 
-        // Redirect to frontend with token
-        res.redirect(`${frontendUrl}/auth/callback?token=${accessToken}&refreshToken=${refreshToken}${needsOnboarding ? '&onboarding=true' : ''}`);
+        // Redirect to frontend with access token only
+        // NOTE: refreshToken is NOT passed in URL - it's set as httpOnly cookie
+        // This prevents token exposure in browser history, logs, and referrer headers
+        res.redirect(`${frontendUrl}/auth/callback?token=${accessToken}${needsOnboarding ? '&onboarding=true' : ''}`);
     })(req, res, next);
 });
 

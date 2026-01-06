@@ -157,12 +157,12 @@ router.get('/verify-magic-link', async (req, res) => {
             path: '/',
         });
 
-        // Return user data with auth token
+        // Return user data with auth token (accessToken only for memory storage on client)
+        // NOTE: refreshToken is NOT returned in body - it's set as httpOnly cookie only
         return res.status(200).json({
             success: true,
             message: 'Authentication successful',
-            token: accessToken,
-            refreshToken: refreshToken, // Enable localStorage fallback
+            token: accessToken, // Access token for memory storage
             user: {
                 id: result.user.id,
                 email: result.user.email,

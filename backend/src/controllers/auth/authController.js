@@ -182,8 +182,8 @@ const login = asyncHandler(async (req, res) => {
         const response = ApiResponse.success(
             {
                 user: result.user,
-                accessToken: result.accessToken, // Still return for compatibility
-                refreshToken: result.refreshToken, // Enable localStorage fallback
+                accessToken: result.accessToken, // Still return for compatibility (memory-only storage)
+                // NOTE: refreshToken is NOT returned in body - it's set as httpOnly cookie only
                 permissions: result.permissions, // Include permissions
             },
             MESSAGES.AUTH.LOGIN_SUCCESS
@@ -239,11 +239,15 @@ const refresh = asyncHandler(async (req, res) => {
     logger.info('Processing token refresh request');
     const tokens = await authService.refreshToken(refreshToken);
 
-    // Update refresh token cookie
+    // Determine production mode for cookie security
+    const isProduction = process.env.NODE_ENV === 'production' ||
+        (process.env.FRONTEND_URL && process.env.FRONTEND_URL.startsWith('https'));
+
+    // Update refresh token cookie (httpOnly - not accessible to JavaScript)
     res.cookie('refreshToken', tokens.refreshToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        secure: isProduction,
+        sameSite: isProduction ? 'none' : 'lax',
         maxAge: 7 * 24 * 60 * 60 * 1000,
         path: '/',
     });
@@ -251,8 +255,8 @@ const refresh = asyncHandler(async (req, res) => {
     // Set access token in httpOnly cookie (XSS protection)
     res.cookie('accessToken', tokens.accessToken, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        secure: isProduction,
+        sameSite: isProduction ? 'none' : 'lax',
         maxAge: 15 * 60 * 1000, // 15 minutes
         path: '/',
     });
@@ -278,9 +282,21 @@ const refresh = asyncHandler(async (req, res) => {
  *         description: Logout successful
  */
 const logout = asyncHandler(async (req, res) => {
-    // Clear both access and refresh token cookies
-    res.clearCookie('refreshToken', { path: '/' });
-    res.clearCookie('accessToken', { path: '/' });
+    // SECURITY FIX: Cookie clearing must match the exact attributes used when setting
+    // Otherwise cookies set with secure/sameSite in production won't be cleared
+    const isProduction = process.env.NODE_ENV === 'production' ||
+        (process.env.FRONTEND_URL && process.env.FRONTEND_URL.startsWith('https'));
+
+    const cookieOptions = {
+        path: '/',
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: isProduction ? 'none' : 'lax',
+    };
+
+    // Clear both access and refresh token cookies with matching attributes
+    res.clearCookie('refreshToken', cookieOptions);
+    res.clearCookie('accessToken', cookieOptions);
 
     // Log logout if authenticated
     if (req.user) {

@@ -14,51 +14,48 @@ export const config = {
 };
 
 /**
- * Token management - Cookie-based (more secure than localStorage)
- * Access tokens are now stored in httpOnly cookies set by the backend
- * This prevents XSS attacks from stealing tokens
+ * Token management - SECURE COOKIE-ONLY APPROACH
+ * 
+ * SECURITY MODEL:
+ * - Refresh tokens are stored in httpOnly cookies (set by backend) - not accessible to JavaScript
+ * - Access tokens are stored in memory only (this variable) - cleared on page refresh
+ * - On page load, if no access token in memory, we call /auth/refresh to get new tokens
+ * - This prevents XSS attacks from stealing tokens from localStorage
+ * 
+ * IMPORTANT: localStorage is NO LONGER used for token storage
  */
 let accessToken: string | null = null;
 
 export const tokenManager = {
     getAccessToken: () => {
-        if (typeof window === 'undefined') return accessToken;
-        if (!accessToken) {
-            accessToken = localStorage.getItem('accessToken');
-        }
         return accessToken;
     },
     getRefreshToken: () => {
-        if (typeof window !== 'undefined') {
-            return localStorage.getItem('refreshToken');
-        }
+        // Refresh token is in httpOnly cookie - we can't read it from JS
+        // This is intentional for security - the cookie is sent automatically with requests
         return null;
     },
     setAccessToken: (token: string | null) => {
         accessToken = token;
-        if (typeof window !== 'undefined') {
-            if (token) localStorage.setItem('accessToken', token);
-            else localStorage.removeItem('accessToken');
-        }
     },
     clearTokens: () => {
         accessToken = null;
+        // Clear any legacy localStorage tokens that may exist
         if (typeof window !== 'undefined') {
             localStorage.removeItem('accessToken');
             localStorage.removeItem('refreshToken');
         }
     },
     loadTokens: () => {
-        if (typeof window !== 'undefined') {
-            accessToken = localStorage.getItem('accessToken');
-        }
+        // No-op: We don't load from localStorage anymore
+        // Access token is in memory, refresh token is in httpOnly cookie
     },
-    saveTokens: (access: string, refresh?: string) => {
+    saveTokens: (access: string, _refresh?: string) => {
+        // Only store access token in memory
+        // Refresh token is set as httpOnly cookie by the backend
         accessToken = access;
-        if (typeof window !== 'undefined') {
-            localStorage.setItem('accessToken', access);
-            if (refresh) localStorage.setItem('refreshToken', refresh);
-        }
+        // NOTE: We intentionally do NOT store in localStorage anymore
+        // This prevents XSS attacks from stealing tokens
     },
 };
 
@@ -93,14 +90,12 @@ async function refreshTokenIfNeeded(): Promise<void> {
     refreshPromise = (async () => {
         try {
             console.log('Refreshing access token...');
-            const refreshToken = tokenManager.getRefreshToken();
-            const body = refreshToken ? JSON.stringify({ refreshToken }) : undefined;
-
+            // NOTE: Refresh token is sent automatically via httpOnly cookie
+            // No need to include in request body - more secure this way
             const response = await fetch(`${config.baseURL}/auth/refresh`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                credentials: 'include', // Send refresh token cookie
-                body, // Send refresh token in body if available
+                credentials: 'include', // Send refresh token cookie automatically
             });
 
             if (!response.ok) {
