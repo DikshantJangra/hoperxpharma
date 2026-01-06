@@ -115,15 +115,26 @@ router.get('/verify-magic-link', async (req, res) => {
             });
         }
 
-        // Verify magic link
-        const result = await magicLinkService.verifyMagicLink(token);
-
-        if (!result.success) {
-            return res.status(400).json(result);
+        // Extract IP address for access logging
+        let ipAddress = req.ip || req.connection.remoteAddress;
+        if (req.headers['x-forwarded-for']) {
+            const forwardedIps = req.headers['x-forwarded-for'].split(',');
+            ipAddress = forwardedIps[0].trim();
+        }
+        if (ipAddress && ipAddress.startsWith('::ffff:')) {
+            ipAddress = ipAddress.substring(7);
         }
 
-        // Generate JWT auth token
-        const { accessToken, refreshToken } = generateTokens(result.user.id, result.user.role);
+        const userAgent = req.headers['user-agent'];
+
+        // Verify magic link with request context for access logging
+        const result = await magicLinkService.verifyMagicLink(token, {
+            ipAddress,
+            userAgent
+        });
+
+        // Extract tokens from service result (tokens generated in service)
+        const { accessToken, refreshToken } = result;
 
         // Set refresh token in httpOnly cookie
         res.cookie('refreshToken', refreshToken, {

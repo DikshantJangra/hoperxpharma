@@ -1,68 +1,32 @@
 "use client"
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { FiAlertTriangle, FiPackage, FiClock, FiShield, FiInfo, FiCheck, FiX, FiFilter } from "react-icons/fi"
-import { alertsApi, Alert } from "@/lib/api/alerts"
+import { useAlerts } from "@/contexts/AlertContext"
 import { formatDistanceToNow } from "date-fns"
 
 export default function AlertsPage() {
-    const [alerts, setAlerts] = useState<Alert[]>([])
-    const [loading, setLoading] = useState(true)
+    const {
+        alerts,
+        isLoading,
+        unreadCount,
+        markAsSeen,
+        markAllAsSeen,
+        dismissAlert
+    } = useAlerts()
+
+    // Local filter state
     const [filter, setFilter] = useState<'all' | 'unread'>('all')
     const [severityFilter, setSeverityFilter] = useState<string>('all')
-
-    const fetchAlerts = async () => {
-        try {
-            setLoading(true)
-            const data = await alertsApi.getAlerts({ limit: 100 })
-            setAlerts(data)
-        } catch (error) {
-            console.error("Failed to fetch alerts:", error)
-        } finally {
-            setLoading(false)
-        }
-    }
-
-    useEffect(() => {
-        fetchAlerts()
-        // Poll for new alerts every 30 seconds
-        const interval = setInterval(fetchAlerts, 30000)
-        return () => clearInterval(interval)
-    }, [])
-
-    const markAsRead = async (alertId: string) => {
-        try {
-            await alertsApi.acknowledgeAlert(alertId)
-            fetchAlerts()
-        } catch (error) {
-            console.error("Failed to mark alert as read:", error)
-        }
-    }
-
-    const markAllAsRead = async () => {
-        try {
-            const newAlerts = alerts.filter(a => a.status === 'NEW')
-            await Promise.all(newAlerts.map(a => alertsApi.acknowledgeAlert(a.id)))
-            fetchAlerts()
-        } catch (error) {
-            console.error("Failed to mark all as read:", error)
-        }
-    }
-
-    const dismissAlert = async (alertId: string) => {
-        try {
-            await alertsApi.dismissAlert(alertId)
-            fetchAlerts()
-        } catch (error) {
-            console.error("Failed to dismiss alert:", error)
-        }
-    }
 
     const getIconForType = (type: string) => {
         const icons: Record<string, any> = {
             'inventory': FiPackage,
+            'INVENTORY': FiPackage,
             'compliance': FiShield,
+            'SECURITY': FiShield,
             'workflow': FiClock,
-            'system': FiAlertTriangle
+            'system': FiAlertTriangle,
+            'SYSTEM': FiAlertTriangle
         }
         return icons[type] || FiInfo
     }
@@ -80,11 +44,9 @@ export default function AlertsPage() {
 
     const filteredAlerts = alerts.filter(alert => {
         if (filter === 'unread' && alert.status !== 'NEW') return false
-        if (severityFilter !== 'all' && alert.severity !== severityFilter) return false
+        if (severityFilter !== 'all' && (alert.severity || alert.priority) !== severityFilter) return false
         return true
     })
-
-    const unreadCount = alerts.filter(a => a.status === 'NEW').length
 
     return (
         <div className="p-6 max-w-6xl mx-auto">
@@ -105,8 +67,8 @@ export default function AlertsPage() {
                             <button
                                 onClick={() => setFilter('all')}
                                 className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${filter === 'all'
-                                        ? 'bg-emerald-100 text-emerald-700'
-                                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                    ? 'bg-emerald-100 text-emerald-700'
+                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                                     }`}
                             >
                                 All ({alerts.length})
@@ -114,8 +76,8 @@ export default function AlertsPage() {
                             <button
                                 onClick={() => setFilter('unread')}
                                 className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${filter === 'unread'
-                                        ? 'bg-emerald-100 text-emerald-700'
-                                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                    ? 'bg-emerald-100 text-emerald-700'
+                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                                     }`}
                             >
                                 Unread ({unreadCount})
@@ -138,7 +100,7 @@ export default function AlertsPage() {
                     </div>
                     {unreadCount > 0 && (
                         <button
-                            onClick={markAllAsRead}
+                            onClick={markAllAsSeen}
                             className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 transition-colors"
                         >
                             Mark all as read
@@ -149,15 +111,15 @@ export default function AlertsPage() {
 
             {/* Alerts List */}
             <div className="space-y-3">
-                {loading ? (
+                {isLoading ? (
                     <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
                         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-emerald-500 mx-auto"></div>
                         <p className="text-sm text-gray-500 mt-4">Loading alerts...</p>
                     </div>
                 ) : filteredAlerts.length > 0 ? (
                     filteredAlerts.map((alert) => {
-                        const IconComponent = getIconForType(alert.type)
-                        const colors = getSeverityColor(alert.severity)
+                        const IconComponent = getIconForType(alert.category || alert.type || '')
+                        const colors = getSeverityColor(alert.priority || alert.severity || 'INFO')
                         const isUnread = alert.status === 'NEW'
 
                         return (
@@ -182,20 +144,20 @@ export default function AlertsPage() {
                                                 <p className="text-sm text-gray-600 mt-1">{alert.description}</p>
                                                 <div className="flex items-center gap-4 mt-2">
                                                     <span className={`text-xs font-medium px-2 py-1 rounded ${colors.bg} ${colors.text}`}>
-                                                        {alert.severity}
+                                                        {alert.priority || alert.severity}
                                                     </span>
                                                     <span className="text-xs text-gray-500">
                                                         {formatDistanceToNow(new Date(alert.createdAt), { addSuffix: true })}
                                                     </span>
                                                     <span className="text-xs text-gray-400 capitalize">
-                                                        {alert.type.replace('_', ' ')}
+                                                        {(alert.category || alert.type || '').replace('_', ' ').toLowerCase()}
                                                     </span>
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-2">
                                                 {isUnread && (
                                                     <button
-                                                        onClick={() => markAsRead(alert.id)}
+                                                        onClick={() => markAsSeen(alert.id)}
                                                         className="p-2 text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
                                                         title="Mark as read"
                                                     >

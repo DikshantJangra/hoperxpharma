@@ -673,8 +673,14 @@ model SubscriptionPlan {
 model Subscription {
   id      String             @id @default(cuid())
   storeId String             @unique
-  planId  String
+  planId  String?            // Deprecated: kept for backward compatibility
   status  SubscriptionStatus @default(TRIAL)
+
+  // NEW: Vertical-based subscription fields
+  activeVerticals  String[]  @default([])     // ["retail", "wholesale", "hospital"]
+  comboBundle      String?                     // "retail-wholesale", "complete-suite", etc.
+  monthlyAmount    Decimal?  @db.Decimal(10, 2) // Current billing amount
+  billingCycle     String    @default("monthly") // "monthly" | "yearly"
 
   trialEndsAt        DateTime?
   currentPeriodStart DateTime
@@ -682,7 +688,7 @@ model Subscription {
   autoRenew          Boolean   @default(true)
 
   store      Store            @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  plan       SubscriptionPlan @relation(fields: [planId], references: [id])
+  plan       SubscriptionPlan? @relation(fields: [planId], references: [id])
   usageQuota UsageQuota?
   payments   Payment[]
 

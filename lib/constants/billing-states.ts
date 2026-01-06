@@ -330,6 +330,12 @@ export function determineBillingState(subscription: {
     isTrial: boolean;
 }): BillingState {
     const now = new Date();
+    const statusLower = subscription.status?.toLowerCase() || 'trial';
+
+    // Paid and active (check this FIRST before trial logic)
+    if ((statusLower === 'active' || statusLower === 'paid') && !subscription.isTrial) {
+        return BillingState.PAID_ACTIVE;
+    }
 
     // Trial active
     if (subscription.isTrial && subscription.expiresAt && subscription.expiresAt > now) {
@@ -341,13 +347,8 @@ export function determineBillingState(subscription: {
         return BillingState.TRIAL_EXPIRED;
     }
 
-    // Paid and active
-    if (subscription.status === 'active' && !subscription.isTrial) {
-        return BillingState.PAID_ACTIVE;
-    }
-
     // Payment overdue
-    if (subscription.status === 'overdue' || subscription.status === 'past_due') {
+    if (statusLower === 'overdue' || statusLower === 'past_due' || statusLower === 'expired' || statusLower === 'suspended') {
         return BillingState.PAYMENT_OVERDUE;
     }
 

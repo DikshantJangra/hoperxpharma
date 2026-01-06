@@ -6,9 +6,11 @@ interface Alert {
     id: string;
     title: string;
     description: string;
-    category: 'INVENTORY' | 'SECURITY' | 'PATIENT' | 'BILLING' | ' SYSTEM' | 'CLINICAL';
+    type?: string;
+    category: 'INVENTORY' | 'SECURITY' | 'PATIENT' | 'BILLING' | 'SYSTEM' | 'CLINICAL';
+    severity?: 'CRITICAL' | 'MODERATE' | 'MINOR';
     priority: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
-    status: ' NEW' | 'SNOOZED' | 'RESOLVED';
+    status: 'NEW' | 'SNOOZED' | 'RESOLVED';
     seenAt?: string;
     actionUrl?: string;
     actionLabel?: string;
@@ -33,9 +35,15 @@ interface AlertContextType {
     alerts: Alert[];
     counts: AlertCounts | null;
     isLoading: boolean;
+    unreadCount: number;
+    isPanelOpen: boolean;
+    togglePanel: () => void;
+    setIsPanelOpen: (open: boolean) => void;
     refreshAlerts: () => Promise<void>;
     markAsSeen: (id: string) => Promise<void>;
+    markAllAsSeen: () => Promise<void>;
     resolveAlert: (id: string) => Promise<void>;
+    dismissAlert: (id: string) => Promise<void>;
     snoozeAlert: (id: string, until: Date) => Promise<void>;
     bulkDismiss: (ids: string[]) => Promise<void>;
 }
@@ -46,6 +54,13 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
     const [alerts, setAlerts] = useState<Alert[]>([]);
     const [counts, setCounts] = useState<AlertCounts | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+    const [isPanelOpen, setIsPanelOpen] = useState(false);
+
+    const unreadCount = alerts.filter(a => a.status === 'NEW').length;
+
+    const togglePanel = useCallback(() => {
+        setIsPanelOpen(prev => !prev);
+    }, []);
 
     const fetchAlerts = useCallback(async () => {
         try {
@@ -101,18 +116,55 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
             });
 
             if (response.ok) {
-                // Update local state
+                // Update local state optimistically
                 setAlerts((prev) =>
                     prev.map((alert) =>
-                        alert.id === id ? { ...alert, seenAt: new Date().toISOString() } : alert
+                        alert.id === id ? { ...alert, status: 'SNOOZED' as const, seenAt: new Date().toISOString() } : alert
                     )
                 );
-                await fetchCounts(); // Refresh counts
             }
         } catch (error) {
             console.error('Error marking alert as seen:', error);
+            refreshAlerts(); // Revert on error
         }
-    }, [fetchCounts]);
+    }, [refreshAlerts]);
+
+    const markAllAsSeen = useCallback(async () => {
+        const newAlerts = alerts.filter(a => a.status === 'NEW');
+        // Optimistic update
+        setAlerts((prev) =>
+            prev.map((alert) =>
+                alert.status === 'NEW' ? { ...alert, status: 'SNOOZED' as const, seenAt: new Date().toISOString() } : alert
+            )
+        );
+        try {
+            await Promise.all(newAlerts.map(a =>
+                fetch(`/api/v1/alerts/${a.id}/seen`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                })
+            ));
+        } catch (error) {
+            console.error('Error marking all as seen:', error);
+            refreshAlerts(); // Revert on error
+        }
+    }, [alerts, refreshAlerts]);
+
+    const dismissAlert = useCallback(async (id: string) => {
+        // Optimistic update - remove immediately
+        setAlerts((prev) => prev.filter((alert) => alert.id !== id));
+        try {
+            await fetch(`/api/v1/alerts/${id}/dismiss`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+            });
+        } catch (error) {
+            console.error('Error dismissing alert:', error);
+            refreshAlerts(); // Revert on error
+        }
+    }, [refreshAlerts]);
 
     const resolveAlert = useCallback(async (id: string) => {
         try {
@@ -191,9 +243,15 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
                 alerts,
                 counts,
                 isLoading,
+                unreadCount,
+                isPanelOpen,
+                togglePanel,
+                setIsPanelOpen,
                 refreshAlerts,
                 markAsSeen,
+                markAllAsSeen,
                 resolveAlert,
+                dismissAlert,
                 snoozeAlert,
                 bulkDismiss,
             }}

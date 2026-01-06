@@ -34,10 +34,12 @@ export function useTrialStatus(): TrialStatus {
             };
         }
 
-        // TODO: Check for active subscription status when implemented
-        // For now, assume all stores are on trial unless subscriptionStatus is 'ACTIVE'
-        const subscriptionStatus = (primaryStore as any).subscriptionStatus;
-        if (subscriptionStatus === 'ACTIVE' || subscriptionStatus === 'ENTERPRISE') {
+        // Check for active subscription status
+        // We check both the direct property (legacy) and the nested subscription object (new schema)
+        const subscription = primaryStore.subscription;
+        const status = (subscription?.status || (primaryStore as any).subscriptionStatus || '').toUpperCase();
+
+        if (['ACTIVE', 'PAID', 'ENTERPRISE', 'PAID_ACTIVE'].includes(status)) {
             return {
                 isOnTrial: false,
                 daysLeft: 0,

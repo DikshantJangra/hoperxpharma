@@ -8,7 +8,7 @@ import { toast } from 'react-hot-toast';
 function CallbackContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const { login } = useAuthStore();
+    const { checkAuth } = useAuthStore();
 
     useEffect(() => {
         if (!searchParams) return;
@@ -23,48 +23,43 @@ function CallbackContent() {
         }
 
         if (token) {
-            try {
-                // Determine if we should parse user/permissions/etc from token or fetch profile
-                // For now, the backend only returns options.accessTokens (aliased as token) in URL
-                // We trust the token and let auth-store handle it (fetch profile usually)
+            const handleCallback = async () => {
+                try {
+                    // Store the token
+                    localStorage.setItem('accessToken', token);
 
-                // Assuming auth-store has a method to set token directly, or we assume login accepts partial?
-                // Actually useAuthStore often has `setToken` or `login` that takes user/token.
-                // Let's verify useAuthStore usage.
-                // But typically:
-                // Store the token
-                localStorage.setItem('accessToken', token);
+                    // Set cookies for middleware
+                    document.cookie = `logged_in=true; path=/; max-age=${7 * 24 * 60 * 60}`; // 7 days
+                    document.cookie = `token=${token}; path=/; max-age=${15 * 60}`; // 15 mins
 
-                // IMPORTANT: Set the logged_in cookie so middleware knows we are auth'd
-                // This prevents the redirect loop or immediate refresh attempt
-                document.cookie = `logged_in=true; path=/; max-age=${7 * 24 * 60 * 60}`; // 7 days
-                document.cookie = `token=${token}; path=/; max-age=${15 * 60}`; // 15 mins (optional, middleware checks this too)
+                    // IMPORTANT: Call checkAuth to properly initialize the auth store
+                    // This fetches user profile and sets all state correctly
+                    await checkAuth();
 
-                // Force auth store to re-check immediately
-                // We trust the token is valid because we just got it
+                    toast.success('Successfully logged in!');
 
-                toast.success('Successfully logged in!');
+                    // Check if user needs onboarding
+                    const needsOnboarding = searchParams.get('onboarding');
 
-                // Check if user needs onboarding
-                const needsOnboarding = searchParams.get('onboarding');
-
-                // Use window.location to force a full state refresh on the new page
-                // enabling the auth-store to initialize cleanly from storage
-                if (needsOnboarding === 'true') {
-                    window.location.href = '/onboarding/welcome';
-                } else {
-                    window.location.href = '/dashboard/overview';
+                    // Navigate to appropriate page
+                    if (needsOnboarding === 'true') {
+                        router.push('/onboarding/welcome');
+                    } else {
+                        router.push('/dashboard/overview');
+                    }
+                } catch (err) {
+                    console.error('Callback error:', err);
+                    toast.error('Login processing failed');
+                    router.push('/login');
                 }
-            } catch (err) {
-                console.error('Callback error:', err);
-                toast.error('Login processing failed');
-                router.push('/login');
-            }
+            };
+
+            handleCallback();
         } else {
             // No token, no error -> invalid access
             router.push('/login');
         }
-    }, [searchParams, router, login]);
+    }, [searchParams, router, checkAuth]);
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-gray-50">

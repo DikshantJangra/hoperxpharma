@@ -72,7 +72,7 @@ const verifyPayment = asyncHandler(async (req, res) => {
 });
 
 const handleWebhook = asyncHandler(async (req, res) => {
-    const secret = process.env.RAZORPAY_KEY_SECRET; // Use Secret from env (or a specific webhook secret if configured separately)
+    const secret = process.env.RAZORPAY_KEY_SECRET;
     const signature = req.headers['x-razorpay-signature'];
 
     if (!paymentService.verifyWebhookSignature(req.body, signature, secret)) {
@@ -86,25 +86,64 @@ const handleWebhook = asyncHandler(async (req, res) => {
     if (event === 'payment.captured') {
         const paymentEntity = payload.payment.entity;
         const orderId = paymentEntity.order_id;
+        const amount = paymentEntity.amount / 100; // Razorpay sends in paise
 
-        // Update DB if not already completed
-        // We use updateMany or findUnique. razorpayOrderId is unique.
         try {
-            await prisma.payment.update({
+            // 1. Update payment record
+            const payment = await prisma.payment.update({
                 where: { razorpayOrderId: orderId },
                 data: {
                     status: 'COMPLETED',
                     razorpayPaymentId: paymentEntity.id,
-                    method: paymentEntity.method, // 'upi', 'card', etc.
-                    metadata: paymentEntity // store full details if needed
+                    method: paymentEntity.method,
+                    metadata: paymentEntity
                 }
             });
-            console.log(`Payment captured for order ${orderId}`);
+
+            console.log(`Payment captured for order ${orderId}, store: ${payment.storeId}`);
+
+            // 2. Activate subscription for the store
+            if (payment.storeId) {
+                const now = new Date();
+                const endDate = new Date();
+
+                // Determine billing cycle from amount (yearly if > 5000, else monthly)
+                const isYearly = amount > 5000;
+                if (isYearly) {
+                    endDate.setFullYear(endDate.getFullYear() + 1);
+                } else {
+                    endDate.setMonth(endDate.getMonth() + 1);
+                }
+
+                await prisma.subscription.upsert({
+                    where: { storeId: payment.storeId },
+                    update: {
+                        status: 'ACTIVE',
+                        activeVerticals: ['retail'], // TODO: Get from payment notes
+                        monthlyAmount: isYearly ? amount / 12 : amount,
+                        billingCycle: isYearly ? 'yearly' : 'monthly',
+                        currentPeriodStart: now,
+                        currentPeriodEnd: endDate,
+                        trialEndsAt: endDate,
+                        autoRenew: true,
+                    },
+                    create: {
+                        storeId: payment.storeId,
+                        status: 'ACTIVE',
+                        activeVerticals: ['retail'],
+                        monthlyAmount: isYearly ? amount / 12 : amount,
+                        billingCycle: isYearly ? 'yearly' : 'monthly',
+                        currentPeriodStart: now,
+                        currentPeriodEnd: endDate,
+                        trialEndsAt: endDate,
+                        autoRenew: true,
+                    }
+                });
+
+                console.log(`Subscription activated for store ${payment.storeId}`);
+            }
         } catch (err) {
-            console.error('Error updating payment via webhook:', err);
-            // Don't fail the webhook response if DB update fails, but log it.
-            // Or maybe return 500 to retry? Razorpay retries on non-200.
-            // Better to return 500 so it retries.
+            console.error('Error processing payment webhook:', err);
             throw err;
         }
     } else if (event === 'payment.failed') {
@@ -114,6 +153,7 @@ const handleWebhook = asyncHandler(async (req, res) => {
             where: { razorpayOrderId: orderId },
             data: { status: 'FAILED' }
         });
+        console.log(`Payment failed for order ${orderId}`);
     }
 
     res.json({ status: 'ok' });

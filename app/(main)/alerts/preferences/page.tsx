@@ -14,8 +14,8 @@ const categories = [
 ] as const;
 
 const channels = [
-    { id: 'IN_APP', name: 'In-App Notifications' },
-    { id: 'EMAIL', name: 'Email' },
+    { id: 'IN_APP', name: 'In-App Notifications', disabled: false },
+    { id: 'EMAIL', name: 'Email', disabled: false },
     { id: 'WHATSAPP', name: 'WhatsApp', disabled: true },
     { id: 'SMS', name: 'SMS', disabled: true },
 ] as const;

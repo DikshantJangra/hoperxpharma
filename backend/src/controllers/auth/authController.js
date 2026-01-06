@@ -143,7 +143,10 @@ const login = asyncHandler(async (req, res) => {
     const userAgent = req.headers['user-agent'];
 
     try {
-        const result = await authService.login(normalizedEmail, password);
+        const result = await authService.login(normalizedEmail, password, {
+            userAgent,
+            ipAddress,
+        });
 
         // Set refresh token in httpOnly cookie
         res.cookie('refreshToken', result.refreshToken, {

@@ -41,13 +41,20 @@ export interface SubscriptionPlan {
 export interface Subscription {
     id: string;
     storeId: string;
-    planId: string;
+    planId?: string;
     status: string;
+
+    // New vertical-based subscription fields
+    activeVerticals: string[];  // ["retail", "wholesale", "hospital"]
+    comboBundle?: string;       // "retail-wholesale", "complete-suite", etc.
+    monthlyAmount?: number;     // Current billing amount
+    billingCycle: string;       // "monthly" | "yearly"
+
     trialEndsAt?: string;
     currentPeriodStart: string;
     currentPeriodEnd: string;
     autoRenew: boolean;
-    plan: SubscriptionPlan;
+    plan?: SubscriptionPlan;
     createdAt: string;
     updatedAt: string;
 }

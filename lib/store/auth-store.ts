@@ -11,6 +11,7 @@ interface AuthState {
     primaryStore: Store | null;
     isAuthenticated: boolean;
     isLoading: boolean;
+    isLoggingOut: boolean;
     hasStore: boolean;
     permissions: string[];
     login: (data: any) => Promise<void>;
@@ -28,6 +29,7 @@ export const useAuthStore = create<AuthState>()(
             primaryStore: null,
             isAuthenticated: false,
             isLoading: true,
+            isLoggingOut: false,
             hasStore: false,
             permissions: [],
 
@@ -83,7 +85,7 @@ export const useAuthStore = create<AuthState>()(
             },
 
             logout: async () => {
-                set({ isLoading: true });
+                set({ isLoggingOut: true, isLoading: true });
                 try {
                     await authApi.logout();
                 } catch (error) {
@@ -93,15 +95,29 @@ export const useAuthStore = create<AuthState>()(
                     // Always clear tokens and state, even if API call fails
                     tokenManager.clearTokens();
                     authApi.clearLoggedInCookie();
+
+                    // Clear user state but keep isLoggingOut true to prevent flash of empty state
                     set({
                         user: null,
                         primaryStore: null,
                         isAuthenticated: false,
                         hasStore: false,
                         permissions: [],
-                        isLoading: false
+                        isLoading: false,
+                        isLoggingOut: true // Keep true until redirect happens
                     });
-                    console.log('Logout complete - all state cleared');
+
+                    console.log('Logout complete - redirecting to login');
+
+                    // Redirect to login page
+                    if (typeof window !== 'undefined') {
+                        window.location.href = '/login';
+                    }
+
+                    // Reset isLoggingOut after a delay (for SSR safety)
+                    setTimeout(() => {
+                        set({ isLoggingOut: false });
+                    }, 500);
                 }
             },
 
@@ -248,7 +264,8 @@ export const useAuthStore = create<AuthState>()(
                 primaryStore: state.primaryStore,
                 isAuthenticated: state.isAuthenticated,
                 hasStore: state.hasStore,
-                permissions: state.permissions
+                permissions: state.permissions,
+                // Note: isLoggingOut is NOT persisted - should always start as false
             }),
         }
     )

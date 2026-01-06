@@ -4,6 +4,8 @@ const { generateTokens, verifyRefreshToken } = require('./tokenService');
 const ApiError = require('../../utils/ApiError');
 const { MESSAGES } = require('../../constants');
 const logger = require('../../config/logger');
+const eventBus = require('../../events/eventBus');
+const { AUTH_EVENTS } = require('../../events/eventTypes');
 
 /**
  * Authentication Service - Business logic for authentication
@@ -61,8 +63,11 @@ class AuthService {
 
     /**
      * Login user
+     * @param {string} email
+     * @param {string} password
+     * @param {object} loginContext - Optional context (userAgent, ipAddress)
      */
-    async login(email, password) {
+    async login(email, password, loginContext = {}) {
         // Normalize email to lowercase for case-insensitive comparison
         const normalizedEmail = email.toLowerCase().trim();
 
@@ -91,6 +96,24 @@ class AuthService {
         // Fetch user permissions
         const permissionService = require('../permissionService');
         const permissions = await permissionService.getUserPermissions(user.id);
+
+        // Get user's primary store for alert
+        const primaryStore = user.storeUsers?.find(su => su.isPrimary);
+        const storeId = primaryStore?.store?.id || user.storeUsers?.[0]?.store?.id;
+
+        // Emit login event for alerts (only if user has a store)
+        if (storeId) {
+            eventBus.emitEvent(AUTH_EVENTS.NEW_DEVICE_LOGIN, {
+                storeId,
+                entityType: 'user',
+                entityId: user.id,
+                email: user.email,
+                userName: `${user.firstName} ${user.lastName}`,
+                deviceInfo: loginContext.userAgent || 'Unknown device',
+                ipAddress: loginContext.ipAddress || 'Unknown',
+                timestamp: new Date(),
+            });
+        }
 
         logger.info(`User logged in: ${user.email}`);
 

@@ -1,8 +1,8 @@
 "use client"
-import { useState, useEffect, useRef } from "react"
+import { useRef, useEffect } from "react"
 import Link from "next/link"
 import { FiBell, FiAlertTriangle, FiPackage, FiClock, FiShield, FiInfo } from "react-icons/fi"
-import { alertsApi, Alert } from "@/lib/api/alerts"
+import { useAlerts } from "@/contexts/AlertContext"
 import { formatDistanceToNow } from "date-fns"
 
 interface NotificationButtonProps {
@@ -12,46 +12,13 @@ interface NotificationButtonProps {
 
 export default function NotificationButton({ show, setShow }: NotificationButtonProps) {
     const notifRef = useRef<HTMLDivElement>(null)
-    const [alerts, setAlerts] = useState<Alert[]>([])
-    const [loading, setLoading] = useState(true)
-    const [unreadCount, setUnreadCount] = useState(0)
-
-    // Fetch alerts
-    const fetchAlerts = async () => {
-        try {
-            // Rate limit protection
-            const lastError = localStorage.getItem('alerts_last_error');
-            if (lastError) {
-                const { time } = JSON.parse(lastError);
-                if (Date.now() - time < 10000) { // 10s backoff
-                    setLoading(false); // Ensure loading state is cleared even if we skip fetch
-                    return;
-                }
-            }
-
-            const data = await alertsApi.getAlerts({ limit: 10 });
-            // API returns array directly based on previous code and error
-            if (Array.isArray(data)) {
-                setAlerts(data);
-                const unread = data.filter((a: any) => a.status === 'NEW').length;
-                setUnreadCount(unread);
-            }
-        } catch (error: any) {
-            console.error("Failed to fetch alerts:", error);
-            if (error.status === 429) {
-                localStorage.setItem('alerts_last_error', JSON.stringify({ time: Date.now() }));
-            }
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        fetchAlerts()
-        // Poll for new alerts every 30 seconds
-        const interval = setInterval(fetchAlerts, 30000)
-        return () => clearInterval(interval)
-    }, [])
+    const {
+        alerts,
+        unreadCount,
+        isLoading,
+        markAsSeen,
+        markAllAsSeen
+    } = useAlerts()
 
     // Click outside to close
     useEffect(() => {
@@ -67,36 +34,15 @@ export default function NotificationButton({ show, setShow }: NotificationButton
         }
     }, [show, setShow])
 
-    // Mark single alert as read
-    const markAsRead = async (alertId: string) => {
-        try {
-            await alertsApi.acknowledgeAlert(alertId)
-            // Refresh alerts
-            fetchAlerts()
-        } catch (error) {
-            console.error("Failed to mark alert as read:", error)
-        }
-    }
-
-    // Mark all as read
-    const markAllAsRead = async () => {
-        try {
-            // Acknowledge all NEW alerts
-            const newAlerts = alerts.filter(a => a.status === 'NEW')
-            await Promise.all(newAlerts.map(a => alertsApi.acknowledgeAlert(a.id)))
-            // Refresh alerts
-            fetchAlerts()
-        } catch (error) {
-            console.error("Failed to mark all as read:", error)
-        }
-    }
-
     const getIconForType = (type: string) => {
         const icons: Record<string, any> = {
             'inventory': FiPackage,
+            'INVENTORY': FiPackage,
             'compliance': FiShield,
+            'SECURITY': FiShield,
             'workflow': FiClock,
-            'system': FiAlertTriangle
+            'system': FiAlertTriangle,
+            'SYSTEM': FiAlertTriangle
         }
         const IconComponent = icons[type] || FiInfo
         return IconComponent
@@ -112,6 +58,9 @@ export default function NotificationButton({ show, setShow }: NotificationButton
         }
         return colors[severity] || 'bg-gray-400'
     }
+
+    // Get first 10 alerts for the dropdown
+    const displayAlerts = alerts.slice(0, 10)
 
     return (
         <div className="relative" ref={notifRef}>
@@ -132,7 +81,7 @@ export default function NotificationButton({ show, setShow }: NotificationButton
                         <h3 className="text-sm font-semibold text-gray-800">Notifications</h3>
                         {unreadCount > 0 && (
                             <button
-                                onClick={markAllAsRead}
+                                onClick={markAllAsSeen}
                                 className="text-xs text-emerald-600 hover:text-emerald-700 font-medium"
                             >
                                 Mark all read
@@ -141,13 +90,13 @@ export default function NotificationButton({ show, setShow }: NotificationButton
                     </div>
 
                     <div className="overflow-y-auto flex-1">
-                        {loading ? (
+                        {isLoading ? (
                             <div className="px-4 py-8 text-center text-sm text-gray-500">
                                 Loading notifications...
                             </div>
-                        ) : alerts.length > 0 ? (
-                            alerts.map((alert) => {
-                                const IconComponent = getIconForType(alert.type)
+                        ) : displayAlerts.length > 0 ? (
+                            displayAlerts.map((alert) => {
+                                const IconComponent = getIconForType(alert.category || alert.type)
                                 const isUnread = alert.status === 'NEW'
 
                                 return (
@@ -155,14 +104,14 @@ export default function NotificationButton({ show, setShow }: NotificationButton
                                         key={alert.id}
                                         onClick={() => {
                                             if (isUnread) {
-                                                markAsRead(alert.id)
+                                                markAsSeen(alert.id)
                                             }
                                         }}
                                         className={`w-full px-4 py-3 hover:bg-gray-50 transition-colors text-left ${isUnread ? 'bg-blue-50/50' : ''}`}
                                     >
                                         <div className="flex items-start gap-3">
-                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${getSeverityColor(alert.severity)}/10`}>
-                                                <IconComponent className={`${getSeverityColor(alert.severity).replace('bg-', 'text-')}`} size={16} />
+                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${getSeverityColor(alert.severity || alert.priority)}/10`}>
+                                                <IconComponent className={`${getSeverityColor(alert.severity || alert.priority).replace('bg-', 'text-')}`} size={16} />
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <div className="flex items-start justify-between gap-2">

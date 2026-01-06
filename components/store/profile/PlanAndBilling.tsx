@@ -36,19 +36,42 @@ export default function PlanAndBilling() {
         fetchStore();
     }, []);
 
-    // Calculate dynamic trial days
-    const trialLength = 14;
-    const createdAt = store?.createdAt ? new Date(store.createdAt) : new Date();
-    const daysPassed = Math.floor((new Date().getTime() - createdAt.getTime()) / (1000 * 60 * 60 * 24));
-    const daysLeft = Math.max(0, trialLength - daysPassed);
+    // Get subscription data
+    const subscription = store?.subscription;
+    const isPaid = subscription?.status === 'ACTIVE';
+    const isTrial = subscription?.status === 'TRIAL' || !subscription?.status;
+    const isExpired = subscription?.status === 'EXPIRED';
 
-    // For now, assume Retail is active (trial)
-    const activeVerticals = [BUSINESS_VERTICALS.RETAIL];
-    const availableVerticals = [
-        BUSINESS_VERTICALS.WHOLESALE,
-        BUSINESS_VERTICALS.HOSPITAL,
-        BUSINESS_VERTICALS.MULTICHAIN,
-    ];
+    // Calculate days remaining
+    const expiryDate = subscription?.trialEndsAt
+        ? new Date(subscription.trialEndsAt)
+        : subscription?.currentPeriodEnd
+            ? new Date(subscription.currentPeriodEnd)
+            : null;
+    const daysLeft = expiryDate
+        ? Math.max(0, Math.ceil((expiryDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)))
+        : 0;
+
+    // Get active verticals from subscription (new schema) or fallback
+    const activeVerticalIds = subscription?.activeVerticals?.length > 0
+        ? subscription.activeVerticals
+        : ['retail']; // Default fallback
+
+    // Map active vertical IDs to full vertical objects
+    const activeVerticals = activeVerticalIds
+        .map((id: string) => {
+            const key = id.toUpperCase();
+            return BUSINESS_VERTICALS[key];
+        })
+        .filter(Boolean);
+
+    // Available verticals (not yet subscribed)
+    const availableVerticals = Object.values(BUSINESS_VERTICALS)
+        .filter(v => !activeVerticalIds.includes(v.id.toLowerCase()));
+
+    // Billing info
+    const billingCycle = subscription?.billingCycle || 'monthly';
+    const monthlyAmount = subscription?.monthlyAmount || 0;
 
     if (loading) {
         return <div className="animate-pulse space-y-8">
@@ -61,38 +84,70 @@ export default function PlanAndBilling() {
     return (
         <div className="space-y-8">
 
-            {/* 1. Status Banner */}
-            <div className="bg-white rounded-3xl shadow-sm border border-gray-200 p-6 relative overflow-hidden">
-                <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center gap-6">
-                    {/* Icon Box */}
-                    <div className="w-14 h-14 rounded-2xl bg-amber-50 flex items-center justify-center flex-shrink-0 text-amber-500 border border-amber-100">
-                        <FiClock className="w-7 h-7" />
-                    </div>
-
-                    <div className="flex-1 w-full">
-                        <div className="flex flex-col md:flex-row md:items-center justify-between mb-2">
-                            <div>
-                                <h2 className="text-lg font-bold text-gray-900 tracking-tight">Free Trial Active</h2>
-                                <p className="text-gray-500 text-sm">Experience the full power of HopeRx Retail.</p>
-                            </div>
-                            <div className="mt-2 md:mt-0 px-3 py-1.5 bg-amber-50 text-amber-700 rounded-full text-sm font-bold border border-amber-100 inline-block">
-                                {daysLeft} Days Remaining
-                            </div>
+            {/* 1. Status Banner - Different for Trial vs Paid */}
+            {isPaid ? (
+                /* Paid User Banner */
+                <div className="bg-white rounded-3xl shadow-sm border-2 border-emerald-200 p-6 relative overflow-hidden">
+                    <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center gap-6">
+                        <div className="w-14 h-14 rounded-2xl bg-emerald-50 flex items-center justify-center flex-shrink-0 text-emerald-500 border border-emerald-100">
+                            <FiCheck className="w-7 h-7" />
                         </div>
-
-                        {/* Progress Bar */}
-                        <div className="mt-3 w-full h-2.5 bg-gray-100 rounded-full overflow-hidden">
-                            <div
-                                className="h-full bg-gradient-to-r from-amber-400 to-orange-400 rounded-full transition-all duration-500 ease-out"
-                                style={{ width: `${Math.max(5, 100 - (daysLeft / 14) * 100)}%` }}
-                            />
+                        <div className="flex-1 w-full">
+                            <div className="flex flex-col md:flex-row md:items-center justify-between mb-2">
+                                <div>
+                                    <h2 className="text-lg font-bold text-gray-900 tracking-tight">Subscription Active</h2>
+                                    <p className="text-gray-500 text-sm">
+                                        {activeVerticals.map((v: any) => v.displayName).join(' + ')} • {billingCycle === 'yearly' ? 'Annual' : 'Monthly'} billing
+                                    </p>
+                                </div>
+                                <div className="mt-2 md:mt-0 px-3 py-1.5 bg-emerald-50 text-emerald-700 rounded-full text-sm font-bold border border-emerald-100 inline-flex items-center gap-1">
+                                    <FiCheck className="w-4 h-4" />
+                                    {daysLeft > 0 ? `${daysLeft} Days Left` : 'Active'}
+                                </div>
+                            </div>
+                            {monthlyAmount > 0 && (
+                                <p className="text-sm text-gray-600">
+                                    Next billing: <span className="font-semibold">{formatPrice(monthlyAmount)}</span> on {expiryDate?.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                </p>
+                            )}
                         </div>
                     </div>
+                    <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-br from-emerald-50/50 to-transparent rounded-bl-full pointer-events-none -z-0 opacity-60" />
                 </div>
-
-                {/* Decorative BG */}
-                <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-br from-amber-50/50 to-transparent rounded-bl-full pointer-events-none -z-0 opacity-60" />
-            </div>
+            ) : (
+                /* Trial/Expired User Banner */
+                <div className={`bg-white rounded-3xl shadow-sm border ${isExpired ? 'border-red-200' : 'border-gray-200'} p-6 relative overflow-hidden`}>
+                    <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center gap-6">
+                        <div className={`w-14 h-14 rounded-2xl ${isExpired ? 'bg-red-50 text-red-500 border-red-100' : 'bg-amber-50 text-amber-500 border-amber-100'} flex items-center justify-center flex-shrink-0 border`}>
+                            <FiClock className="w-7 h-7" />
+                        </div>
+                        <div className="flex-1 w-full">
+                            <div className="flex flex-col md:flex-row md:items-center justify-between mb-2">
+                                <div>
+                                    <h2 className="text-lg font-bold text-gray-900 tracking-tight">
+                                        {isExpired ? 'Trial Expired' : 'Free Trial Active'}
+                                    </h2>
+                                    <p className="text-gray-500 text-sm">
+                                        {isExpired ? 'Upgrade to continue using HopeRx' : 'Experience the full power of HopeRx Retail.'}
+                                    </p>
+                                </div>
+                                <div className={`mt-2 md:mt-0 px-3 py-1.5 ${isExpired ? 'bg-red-50 text-red-700 border-red-100' : 'bg-amber-50 text-amber-700 border-amber-100'} rounded-full text-sm font-bold border inline-block`}>
+                                    {isExpired ? 'Expired' : `${daysLeft} Days Remaining`}
+                                </div>
+                            </div>
+                            {!isExpired && (
+                                <div className="mt-3 w-full h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                                    <div
+                                        className="h-full bg-gradient-to-r from-amber-400 to-orange-400 rounded-full transition-all duration-500 ease-out"
+                                        style={{ width: `${Math.max(5, 100 - (daysLeft / 14) * 100)}%` }}
+                                    />
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                    <div className={`absolute top-0 right-0 w-48 h-48 bg-gradient-to-br ${isExpired ? 'from-red-50/50' : 'from-amber-50/50'} to-transparent rounded-bl-full pointer-events-none -z-0 opacity-60`} />
+                </div>
+            )}
 
             {/* 2. Active Business Modules */}
             <div className="space-y-4">
@@ -105,7 +160,7 @@ export default function PlanAndBilling() {
                 </div>
 
                 {/* Active Modules */}
-                {activeVerticals.map((vertical) => {
+                {activeVerticals.map((vertical: typeof BUSINESS_VERTICALS.RETAIL) => {
                     const colorClasses: Record<string, { bg: string; text: string; badge: string }> = {
                         emerald: { bg: 'bg-emerald-50', text: 'text-emerald-600', badge: 'bg-emerald-100 text-emerald-700' },
                         blue: { bg: 'bg-blue-50', text: 'text-blue-600', badge: 'bg-blue-100 text-blue-700' },
@@ -115,11 +170,11 @@ export default function PlanAndBilling() {
                     const colors = colorClasses[vertical.color] || colorClasses.emerald;
 
                     return (
-                        <div key={vertical.id} className="bg-white rounded-2xl shadow-sm border-2 border-emerald-200 p-6 relative overflow-hidden">
+                        <div key={vertical.id} className={`bg-white rounded-2xl shadow-sm border-2 ${isPaid ? 'border-emerald-200' : 'border-amber-200'} p-6 relative overflow-hidden`}>
                             <div className="absolute top-4 right-4">
-                                <span className={`inline-flex items-center gap-1 text-xs font-bold ${colors.badge} px-2 py-1 rounded-full`}>
+                                <span className={`inline-flex items-center gap-1 text-xs font-bold ${isPaid ? 'bg-emerald-100 text-emerald-700' : colors.badge} px-2 py-1 rounded-full`}>
                                     <FiCheck className="w-3 h-3" />
-                                    Active Trial
+                                    {isPaid ? 'Active' : 'Active Trial'}
                                 </span>
                             </div>
 
@@ -133,33 +188,47 @@ export default function PlanAndBilling() {
 
                                     <div className="grid sm:grid-cols-2 gap-4 mb-6">
                                         <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
-                                            <span className="text-xs text-gray-500 block mb-1">Standalone Price</span>
+                                            <span className="text-xs text-gray-500 block mb-1">
+                                                {isPaid ? 'Your Plan' : 'Standalone Price'}
+                                            </span>
                                             <span className="text-lg font-bold text-gray-900">
-                                                {formatPrice(getVerticalPrice(vertical, false, false))}
-                                                <span className="text-sm font-normal text-gray-400">/mo</span>
+                                                {isPaid && monthlyAmount > 0
+                                                    ? formatPrice(monthlyAmount)
+                                                    : formatPrice(getVerticalPrice(vertical, false, false))
+                                                }
+                                                <span className="text-sm font-normal text-gray-400">
+                                                    /{billingCycle === 'yearly' ? 'yr' : 'mo'}
+                                                </span>
                                             </span>
                                         </div>
                                         <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
-                                            <span className="text-xs text-gray-500 block mb-1">Trial Ends</span>
+                                            <span className="text-xs text-gray-500 block mb-1">
+                                                {isPaid ? 'Renews In' : 'Trial Ends'}
+                                            </span>
                                             <span className="text-lg font-bold text-gray-900">{daysLeft} days</span>
                                         </div>
                                     </div>
 
-                                    <PaymentButton
-                                        amount={getVerticalPrice(vertical, false, true)}
-                                        user={{
-                                            firstName: user?.firstName,
-                                            lastName: user?.lastName,
-                                            email: user?.email,
-                                            phoneNumber: user?.phoneNumber,
-                                            storeId: store?.id || user?.storeUsers?.[0]?.storeId
-                                        }}
-                                        className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2"
-                                    />
-                                    <p className="text-xs text-gray-400 mt-2 flex items-center gap-1.5">
-                                        <FiShield className="w-3.5 h-3.5" />
-                                        Secured by Razorpay • Annual billing saves ₹1,200
-                                    </p>
+                                    {/* Only show payment button for trial users */}
+                                    {!isPaid && (
+                                        <>
+                                            <PaymentButton
+                                                amount={getVerticalPrice(vertical, false, true)}
+                                                user={{
+                                                    firstName: user?.firstName,
+                                                    lastName: user?.lastName,
+                                                    email: user?.email,
+                                                    phoneNumber: user?.phoneNumber,
+                                                    storeId: store?.id || user?.storeUsers?.[0]?.storeId
+                                                }}
+                                                className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2"
+                                            />
+                                            <p className="text-xs text-gray-400 mt-2 flex items-center gap-1.5">
+                                                <FiShield className="w-3.5 h-3.5" />
+                                                Secured by Razorpay • Annual billing saves ₹1,200
+                                            </p>
+                                        </>
+                                    )}
                                 </div>
                             </div>
                         </div>

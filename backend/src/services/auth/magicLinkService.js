@@ -135,9 +135,10 @@ class MagicLinkService {
      * Verify magic link token and authenticate user
      * Creates new user if doesn't exist (signup flow)
      * @param {string} token - Magic link token
+     * @param {Object} requestInfo - Request context (ipAddress, userAgent)
      * @returns {Promise<{user: Object, accessToken: string, refreshToken: string, isNewUser: boolean}>}
      */
-    async verifyMagicLink(token) {
+    async verifyMagicLink(token, requestInfo = {}) {
         // Find the magic link
         const magicLink = await prisma.magicLink.findUnique({
             where: { token }
@@ -225,9 +226,9 @@ class MagicLinkService {
         await accessLogService.logAccess({
             userId: user.id,
             eventType: 'login_success',
-            ipAddress: '0.0.0.0', // Would need to pass this from route
-            userAgent: null,
-            deviceInfo: null,
+            ipAddress: requestInfo.ipAddress || '0.0.0.0',
+            userAgent: requestInfo.userAgent || null,
+            deviceInfo: requestInfo.userAgent || null,
             loginMethod: 'magic_link' // Track authentication method
         }).catch(err => {
             // Don't fail authentication if logging fails

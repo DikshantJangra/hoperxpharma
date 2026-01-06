@@ -11,6 +11,7 @@ import ProductTour from "@/components/tour/ProductTour"
 import TourButton from "@/components/tour/TourButton"
 import { PermissionProvider } from "@/contexts/PermissionContext"
 import { BusinessTypeProvider } from "@/contexts/BusinessTypeContext"
+import { AlertProvider } from "@/contexts/AlertContext"
 import { useAuthStore } from "@/lib/store/auth-store"
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
@@ -20,7 +21,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     const [mobileNavOpen, setMobileNavOpen] = useState(false)
     const [isMobile, setIsMobile] = useState(false)
     const [expandedItems, setExpandedItems] = useState<string[]>([])
-    const { permissions, isAuthenticated, hasStore, isLoading, primaryStore } = useAuthStore()
+    const { permissions, isAuthenticated, hasStore, isLoading, isLoggingOut, primaryStore } = useAuthStore()
 
     // Detect mobile viewport and set initial sidebar state
     useEffect(() => {
@@ -46,6 +47,21 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
             router.push('/onboarding');
         }
     }, [isLoading, isAuthenticated, hasStore, router]);
+
+    // Show logging out screen during logout transition
+    if (isLoggingOut) {
+        return (
+            <div className="flex items-center justify-center min-h-screen bg-gray-50">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-emerald-600"></div>
+                    <div className="text-center">
+                        <h2 className="text-lg font-semibold text-gray-700">Logging out...</h2>
+                        <p className="text-sm text-gray-500 mt-1">See you next time!</p>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     // CRITICAL: Block rendering of EVERYTHING (including Navbar/Sidebar) if user has no store.
     // This prevents API calls (alerts, insights) that cause 429 errors before redirect.
@@ -80,42 +96,44 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     return (
         <PermissionProvider initialPermissions={permissions}>
             <BusinessTypeProvider>
-                {/* Demo Banner - Fixed Full Width Above Everything */}
-                <DemoModeBanner isDemo={!!primaryStore?.isDemo} />
+                <AlertProvider>
+                    {/* Demo Banner - Fixed Full Width Above Everything */}
+                    <DemoModeBanner isDemo={!!primaryStore?.isDemo} />
 
-                {/* Billing Banners - Shows below demo banner */}
-                <TrialBanner />
-                <PaymentOverdueBanner />
+                    {/* Billing Banners - Shows below demo banner */}
+                    <TrialBanner />
+                    <PaymentOverdueBanner />
 
-                {/* Product Tour - Only active in demo mode */}
-                {primaryStore?.isDemo && <ProductTour />}
+                    {/* Product Tour - Only active in demo mode */}
+                    {primaryStore?.isDemo && <ProductTour />}
 
-                {/* Fullscreen Mobile Navigation */}
-                <MobileNav isOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
+                    {/* Fullscreen Mobile Navigation */}
+                    <MobileNav isOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
 
-                {/* Main layout - fixed height accounting for demo banner */}
-                <div className={`flex ${primaryStore?.isDemo ? 'h-[calc(100vh-52px)] mt-[52px]' : 'h-screen'} bg-gray-50 overflow-hidden`}>
-                    {/* Desktop Sidebar - hidden on mobile */}
-                    <div className="hidden md:flex h-full">
-                        <Sidebar
-                            isOpen={sidebarOpen}
-                            expandedItems={expandedItems}
-                            onToggleItem={toggleItem}
-                        />
+                    {/* Main layout - fixed height accounting for demo banner */}
+                    <div className={`flex ${primaryStore?.isDemo ? 'h-[calc(100vh-52px)] mt-[52px]' : 'h-screen'} bg-gray-50 overflow-hidden`}>
+                        {/* Desktop Sidebar - hidden on mobile */}
+                        <div className="hidden md:flex h-full">
+                            <Sidebar
+                                isOpen={sidebarOpen}
+                                expandedItems={expandedItems}
+                                onToggleItem={toggleItem}
+                            />
+                        </div>
+                        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+                            <Navbar
+                                onToggleSidebar={handleToggleSidebar}
+                                sidebarOpen={isMobile ? mobileNavOpen : sidebarOpen}
+                            />
+                            <main className="flex-1 overflow-y-auto overflow-x-hidden">
+                                {children}
+                            </main>
+                        </div>
                     </div>
-                    <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-                        <Navbar
-                            onToggleSidebar={handleToggleSidebar}
-                            sidebarOpen={isMobile ? mobileNavOpen : sidebarOpen}
-                        />
-                        <main className="flex-1 overflow-y-auto overflow-x-hidden">
-                            {children}
-                        </main>
-                    </div>
-                </div>
 
-                {/* Tour Help Button - Floating button to restart tour */}
-                {primaryStore?.isDemo && <TourButton />}
+                    {/* Tour Help Button - Floating button to restart tour */}
+                    {primaryStore?.isDemo && <TourButton />}
+                </AlertProvider>
             </BusinessTypeProvider>
         </PermissionProvider>
     )

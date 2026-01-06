@@ -72,41 +72,60 @@ export function useBillingState(): BillingStateData {
         }
 
         // Get subscription data from primary store
-        // TODO: Replace with actual subscription data from API
-        const subscription = {
-            status: primaryStore.subscription?.status || 'trial',
-            expiresAt: primaryStore.subscription?.trialEndsAt ? new Date(primaryStore.subscription.trialEndsAt) : null,
-            isTrial: primaryStore.subscription?.plan === 'free' || !primaryStore.subscription?.plan,
-            nextBillingDate: primaryStore.subscription?.nextBillingDate ? new Date(primaryStore.subscription.nextBillingDate) : null,
+        const subscription = primaryStore.subscription;
+        const statusLower = (subscription?.status || 'trial').toLowerCase();
+
+        // Build subscription state object
+        const subState = {
+            status: statusLower,
+            expiresAt: subscription?.trialEndsAt
+                ? new Date(subscription.trialEndsAt)
+                : subscription?.currentPeriodEnd
+                    ? new Date(subscription.currentPeriodEnd)
+                    : null,
+            // isTrial is false if status is ACTIVE or PAID
+            isTrial: statusLower === 'trial' || !subscription?.status,
+            nextBillingDate: subscription?.currentPeriodEnd
+                ? new Date(subscription.currentPeriodEnd)
+                : null,
         };
 
         // Determine billing state
-        const state = determineBillingState(subscription);
+        const state = determineBillingState(subState);
 
         // Calculate days remaining
-        const daysRemaining = subscription.expiresAt
-            ? calculateDaysRemaining(subscription.expiresAt)
+        const daysRemaining = subState.expiresAt
+            ? calculateDaysRemaining(subState.expiresAt)
             : 0;
 
-        // Get active modules
-        // TODO: Replace with actual module subscription data
-        const activeModules = primaryStore.businessType
-            ? Array.isArray(primaryStore.businessType)
+        // Get active modules from subscription's activeVerticals (new schema)
+        // Falls back to businessType for backward compatibility
+        let activeModules: string[] = [];
+
+        if (subscription?.activeVerticals && subscription.activeVerticals.length > 0) {
+            // Use new vertical-based subscription fields
+            activeModules = subscription.activeVerticals.map((v: string) => v.toUpperCase());
+        } else if (primaryStore.businessType) {
+            // Fallback for backward compat
+            activeModules = Array.isArray(primaryStore.businessType)
                 ? primaryStore.businessType.map((t: string) => t.toUpperCase())
-                : [primaryStore.businessType.toUpperCase()]
-            : ['RETAIL']; // Default to RETAIL
+                : [primaryStore.businessType.toUpperCase()];
+        } else {
+            // Default to RETAIL
+            activeModules = ['RETAIL'];
+        }
 
         return {
             state,
             daysRemaining,
             activeModules,
-            isTrial: subscription.isTrial,
+            isTrial: subState.isTrial,
             isPaid: state === BillingState.PAID_ACTIVE,
             isTrialActive: state === BillingState.TRIAL_ACTIVE,
             isTrialExpired: state === BillingState.TRIAL_EXPIRED,
             isPaymentOverdue: state === BillingState.PAYMENT_OVERDUE,
-            nextBillingDate: subscription.nextBillingDate,
-            expiresAt: subscription.expiresAt,
+            nextBillingDate: subState.nextBillingDate,
+            expiresAt: subState.expiresAt,
         };
     }, [user, primaryStore]);
 
