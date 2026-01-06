@@ -12,14 +12,10 @@ import AttachmentUploader from '@/components/messages/email/AttachmentUploader';
 import EmailShimmer, { LogsShimmer } from '@/components/messages/email/EmailShimmer';
 import { getProviderWebmailLink, getProviderInfo } from '@/utils/emailProviderLinks';
 
-// Helper to get auth headers
-const getAuthHeaders = () => {
-  const token = localStorage.getItem('accessToken');
-  return {
-    'Content-Type': 'application/json',
-    ...(token && { 'Authorization': `Bearer ${token}` }),
-  };
-};
+// Helper to get headers for requests (credentials: include handles auth)
+const getAuthHeaders = () => ({
+  'Content-Type': 'application/json',
+});
 
 type EmailSection = 'compose' | 'sent' | 'templates' | 'settings';
 

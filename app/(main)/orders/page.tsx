@@ -82,9 +82,7 @@ export default function OrdersPage() {
         try {
             const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
             const response = await fetch(`${apiBaseUrl}/purchase-orders?limit=50`, {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-                }
+                credentials: 'include'
             });
 
             if (response.ok) {
@@ -97,9 +95,7 @@ export default function OrdersPage() {
                         if (order.status === 'RECEIVED' || order.status === 'PARTIALLY_RECEIVED') {
                             try {
                                 const grnResponse = await fetch(`${apiBaseUrl}/grn/po/${order.id}`, {
-                                    headers: {
-                                        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-                                    }
+                                    credentials: 'include'
                                 });
 
                                 if (grnResponse.ok) {

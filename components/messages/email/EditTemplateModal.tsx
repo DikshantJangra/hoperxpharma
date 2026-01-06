@@ -11,14 +11,10 @@ interface EditTemplateModalProps {
     onSuccess: () => void;
 }
 
-// Helper to get auth headers
-const getAuthHeaders = () => {
-    const token = localStorage.getItem('accessToken');
-    return {
-        'Content-Type': 'application/json',
-        ...(token && { 'Authorization': `Bearer ${token}` }),
-    };
-};
+// Helper to get headers for requests (credentials: include handles auth)
+const getAuthHeaders = () => ({
+    'Content-Type': 'application/json',
+});
 
 export default function EditTemplateModal({ isOpen, template, onClose, onSuccess }: EditTemplateModalProps) {
     const [formData, setFormData] = useState({
@@ -176,8 +172,8 @@ export default function EditTemplateModal({ isOpen, template, onClose, onSuccess
                                             type="button"
                                             onClick={() => setFormData({ ...formData, channel: channel.id })}
                                             className={`flex-1 px-4 py-3 rounded-lg font-medium transition-colors flex items-center justify-center gap-2 border-2 ${formData.channel === channel.id
-                                                    ? `${channel.color} text-white border-transparent`
-                                                    : 'bg-white text-[#64748b] border-[#e2e8f0] hover:bg-[#f8fafc]'
+                                                ? `${channel.color} text-white border-transparent`
+                                                : 'bg-white text-[#64748b] border-[#e2e8f0] hover:bg-[#f8fafc]'
                                                 }`}
                                         >
                                             <Icon className="w-5 h-5" />

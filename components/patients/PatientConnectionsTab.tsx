@@ -33,9 +33,7 @@ export default function PatientConnectionsTab({ patient, onUpdate }: PatientConn
             // Directly fetch from API
             // Since we don't have the SDK method yet, we use fetch
             const response = await fetch(`/api/v1/patients/${patient.id}/relations`, {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-                }
+                credentials: 'include'
             });
 
             if (response.ok) {
@@ -80,9 +78,9 @@ export default function PatientConnectionsTab({ patient, onUpdate }: PatientConn
             const response = await fetch(`/api/v1/patients/${patient.id}/relations`, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('accessToken')}`,
                     'Content-Type': 'application/json'
                 },
+                credentials: 'include',
                 body: JSON.stringify({
                     relatedPatientId: selectedPatient.id,
                     relationType
@@ -114,9 +112,7 @@ export default function PatientConnectionsTab({ patient, onUpdate }: PatientConn
         try {
             const response = await fetch(`/api/v1/patients/${patient.id}/relations/${relatedPatientId}`, {
                 method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-                }
+                credentials: 'include'
             });
 
             if (response.ok) {

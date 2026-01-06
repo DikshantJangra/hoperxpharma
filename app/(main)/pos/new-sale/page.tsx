@@ -48,6 +48,7 @@ export default function NewSalePage() {
     const [activePrescription, setActivePrescription] = useState<any>(null);
     const [isLoadingRx, setIsLoadingRx] = useState(false);
     const [invoiceNumber, setInvoiceNumber] = useState('');
+    const [lastSaleId, setLastSaleId] = useState<string | null>(null); // Store sale ID for PDF printing
     const [shouldCreateRefill, setShouldCreateRefill] = useState(false); // Track if this sale should create a refill
     const [overallDiscount, setOverallDiscount] = useState<{ type: 'percentage' | 'amount' | null, value: number }>({ type: null, value: 0 });
     const [dispenseFor, setDispenseFor] = useState<any>(null); // Track who medication is dispensed for
@@ -167,9 +168,10 @@ export default function NewSalePage() {
     useEffect(() => {
         const restoreDraft = async () => {
             try {
-                // Check if user is authenticated first
-                const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
-                if (!token) {
+                // Check if user is authenticated first (use logged_in cookie since tokens are httpOnly)
+                const hasSession = typeof document !== 'undefined' &&
+                    document.cookie.includes('logged_in=true');
+                if (!hasSession) {
                     console.log('User not authenticated, skipping draft restoration');
                     return;
                 }
@@ -1055,7 +1057,8 @@ export default function NewSalePage() {
                     description: `Total: ₹${totals.total.toFixed(2)}`,
                 });
 
-                // Set sale ID for success screen (using invoice number for display)
+                // Set sale ID for success screen (for PDF printing)
+                setLastSaleId(response.id);
                 setSaleId(invoiceNumber);
 
                 // Show success screen (GPay style animation)
@@ -1093,11 +1096,22 @@ export default function NewSalePage() {
     };
 
 
-    const handleNewSale = () => {
+    const handleNewSale = async () => {
         setShowSuccess(false);
         clearBasket();
         setCustomer(null);
+        setLastSaleId(null); // Clear sale ID
         setSaleId(`S-2025-${Math.floor(Math.random() * 10000).toString().padStart(5, '0')}`);
+
+        // Fetch next invoice number for the new sale
+        try {
+            const response = await salesApi.getNextInvoiceNumber();
+            if (response && response.nextInvoiceNumber) {
+                setInvoiceNumber(response.nextInvoiceNumber);
+            }
+        } catch (error) {
+            console.error('Failed to fetch next invoice number:', error);
+        }
     };
 
     const handleSplitPaymentConfirm = (splits: any) => {
@@ -1229,7 +1243,7 @@ export default function NewSalePage() {
 
             {showSuccess && (
                 <SuccessScreen
-                    saleData={{ invoiceNo: saleId, total: totals.total, method: 'cash' }}
+                    saleData={{ invoiceNo: saleId, total: totals.total, method: 'cash', saleId: lastSaleId }}
                     onNewSale={handleNewSale}
                     onClose={handleNewSale}
                 />

@@ -10,14 +10,10 @@ interface CreateTemplateModalProps {
     onSuccess: () => void;
 }
 
-// Helper to get auth headers
-const getAuthHeaders = () => {
-    const token = localStorage.getItem('accessToken');
-    return {
-        'Content-Type': 'application/json',
-        ...(token && { 'Authorization': `Bearer ${token}` }),
-    };
-};
+// Helper to get headers for requests (credentials: include handles auth)
+const getAuthHeaders = () => ({
+    'Content-Type': 'application/json',
+});
 
 export default function CreateTemplateModal({ isOpen, onClose, onSuccess }: CreateTemplateModalProps) {
     const [formData, setFormData] = useState({

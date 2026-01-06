@@ -16,14 +16,10 @@ interface QuickGroupSelectorProps {
     onRecipientsSelected?: (recipients: any[]) => void;
 }
 
-// Helper to get auth headers
-const getAuthHeaders = () => {
-    const token = localStorage.getItem('accessToken');
-    return {
-        'Content-Type': 'application/json',
-        ...(token && { 'Authorization': `Bearer ${token}` }),
-    };
-};
+// Helper to get headers for requests (credentials: include handles auth)
+const getAuthHeaders = () => ({
+    'Content-Type': 'application/json',
+});
 
 export default function QuickGroupSelector({ onRecipientsSelected }: QuickGroupSelectorProps) {
     const [groups, setGroups] = useState<RecipientGroup[]>([]);

@@ -109,7 +109,7 @@ export default function PaymentPanel({
     setIsLoadingRelations(true);
     try {
       const response = await fetch(`/api/v1/patients/${customerId}/relations`, {
-        headers: { 'Authorization': `Bearer ${localStorage.getItem('accessToken')}` }
+        credentials: 'include'
       });
       if (response.ok) {
         const data = await response.json();

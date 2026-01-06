@@ -136,9 +136,9 @@ export default function ProfilePage() {
             const response = await fetch(`${apiBaseUrl}/stores/${primaryStore?.id}`, {
                 method: 'PATCH',
                 headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
+                    'Content-Type': 'application/json'
                 },
+                credentials: 'include',
                 body: JSON.stringify(editedStoreData)
             });
 
@@ -196,9 +196,7 @@ export default function ProfilePage() {
                 console.log('[Avatar] Fetching avatar for user:', user.id);
 
                 const response = await fetch(`${apiBaseUrl}/avatar/me`, {
-                    headers: {
-                        'Authorization': `Bearer ${localStorage.getItem('accessToken')}`
-                    }
+                    credentials: 'include'
                 });
 
                 console.log('[Avatar] Fetch response status:', response.status);
@@ -251,15 +249,14 @@ export default function ProfilePage() {
 
         try {
             const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
-            const token = localStorage.getItem('accessToken');
 
             console.log('[Avatar Upload] Step 1: Requesting presigned URL...');
 
             // Step 1: Request presigned URL
             const requestResponse = await fetch(`${apiBaseUrl}/avatar/request-upload`, {
                 method: 'POST',
+                credentials: 'include',
                 headers: {
-                    'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 }
             });
@@ -292,8 +289,8 @@ export default function ProfilePage() {
             // Step 3: Complete upload processing
             const completeResponse = await fetch(`${apiBaseUrl}/avatar/complete-upload`, {
                 method: 'POST',
+                credentials: 'include',
                 headers: {
-                    'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({ tempKey })

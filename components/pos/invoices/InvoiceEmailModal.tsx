@@ -4,44 +4,40 @@ import { useState, useEffect } from 'react';
 import { FiX, FiMail, FiEye, FiSend, FiCheckCircle, FiAlertCircle } from 'react-icons/fi';
 
 interface InvoiceEmailModalProps {
-    isOpen: boolean;
-    invoice: any;
-    onClose: () => void;
+  isOpen: boolean;
+  invoice: any;
+  onClose: () => void;
 }
 
-// Helper to get auth headers
-const getAuthHeaders = () => {
-    const token = localStorage.getItem('accessToken');
-    return {
-        'Content-Type': 'application/json',
-        ...(token && { 'Authorization': `Bearer ${token}` }),
-    };
-};
+// Helper to get headers for requests (credentials: include handles auth)
+const getAuthHeaders = () => ({
+  'Content-Type': 'application/json',
+});
 
 export default function InvoiceEmailModal({ isOpen, invoice, onClose }: InvoiceEmailModalProps) {
-    const [recipientEmail, setRecipientEmail] = useState('');
-    const [showPreview, setShowPreview] = useState(false);
-    const [sending, setSending] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const [success, setSuccess] = useState(false);
-    const [emailHtml, setEmailHtml] = useState('');
+  const [recipientEmail, setRecipientEmail] = useState('');
+  const [showPreview, setShowPreview] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+  const [emailHtml, setEmailHtml] = useState('');
 
-    useEffect(() => {
-        if (isOpen && invoice) {
-            // Try to get customer email from invoice
-            const customerEmail = invoice.customer?.email || '';
-            setRecipientEmail(customerEmail);
+  useEffect(() => {
+    if (isOpen && invoice) {
+      // Try to get customer email from invoice
+      const customerEmail = invoice.customer?.email || '';
+      setRecipientEmail(customerEmail);
 
-            // Generate email HTML
-            generateInvoiceEmail();
-        }
-    }, [isOpen, invoice]);
+      // Generate email HTML
+      generateInvoiceEmail();
+    }
+  }, [isOpen, invoice]);
 
-    const generateInvoiceEmail = () => {
-        if (!invoice) return;
+  const generateInvoiceEmail = () => {
+    if (!invoice) return;
 
-        // Build items HTML
-        const itemsHtml = invoice.items.map((item: any) => `
+    // Build items HTML
+    const itemsHtml = invoice.items.map((item: any) => `
       <tr>
         <td style="padding: 12px; border-bottom: 1px solid #e2e8f0; font-size: 14px; color: #0f172a;">
           <strong>${item.name}</strong><br/>
@@ -54,15 +50,15 @@ export default function InvoiceEmailModal({ isOpen, invoice, onClose }: InvoiceE
       </tr>
     `).join('');
 
-        // Build payment modes HTML
-        const paymentModesHtml = invoice.paymentModes.map((pm: any) => `
+    // Build payment modes HTML
+    const paymentModesHtml = invoice.paymentModes.map((pm: any) => `
       <div style="display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px;">
         <span style="color: #64748b;">${pm.mode}</span>
         <span style="color: #0f172a; font-weight: 500;">₹${pm.amount}</span>
       </div>
     `).join('');
 
-        const html = `
+    const html = `
 <!DOCTYPE html>
 <html>
 <head>
@@ -127,24 +123,24 @@ export default function InvoiceEmailModal({ isOpen, invoice, onClose }: InvoiceE
               <!-- Summary -->
               <div style="background-color: #f8fafc; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
                 <div style="display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px;">
-                  <span style="color: #64748b;">Subtotal</span>
-                  <span style="color: #0f172a;">₹${invoice.summary.subtotal}</span>
+                  <span style="color: #64748b;">Subtotal (incl. GST)</span>
+                  <span style="color: #0f172a;">₹${invoice.items.reduce((sum: number, item: any) => sum + Number(item.total || 0), 0).toFixed(2)}</span>
                 </div>
                 <div style="display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px;">
                   <span style="color: #64748b;">Discount</span>
-                  <span style="color: #10b981;">-₹${invoice.summary.discount}</span>
+                  <span style="color: #10b981;">-₹${Number(invoice.summary.discount || 0).toFixed(2)}</span>
                 </div>
                 <div style="display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px;">
-                  <span style="color: #64748b;">GST</span>
-                  <span style="color: #0f172a;">₹${invoice.summary.gst}</span>
+                  <span style="color: #64748b;">GST (Included)</span>
+                  <span style="color: #0f172a;">₹${Number(invoice.summary.gst || 0).toFixed(2)}</span>
                 </div>
                 <div style="display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px;">
                   <span style="color: #64748b;">Round-off</span>
-                  <span style="color: #0f172a;">${invoice.summary.roundOff < 0 ? '-' : ''}₹${Math.abs(invoice.summary.roundOff)}</span>
+                  <span style="color: #0f172a;">${Number(invoice.summary.roundOff || 0) < 0 ? '-' : ''}₹${Math.abs(Number(invoice.summary.roundOff || 0)).toFixed(2)}</span>
                 </div>
                 <div style="display: flex; justify-content: space-between; padding-top: 12px; font-size: 18px;">
                   <span style="color: #0f172a; font-weight: 700;">Total</span>
-                  <span style="color: #10b981; font-weight: 700;">₹${invoice.amount}</span>
+                  <span style="color: #10b981; font-weight: 700;">₹${Number(invoice.amount || 0).toFixed(2)}</span>
                 </div>
               </div>
 
@@ -183,183 +179,183 @@ export default function InvoiceEmailModal({ isOpen, invoice, onClose }: InvoiceE
 </html>
     `;
 
-        setEmailHtml(html);
-    };
+    setEmailHtml(html);
+  };
 
-    const handleSend = async () => {
-        if (!recipientEmail) {
-            setError('Please enter a recipient email address');
-            return;
-        }
+  const handleSend = async () => {
+    if (!recipientEmail) {
+      setError('Please enter a recipient email address');
+      return;
+    }
 
-        setError(null);
-        setSending(true);
+    setError(null);
+    setSending(true);
 
-        try {
-            const response = await fetch('/api/v1/email/send', {
-                method: 'POST',
-                headers: getAuthHeaders(),
-                credentials: 'include',
-                body: JSON.stringify({
-                    to: recipientEmail,
-                    subject: `Invoice ${invoice.id} - ${invoice.customer.name}`,
-                    bodyHtml: emailHtml,
-                }),
-            });
+    try {
+      const response = await fetch('/api/v1/email/send', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        credentials: 'include',
+        body: JSON.stringify({
+          to: recipientEmail,
+          subject: `Invoice ${invoice.id} - ${invoice.customer.name}`,
+          bodyHtml: emailHtml,
+        }),
+      });
 
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Failed to send email');
-            }
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to send email');
+      }
 
-            setSuccess(true);
-            setTimeout(() => {
-                onClose();
-                setSuccess(false);
-                setRecipientEmail('');
-            }, 2000);
-        } catch (err: any) {
-            setError(err.message || 'Failed to send email');
-        } finally {
-            setSending(false);
-        }
-    };
+      setSuccess(true);
+      setTimeout(() => {
+        onClose();
+        setSuccess(false);
+        setRecipientEmail('');
+      }, 2000);
+    } catch (err: any) {
+      setError(err.message || 'Failed to send email');
+    } finally {
+      setSending(false);
+    }
+  };
 
-    if (!isOpen) return null;
+  if (!isOpen) return null;
 
-    return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50" onClick={onClose}>
-            <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
-                {/* Header */}
-                <div className="p-6 border-b border-[#e2e8f0] flex items-center justify-between shrink-0">
-                    <div>
-                        <h2 className="text-xl font-bold text-[#0f172a]">Email Invoice</h2>
-                        <p className="text-sm text-[#64748b] mt-1">Send invoice {invoice?.id} to customer</p>
-                    </div>
-                    <button
-                        onClick={onClose}
-                        className="p-2 hover:bg-[#f1f5f9] rounded-lg transition-colors"
-                    >
-                        <FiX className="w-5 h-5 text-[#64748b]" />
-                    </button>
-                </div>
-
-                {/* Body */}
-                <div className="flex-1 overflow-y-auto p-6">
-                    {showPreview ? (
-                        /* Email Preview */
-                        <div>
-                            <div className="mb-4 flex items-center justify-between">
-                                <h3 className="font-semibold text-[#0f172a]">Email Preview</h3>
-                                <button
-                                    onClick={() => setShowPreview(false)}
-                                    className="text-sm text-[#10b981] hover:text-[#059669] font-medium"
-                                >
-                                    ← Back to form
-                                </button>
-                            </div>
-                            <div className="border border-[#e2e8f0] rounded-lg overflow-hidden">
-                                <div dangerouslySetInnerHTML={{ __html: emailHtml }} />
-                            </div>
-                        </div>
-                    ) : (
-                        /* Email Form */
-                        <div className="space-y-5">
-                            <div>
-                                <label className="block text-sm font-medium text-[#0f172a] mb-2">
-                                    Recipient Email <span className="text-red-500">*</span>
-                                </label>
-                                <input
-                                    type="email"
-                                    value={recipientEmail}
-                                    onChange={(e) => setRecipientEmail(e.target.value)}
-                                    placeholder="customer@example.com"
-                                    className="w-full px-4 py-2.5 border border-[#e2e8f0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#10b981] focus:border-transparent"
-                                />
-                                {!recipientEmail && invoice?.customer?.phone && (
-                                    <p className="text-xs text-[#64748b] mt-1">
-                                        Customer phone: {invoice.customer.phone} (email not available)
-                                    </p>
-                                )}
-                            </div>
-
-                            <div>
-                                <label className="block text-sm font-medium text-[#0f172a] mb-2">Subject</label>
-                                <input
-                                    type="text"
-                                    value={`Invoice ${invoice?.id} - ${invoice?.customer?.name}`}
-                                    disabled
-                                    className="w-full px-4 py-2.5 border border-[#e2e8f0] rounded-lg bg-[#f8fafc] text-[#64748b]"
-                                />
-                            </div>
-
-                            <div className="bg-[#f0fdf4] border border-[#bbf7d0] rounded-lg p-4">
-                                <div className="flex items-start gap-3">
-                                    <FiCheckCircle className="w-5 h-5 text-[#10b981] mt-0.5 shrink-0" />
-                                    <div>
-                                        <p className="text-sm font-medium text-[#0f172a] mb-1">Professional invoice email ready</p>
-                                        <p className="text-xs text-[#64748b]">
-                                            Includes all invoice details, itemized list, GST breakdown, and payment information
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <button
-                                onClick={() => setShowPreview(true)}
-                                className="w-full px-4 py-2 border border-[#e2e8f0] rounded-lg hover:bg-[#f8fafc] transition-colors flex items-center justify-center gap-2 text-sm font-medium text-[#64748b]"
-                            >
-                                <FiEye className="w-4 h-4" />
-                                Preview Email
-                            </button>
-
-                            {error && (
-                                <div className="p-4 bg-[#fee2e2] border border-[#ef4444] rounded-lg flex items-start gap-2">
-                                    <FiAlertCircle className="w-5 h-5 text-[#ef4444] mt-0.5 shrink-0" />
-                                    <p className="text-sm text-[#dc2626]">{error}</p>
-                                </div>
-                            )}
-
-                            {success && (
-                                <div className="p-4 bg-[#d1fae5] border border-[#10b981] rounded-lg flex items-start gap-2">
-                                    <FiCheckCircle className="w-5 h-5 text-[#10b981] mt-0.5 shrink-0" />
-                                    <p className="text-sm text-[#065f46]">Email sent successfully!</p>
-                                </div>
-                            )}
-                        </div>
-                    )}
-                </div>
-
-                {/* Footer */}
-                {!showPreview && (
-                    <div className="p-6 border-t border-[#e2e8f0] flex gap-3 shrink-0 bg-[#f8fafc]">
-                        <button
-                            onClick={onClose}
-                            disabled={sending}
-                            className="flex-1 px-4 py-2 border border-[#e2e8f0] text-[#64748b] bg-white rounded-lg hover:bg-[#f8fafc] transition-colors font-medium"
-                        >
-                            Cancel
-                        </button>
-                        <button
-                            onClick={handleSend}
-                            disabled={sending || !recipientEmail}
-                            className="flex-1 px-4 py-2 bg-[#10b981] text-white rounded-lg hover:bg-[#059669] transition-colors font-medium disabled:opacity-50 flex items-center justify-center gap-2"
-                        >
-                            {sending ? (
-                                <>
-                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                                    Sending...
-                                </>
-                            ) : (
-                                <>
-                                    <FiSend className="w-4 h-4" />
-                                    Send Invoice
-                                </>
-                            )}
-                        </button>
-                    </div>
-                )}
-            </div>
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-[100]" onClick={onClose}>
+      <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col" onClick={(e) => e.stopPropagation()}>
+        {/* Header */}
+        <div className="p-6 border-b border-[#e2e8f0] flex items-center justify-between shrink-0">
+          <div>
+            <h2 className="text-xl font-bold text-[#0f172a]">Email Invoice</h2>
+            <p className="text-sm text-[#64748b] mt-1">Send invoice {invoice?.id} to customer</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-[#f1f5f9] rounded-lg transition-colors"
+          >
+            <FiX className="w-5 h-5 text-[#64748b]" />
+          </button>
         </div>
-    );
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto p-6">
+          {showPreview ? (
+            /* Email Preview */
+            <div>
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="font-semibold text-[#0f172a]">Email Preview</h3>
+                <button
+                  onClick={() => setShowPreview(false)}
+                  className="text-sm text-[#10b981] hover:text-[#059669] font-medium"
+                >
+                  ← Back to form
+                </button>
+              </div>
+              <div className="border border-[#e2e8f0] rounded-lg overflow-hidden">
+                <div dangerouslySetInnerHTML={{ __html: emailHtml }} />
+              </div>
+            </div>
+          ) : (
+            /* Email Form */
+            <div className="space-y-5">
+              <div>
+                <label className="block text-sm font-medium text-[#0f172a] mb-2">
+                  Recipient Email <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="email"
+                  value={recipientEmail}
+                  onChange={(e) => setRecipientEmail(e.target.value)}
+                  placeholder="customer@example.com"
+                  className="w-full px-4 py-2.5 border border-[#e2e8f0] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#10b981] focus:border-transparent"
+                />
+                {!recipientEmail && invoice?.customer?.phone && (
+                  <p className="text-xs text-[#64748b] mt-1">
+                    Customer phone: {invoice.customer.phone} (email not available)
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-[#0f172a] mb-2">Subject</label>
+                <input
+                  type="text"
+                  value={`Invoice ${invoice?.id} - ${invoice?.customer?.name}`}
+                  disabled
+                  className="w-full px-4 py-2.5 border border-[#e2e8f0] rounded-lg bg-[#f8fafc] text-[#64748b]"
+                />
+              </div>
+
+              <div className="bg-[#f0fdf4] border border-[#bbf7d0] rounded-lg p-4">
+                <div className="flex items-start gap-3">
+                  <FiCheckCircle className="w-5 h-5 text-[#10b981] mt-0.5 shrink-0" />
+                  <div>
+                    <p className="text-sm font-medium text-[#0f172a] mb-1">Professional invoice email ready</p>
+                    <p className="text-xs text-[#64748b]">
+                      Includes all invoice details, itemized list, GST breakdown, and payment information
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setShowPreview(true)}
+                className="w-full px-4 py-2 border border-[#e2e8f0] rounded-lg hover:bg-[#f8fafc] transition-colors flex items-center justify-center gap-2 text-sm font-medium text-[#64748b]"
+              >
+                <FiEye className="w-4 h-4" />
+                Preview Email
+              </button>
+
+              {error && (
+                <div className="p-4 bg-[#fee2e2] border border-[#ef4444] rounded-lg flex items-start gap-2">
+                  <FiAlertCircle className="w-5 h-5 text-[#ef4444] mt-0.5 shrink-0" />
+                  <p className="text-sm text-[#dc2626]">{error}</p>
+                </div>
+              )}
+
+              {success && (
+                <div className="p-4 bg-[#d1fae5] border border-[#10b981] rounded-lg flex items-start gap-2">
+                  <FiCheckCircle className="w-5 h-5 text-[#10b981] mt-0.5 shrink-0" />
+                  <p className="text-sm text-[#065f46]">Email sent successfully!</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        {!showPreview && (
+          <div className="p-6 border-t border-[#e2e8f0] flex gap-3 shrink-0 bg-[#f8fafc]">
+            <button
+              onClick={onClose}
+              disabled={sending}
+              className="flex-1 px-4 py-2 border border-[#e2e8f0] text-[#64748b] bg-white rounded-lg hover:bg-[#f8fafc] transition-colors font-medium"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSend}
+              disabled={sending || !recipientEmail}
+              className="flex-1 px-4 py-2 bg-[#10b981] text-white rounded-lg hover:bg-[#059669] transition-colors font-medium disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {sending ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <FiSend className="w-4 h-4" />
+                  Send Invoice
+                </>
+              )}
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }

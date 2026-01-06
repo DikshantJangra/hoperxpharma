@@ -8,14 +8,10 @@ import CreateTemplateModal from '@/components/messages/email/CreateTemplateModal
 import EditTemplateModal from '@/components/messages/email/EditTemplateModal';
 import TemplatePreviewModal from '@/components/messages/email/TemplatePreviewModal';
 
-// Helper to get auth headers
-const getAuthHeaders = () => {
-    const token = localStorage.getItem('accessToken');
-    return {
-        'Content-Type': 'application/json',
-        ...(token && { 'Authorization': `Bearer ${token}` }),
-    };
-};
+// Helper to get headers for requests (credentials: include handles auth)
+const getAuthHeaders = () => ({
+    'Content-Type': 'application/json',
+});
 
 // Shimmer loading component
 function TemplateShimmer() {

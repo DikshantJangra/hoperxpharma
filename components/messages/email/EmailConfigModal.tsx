@@ -5,14 +5,10 @@ import { FiCheckCircle, FiAlertCircle, FiArrowLeft } from 'react-icons/fi';
 import { FcGoogle } from 'react-icons/fc';
 import ProviderSelection from './ProviderSelection';
 
-// Helper to get auth headers
-const getAuthHeaders = () => {
-    const token = localStorage.getItem('accessToken');
-    return {
-        'Content-Type': 'application/json',
-        ...(token && { 'Authorization': `Bearer ${token}` }),
-    };
-};
+// Helper to get headers for requests (credentials: include handles auth)
+const getAuthHeaders = () => ({
+    'Content-Type': 'application/json',
+});
 
 interface EmailConfigModalProps {
     isOpen: boolean;

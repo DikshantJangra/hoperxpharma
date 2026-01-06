@@ -19,13 +19,9 @@ interface AttachmentUploaderProps {
     maxFiles?: number;
 }
 
-// Helper to get auth headers
-const getAuthHeaders = () => {
-    const token = localStorage.getItem('accessToken');
-    return {
-        ...(token && { 'Authorization': `Bearer ${token}` }),
-    };
-};
+// Helper to get headers for requests (credentials: include handles auth)
+// Note: For FormData uploads, we don't set Content-Type header
+const getAuthHeaders = () => ({});
 
 export default function AttachmentUploader({
     attachments,
@@ -159,8 +155,8 @@ export default function AttachmentUploader({
                 onDrop={handleDrop}
                 onClick={() => fileInputRef.current?.click()}
                 className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${isDragging
-                        ? 'border-[#10b981] bg-[#d1fae5]'
-                        : 'border-[#e2e8f0] hover:border-[#10b981] hover:bg-[#f0fdf4]'
+                    ? 'border-[#10b981] bg-[#d1fae5]'
+                    : 'border-[#e2e8f0] hover:border-[#10b981] hover:bg-[#f0fdf4]'
                     }`}
             >
                 <input

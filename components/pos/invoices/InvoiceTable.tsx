@@ -200,6 +200,7 @@ export default function InvoiceTable({ searchQuery, onSelectInvoice, selectedInv
                     customer: {
                       name: invoice.patient ? `${invoice.patient.firstName} ${invoice.patient.lastName || ''}`.trim() : 'Walk-in Customer',
                       phone: invoice.patient?.phoneNumber || '-',
+                      email: invoice.patient?.email || '', // Add email for Invoice Email Modal
                       gstin: invoice.patient?.gstin
                     },
                     dispenseFor: invoice.dispenseForPatient ? {

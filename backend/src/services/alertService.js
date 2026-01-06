@@ -91,14 +91,16 @@ class AlertService {
      */
     async createAlert(storeId, alertData) {
         // Map priority to severity if severity not provided
+        // Valid AlertSeverity values: CRITICAL, WARNING, INFO (from Prisma schema)
         const priorityToSeverity = {
             'CRITICAL': 'CRITICAL',
-            'HIGH': 'CRITICAL',
-            'MEDIUM': 'MODERATE',
-            'LOW': 'MINOR'
+            'HIGH': 'WARNING',
+            'High': 'WARNING',
+            'MEDIUM': 'INFO',
+            'LOW': 'INFO'
         };
 
-        const severity = alertData.severity || priorityToSeverity[alertData.priority] || 'MODERATE';
+        const severity = alertData.severity || priorityToSeverity[alertData.priority] || 'INFO';
 
         return await prisma.alert.create({
             data: {

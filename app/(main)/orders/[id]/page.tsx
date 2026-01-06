@@ -56,13 +56,10 @@ export default function OrderDetailsPage() {
     const fetchOrderDetails = async (id: string) => {
         try {
             const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
-            const token = localStorage.getItem('accessToken');
 
             // Fetch PO details
             const response = await fetch(`${apiBaseUrl}/purchase-orders/${id}`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
+                credentials: 'include'
             });
 
             if (!response.ok) {
@@ -88,9 +85,7 @@ export default function OrderDetailsPage() {
             // Fetch GRN data if order is received or partially received
             if (data.data.status === 'RECEIVED' || data.data.status === 'PARTIALLY_RECEIVED') {
                 const grnResponse = await fetch(`${apiBaseUrl}/grn/po/${id}`, {
-                    headers: {
-                        'Authorization': `Bearer ${token}`
-                    }
+                    credentials: 'include'
                 });
 
                 if (grnResponse.ok) {

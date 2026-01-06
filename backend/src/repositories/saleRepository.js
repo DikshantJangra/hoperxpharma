@@ -65,6 +65,7 @@ class SaleRepository {
                             firstName: true,
                             lastName: true,
                             phoneNumber: true,
+                            email: true, // Added for Email Invoice feature
                         },
                     },
                     dispenseForPatient: {
@@ -200,8 +201,26 @@ class SaleRepository {
             });
 
             // Batch create sale items (parallel)
+            // NOTE: createMany only accepts flat scalar data, not relations
+            // Strip out relation objects (drug, batch) that frontend may include
             const saleItemsPromise = tx.saleItem.createMany({
-                data: items.map(item => ({ ...item, saleId: sale.id }))
+                data: items.map(item => ({
+                    saleId: sale.id,
+                    drugId: item.drugId,
+                    batchId: item.batchId,
+                    quantity: item.quantity,
+                    mrp: item.mrp,
+                    discount: item.discount || 0,
+                    gstRate: item.gstRate || 0,
+                    lineTotal: item.lineTotal,
+                    hsnCode: item.hsnCode || null,
+                    taxSlabId: item.taxSlabId || null,
+                    taxableAmount: item.taxableAmount || 0,
+                    cgstAmount: item.cgstAmount || 0,
+                    sgstAmount: item.sgstAmount || 0,
+                    igstAmount: item.igstAmount || 0,
+                    cessAmount: item.cessAmount || 0,
+                }))
             });
 
             // Batch create payment splits (parallel)
@@ -536,6 +555,7 @@ class SaleRepository {
         // 2. Parse tokens
         const now = new Date();
         const year = now.getFullYear().toString();
+        const yearShort = year.slice(-2); // 2-digit year (e.g., "25" for 2025)
         const month = String(now.getMonth() + 1).padStart(2, '0');
         const day = String(now.getDate()).padStart(2, '0');
 
@@ -543,6 +563,7 @@ class SaleRepository {
         // Base prefix without the sequence number
         let prefix = format
             .replace('{YYYY}', year)
+            .replace('{YY}', yearShort)
             .replace('{MM}', month)
             .replace('{DD}', day);
 
@@ -600,6 +621,7 @@ class SaleRepository {
         // We need to go back to the format string with date tokens replaced, effectively 'formattedTemplate'
         let formattedTemplate = format
             .replace('{YYYY}', year)
+            .replace('{YY}', yearShort)
             .replace('{MM}', month)
             .replace('{DD}', day);
 

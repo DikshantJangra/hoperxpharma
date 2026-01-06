@@ -3,14 +3,10 @@
 import { useState } from 'react';
 import { FiMail, FiX, FiSend, FiCheckCircle, FiAlertCircle } from 'react-icons/fi';
 
-// Helper to get auth headers
-const getAuthHeaders = () => {
-    const token = localStorage.getItem('accessToken');
-    return {
-        'Content-Type': 'application/json',
-        ...(token && { 'Authorization': `Bearer ${token}` }),
-    };
-};
+// Helper to get headers for requests (credentials: include handles auth)
+const getAuthHeaders = () => ({
+    'Content-Type': 'application/json',
+});
 
 interface SendEmailModalProps {
     isOpen: boolean;
