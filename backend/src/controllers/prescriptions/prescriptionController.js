@@ -4,7 +4,7 @@ const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 const prescriptionService = require('../../services/prescriptions/prescriptionService');
 const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../../db/prisma');
 
 class PrescriptionController {
     /**

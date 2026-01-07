@@ -1,8 +1,4 @@
-const { PrismaClient } = require('@prisma/client');
-const logger = require('../config/logger');
-const cacheService = require('./cacheService');
-
-const prisma = new PrismaClient();
+const prisma = require('../db/prisma');
 
 /**
  * Feature Toggle Service

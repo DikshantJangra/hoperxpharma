@@ -1,6 +1,4 @@
-const database = require('../config/database');
-
-const prisma = database.getClient();
+const prisma = require('../db/prisma');
 
 /**
  * Access Log Repository - Data access layer for AccessLog operations

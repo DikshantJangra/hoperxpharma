@@ -1,6 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const logger = require('../../config/logger');
-const prisma = new PrismaClient();
+const prisma = require('../../db/prisma');
 
 /**
  * GDPR Data Export Service
@@ -20,7 +20,8 @@ const collectUserData = async (userId) => {
             select: {
                 id: true,
                 email: true,
-                name: true,
+                firstName: true,
+                lastName: true,
                 role: true,
                 createdAt: true,
                 updatedAt: true,
@@ -35,12 +36,12 @@ const collectUserData = async (userId) => {
         // Fetch user's stores
         const stores = await prisma.store.findMany({
             where: {
-                storeUsers: {
+                users: {
                     some: { userId },
                 },
             },
             include: {
-                storeUsers: {
+                users: {
                     where: { userId },
                     select: { role: true },
                 },
@@ -109,14 +110,14 @@ const collectUserData = async (userId) => {
                 userId,
             },
             orderBy: {
-                timestamp: 'desc',
+                createdAt: 'desc',
             },
             take: 1000, // Limit to last 1000 entries
             select: {
                 action: true,
                 entityType: true,
                 entityId: true,
-                timestamp: true,
+                createdAt: true,
                 ipAddress: true,
             },
         });
@@ -131,7 +132,7 @@ const collectUserData = async (userId) => {
             stores: stores.map(store => ({
                 id: store.id,
                 name: store.name,
-                userRole: store.storeUsers[0]?.role,
+                userRole: store.users[0]?.role,
             })),
             patients: patients.length > 0 ? patients : [],
             prescriptions: prescriptions.length > 0 ? prescriptions : [],

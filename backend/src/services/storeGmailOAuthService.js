@@ -16,7 +16,9 @@ const SCOPES = [
 class StoreGmailOAuthService {
     constructor() {
         this.oauth2Client = null;
-        this.initializeClient();
+        if (process.env.DISABLE_GMAIL_INIT !== 'true') {
+            this.initializeClient();
+        }
     }
 
     /**

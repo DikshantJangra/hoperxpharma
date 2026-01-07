@@ -6,8 +6,10 @@ import QueueBoard from './components/QueueBoard';
 import { prescriptionApi } from '@/lib/api/prescriptions';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
+import { usePremiumTheme } from '@/lib/hooks/usePremiumTheme';
 
 export default function PrescriptionQueuePage() {
+    const { isPremium } = usePremiumTheme();
     const [prescriptions, setPrescriptions] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
@@ -48,9 +50,11 @@ export default function PrescriptionQueuePage() {
     };
 
     return (
-        <div className="flex flex-col h-screen bg-gray-50">
+        <div className={`flex flex-col h-screen transition-colors ${isPremium ? 'bg-slate-50' : 'bg-gray-50'}`}>
             {/* Header */}
-            <div className="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between shadow-sm z-20">
+            <div className={`px-6 py-3 flex items-center justify-between z-20 transition-all ${isPremium
+                ? 'bg-white/80 backdrop-blur-xl border-b border-white/20 shadow-sm'
+                : 'bg-white border-b border-gray-200 shadow-sm'}`}>
                 <div className="flex items-center gap-4">
                     <h1 className="text-xl font-bold text-gray-900">Workbench</h1>
                     <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
@@ -78,7 +82,9 @@ export default function PrescriptionQueuePage() {
             </div>
 
             {/* Toolbar */}
-            <div className="bg-white border-b border-gray-200 px-6 py-2 flex items-center gap-4 z-10">
+            <div className={`px-6 py-2 flex items-center gap-4 z-10 border-b transition-all ${isPremium
+                ? 'bg-white/60 backdrop-blur-md border-white/20'
+                : 'bg-white border-gray-200'}`}>
                 <div className="relative flex-1 max-w-md">
                     <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                     <input

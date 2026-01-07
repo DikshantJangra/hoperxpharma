@@ -6,6 +6,7 @@ import QueueCard from './QueueCard';
 import { prescriptionApi } from '@/lib/api/prescriptions';
 import toast from 'react-hot-toast';
 import { FiInbox, FiCheckCircle, FiAlertCircle, FiPackage, FiTruck, FiPauseCircle } from 'react-icons/fi';
+import { usePremiumTheme } from '@/lib/hooks/usePremiumTheme';
 
 const COLUMNS = {
     'NEW': { title: 'New', icon: FiInbox, color: 'border-blue-400 bg-blue-50 text-blue-700' },
@@ -22,6 +23,7 @@ interface QueueBoardProps {
 }
 
 const QueueBoard = ({ prescriptions, onRefresh }: QueueBoardProps) => {
+    const { isPremium } = usePremiumTheme();
     const [enabled, setEnabled] = useState(false);
     const [columns, setColumns] = useState<any>({});
 
@@ -101,9 +103,13 @@ const QueueBoard = ({ prescriptions, onRefresh }: QueueBoardProps) => {
             <DragDropContext onDragEnd={onDragEnd}>
                 <div className="flex gap-4 h-full min-w-max p-4">
                     {Object.entries(COLUMNS).map(([columnId, config]: [string, any]) => (
-                        <div key={columnId} className="w-80 flex flex-col h-full bg-gray-50 rounded-xl border border-gray-200">
+                        <div key={columnId} className={`w-80 flex flex-col h-full rounded-xl border transition-all ${isPremium
+                            ? 'bg-white/40 border-white/40 shadow-sm'
+                            : 'bg-gray-50 border-gray-200'}`}>
                             {/* Header */}
-                            <div className={`p-3 border-b border-gray-100 flex items-center justify-between rounded-t-xl bg-white sticky top-0 z-10 ${config.color.replace('bg-', 'border-l-4 ')}`}>
+                            <div className={`p-3 border-b flex items-center justify-between rounded-t-xl sticky top-0 z-10 ${config.color.replace('bg-', 'border-l-4 ')} ${isPremium
+                                ? 'bg-white/80 backdrop-blur-xl border-white/20 shadow-sm'
+                                : 'bg-white border-gray-100'}`}>
                                 <div className="flex items-center gap-2">
                                     <config.icon className="w-4 h-4" />
                                     <h3 className="font-semibold text-gray-700 text-sm">{config.title}</h3>

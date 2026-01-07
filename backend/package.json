@@ -11,7 +11,7 @@
     "postinstall": "npx prisma generate",
     "migrate": "npx prisma migrate deploy",
     "seed": "npx prisma db seed",
-    "dpfv": "DISABLE_SCHEDULER=true ts-node verifier/run.ts",
+    "dpfv": "DISABLE_SCHEDULER=true DISABLE_GMAIL_INIT=true ts-node --transpile-only verifier/run.ts",
     "dpfv:critical": "ts-node verifier/run.ts --tags=critical",
     "dpfv:smoke": "ts-node verifier/run.ts --tags=smoke",
     "dpfv:help": "ts-node verifier/run.ts --help"

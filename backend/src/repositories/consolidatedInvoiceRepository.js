@@ -1,6 +1,5 @@
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('../db/prisma');
 const logger = require('../config/logger');
-const prisma = new PrismaClient();
 
 class ConsolidatedInvoiceRepository {
     /**

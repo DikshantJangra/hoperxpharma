@@ -1,7 +1,7 @@
 const csv = require('csv-parser');
 const fs = require('fs');
 const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient(); // Or import your prisma instance
+const prisma = require('../../db/prisma'); // Or import your prisma instance
 
 const TEMPLATES = {
     INVENTORY: [

@@ -3,6 +3,7 @@ import { useState, useEffect } from "react"
 import { useAuthStore } from "@/lib/store/auth-store"
 import { dashboardApi, SalesChartData } from "@/lib/api/dashboard"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
+import { usePremiumTheme } from "@/lib/hooks/usePremiumTheme";
 
 export default function SalesChart() {
     const [period, setPeriod] = useState<'week' | 'month' | 'year'>('week')
@@ -10,6 +11,7 @@ export default function SalesChart() {
     const [chartData, setChartData] = useState<SalesChartData | null>(null)
     const [isLoading, setIsLoading] = useState(true)
     const hasStore = useAuthStore(state => state.hasStore)
+    const { isPremium, tokens } = usePremiumTheme();
 
     useEffect(() => {
         const fetchStats = async () => {
@@ -59,7 +61,7 @@ export default function SalesChart() {
         if (active && payload && payload.length) {
             const data = payload[0].payload;
             return (
-                <div className="bg-gradient-to-br from-[#0f172a] to-[#1e293b] text-white px-5 py-4 rounded-xl shadow-2xl border border-white/10">
+                <div className={`${isPremium ? 'bg-slate-900/90 backdrop-blur-xl border border-white/10 shadow-2xl shadow-emerald-500/20' : 'bg-gradient-to-br from-[#0f172a] to-[#1e293b] border border-white/10'} text-white px-5 py-4 rounded-xl`}>
                     <div className="text-gray-400 text-[10px] mb-2 font-semibold uppercase tracking-wide">{data.fullDate}</div>
                     <div className="text-emerald-400 font-bold text-2xl mb-2">₹{data.revenue.toLocaleString('en-IN')}</div>
                     <div className="flex items-center gap-4 text-sm">
@@ -81,7 +83,18 @@ export default function SalesChart() {
     };
 
     return (
-        <div className="bg-white rounded-xl border border-[#e6eef2] p-6 h-full flex flex-col" style={{ boxShadow: '0 6px 18px rgba(3,15,31,0.06)' }}>
+        <div
+            className={`
+                h-full flex flex-col p-6 rounded-xl border transition-all 
+                ${isPremium ? 'duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:scale-[1.01]' : 'duration-200'}
+                ${isPremium
+                    ? 'bg-white/80 backdrop-blur-xl border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_-5px_rgba(16,185,129,0.1)] hover:border-emerald-500/20'
+                    : 'bg-white border-[#e6eef2]'
+                }
+            `}
+            style={!isPremium ? { boxShadow: '0 6px 18px rgba(3,15,31,0.06)' } : {}}
+            {...(isPremium ? { 'data-premium': 'true' } : {})}
+        >
             <div className="flex items-center justify-between mb-5">
                 <div>
                     <h3 className="text-[13px] font-semibold text-[#0f172a]">Sales Analytics</h3>
@@ -166,15 +179,28 @@ export default function SalesChart() {
                                     <Cell
                                         key={`cell-${index}`}
                                         fill="url(#colorGradient)"
+                                        filter={isPremium ? "url(#glow)" : undefined}
                                     />
                                 ))}
                             </Bar>
                             <defs>
                                 <linearGradient id="colorGradient" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="0%" stopColor="#34d399" stopOpacity={1} />
-                                    <stop offset="50%" stopColor="#10b981" stopOpacity={1} />
-                                    <stop offset="100%" stopColor="#0ea5a3" stopOpacity={1} />
+                                    <stop offset="0%" stopColor={isPremium ? '#10b981' : '#34d399'} stopOpacity={1} />
+                                    <stop offset="50%" stopColor={isPremium ? '#059669' : '#10b981'} stopOpacity={1} />
+                                    <stop offset="100%" stopColor={isPremium ? '#047857' : '#0ea5a3'} stopOpacity={1} />
                                 </linearGradient>
+                                {isPremium && (
+                                    <filter id="glow" height="130%">
+                                        <feGaussianBlur in="SourceAlpha" stdDeviation="3" />
+                                        <feOffset dx="0" dy="2" result="offsetblur" />
+                                        <feFlood floodColor="rgba(16, 185, 129, 0.5)" />
+                                        <feComposite in2="offsetblur" operator="in" />
+                                        <feMerge>
+                                            <feMergeNode />
+                                            <feMergeNode in="SourceGraphic" />
+                                        </feMerge>
+                                    </filter>
+                                )}
                             </defs>
                         </BarChart>
                     </ResponsiveContainer>

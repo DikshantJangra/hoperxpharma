@@ -1,9 +1,8 @@
-const database = require('../config/database');
 const eventBus = require('../events/eventBus');
 const { INVENTORY_EVENTS } = require('../events/eventTypes');
 const logger = require('../config/logger');
 
-const prisma = database.getClient();
+const prisma = require('../db/prisma');
 
 /**
  * Expiry Check Job - Scans all batches for expirations
@@ -95,12 +94,12 @@ async function runExpiryCheck() {
                 }
             } catch (batchError) {
                 // Log and continue - one failure doesn't break entire job
-                logger.error(`[ExpiryCheck] Error processing batch ${batch.id}:`, batchError);
+                logger.error(`[ExpiryCheck] Error processing batch ${batch.id}: `, batchError);
             }
         }
 
         const duration = Date.now() - startTime;
-        logger.debug(`[ExpiryCheck] Completed: ${processedCount} batches processed, ${eventsEmitted} events emitted in ${duration}ms`);
+        logger.debug(`[ExpiryCheck] Completed: ${processedCount} batches processed, ${eventsEmitted} events emitted in ${duration} ms`);
 
     } catch (error) {
         logger.error('[ExpiryCheck] Fatal error in expiry check job:', error);

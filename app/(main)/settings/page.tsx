@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { FiBell, FiLock, FiGlobe, FiMoon, FiMail, FiSmartphone, FiShield, FiDatabase } from "react-icons/fi";
+import { FiBell, FiLock, FiGlobe, FiMoon, FiMail, FiSmartphone, FiShield, FiDatabase, FiCheck } from "react-icons/fi";
+import { usePremiumTheme } from '@/lib/hooks/usePremiumTheme';
 
 export default function SettingsPage() {
+    const { isPremium } = usePremiumTheme();
     const [settings, setSettings] = useState({
         emailNotifications: true,
         smsNotifications: false,
@@ -27,17 +29,20 @@ export default function SettingsPage() {
             {/* Header */}
             <div className="bg-white border-b border-[#e2e8f0] p-6">
                 <div className="max-w-4xl mx-auto">
-                    <h1 className="text-2xl font-bold text-[#0f172a] mb-2">Settings</h1>
+                    <h1 className={`text-2xl font-bold ${isPremium ? 'text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-600' : 'text-[#0f172a]'} mb-2`}>Settings</h1>
                     <p className="text-sm text-[#64748b]">Manage your account preferences and notifications</p>
                 </div>
             </div>
 
             <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
                 {/* Notifications */}
-                <div className="bg-white border border-[#e2e8f0] rounded-xl p-6">
+                <div className={`p-6 rounded-xl border transition-all ${isPremium
+                    ? 'bg-white/80 backdrop-blur-xl border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_-5px_rgba(16,185,129,0.1)] hover:border-emerald-500/20'
+                    : 'bg-white border-[#e2e8f0]'
+                    }`}>
                     <div className="flex items-center gap-3 mb-6">
-                        <div className="p-3 bg-blue-100 rounded-lg">
-                            <FiBell className="w-5 h-5 text-blue-600" />
+                        <div className={`p-3 rounded-lg ${isPremium ? 'bg-gradient-to-br from-blue-50 to-blue-100 ring-1 ring-blue-500/10' : 'bg-blue-100'}`}>
+                            <FiBell className={`w-5 h-5 ${isPremium ? 'text-blue-600 drop-shadow-sm' : 'text-blue-600'}`} />
                         </div>
                         <div>
                             <h2 className="text-lg font-bold text-[#0f172a]">Notifications</h2>
@@ -95,10 +100,13 @@ export default function SettingsPage() {
                 </div>
 
                 {/* Appearance */}
-                <div className="bg-white border border-[#e2e8f0] rounded-xl p-6">
+                <div className={`p-6 rounded-xl border transition-all ${isPremium
+                    ? 'bg-white/80 backdrop-blur-xl border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_-5px_rgba(16,185,129,0.1)] hover:border-emerald-500/20'
+                    : 'bg-white border-[#e2e8f0]'
+                    }`}>
                     <div className="flex items-center gap-3 mb-6">
-                        <div className="p-3 bg-purple-100 rounded-lg">
-                            <FiMoon className="w-5 h-5 text-purple-600" />
+                        <div className={`p-3 rounded-lg ${isPremium ? 'bg-gradient-to-br from-purple-50 to-purple-100 ring-1 ring-purple-500/10' : 'bg-purple-100'}`}>
+                            <FiMoon className={`w-5 h-5 ${isPremium ? 'text-purple-600 drop-shadow-sm' : 'text-purple-600'}`} />
                         </div>
                         <div>
                             <h2 className="text-lg font-bold text-[#0f172a]">Appearance</h2>
@@ -118,10 +126,13 @@ export default function SettingsPage() {
                 </div>
 
                 {/* Localization */}
-                <div className="bg-white border border-[#e2e8f0] rounded-xl p-6">
+                <div className={`p-6 rounded-xl border transition-all ${isPremium
+                    ? 'bg-white/80 backdrop-blur-xl border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_-5px_rgba(16,185,129,0.1)] hover:border-emerald-500/20'
+                    : 'bg-white border-[#e2e8f0]'
+                    }`}>
                     <div className="flex items-center gap-3 mb-6">
-                        <div className="p-3 bg-green-100 rounded-lg">
-                            <FiGlobe className="w-5 h-5 text-green-600" />
+                        <div className={`p-3 rounded-lg ${isPremium ? 'bg-gradient-to-br from-green-50 to-green-100 ring-1 ring-green-500/10' : 'bg-green-100'}`}>
+                            <FiGlobe className={`w-5 h-5 ${isPremium ? 'text-green-600 drop-shadow-sm' : 'text-green-600'}`} />
                         </div>
                         <div>
                             <h2 className="text-lg font-bold text-[#0f172a]">Localization</h2>
@@ -159,10 +170,13 @@ export default function SettingsPage() {
                 </div>
 
                 {/* Security */}
-                <div className="bg-white border border-[#e2e8f0] rounded-xl p-6">
+                <div className={`p-6 rounded-xl border transition-all ${isPremium
+                    ? 'bg-white/80 backdrop-blur-xl border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_-5px_rgba(16,185,129,0.1)] hover:border-emerald-500/20'
+                    : 'bg-white border-[#e2e8f0]'
+                    }`}>
                     <div className="flex items-center gap-3 mb-6">
-                        <div className="p-3 bg-red-100 rounded-lg">
-                            <FiShield className="w-5 h-5 text-red-600" />
+                        <div className={`p-3 rounded-lg ${isPremium ? 'bg-gradient-to-br from-red-50 to-red-100 ring-1 ring-red-500/10' : 'bg-red-100'}`}>
+                            <FiShield className={`w-5 h-5 ${isPremium ? 'text-red-600 drop-shadow-sm' : 'text-red-600'}`} />
                         </div>
                         <div>
                             <h2 className="text-lg font-bold text-[#0f172a]">Security</h2>
@@ -188,10 +202,13 @@ export default function SettingsPage() {
                 </div>
 
                 {/* Data & Privacy */}
-                <div className="bg-white border border-[#e2e8f0] rounded-xl p-6">
+                <div className={`p-6 rounded-xl border transition-all ${isPremium
+                    ? 'bg-white/80 backdrop-blur-xl border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_-5px_rgba(16,185,129,0.1)] hover:border-emerald-500/20'
+                    : 'bg-white border-[#e2e8f0]'
+                    }`}>
                     <div className="flex items-center gap-3 mb-6">
-                        <div className="p-3 bg-amber-100 rounded-lg">
-                            <FiDatabase className="w-5 h-5 text-amber-600" />
+                        <div className={`p-3 rounded-lg ${isPremium ? 'bg-gradient-to-br from-amber-50 to-amber-100 ring-1 ring-amber-500/10' : 'bg-amber-100'}`}>
+                            <FiDatabase className={`w-5 h-5 ${isPremium ? 'text-amber-600 drop-shadow-sm' : 'text-amber-600'}`} />
                         </div>
                         <div>
                             <h2 className="text-lg font-bold text-[#0f172a]">Data & Privacy</h2>
@@ -224,8 +241,12 @@ export default function SettingsPage() {
 }
 
 function SettingToggle({ label, description, icon, checked, onChange }: any) {
+    const { isPremium } = usePremiumTheme();
     return (
-        <div className="flex items-center justify-between p-4 border border-[#e2e8f0] rounded-lg hover:border-[#cbd5e1] transition-colors">
+        <div className={`flex items-center justify-between p-4 border rounded-lg transition-all ${isPremium
+            ? 'bg-white/50 border-emerald-500/10 hover:bg-white hover:border-emerald-500/30 hover:shadow-sm'
+            : 'border-[#e2e8f0] hover:border-[#cbd5e1]'
+            }`}>
             <div className="flex items-start gap-3 flex-1">
                 {icon && <div className="mt-1 text-[#64748b]">{icon}</div>}
                 <div>
@@ -235,13 +256,17 @@ function SettingToggle({ label, description, icon, checked, onChange }: any) {
             </div>
             <button
                 onClick={onChange}
-                className={`relative w-12 h-6 rounded-full transition-colors ${checked ? "bg-[#0ea5a3]" : "bg-[#cbd5e1]"
+                className={`relative w-12 h-6 rounded-full transition-colors ${checked
+                    ? isPremium ? "bg-gradient-to-r from-emerald-500 to-teal-500 shadow-sm" : "bg-[#0ea5a3]"
+                    : "bg-[#cbd5e1]"
                     }`}
             >
                 <div
-                    className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${checked ? "translate-x-6" : ""
+                    className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform flex items-center justify-center ${checked ? "translate-x-6" : ""
                         }`}
-                ></div>
+                >
+                    {isPremium && checked && <FiCheck size={10} className="text-emerald-600" />}
+                </div>
             </button>
         </div>
     );

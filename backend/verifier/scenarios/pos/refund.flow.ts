@@ -51,7 +51,10 @@ export const refundScenario: Scenario = {
                         suppliers: [],
                         users: []
                     }, userId);
+                    ctx.set('onboardingResult', result);
                     ctx.set('currentStore', result.store);
+                    ctx.storeId = result.store.id;
+                    ctx.set('storeId', result.store.id);
                     // Need batch for sale
                     const batch = await inventorySteps.ensureBatchExists(ctx, {
                         drugName: 'Refundable Drug',

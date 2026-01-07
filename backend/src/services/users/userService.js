@@ -1,6 +1,7 @@
 const userRepository = require('../../repositories/userRepository');
 const ApiError = require('../../utils/ApiError');
 const logger = require('../../config/logger');
+const prisma = require('../../db/prisma');
 
 /**
  * User Service - Business logic for user operations
@@ -84,8 +85,7 @@ class UserService {
      * Get all users (filtered by requesting user's stores)
      */
     async getAllUsers(requestingUserId) {
-        const db = require('../../config/database');
-        const prisma = db.getClient();
+
 
         // Get requesting user's stores
         const requestingUser = await userRepository.getUserWithStores(requestingUserId);

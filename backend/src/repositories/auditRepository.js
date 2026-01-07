@@ -1,7 +1,4 @@
-const database = require('../config/database');
-
-const prisma = database.getClient();
-
+const prisma = require('../db/prisma');
 /**
  * Audit Repository - Data access layer for AuditLog operations
  */

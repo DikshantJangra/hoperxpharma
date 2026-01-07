@@ -129,6 +129,13 @@ export const prescriptionSteps = {
             ctx.set('currentRefill', refill);
             ctx.set('refillId', refill.id);
 
+            // Also fetch and set the latest version ID for dispense creation
+            const prescription = await prescriptionService.getPrescriptionById(id);
+            const latestVersion = prescription.versions?.[0];
+            if (latestVersion) {
+                ctx.set('versionId', latestVersion.id);
+            }
+
             return {
                 success: true,
                 data: refill,

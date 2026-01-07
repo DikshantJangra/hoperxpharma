@@ -3,6 +3,7 @@
 import React from 'react';
 import FocusLock from 'react-focus-lock';
 import { FiX } from 'react-icons/fi';
+import { usePremiumTheme } from '@/lib/hooks/usePremiumTheme';
 
 interface ModalWrapperProps {
     isOpen: boolean;
@@ -21,13 +22,15 @@ export default function ModalWrapper({
     className = '',
     width = 'max-w-md'
 }: ModalWrapperProps) {
+    const { isPremium } = usePremiumTheme();
     if (!isOpen) return null;
 
     return (
         <div className="fixed inset-0 z-50 overflow-y-auto">
             {/* Backdrop */}
             <div
-                className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
+                className={`fixed inset-0 transition-all duration-300 ${isPremium ? 'bg-slate-900/40 backdrop-blur-sm' : 'bg-black bg-opacity-50'
+                    }`}
                 onClick={onClose}
                 aria-hidden="true"
             />
@@ -36,14 +39,17 @@ export default function ModalWrapper({
             <div className="flex min-h-full items-center justify-center p-4">
                 <FocusLock returnFocus>
                     <div
-                        className={`relative bg-white rounded-lg shadow-xl w-full ${width} ${className} transform transition-all`}
+                        className={`relative rounded-lg w-full ${width} ${className} transform transition-all duration-300 scale-100 ${isPremium
+                                ? 'bg-white/95 backdrop-blur-xl border border-white/20 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] ring-1 ring-emerald-500/10'
+                                : 'bg-white shadow-xl'
+                            }`}
                         role="dialog"
                         aria-modal="true"
                         aria-labelledby={title ? "modal-title" : undefined}
                     >
                         {/* Header (Optional) */}
                         {title && (
-                            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+                            <div className={`flex items-center justify-between p-4 border-b ${isPremium ? 'border-emerald-500/10' : 'border-gray-200'}`}>
                                 {title && (
                                     <h2 id="modal-title" className="text-xl font-bold text-gray-900">
                                         {title}

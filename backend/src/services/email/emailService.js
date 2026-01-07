@@ -4,6 +4,7 @@ const { encryptSMTPPassword, decryptSMTPPassword } = require('../../utils/encryp
 const ApiError = require('../../utils/ApiError');
 const storeGmailOAuthService = require('../storeGmailOAuthService');
 const logger = require('../../config/logger');
+const prisma = require('../../db/prisma');
 
 class EmailService {
     /**
@@ -477,9 +478,5 @@ class EmailService {
         return masked;
     }
 }
-
-// Need prisma for updating logs
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
 
 module.exports = new EmailService();

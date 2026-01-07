@@ -28,7 +28,7 @@ export default function Navbar({ onToggleSidebar, sidebarOpen }: NavbarProps) {
 
     return (
         <header
-            className={`sticky top-0 h-14 md:h-16 ${tokens.navbarGradient} ${tokens.navbar.border} border-b flex items-center justify-between px-3 sm:px-4 md:px-6 z-40 ${isPremium ? 'shadow-lg shadow-emerald-900/10' : 'shadow-sm'} transition-all duration-300`}
+            className={`sticky top-0 h-14 md:h-16 ${tokens.navbarGradient} ${tokens.navbar.border} border-b flex items-center justify-between px-3 sm:px-4 md:px-6 z-40 ${isPremium ? 'shadow-lg shadow-emerald-900/10' : 'shadow-sm'} transition-all ${isPremium ? tokens.motion.duration + ' ' + tokens.motion.easing : 'duration-300'}`}
             {...(isPremium ? { 'data-premium': 'true' } : {})}
         >
             <LeftSection
@@ -107,8 +107,8 @@ function LeftSection({ onToggleSidebar, showStoreMenu, setShowStoreMenu, sidebar
 
                 {showStoreMenu && (
                     <div className={`absolute left-0 sm:left-auto top-14 w-[calc(100vw-24px)] sm:w-80 max-w-80 rounded-lg shadow-xl py-2 z-50 ${isPremium
-                            ? 'bg-white/95 backdrop-blur-xl border border-white/20 shadow-emerald-900/20'
-                            : 'bg-white border border-gray-200'
+                        ? 'bg-white/95 backdrop-blur-xl border border-white/20 shadow-emerald-900/20'
+                        : 'bg-white border border-gray-200'
                         }`}>
                         <div className={`px-4 py-2 border-b ${isPremium ? 'border-gray-100/50' : 'border-gray-100'}`}>
                             <h3 className={`text-sm font-semibold ${isPremium ? 'text-emerald-900' : 'text-gray-800'}`}>Your Stores</h3>

@@ -59,6 +59,17 @@ export const authSteps = {
                 { userAgent: 'DPFV-Verifier', ipAddress: '127.0.0.1' }
             );
 
+            // Manually log access since we bypassed controller
+            const accessLogService = require('../../src/services/audit/accessLogService');
+            await accessLogService.logAccess({
+                userId: result.user.id,
+                storeId: result.user.storeUsers?.[0]?.storeId, // Best effort
+                eventType: 'login_success',
+                ipAddress: '127.0.0.1',
+                userAgent: 'DPFV-Verifier',
+                loginMethod: 'EMAIL_PASSWORD'
+            });
+
             ctx.set('loginResult', result);
             ctx.set('currentUser', result.user);
             ctx.set('authToken', result.accessToken);

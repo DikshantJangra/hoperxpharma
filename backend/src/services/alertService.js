@@ -1,8 +1,7 @@
-const database = require('../config/database');
+
 const ruleEngine = require('./alerts/ruleEngine');
 const logger = require('../config/logger');
-
-const prisma = database.getClient();
+const prisma = require('../db/prisma');
 
 /**
  * Alert Service - Manages system alerts and notifications with event-driven architecture
@@ -18,7 +17,7 @@ class AlertService {
             const alertConfigs = await ruleEngine.processEvent(event);
 
             if (alertConfigs.length === 0) {
-                logger.debug(`No alerts to create for event: ${event.eventType}`);
+                logger.debug(`No alerts to create for event: ${event.eventType} `);
                 return [];
             }
 

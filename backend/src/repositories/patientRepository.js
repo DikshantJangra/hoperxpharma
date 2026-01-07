@@ -1,8 +1,6 @@
-const database = require('../config/database');
+const prisma = require('../db/prisma');
 const logger = require('../config/logger');
 const { buildOrderBy } = require('../utils/queryParser');
-
-const prisma = database.getClient();
 
 /**
  * Patient Repository - Data access layer for patient operations

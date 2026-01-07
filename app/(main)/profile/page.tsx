@@ -8,8 +8,11 @@ import { useAuthStore } from "@/lib/store/auth-store";
 import { userApi, getUserInitials, getStoreGSTIN } from "@/lib/api/user";
 import { useRouter } from "next/navigation";
 
+import { usePremiumTheme } from "@/lib/hooks/usePremiumTheme";
+
 export default function ProfilePage() {
     const router = useRouter();
+    const { isPremium } = usePremiumTheme();
     const { user, primaryStore, isAuthenticated, isLoading, refreshUserData } = useAuthStore();
     const [isEditing, setIsEditing] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
@@ -349,16 +352,19 @@ export default function ProfilePage() {
             {/* Header */}
             <div className="bg-white border-b border-[#e2e8f0] p-6">
                 <div className="max-w-4xl mx-auto">
-                    <h1 className="text-2xl font-bold text-[#0f172a] mb-2">My Profile</h1>
+                    <h1 className={`text-2xl font-bold ${isPremium ? 'text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-600' : 'text-[#0f172a]'} mb-2`}>My Profile</h1>
                     <p className="text-sm text-[#64748b]">Manage your personal information and preferences</p>
                 </div>
             </div>
 
             <div className="max-w-4xl mx-auto px-6 py-8">
                 {/* Profile Card */}
-                <div className="bg-white border border-[#e2e8f0] rounded-xl overflow-hidden mb-6">
+                <div className={`rounded-xl overflow-hidden mb-6 border transition-all ${isPremium
+                    ? 'bg-white/80 backdrop-blur-xl border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_-5px_rgba(16,185,129,0.1)] hover:border-emerald-500/20'
+                    : 'bg-white border-[#e2e8f0]'
+                    }`}>
                     {/* Cover */}
-                    <div className="h-32 bg-gradient-to-r from-emerald-600 to-emerald-500"></div>
+                    <div className={`h-32 ${isPremium ? 'bg-gradient-to-r from-emerald-500/20 via-teal-500/20 to-emerald-500/20 backdrop-blur-3xl' : 'bg-gradient-to-r from-emerald-600 to-emerald-500'}`}></div>
 
                     {/* Profile Info */}
                     <div className="px-8 pb-8">
@@ -368,10 +374,10 @@ export default function ProfilePage() {
                                     <img
                                         src={avatarUrl}
                                         alt="Profile avatar"
-                                        className="w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover"
+                                        className={`w-32 h-32 rounded-full border-4 border-white shadow-lg object-cover ${isPremium ? 'ring-4 ring-emerald-500/20' : ''}`}
                                     />
                                 ) : (
-                                    <div className="w-32 h-32 rounded-full bg-white border-4 border-white shadow-lg flex items-center justify-center text-4xl font-bold text-emerald-600">
+                                    <div className={`w-32 h-32 rounded-full border-4 border-white shadow-lg flex items-center justify-center text-4xl font-bold ${isPremium ? 'bg-gradient-to-br from-emerald-100 to-teal-50 text-emerald-600 ring-4 ring-emerald-500/20' : 'bg-white text-emerald-600'}`}>
                                         {isLoading ? "..." : initials}
                                     </div>
                                 )}
@@ -521,7 +527,10 @@ export default function ProfilePage() {
 
                 {/* Primary Store Information */}
                 {primaryStore && (
-                    <div className="bg-white border border-[#e2e8f0] rounded-xl p-6 mb-6">
+                    <div className={`rounded-xl border p-6 mb-6 transition-all ${isPremium
+                        ? 'bg-white/80 backdrop-blur-xl border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_-5px_rgba(16,185,129,0.1)] hover:border-emerald-500/20'
+                        : 'bg-white border-[#e2e8f0]'
+                        }`}>
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-lg font-bold text-[#0f172a] flex items-center gap-2">
                                 <HiOutlineShoppingBag className="w-5 h-5 text-emerald-600" />
@@ -726,20 +735,17 @@ export default function ProfilePage() {
 
                 {/* Activity Stats */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div className="p-6 bg-white border border-[#e2e8f0] rounded-xl">
-                        <div className="text-3xl font-bold text-emerald-600 mb-1">0</div>
-                        <div className="text-sm text-[#64748b]">Prescriptions Verified</div>
-                    </div>
-                    <div className="p-6 bg-white border border-[#e2e8f0] rounded-xl">
-                        <div className="text-3xl font-bold text-emerald-600 mb-1">0%</div>
-                        <div className="text-sm text-[#64748b]">Accuracy Rate</div>
-                    </div>
-                    <div className="p-6 bg-white border border-[#e2e8f0] rounded-xl">
-                        <div className="text-3xl font-bold text-emerald-600 mb-1">
-                            {user ? Math.floor((Date.now() - new Date(user.createdAt).getTime()) / (1000 * 60 * 60 * 24)) : 0}
+                    {[{ label: 'Prescriptions Verified', value: '0', unit: '' }, { label: 'Accuracy Rate', value: '0%', unit: '' }, { label: 'Days Since Joining', value: user ? Math.floor((Date.now() - new Date(user.createdAt).getTime()) / (1000 * 60 * 60 * 24)) : 0, unit: '' }].map((stat, i) => (
+                        <div key={i} className={`p-6 rounded-xl border transition-all ${isPremium
+                            ? 'bg-white/80 backdrop-blur-xl border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_-5px_rgba(16,185,129,0.1)] hover:border-emerald-500/20'
+                            : 'bg-white border-[#e2e8f0]'
+                            }`}>
+                            <div className={`text-3xl font-bold mb-1 ${isPremium ? 'text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-600' : 'text-emerald-600'}`}>
+                                {stat.value}
+                            </div>
+                            <div className="text-sm text-[#64748b]">{stat.label}</div>
                         </div>
-                        <div className="text-sm text-[#64748b]">Days Since Joining</div>
-                    </div>
+                    ))}
                 </div>
             </div>
         </div>

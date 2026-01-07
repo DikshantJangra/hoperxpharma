@@ -4,7 +4,7 @@
  */
 
 import { Scenario } from '../../types';
-import { procurementSteps } from '../../steps/procurement.steps';
+import { procurementSteps } from '../../steps/procurement_check.steps';
 
 export const grnScenario: Scenario = {
     id: 'procurement.grn',

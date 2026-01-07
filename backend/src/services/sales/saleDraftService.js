@@ -1,8 +1,9 @@
-const database = require('../../config/database');
+
+
 const ApiError = require('../../utils/ApiError');
 const logger = require('../../config/logger');
 
-const prisma = database.getClient();
+const prisma = require('../../db/prisma');
 
 /**
  * Sale Draft Service - Handles draft sales for POS
@@ -30,9 +31,9 @@ class SaleDraftService {
                 customerPhone,
                 items: JSON.stringify(items), // Serialize items array
                 dispenseFor,
-                subtotal,
-                taxAmount,
-                total,
+                subtotal: subtotal || 0,
+                taxAmount: taxAmount || 0, // Provide default value
+                total: total || 0, // Provide default value
                 createdBy,
                 expiresAt,
             },
@@ -62,7 +63,7 @@ class SaleDraftService {
             },
         });
 
-        logger.info(`Draft updated: ${draft.draftNumber}`);
+        logger.info(`Draft updated: ${draft.draftNumber} `);
         return draft;
     }
 
@@ -152,7 +153,7 @@ class SaleDraftService {
             where: { id: draftId },
         });
 
-        logger.info(`Draft ${draft.draftNumber} converted to sale ${sale.invoiceNumber}`);
+        logger.info(`Draft ${draft.draftNumber} converted to sale ${sale.invoiceNumber} `);
         return sale;
     }
 
@@ -164,7 +165,7 @@ class SaleDraftService {
             where: { id: draftId },
         });
 
-        logger.info(`Draft deleted: ${draftId}`);
+        logger.info(`Draft deleted: ${draftId} `);
     }
 
     /**
@@ -188,7 +189,7 @@ class SaleDraftService {
      */
     async generateDraftNumber(storeId) {
         const today = new Date();
-        const prefix = `DRF${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}`;
+        const prefix = `DRF${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')} `;
 
         const lastDraft = await prisma.saleDraft.findFirst({
             where: {
@@ -206,7 +207,7 @@ class SaleDraftService {
             sequence = lastSequence + 1;
         }
 
-        return `${prefix}${String(sequence).padStart(4, '0')}`;
+        return `${prefix}${String(sequence).padStart(4, '0')} `;
     }
 }
 

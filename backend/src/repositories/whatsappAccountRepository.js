@@ -3,8 +3,7 @@
  * Handles database operations for WhatsApp business account connections
  */
 
-const database = require('../config/database');
-const prisma = database.getClient();
+const prisma = require('../db/prisma');
 const { encryptToken, decryptToken } = require('../utils/encryption');
 
 /**

@@ -1,7 +1,7 @@
 
 import { ScenarioContext, StepResult } from '../types';
-import emailService from '../../src/services/email/emailService';
-import emailRepository from '../../src/repositories/emailRepository';
+const emailService = require('../../src/services/email/emailService');
+const emailRepository = require('../../src/repositories/emailRepository');
 
 export const communicationSteps = {
     /**
@@ -27,9 +27,9 @@ export const communicationSteps = {
                 authMethod: 'OAUTH',
                 isPrimary: true,
                 isVerified: true,
-                accessToken: 'mock_token',
-                refreshToken: 'mock_refresh',
-                tokenExpiry: new Date(Date.now() + 3600000)
+                gmailAccessToken: 'mock_token',
+                gmailRefreshToken: 'mock_refresh',
+                gmailTokenExpiry: new Date(Date.now() + 3600000)
             });
 
             ctx.set('emailAccount', account);
@@ -61,8 +61,8 @@ export const communicationSteps = {
             }
 
             // Verify log exists
-            const logs = await emailRepository.getEmailLogs(storeId) as any[];
-            const latestLog = logs[0]; // Assuming descending order from repository
+            const result = await emailRepository.getEmailLogs(storeId) as any;
+            const latestLog = result.logs[0]; // Assuming descending order from repository
 
             ctx.set('latestEmailLog', latestLog);
 

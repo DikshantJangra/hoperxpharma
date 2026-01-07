@@ -52,10 +52,10 @@ export const featuresScenario: Scenario = {
                         // featureOverrides should now contain pos: hidden
                         // AND result.featureConfig.pos should be hidden
                         return {
-                            passed: features.featureConfig.pos === 'hidden',
+                            passed: features?.featureConfig?.pos === 'hidden',
                             message: 'POS should be hidden',
                             expected: 'hidden',
-                            actual: features.featureConfig?.pos
+                            actual: features?.featureConfig?.pos || 'undefined'
                         };
                     }
                 }

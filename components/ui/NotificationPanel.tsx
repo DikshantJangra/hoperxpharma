@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { X, Check, Clock } from 'lucide-react';
+import { FiX, FiCheck, FiClock, FiBell } from 'react-icons/fi';
 import { useAlerts } from '@/contexts/AlertContext';
 import { useRouter } from 'next/navigation';
 
@@ -59,7 +59,7 @@ export function NotificationPanel({ isOpen, onClose }: NotificationPanelProps) {
                             onClick={onClose}
                             className="rounded-lg p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-600"
                         >
-                            <X className="h-5 w-5" />
+                            <FiX className="h-5 w-5" />
                         </button>
                     </div>
 
@@ -70,8 +70,8 @@ export function NotificationPanel({ isOpen, onClose }: NotificationPanelProps) {
                                 key={filter}
                                 onClick={() => setActiveFilter(filter as any)}
                                 className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${activeFilter === filter
-                                        ? 'bg-blue-600 text-white'
-                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                     }`}
                             >
                                 {filter === 'all' ? 'All' : filter}
@@ -87,7 +87,7 @@ export function NotificationPanel({ isOpen, onClose }: NotificationPanelProps) {
                             </div>
                         ) : filteredAlerts.length === 0 ? (
                             <div className="p-8 text-center text-gray-500">
-                                <Bell className="mx-auto h-12 w-12 text-gray-300" />
+                                <FiBell className="mx-auto h-12 w-12 text-gray-300" />
                                 <p className="mt-2">No notifications</p>
                             </div>
                         ) : (
@@ -133,7 +133,7 @@ export function NotificationPanel({ isOpen, onClose }: NotificationPanelProps) {
                                                 }}
                                                 className="text-xs font-medium text-gray-600 hover:text-gray-700"
                                             >
-                                                <Check className="inline h-3 w-3" /> Resolve
+                                                <FiCheck className="inline h-3 w-3" /> Resolve
                                             </button>
                                             <button
                                                 onClick={(e) => {
@@ -143,7 +143,7 @@ export function NotificationPanel({ isOpen, onClose }: NotificationPanelProps) {
                                                 }}
                                                 className="text-xs font-medium text-gray-600 hover:text-gray-700"
                                             >
-                                                <Clock className="inline h-3 w-3" /> Snooze 1h
+                                                <FiClock className="inline h-3 w-3" /> Snooze 1h
                                             </button>
                                         </div>
                                     </div>

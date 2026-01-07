@@ -4,6 +4,7 @@ import { tokenManager } from '@/lib/api/client';
 
 import React, { useEffect, useState } from 'react';
 import { usePOComposer } from '@/hooks/usePOComposer';
+import { usePremiumTheme } from '@/lib/hooks/usePremiumTheme';
 import { useAuthStore } from '@/lib/store/auth-store';
 import SupplierSelect from './SupplierSelect';
 import SuggestionsPanel from './SuggestionsPanel';
@@ -22,6 +23,7 @@ interface NewPOPageProps {
 
 export default function NewPOPage({ storeId, poId }: NewPOPageProps) {
   const router = useRouter();
+  const { isPremium } = usePremiumTheme();
   const { primaryStore } = useAuthStore();
   const [showSuggestions, setShowSuggestions] = useState(true);
   const [isLoadingPO, setIsLoadingPO] = useState(!!poId);
@@ -215,7 +217,7 @@ export default function NewPOPage({ storeId, poId }: NewPOPageProps) {
   const formatCurrency = (amount: number | string) => `₹${Number(amount || 0).toFixed(2)}`;
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-50/50">
+    <div className={`flex flex-col min-h-screen transition-colors ${isPremium ? 'bg-slate-50' : 'bg-gray-50/50'}`}>
       <div className="flex-1 p-6 max-w-[1800px] mx-auto w-full pb-24">
         {/* Header */}
         <div className="mb-6 flex items-center justify-between">
@@ -320,7 +322,10 @@ export default function NewPOPage({ storeId, poId }: NewPOPageProps) {
       </div>
 
       {/* Sticky Footer */}
-      <div className="sticky bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)] z-30">
+      <div className={`sticky bottom-0 left-0 right-0 border-t border-gray-200 transition-all z-30 ${isPremium
+        ? 'bg-white/80 backdrop-blur-xl shadow-[0_-4px_20px_-4px_rgba(0,0,0,0.05)]'
+        : 'bg-white shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]'
+        }`}>
         <div className="max-w-[1800px] mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-8">
             <div>

@@ -1,6 +1,4 @@
-const database = require('../config/database');
-
-const prisma = database.getClient();
+const prisma = require('../db/prisma');
 
 /**
  * User Repository - Data access layer for User operations

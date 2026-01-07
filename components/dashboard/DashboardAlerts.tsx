@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { AlertTriangle, ChevronRight } from 'lucide-react';
+import { FiAlertTriangle, FiChevronRight } from 'react-icons/fi';
 import { useAlerts } from '@/contexts/AlertContext';
 import { useRouter } from 'next/navigation';
 
@@ -28,14 +28,14 @@ export function DashboardAlerts() {
         <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
             <div className="mb-4 flex items-center justify-between">
                 <h3 className="flex items-center gap-2 text-lg font-semibold text-gray-900">
-                    <AlertTriangle className="h-5 w-5 text-orange-500" />
+                    <FiAlertTriangle className="h-5 w-5 text-orange-500" />
                     Priority Alerts
                 </h3>
                 <button
                     onClick={() => router.push('/alerts')} // You can customize this
                     className="text-sm font-medium text-blue-600 hover:text-blue-700"
                 >
-                    View All <ChevronRight className="inline h-4 w-4" />
+                    View All <FiChevronRight className="inline h-4 w-4" />
                 </button>
             </div>
 
@@ -57,8 +57,8 @@ export function DashboardAlerts() {
                                 <div className="flex items-center gap-2">
                                     <span
                                         className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${alert.priority === 'CRITICAL'
-                                                ? 'bg-red-100 text-red-800'
-                                                : 'bg-orange-100 text-orange-800'
+                                            ? 'bg-red-100 text-red-800'
+                                            : 'bg-orange-100 text-orange-800'
                                             }`}
                                     >
                                         {alert.priority}

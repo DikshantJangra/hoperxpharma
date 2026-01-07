@@ -1,9 +1,9 @@
-const database = require('../config/database');
+
 const eventBus = require('../events/eventBus');
 const { INVENTORY_EVENTS } = require('../events/eventTypes');
 const logger = require('../config/logger');
 
-const prisma = database.getClient();
+const prisma = require('../db/prisma');
 
 /**
  * Low Stock Check Job - Scans drugs for low stock levels

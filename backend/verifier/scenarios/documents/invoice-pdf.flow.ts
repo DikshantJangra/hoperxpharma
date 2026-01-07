@@ -52,7 +52,10 @@ export const invoicePdfScenario: Scenario = {
                         suppliers: [],
                         users: []
                     }, userId);
+                    ctx.set('onboardingResult', result);
                     ctx.set('currentStore', result.store);
+                    ctx.storeId = result.store.id;
+                    ctx.set('storeId', result.store.id);
 
                     // 3. Ensure Batch
                     const batch = await inventorySteps.ensureBatchExists(ctx, {

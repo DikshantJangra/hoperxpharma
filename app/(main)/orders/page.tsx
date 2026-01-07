@@ -1,6 +1,7 @@
 "use client"
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
+import { usePremiumTheme } from '@/lib/hooks/usePremiumTheme';
 import { HiOutlinePlus, HiOutlineDocumentText, HiOutlineClock, HiOutlineCheckCircle, HiOutlinePencil } from 'react-icons/hi2';
 
 interface PurchaseOrder {
@@ -12,7 +13,7 @@ interface PurchaseOrder {
     status: string;
 }
 
-const StatCard = ({ icon, label, value, loading, color = 'blue' }: any) => {
+const StatCard = ({ icon, label, value, loading, color = 'blue', isPremium }: any) => {
     const colors: any = {
         blue: { bg: 'bg-blue-100', text: 'text-blue-600' },
         yellow: { bg: 'bg-yellow-100', text: 'text-yellow-600' },
@@ -22,7 +23,10 @@ const StatCard = ({ icon, label, value, loading, color = 'blue' }: any) => {
     const colorClass = colors[color]
 
     return (
-        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+        <div className={`p-4 rounded-xl border transition-all ${isPremium
+            ? 'bg-white/80 backdrop-blur-xl border-white/20 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] hover:shadow-[0_8px_30px_-4px_rgba(16,185,129,0.1)] hover:border-emerald-500/20'
+            : 'bg-white shadow-sm border-gray-200'
+            }`}>
             <div className="flex items-center gap-3">
                 <div className={`p-2 ${colorClass.bg} rounded-lg`}>
                     {icon}
@@ -69,6 +73,7 @@ const getStatusBadge = (status: string) => {
 };
 
 export default function OrdersPage() {
+    const { isPremium } = usePremiumTheme();
     const [isLoading, setIsLoading] = useState(true);
     const [orders, setOrders] = useState<PurchaseOrder[]>([]);
     const [stats, setStats] = useState<any>(null);
@@ -150,7 +155,7 @@ export default function OrdersPage() {
     });
 
     return (
-        <div className="p-6 bg-gray-50 min-h-screen">
+        <div className={`p-6 min-h-screen transition-colors ${isPremium ? 'bg-slate-50' : 'bg-gray-50'}`}>
             <div className="flex items-center justify-between mb-6">
                 <div>
                     <h1 className="text-2xl font-bold text-[#0f172a]">Orders & Purchase</h1>
@@ -167,20 +172,23 @@ export default function OrdersPage() {
 
             {/* Quick Stats */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-                <StatCard icon={<HiOutlineDocumentText className="h-5 w-5" />} label="Draft POs" value={stats?.draft} loading={isLoading} color="blue" />
-                <StatCard icon={<HiOutlineClock className="h-5 w-5" />} label="Pending" value={stats?.pending} loading={isLoading} color="yellow" />
-                <StatCard icon={<HiOutlineCheckCircle className="h-5 w-5" />} label="Received" value={stats?.received} loading={isLoading} color="green" />
-                <StatCard icon={<HiOutlineDocumentText className="h-5 w-5" />} label="This Month" value={stats?.thisMonth} loading={isLoading} color="purple" />
+                <StatCard icon={<HiOutlineDocumentText className="h-5 w-5" />} label="Draft POs" value={stats?.draft} loading={isLoading} color="blue" isPremium={isPremium} />
+                <StatCard icon={<HiOutlineClock className="h-5 w-5" />} label="Pending" value={stats?.pending} loading={isLoading} color="yellow" isPremium={isPremium} />
+                <StatCard icon={<HiOutlineCheckCircle className="h-5 w-5" />} label="Received" value={stats?.received} loading={isLoading} color="green" isPremium={isPremium} />
+                <StatCard icon={<HiOutlineDocumentText className="h-5 w-5" />} label="This Month" value={stats?.thisMonth} loading={isLoading} color="purple" isPremium={isPremium} />
             </div>
 
             {/* Recent Orders Table */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+            <div className={`rounded-xl border transition-all overflow-hidden ${isPremium
+                ? 'bg-white/80 backdrop-blur-xl border-white/20 shadow-sm'
+                : 'bg-white shadow-sm border-gray-200'
+                }`}>
                 <div className="px-6 py-4 border-b border-gray-200">
                     <h2 className="text-lg font-medium text-gray-900">Recent Purchase Orders</h2>
                 </div>
                 <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
+                        <thead className={isPremium ? 'bg-gray-50/50' : 'bg-gray-50'}>
                             <tr>
                                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                     PO Number
@@ -221,7 +229,10 @@ export default function OrdersPage() {
                                 </tr>
                             ) : (
                                 orders.map((order) => (
-                                    <tr key={order.id} className="hover:bg-gray-50">
+                                    <tr key={order.id} className={`transition-colors ${isPremium
+                                        ? 'hover:bg-emerald-50/30'
+                                        : 'hover:bg-gray-50'
+                                        }`}>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                             {order.poNumber || 'Draft'}
                                         </td>

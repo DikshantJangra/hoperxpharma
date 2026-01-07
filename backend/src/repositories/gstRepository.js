@@ -1,4 +1,4 @@
-const { prisma } = require('../config/database');
+const prisma = require('../db/prisma');
 
 class GSTRepository {
     // ======== TAX SLABS ========

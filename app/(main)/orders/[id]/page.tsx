@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { usePremiumTheme } from '@/lib/hooks/usePremiumTheme';
 import { HiOutlineArrowLeft, HiOutlinePrinter, HiOutlineDownload, HiOutlineMail, HiOutlineLocationMarker, HiOutlinePhone, HiOutlineIdentification, HiOutlineDocumentText, HiOutlineExclamationCircle } from 'react-icons/hi';
 import { FiPackage } from 'react-icons/fi';
 
@@ -40,6 +41,7 @@ interface PurchaseOrder {
 }
 
 export default function OrderDetailsPage() {
+    const { isPremium } = usePremiumTheme();
     const params = useParams();
     const router = useRouter();
     const [order, setOrder] = useState<PurchaseOrder | null>(null);
@@ -145,9 +147,12 @@ export default function OrderDetailsPage() {
     }
 
     return (
-        <div className="p-6 bg-gray-50 min-h-screen">
+        <div className={`p-6 min-h-screen transition-colors ${isPremium ? 'bg-slate-50' : 'bg-gray-50'}`}>
             {/* Header */}
-            <div className="flex items-center justify-between mb-6">
+            <div className={`flex items-center justify-between mb-6 p-4 rounded-xl transition-all ${isPremium
+                ? 'bg-white/80 backdrop-blur-xl border border-white/20 shadow-sm'
+                : ''
+                }`}>
                 <div className="flex items-center gap-4">
                     <button onClick={() => router.back()} className="p-2 hover:bg-gray-200 rounded-full transition-colors">
                         <HiOutlineArrowLeft className="h-6 w-6 text-gray-600" />
@@ -192,7 +197,10 @@ export default function OrderDetailsPage() {
             {/* Main Content Area */}
             <div className="space-y-6">
                 {/* 1. Full Width Items Table */}
-                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                <div className={`rounded-xl border transition-all overflow-hidden ${isPremium
+                    ? 'bg-white/80 backdrop-blur-xl border-white/20 shadow-sm'
+                    : 'bg-white shadow-sm border-gray-200'
+                    }`}>
                     <div className="px-6 py-4 border-b border-gray-200">
                         <h2 className="text-lg font-semibold text-gray-900">
                             {(order.status === 'RECEIVED' || order.status === 'PARTIALLY_RECEIVED') && grns.length > 0
@@ -202,7 +210,7 @@ export default function OrderDetailsPage() {
                     </div>
                     <div className="overflow-x-auto">
                         <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50 border-b border-gray-200">
+                            <thead className={`border-b border-gray-200 ${isPremium ? 'bg-gray-50/50' : 'bg-gray-50'}`}>
                                 <tr>
                                     <th className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Item Details</th>
                                     <th className="px-6 py-4 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">
@@ -451,7 +459,10 @@ export default function OrderDetailsPage() {
                     {/* Left Column: Supplier & Invoice Info */}
                     <div className="space-y-6">
                         {/* Supplier Card */}
-                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                        <div className={`rounded-xl border p-6 transition-all ${isPremium
+                            ? 'bg-white/80 backdrop-blur-xl border-white/20 shadow-sm'
+                            : 'bg-white shadow-sm border-gray-200'
+                            }`}>
                             <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-4 border-b border-gray-100 pb-2">Supplier Details</h3>
                             <div className="space-y-3">
                                 <div className="font-medium text-lg text-gray-900">{order.supplier.name}</div>
@@ -478,7 +489,10 @@ export default function OrderDetailsPage() {
 
                         {/* Invoice & Attachments Card */}
                         {(grns && grns.length > 0) && (
-                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                            <div className={`rounded-xl border p-6 transition-all ${isPremium
+                                ? 'bg-white/80 backdrop-blur-xl border-white/20 shadow-sm'
+                                : 'bg-white shadow-sm border-gray-200'
+                                }`}>
                                 <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-4 border-b border-gray-100 pb-2">Invoice Info</h3>
                                 <div className="space-y-4">
                                     <div className="grid grid-cols-2 gap-4">
@@ -641,7 +655,10 @@ export default function OrderDetailsPage() {
 
                         {/* Right Column: Financial Summary */}
                         <div className="lg:col-start-3 space-y-6">
-                            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden sticky top-6">
+                            <div className={`rounded-xl border overflow-hidden sticky top-6 transition-all ${isPremium
+                                ? 'bg-white/80 backdrop-blur-xl border-white/20 shadow-sm'
+                                : 'bg-white shadow-sm border-gray-200'
+                                }`}>
                                 <div className="px-6 py-4 bg-gray-50 border-b border-gray-200">
                                     <h3 className="text-lg font-bold text-gray-900">Financial Summary</h3>
                                 </div>

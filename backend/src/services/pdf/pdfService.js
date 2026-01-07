@@ -5,7 +5,9 @@ const path = require('path');
 const moment = require('moment');
 const UPIQRCode = require('upiqrcode').default;
 const axios = require('axios');
+
 const sharp = require('sharp');
+const prisma = require('../../db/prisma');
 
 class PDFService {
     constructor() {
@@ -675,7 +677,7 @@ class PDFService {
         if (!soldByUserId) return 'Owner';
 
         try {
-            const prisma = require('../../config/database').getClient();
+
             const user = await prisma.user.findUnique({
                 where: { id: soldByUserId },
                 select: { firstName: true, lastName: true }

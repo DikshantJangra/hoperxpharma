@@ -1,7 +1,7 @@
 const ApiResponse = require('../utils/ApiResponse');
 const logger = require('../config/logger');
 const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../db/prisma');
 
 class EmailContactController {
     /**

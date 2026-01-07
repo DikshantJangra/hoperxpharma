@@ -1,6 +1,5 @@
-const { PrismaClient } = require('@prisma/client');
+const prisma = require('../db/prisma');
 const logger = require('../config/logger');
-const prisma = new PrismaClient();
 
 /**
  * Sale Repository - Data access layer for sales operations
@@ -190,7 +189,7 @@ class SaleRepository {
 
             // Create sale (for both prescription and walk-in sales)
             // FIX: Extract non-DB fields to prevent Prisma error
-            const { shouldCreateRefill, ...saleDataForDB } = saleData;
+            const { shouldCreateRefill, itemPrices, batches, ...saleDataForDB } = saleData;
 
             const sale = await tx.sale.create({
                 data: {
@@ -225,7 +224,14 @@ class SaleRepository {
 
             // Batch create payment splits (parallel)
             const paymentsPromise = tx.paymentSplit.createMany({
-                data: paymentSplits.map(payment => ({ ...payment, saleId: sale.id }))
+                data: paymentSplits.map(payment => ({
+                    saleId: sale.id,
+                    paymentMethod: payment.method || payment.paymentMethod, // Support both field names
+                    amount: payment.amount,
+                    cardLast4: payment.cardLast4 || null,
+                    cardBrand: payment.cardBrand || null,
+                    cardAuthCode: payment.cardAuthCode || null
+                }))
             });
 
             // Wait for both
@@ -571,29 +577,12 @@ class SaleRepository {
         let seqLength = 4;
         const seqMatch = prefix.match(/{SEQ(?::(\d+))?}/);
 
-        // Remove the SEQ token to get the searchable prefix for DB
-        // Note: This is a simplification. If SEQ is in the middle, this logic might need adjustment.
-        // Assuming SEQ is usually at the end or we can find the "last used" matching the pattern.
-        // Better approach: Find the last sale that matches the static parts of the format.
-
         if (seqMatch) {
             seqLength = seqMatch[1] ? parseInt(seqMatch[1]) : 4;
-            // Remove the total SEQ token from prefix for the "startsWith" check? 
-            // Actually, if format is INV/{YYYY}/{SEQ}, prefix becomes INV/2025/{SEQ}
-            // We need to split into "before SEQ" and "after SEQ" to find matches?
-            // For MVP simplicity, let's assume SEQ is at the end or we just look for current Year/Month based sequences.
-
-            // Let's use a cleaner approach:
-            // 1. Replace date tokens.
-            // 2. Identify the SEQ token position.
-
             prefix = prefix.replace(seqMatch[0], ''); // Remove {SEQ...} to get the base
         }
 
-        // Find last sale starting with this prefix
-        // This assumes {SEQ} is at the end. If {SEQ} is in middle, "startsWith" might fail if suffix exists.
-        // But "startsWith" is robust enough for standard "INV-2025-001" formats.
-
+        // Find last sale starting with this prefix FOR THIS STORE
         const lastSale = await prisma.sale.findFirst({
             where: {
                 storeId,
@@ -606,11 +595,7 @@ class SaleRepository {
 
         let nextSeq = 1;
         if (lastSale) {
-            // Extract the number part from the end (or valid part)
-            // If prefix is "INV/2025/", and last is "INV/2025/0045"
-            // We strip prefix and parse remainder.
             const remainder = lastSale.invoiceNumber.replace(prefix, '');
-            // Attempt to parse remainder as int
             const parsed = parseInt(remainder);
             if (!isNaN(parsed)) {
                 nextSeq = parsed + 1;
@@ -618,16 +603,13 @@ class SaleRepository {
         }
 
         // Reconstruct full string
-        // We need to go back to the format string with date tokens replaced, effectively 'formattedTemplate'
         let formattedTemplate = format
             .replace('{YYYY}', year)
             .replace('{YY}', yearShort)
             .replace('{MM}', month)
             .replace('{DD}', day);
 
-        // Replace {SEQ...} with the actual number
         const seqString = String(nextSeq).padStart(seqLength, '0');
-        // Use a global replace or the specific match we found earlier
         return formattedTemplate.replace(/{SEQ(?::(\d+))?}/, seqString);
     }
 

@@ -159,6 +159,13 @@ export class Runner {
             const fs = require('fs');
             fs.writeFileSync(this.config.outputFile, JSON.stringify(report, null, 2));
             this.log(`\nJSON report written to: ${this.config.outputFile}`);
+        } else if (this.config.outputFormat === 'json') {
+            // Default output file if not specified
+            const fs = require('fs');
+            const path = require('path');
+            const defaultOutputFile = path.join(process.cwd(), 'dpfv-report.json');
+            fs.writeFileSync(defaultOutputFile, JSON.stringify(report, null, 2));
+            this.log(`\nJSON report written to: ${defaultOutputFile}`);
         }
 
         return report;

@@ -1,6 +1,6 @@
-const database = require('../config/database');
+
+const prisma = require('../db/prisma');
 const logger = require('../config/logger');
-const prisma = database.getClient();
 
 /**
  * GRN Repository - Database operations for Goods Received Notes

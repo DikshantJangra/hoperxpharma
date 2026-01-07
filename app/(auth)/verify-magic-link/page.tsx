@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { apiClient, tokenManager } from '@/lib/api/client';
+import { authApi } from '@/lib/api/auth';
 
 function VerifyContent() {
     const router = useRouter();
@@ -37,6 +38,10 @@ function VerifyContent() {
                 if (data.token) {
                     tokenManager.setAccessToken(data.token);
                 }
+
+                // IMPORTANT: Set logged_in cookie so that subsequent page refreshes check for auth
+                // Uses centralized function that handles Secure/SameSite for production
+                authApi.setLoggedInCookie();
 
                 // Initialize auth state
                 await checkAuth();

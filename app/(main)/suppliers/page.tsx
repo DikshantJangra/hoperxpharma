@@ -16,7 +16,10 @@ const StatCardSkeleton = () => (
     </div>
 )
 
+import { usePremiumTheme } from '@/lib/hooks/usePremiumTheme';
+
 export default function SuppliersDashboardPage() {
+    const { isPremium } = usePremiumTheme();
     const [isAddModalOpen, setIsAddModalOpen] = useState(false);
     const [stats, setStats] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
@@ -101,8 +104,12 @@ export default function SuppliersDashboardPage() {
                     </>
                 ) : (
                     <>
-                        <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+                        {/* Total Suppliers */}
+                        <div className={`p-4 rounded-xl border transition-all ${isPremium
+                            ? 'bg-white/80 backdrop-blur-xl border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_-5px_rgba(16,185,129,0.1)] hover:border-emerald-500/20'
+                            : 'bg-white border-gray-200 shadow-sm'
+                            } flex items-center gap-4`}>
+                            <div className={`w-12 h-12 rounded-full flex items-center justify-center ${isPremium ? 'bg-blue-500/10 text-blue-600 ring-4 ring-blue-500/10' : 'bg-blue-50 text-blue-600'}`}>
                                 <FiUsers size={24} />
                             </div>
                             <div>
@@ -110,8 +117,13 @@ export default function SuppliersDashboardPage() {
                                 <div className="text-2xl font-bold text-gray-900">{stats?.total || 0}</div>
                             </div>
                         </div>
-                        <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center text-red-600">
+
+                        {/* Outstanding */}
+                        <div className={`p-4 rounded-xl border transition-all ${isPremium
+                            ? 'bg-white/80 backdrop-blur-xl border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_-5px_rgba(16,185,129,0.1)] hover:border-emerald-500/20'
+                            : 'bg-white border-gray-200 shadow-sm'
+                            } flex items-center gap-4`}>
+                            <div className={`w-12 h-12 rounded-full flex items-center justify-center ${isPremium ? 'bg-red-500/10 text-red-600 ring-4 ring-red-500/10' : 'bg-red-50 text-red-600'}`}>
                                 <FiDollarSign size={24} />
                             </div>
                             <div>
@@ -119,8 +131,13 @@ export default function SuppliersDashboardPage() {
                                 <div className="text-2xl font-bold text-gray-900">₹{(stats?.outstanding || 0).toLocaleString('en-IN')}</div>
                             </div>
                         </div>
-                        <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-full bg-yellow-50 flex items-center justify-center text-yellow-600">
+
+                        {/* Expiring Licenses */}
+                        <div className={`p-4 rounded-xl border transition-all ${isPremium
+                            ? 'bg-white/80 backdrop-blur-xl border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_-5px_rgba(16,185,129,0.1)] hover:border-emerald-500/20'
+                            : 'bg-white border-gray-200 shadow-sm'
+                            } flex items-center gap-4`}>
+                            <div className={`w-12 h-12 rounded-full flex items-center justify-center ${isPremium ? 'bg-amber-500/10 text-amber-600 ring-4 ring-amber-500/10' : 'bg-yellow-50 text-yellow-600'}`}>
                                 <FiAlertTriangle size={24} />
                             </div>
                             <div>
@@ -128,8 +145,13 @@ export default function SuppliersDashboardPage() {
                                 <div className="text-2xl font-bold text-gray-900">{stats?.expiringLicenses || 0}</div>
                             </div>
                         </div>
-                        <div className="bg-white p-4 rounded-lg border border-gray-200 shadow-sm flex items-center gap-4">
-                            <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center text-emerald-600">
+
+                        {/* Active Suppliers */}
+                        <div className={`p-4 rounded-xl border transition-all ${isPremium
+                            ? 'bg-white/80 backdrop-blur-xl border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_-5px_rgba(16,185,129,0.1)] hover:border-emerald-500/20'
+                            : 'bg-white border-gray-200 shadow-sm'
+                            } flex items-center gap-4`}>
+                            <div className={`w-12 h-12 rounded-full flex items-center justify-center ${isPremium ? 'bg-emerald-500/10 text-emerald-600 ring-4 ring-emerald-500/10' : 'bg-emerald-50 text-emerald-600'}`}>
                                 <FiCheckCircle size={24} />
                             </div>
                             <div>
@@ -145,17 +167,19 @@ export default function SuppliersDashboardPage() {
             <SupplierList onAddClick={() => setIsAddModalOpen(true)} onRefresh={refreshKey} />
 
             {/* Add Modal */}
-            {isAddModalOpen && typeof window !== 'undefined' && createPortal(
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
-                    <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-white rounded-xl shadow-2xl">
-                        <SupplierForm
-                            onSave={handleSaveSupplier}
-                            onCancel={() => setIsAddModalOpen(false)}
-                        />
-                    </div>
-                </div>,
-                document.body
-            )}
-        </div>
+            {
+                isAddModalOpen && typeof window !== 'undefined' && createPortal(
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
+                        <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-white rounded-xl shadow-2xl">
+                            <SupplierForm
+                                onSave={handleSaveSupplier}
+                                onCancel={() => setIsAddModalOpen(false)}
+                            />
+                        </div>
+                    </div>,
+                    document.body
+                )
+            }
+        </div >
     );
 }

@@ -1,8 +1,8 @@
-const database = require('../../config/database');
+
 const ApiError = require('../../utils/ApiError');
 const logger = require('../../config/logger');
 
-const prisma = database.getClient();
+const prisma = require('../../db/prisma');
 
 /**
  * Sale Refund Service - Handles refund workflow for sales

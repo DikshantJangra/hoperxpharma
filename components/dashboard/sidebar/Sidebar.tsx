@@ -29,8 +29,8 @@ export default function Sidebar({ isOpen, isMobile, expandedItems, onToggleItem,
         <aside
             className={`
                 ${isMobile
-                    ? `fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'}`
-                    : `${isOpen ? 'w-64' : 'w-20'} h-full transition-all duration-300`
+                    ? `fixed inset-y-0 left-0 z-50 w-64 transform transition-transform ${isPremium ? tokens.motion.duration + ' ' + tokens.motion.easing : 'duration-300 ease-in-out'} ${isOpen ? 'translate-x-0' : '-translate-x-full'}`
+                    : `${isOpen ? 'w-64' : 'w-20'} h-full transition-all ${isPremium ? tokens.motion.duration + ' ' + tokens.motion.easing : 'duration-300'}`
                 }
                 ${tokens.sidebar.bg} ${tokens.sidebar.border} border-r flex flex-col overflow-hidden
                 ${isPremium ? tokens.sidebar.shadow : ''}
@@ -59,7 +59,7 @@ export default function Sidebar({ isOpen, isMobile, expandedItems, onToggleItem,
 function SidebarHeader({ isOpen, isPremium }: { isOpen: boolean; isPremium?: boolean }) {
     const { tokens } = usePremiumTheme();
     return (
-        <div className={`h-14 md:h-16 flex items-center justify-center ${isPremium ? tokens.navbarGradient + ' border-white/10' : 'border-gray-100'} border-b px-4 transition-all duration-300`}>
+        <div className={`h-14 md:h-16 flex items-center justify-center ${isPremium ? tokens.navbarGradient + ' border-white/10' : 'border-gray-100'} border-b px-4 transition-all ${isPremium ? tokens.motion.duration + ' ' + tokens.motion.easing : 'duration-300'}`}>
             <div className="flex items-center gap-3">
                 <Logo size="md" showText={isOpen} subtitle={isOpen ? "Dashboard" : undefined} isWhite={isPremium} />
             </div>

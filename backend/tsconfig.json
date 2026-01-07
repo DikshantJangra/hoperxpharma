@@ -14,7 +14,8 @@
         "resolveJsonModule": true
     },
     "include": [
-        "prisma/**/*.ts"
+        "prisma/**/*.ts",
+        "verifier/**/*.ts"
     ],
     "exclude": [
         "node_modules"

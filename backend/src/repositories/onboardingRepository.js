@@ -1,6 +1,4 @@
-const database = require('../config/database');
-
-const prisma = database.getClient();
+const prisma = require('../db/prisma');
 
 // Map day names to numbers (0 = Sunday, 6 = Saturday)
 const DAY_MAP = {
@@ -109,9 +107,18 @@ class OnboardingRepository {
      */
     async createCompleteStore(storeData, licenses, hours, suppliers, users, userId) {
         return await prisma.$transaction(async (tx) => {
+            // Ensure required fields are present with defaults
+            const storeDataWithDefaults = {
+                ...storeData,
+                addressLine1: storeData.addressLine1 || 'Not specified',
+                city: storeData.city || 'Not specified',
+                state: storeData.state || 'Not specified',
+                pinCode: storeData.pinCode || '000000'
+            };
+            
             // Create store
             const store = await tx.store.create({
-                data: storeData,
+                data: storeDataWithDefaults,
             });
 
             // Associate user
@@ -209,7 +216,7 @@ class OnboardingRepository {
                         // Create user account
                         const newUser = await tx.user.create({
                             data: {
-                                email: `${user.phone}@temp.hoperx.com`,
+                                email: `${user.phone} @temp.hoperx.com`,
                                 phoneNumber: user.phone,
                                 passwordHash: defaultPassword,
                                 firstName: user.name.split(' ')[0] || user.name,

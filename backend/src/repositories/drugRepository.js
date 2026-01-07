@@ -1,7 +1,4 @@
-const database = require('../config/database');
-const { buildOrderBy } = require('../utils/queryParser');
-
-const prisma = database.getClient();
+const prisma = require('../db/prisma');
 
 /**
  * Drug Repository - Data access layer for drug operations

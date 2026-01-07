@@ -3,6 +3,7 @@ import { useRouter } from "next/navigation";
 import { FiEye, FiRefreshCw, FiMessageSquare, FiMoreVertical, FiCheckCircle } from "react-icons/fi";
 import PatientAvatar from "./PatientAvatar";
 import MaskedValue from "./MaskedValue";
+import { usePremiumTheme } from '@/lib/hooks/usePremiumTheme';
 
 interface PatientRowProps {
   patient: any;
@@ -16,6 +17,7 @@ interface PatientRowProps {
 
 export default function PatientRow({ patient, selected, onSelect, onView, onEdit, onRefill, onMessage }: PatientRowProps) {
   const router = useRouter();
+  const { isPremium } = usePremiumTheme();
 
   // Construct full name from firstName and lastName
   const fullName = `${patient.firstName || ''} ${patient.lastName || ''}`.trim() || 'Unknown Patient';
@@ -26,7 +28,10 @@ export default function PatientRow({ patient, selected, onSelect, onView, onEdit
   };
 
   return (
-    <div className={`flex items-center gap-4 px-4 py-3 hover:bg-gray-50 transition-colors ${selected ? "bg-teal-50" : ""}`}>
+    <div className={`flex items-center gap-4 px-4 py-3 transition-all duration-200 group border-b border-transparent ${selected
+        ? isPremium ? 'bg-emerald-50/80 border-emerald-100' : 'bg-teal-50'
+        : isPremium ? 'hover:bg-white hover:shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] hover:border-emerald-500/10 hover:scale-[1.002] hover:-translate-y-[1px]' : 'hover:bg-gray-50'
+      }`}>
       {/* Checkbox */}
       <input
         type="checkbox"
@@ -37,7 +42,9 @@ export default function PatientRow({ patient, selected, onSelect, onView, onEdit
 
       {/* Patient Info */}
       <div className="flex-1 flex items-center gap-3">
-        <PatientAvatar name={fullName} />
+        <div className={isPremium ? 'ring-2 ring-offset-2 ring-emerald-500/10 rounded-full' : ''}>
+          <PatientAvatar name={fullName} />
+        </div>
         <div>
           <div className="flex items-center gap-2">
             <button
@@ -95,17 +102,23 @@ export default function PatientRow({ patient, selected, onSelect, onView, onEdit
       </div>
 
       {/* Actions */}
-      <div className="w-40 flex items-center gap-2">
+      <div className={`w-40 flex items-center gap-2 ${isPremium ? 'opacity-80 group-hover:opacity-100 transition-opacity' : ''}`}>
         <button
           onClick={handleViewClick}
-          className="p-2 text-gray-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg"
+          className={`p-2 rounded-lg transition-colors ${isPremium
+              ? 'text-emerald-600/70 hover:text-emerald-700 hover:bg-emerald-50 hover:shadow-sm'
+              : 'text-gray-400 hover:text-teal-600 hover:bg-teal-50'
+            }`}
           title="View details"
         >
           <FiEye size={16} />
         </button>
         <button
           onClick={onEdit}
-          className="px-3 py-1.5 text-xs font-medium text-gray-700 hover:text-teal-600 hover:bg-teal-50 rounded-lg border border-gray-200"
+          className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${isPremium
+              ? 'text-emerald-700 border-emerald-200/50 hover:bg-emerald-50 hover:border-emerald-200 shadow-sm bg-white'
+              : 'text-gray-700 hover:text-teal-600 hover:bg-teal-50 border-gray-200'
+            }`}
           title="Edit patient"
         >
           Edit
@@ -113,7 +126,10 @@ export default function PatientRow({ patient, selected, onSelect, onView, onEdit
         {patient.pendingRefillsCount > 0 && (
           <button
             onClick={onRefill}
-            className="p-2 text-gray-400 hover:text-orange-600 hover:bg-orange-50 rounded-lg"
+            className={`p-2 rounded-lg transition-colors ${isPremium
+                ? 'text-amber-600/70 hover:text-amber-700 hover:bg-amber-50 hover:shadow-sm'
+                : 'text-gray-400 hover:text-orange-600 hover:bg-orange-50'
+              }`}
             title="Start refill"
           >
             <FiRefreshCw size={16} />
@@ -121,7 +137,10 @@ export default function PatientRow({ patient, selected, onSelect, onView, onEdit
         )}
         <button
           onClick={onMessage}
-          className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
+          className={`p-2 rounded-lg transition-colors ${isPremium
+              ? 'text-blue-600/70 hover:text-blue-700 hover:bg-blue-50 hover:shadow-sm'
+              : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
+            }`}
           title="Send message"
         >
           <FiMessageSquare size={16} />

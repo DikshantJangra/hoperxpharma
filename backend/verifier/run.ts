@@ -19,32 +19,61 @@
 import { Runner } from './runner/Runner';
 import { buildRunConfig, DPFVConfig } from './dpfv.config';
 import { ExecutionMode, ScenarioTag } from './types';
+import { cleanupDPFVData } from './cleanup';
+
+// Debug: Trace startup
+console.log('[DPFV] Startup: Script loaded');
 
 // Import all scenarios
+console.log('[DPFV] Starting imports...');
+console.log('[DPFV] Importing Core...');
 import { authScenario } from './scenarios/core/auth.flow';
 import { onboardingScenario } from './scenarios/core/onboarding.flow';
+
+console.log('[DPFV] Importing POS...');
 import { quickSaleScenario } from './scenarios/pos/quick-sale.flow';
-import { grnScenario } from './scenarios/procurement/grn.flow';
-import { patientScenario } from './scenarios/patients/patient.flow';
-import { prescriptionScenario } from './scenarios/clinical/prescription.flow';
-import { dispenseScenario } from './scenarios/clinical/dispense.flow';
 import { rxSaleScenario } from './scenarios/pos/rx-sale.flow';
-import { rolesScenario } from './scenarios/admin/roles.flow';
-import { pinScenario } from './scenarios/admin/pin.flow';
-import { featuresScenario } from './scenarios/admin/features.flow';
-import { supplierScenario } from './scenarios/procurement/supplier.flow';
-import { poScenario } from './scenarios/procurement/po.flow';
-import { accessLogScenario } from './scenarios/audit/access.flow';
-import { salesReportScenario } from './scenarios/reports/sales.flow';
-import { gdprScenario } from './scenarios/audit/gdpr.flow';
-import { subscriptionScenario } from './scenarios/billing/subscription.flow';
-import { emailScenario } from './scenarios/communication/email.flow';
-import { whatsappScenario } from './scenarios/communication/whatsapp.flow';
 import { draftScenario } from './scenarios/pos/draft.flow';
 import { refundScenario } from './scenarios/pos/refund.flow';
 import { creditSaleScenario } from './scenarios/pos/credit.flow';
-import { invoicePdfScenario } from './scenarios/documents/invoice-pdf.flow';
+
+console.log('[DPFV] Importing Procurement...');
+console.log('[DPFV] ... GRN');
+import { grnScenario } from './scenarios/procurement/grn.flow';
+console.log('[DPFV] ... Supplier');
+import { supplierScenario } from './scenarios/procurement/supplier.flow';
+console.log('[DPFV] ... PO');
+import { poScenario } from './scenarios/procurement/po.flow';
+console.log('[DPFV] ... Consolidated');
 import { consolidatedInvoiceScenario } from './scenarios/procurement/consolidated.flow';
+console.log('[DPFV] Procurement imports done');
+
+console.log('[DPFV] Importing Clinical...');
+import { patientScenario } from './scenarios/patients/patient.flow';
+import { prescriptionScenario } from './scenarios/clinical/prescription.flow';
+import { dispenseScenario } from './scenarios/clinical/dispense.flow';
+
+console.log('[DPFV] Importing Admin...');
+import { rolesScenario } from './scenarios/admin/roles.flow';
+import { pinScenario } from './scenarios/admin/pin.flow';
+import { featuresScenario } from './scenarios/admin/features.flow';
+
+console.log('[DPFV] Importing Audit & Reports...');
+import { accessLogScenario } from './scenarios/audit/access.flow';
+import { salesReportScenario } from './scenarios/reports/sales.flow';
+import { gdprScenario } from './scenarios/audit/gdpr.flow';
+
+console.log('[DPFV] Importing Billing & comms...');
+console.log('[DPFV] ... Subscription');
+import { subscriptionScenario } from './scenarios/billing/subscription.flow';
+console.log('[DPFV] ... Email');
+import { emailScenario } from './scenarios/communication/email.flow';
+console.log('[DPFV] ... WhatsApp');
+import { whatsappScenario } from './scenarios/communication/whatsapp.flow';
+console.log('[DPFV] Billing & comms imports done');
+
+console.log('[DPFV] Importing PDF...');
+import { invoicePdfScenario } from './scenarios/documents/invoice-pdf.flow';
 
 /**
  * Parse command line arguments
@@ -121,7 +150,17 @@ AVAILABLE SCENARIOS:
  * Main entry point
  */
 async function main(): Promise<void> {
+    console.log('[DPFV] Entering main()');
     console.log('\n🔬 DPFV - Deterministic Product Flow Verifier\n');
+
+    // Run cleanup for any stale data from previous runs
+    try {
+        await cleanupDPFVData();
+    } catch (error) {
+        // If cleanup exits with code 1, it means DB connection failed
+        // The cleanup function will handle the exit
+        return;
+    }
 
     const cliConfig = parseArgs();
     const runConfig = buildRunConfig(cliConfig);
@@ -151,7 +190,6 @@ async function main(): Promise<void> {
         poScenario,
         accessLogScenario,
         salesReportScenario,
-        salesReportScenario,
         gdprScenario,
         subscriptionScenario,
         emailScenario,
@@ -171,12 +209,21 @@ async function main(): Promise<void> {
         const hasFailures = report.summary.failed > 0;
         process.exit(hasFailures ? 1 : 0);
 
-    } catch (error: any) {
-        console.error('\n❌ DPFV crashed with error:', error.message);
-        console.error(error.stack);
         process.exit(2);
+    } finally {
+        await cleanupDPFVData();
     }
 }
+
+// Handle termination signals
+async function handleSignal(signal: string) {
+    console.log(`\n\nReceived ${signal}. Cleaning up...`);
+    await cleanupDPFVData();
+    process.exit(1);
+}
+
+process.on('SIGINT', () => handleSignal('SIGINT'));
+process.on('SIGTERM', () => handleSignal('SIGTERM'));
 
 // Run main
 main().catch(error => {

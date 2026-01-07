@@ -5,7 +5,7 @@
 
 import { StepResult, ScenarioContext } from '../types';
 
-const dispenseService = require('../../src/services/dispense/dispenseService');
+const dispenseService = require('../../src/services/prescriptions/dispenseService');
 const prisma = require('../../src/db/prisma');
 
 export const dispenseSteps = {
@@ -49,7 +49,7 @@ export const dispenseSteps = {
      */
     async updateStatus(
         ctx: ScenarioContext,
-        status: 'PENDING' | 'IN_PROGRESS' | 'READY' | 'DISPENSED' | 'CANCELLED',
+        status: 'QUEUED' | 'VERIFYING' | 'FILLING' | 'CHECKING' | 'READY' | 'COMPLETED' | 'CANCELLED',
         dispenseId?: string
     ): Promise<StepResult> {
         try {

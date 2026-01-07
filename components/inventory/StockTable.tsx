@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { FiChevronDown, FiChevronRight, FiAlertCircle, FiPackage } from 'react-icons/fi';
 import { BsSnow } from 'react-icons/bs';
+import { usePremiumTheme } from '@/lib/hooks/usePremiumTheme';
 
 const TableRowSkeleton = () => (
   <tr className="border-b border-[#f1f5f9] animate-pulse">
@@ -42,6 +43,7 @@ export default function StockTable({
   const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const { isPremium } = usePremiumTheme();
 
   useEffect(() => {
     const fetchDrugs = async () => {
@@ -108,7 +110,7 @@ export default function StockTable({
   return (
     <div className="h-full overflow-y-auto bg-white">
       <table className="w-full">
-        <thead className="sticky top-0 bg-[#f8fafc] border-b border-[#e2e8f0] z-10">
+        <thead className={`sticky top-0 z-10 ${isPremium ? 'bg-white/80 backdrop-blur-md border-b border-emerald-500/10 shadow-sm' : 'bg-[#f8fafc] border-b border-[#e2e8f0]'}`}>
           <tr>
             <th className="text-left px-4 py-3 text-xs font-semibold text-[#64748b] uppercase w-8"></th>
             <th className="text-left px-4 py-3 text-xs font-semibold text-[#64748b] uppercase">Drug / Item</th>
@@ -140,8 +142,12 @@ export default function StockTable({
                 <React.Fragment key={drug.id}>
                   <tr
                     onClick={() => onSelectItem(drug)}
-                    className={`border-b border-[#f1f5f9] hover:bg-[#f8fafc] cursor-pointer group ${selectedItem?.id === drug.id ? 'bg-[#f0fdfa]' : ''
-                      } ${lowStock ? 'border-l-4 border-l-[#f59e0b]' : ''}`}
+                    className={`border-b border-[#f1f5f9] cursor-pointer group transition-all duration-200
+                        ${selectedItem?.id === drug.id
+                        ? isPremium ? 'bg-emerald-50/80' : 'bg-[#f0fdfa]'
+                        : isPremium ? 'hover:bg-white hover:shadow-lg hover:scale-[1.002] hover:-translate-y-0.5 hover:shadow-emerald-900/5' : 'hover:bg-[#f8fafc]'
+                      } 
+                        ${lowStock ? 'border-l-4 border-l-[#f59e0b]' : ''}`}
                   >
                     <td className="px-4 py-3">
                       {batchCount > 0 && (

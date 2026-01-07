@@ -15,7 +15,7 @@ export const financialAssert = {
 
         const sale = await prisma.sale.findUnique({
             where: { id: targetSaleId },
-            include: { payments: true }
+            include: { paymentSplits: true }
         });
 
         if (!sale) {
@@ -27,7 +27,7 @@ export const financialAssert = {
             };
         }
 
-        const paymentTotal = sale.payments.reduce(
+        const paymentTotal = sale.paymentSplits.reduce(
             (sum: number, p: any) => sum + parseFloat(p.amount),
             0
         );

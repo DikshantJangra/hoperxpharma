@@ -7,6 +7,7 @@ import dynamic from 'next/dynamic';
 
 // Dynamic import for the scanner to avoid SSR issues with html5-qrcode
 const BarcodeScannerModal = dynamic(() => import('./BarcodeScannerModal'), { ssr: false });
+import { usePremiumTheme } from '@/lib/hooks/usePremiumTheme';
 
 interface Product {
   id: string;
@@ -52,6 +53,7 @@ export default function ProductSearch({ onAddProduct, searchFocus, setSearchFocu
   const [isLoading, setIsLoading] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { isPremium } = usePremiumTheme();
 
   const isTypingRef = useRef(false);
 
@@ -147,7 +149,7 @@ export default function ProductSearch({ onAddProduct, searchFocus, setSearchFocu
   };
 
   return (
-    <div className="p-4 bg-white border-b border-[#e2e8f0] relative">
+    <div className={`p-4 border-b relative transition-colors ${isPremium ? 'bg-white/40 border-white/20' : 'bg-white border-[#e2e8f0]'}`}>
       <div className="relative">
         <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[#94a3b8]" />
         <input
@@ -159,12 +161,12 @@ export default function ProductSearch({ onAddProduct, searchFocus, setSearchFocu
             setQuery(e.target.value);
             setTimeout(() => { isTypingRef.current = false; }, 500);
           }}
-          onKeyDown={handleKeyDown}
           onFocus={() => setSearchFocus?.(true)}
           placeholder="Scan barcode or search product... (/)"
-          className={`w-full pl-10 pr-10 py-3 border-2 rounded-lg text-[#0f172a] placeholder:text-[#94a3b8] focus:outline-none transition-all ${searchFocus && query.length === 0
-            ? 'border-[#0ea5a3] ring-2 ring-[#0ea5a3]/20'
-            : 'border-[#cbd5e1] focus:border-[#0ea5a3]'
+          className={`w-full pl-10 pr-10 py-3 border-2 rounded-lg text-[#0f172a] placeholder:text-[#94a3b8] focus:outline-none transition-all 
+            ${isPremium
+              ? 'bg-white/80 shadow-inner border-white/40 focus:bg-white focus:border-emerald-500/50 focus:ring-4 focus:ring-emerald-500/10 placeholder:text-slate-400'
+              : searchFocus && query.length === 0 ? 'border-[#0ea5a3] ring-2 ring-[#0ea5a3]/20' : 'border-[#cbd5e1] focus:border-[#0ea5a3]'
             }`}
         />
         <button
@@ -208,12 +210,14 @@ export default function ProductSearch({ onAddProduct, searchFocus, setSearchFocu
       )}
 
       {!isLoading && results.length > 0 && (
-        <div className="mt-2 bg-white border border-[#e2e8f0] rounded-lg shadow-lg max-h-[300px] overflow-y-auto">
+        <div className={`mt-2 rounded-lg shadow-lg max-h-[300px] overflow-y-auto border ${isPremium ? 'bg-white/95 backdrop-blur-xl border-emerald-500/20 shadow-emerald-900/5' : 'bg-white border-[#e2e8f0]'}`}>
           {results.map((product, index) => (
             <div
               key={product.id}
               onClick={() => handleAddProduct(product)}
-              className={`p-3 cursor-pointer border-b border-[#f1f5f9] last:border-0 ${index === selectedIndex ? 'bg-[#f0fdfa]' : 'hover:bg-[#f8fafc]'
+              className={`p-3 cursor-pointer border-b last:border-0 transition-colors ${index === selectedIndex
+                ? isPremium ? 'bg-emerald-50/80 border-emerald-100' : 'bg-[#f0fdfa] border-[#f1f5f9]'
+                : isPremium ? 'hover:bg-emerald-50/50 border-gray-100/50' : 'hover:bg-[#f8fafc] border-[#f1f5f9]'
                 }`}
             >
               <div className="flex items-center justify-between">

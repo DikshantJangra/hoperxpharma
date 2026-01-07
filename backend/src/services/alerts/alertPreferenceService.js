@@ -1,7 +1,4 @@
-const database = require('../../config/database');
-const logger = require('../../config/logger');
-
-const prisma = database.getClient();
+const prisma = require('../../db/prisma');
 
 /**
  * Alert Preference Service - Manages user alert preferences

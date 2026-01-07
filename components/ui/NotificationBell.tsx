@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Bell } from 'lucide-react';
+import { FiBell } from 'react-icons/fi';
 import { useAlerts } from '@/contexts/AlertContext';
 import { NotificationPanel } from './NotificationPanel';
 
@@ -18,7 +18,7 @@ export function NotificationBell() {
                 className="relative p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
                 aria-label="Notifications"
             >
-                <Bell className="h-5 w-5" />
+                <FiBell className="h-5 w-5" />
                 {badgeCount > 0 && (
                     <span className="absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-white transform translate-x-1/2 -translate-y-1/2 bg-red-600 rounded-full">
                         {badgeCount > 9 ? '9+' : badgeCount}

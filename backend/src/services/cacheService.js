@@ -10,7 +10,7 @@ const initRedis = () => {
     const redisUrl = process.env.REDIS_URL;
 
     if (!isRedisEnabled || !redisUrl) {
-        logger.info('Redis caching disabled or not configured. Using in-memory cache fallback.');
+        logger.debug('Redis caching disabled or not configured. Using in-memory cache fallback.');
         return null;
     }
 

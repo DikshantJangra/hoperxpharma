@@ -6,6 +6,7 @@ import { patientsApi } from '@/lib/api/patients';
 import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/store/auth-store';
 import toast from 'react-hot-toast';
+import { usePremiumTheme } from "@/lib/hooks/usePremiumTheme";
 
 interface RefillItem {
     id: string; // Adherence record ID
@@ -22,6 +23,7 @@ interface RefillItem {
 export default function RefillRemindersWidget() {
     const router = useRouter();
     const { primaryStore } = useAuthStore();
+    const { isPremium } = usePremiumTheme();
     const [loading, setLoading] = useState(true);
     const [refills, setRefills] = useState<RefillItem[]>([]);
 
@@ -85,13 +87,23 @@ export default function RefillRemindersWidget() {
     }
 
     return (
-        <div className="bg-white p-6 rounded-xl border border-gray-200 h-full flex flex-col">
+        <div
+            className={`
+                p-6 rounded-xl border transition-all h-full flex flex-col
+                ${isPremium ? 'duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:scale-[1.01]' : 'duration-200'}
+                ${isPremium
+                    ? 'bg-white border-white/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] hover:shadow-[0_8px_30px_-4px_rgba(16,185,129,0.1)] hover:border-emerald-500/20'
+                    : 'bg-white border-gray-200'
+                }
+            `}
+            {...(isPremium ? { 'data-premium': 'true' } : {})}
+        >
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                    <FiRefreshCw className="text-teal-600 w-5 h-5" />
+                    <FiRefreshCw className={`w-5 h-5 ${isPremium ? 'text-emerald-600' : 'text-teal-600'}`} />
                     <h3 className="font-bold text-gray-900">Refill Reminders</h3>
                 </div>
-                <span className="bg-teal-100 text-teal-800 text-xs font-medium px-2.5 py-0.5 rounded-full">
+                <span className={`text-xs font-medium px-2.5 py-0.5 rounded-full ${isPremium ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-teal-100 text-teal-800'}`}>
                     {refills.length} Due
                 </span>
             </div>
@@ -104,7 +116,7 @@ export default function RefillRemindersWidget() {
                     </div>
                 ) : (
                     refills.map((refill) => (
-                        <div key={refill.id} className="p-3 bg-gray-50 rounded-lg border border-gray-100 hover:shadow-sm transition-shadow">
+                        <div key={refill.id} className={`p-3 rounded-lg border transition-shadow ${isPremium ? 'bg-white border-gray-100 hover:shadow-md hover:border-emerald-100' : 'bg-gray-50 border-gray-100 hover:shadow-sm'}`}>
                             <div className="flex justify-between items-start mb-2">
                                 <div>
                                     <h4 className="font-medium text-sm text-gray-900">

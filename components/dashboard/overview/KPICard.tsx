@@ -11,9 +11,26 @@ interface KPICardProps {
     tooltipContent?: React.ReactNode
 }
 
+import { usePremiumTheme } from "@/lib/hooks/usePremiumTheme";
+
 export default function KPICard({ icon, title, value, microtext, ctaLabel, variant = 'default', updated, onAction, loading = false, tooltipContent }: KPICardProps) {
+    const { isPremium, tokens } = usePremiumTheme();
+
     return (
-        <div className={`group relative p-4 rounded-xl border transition-all duration-200 ${variant === 'critical' ? 'bg-red-50 border-red-100 hover:border-red-200' : 'bg-white border-[#e6eef2] hover:border-[#0ea5a3]/30'}`} style={{ boxShadow: '0 4px 12px rgba(3,15,31,0.03)' }}>
+        <div
+            className={`
+                group relative p-4 rounded-xl border transition-all 
+                ${isPremium ? 'duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:scale-[1.02] hover:-translate-y-0.5' : 'duration-200'}
+                ${variant === 'critical'
+                    ? 'bg-red-50 border-red-100 hover:border-red-200'
+                    : isPremium
+                        ? 'bg-white border-white/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] hover:shadow-[0_8px_30px_-4px_rgba(16,185,129,0.1)] hover:border-emerald-500/20'
+                        : 'bg-white border-[#e6eef2] hover:border-[#0ea5a3]/30'
+                }
+            `}
+            style={!isPremium ? { boxShadow: '0 4px 12px rgba(3,15,31,0.03)' } : {}}
+            {...(isPremium ? { 'data-premium': 'true' } : {})}
+        >
             {/* Tooltip */}
             {tooltipContent && (
                 <div className="absolute opacity-0 group-hover:opacity-100 transition-opacity duration-200 bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 bg-[#1e293b] text-white text-xs rounded-lg py-2 px-3 shadow-xl z-50 pointer-events-none">
@@ -23,13 +40,19 @@ export default function KPICard({ icon, title, value, microtext, ctaLabel, varia
             )}
 
             <div className="flex items-start justify-between mb-3">
-                <div className={`p-2 rounded-lg ${variant === 'critical' ? 'bg-red-100 text-red-600' : 'bg-[#0ea5a3]/10 text-[#0ea5a3]'}`}>
+                <div className={`p-2 rounded-lg ${variant === 'critical' ? 'bg-red-100 text-red-600' :
+                        isPremium ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100' :
+                            'bg-[#0ea5a3]/10 text-[#0ea5a3]'
+                    }`}>
                     {icon}
                 </div>
                 {updated && !loading && <span className="text-[10px] font-medium text-[#6b7280] bg-gray-100 px-1.5 py-0.5 rounded">Updated {updated}</span>}
             </div>
             <div>
-                <h3 className="text-xs font-semibold text-[#6b7280] uppercase tracking-wide mb-1">{title}</h3>
+                <h3 className="text-xs font-semibold text-[#6b7280] uppercase tracking-wide mb-1 flex items-center gap-2">
+                    {title}
+                    {isPremium && <div className="h-px flex-1 bg-gradient-to-r from-gray-100 to-transparent"></div>}
+                </h3>
                 {loading ? (
                     <div className="h-8 w-24 bg-gray-200 rounded animate-pulse mb-1"></div>
                 ) : (
@@ -41,7 +64,7 @@ export default function KPICard({ icon, title, value, microtext, ctaLabel, varia
                     ) : (
                         <p className="text-[11px] text-[#6b7280] font-medium">{microtext}</p>
                     )}
-                    <button onClick={onAction} className={`text-[11px] font-bold hover:underline ${variant === 'critical' ? 'text-red-600' : 'text-[#0ea5a3]'}`}>
+                    <button onClick={onAction} className={`text-[11px] font-bold hover:underline ${variant === 'critical' ? 'text-red-600' : isPremium ? 'text-emerald-600' : 'text-[#0ea5a3]'}`}>
                         {ctaLabel}
                     </button>
                 </div>

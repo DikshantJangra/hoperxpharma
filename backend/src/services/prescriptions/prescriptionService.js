@@ -1,6 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const logger = require('../../config/logger');
-const prisma = new PrismaClient();
+const prisma = require('../../db/prisma');
 const versionService = require('./versionService');
 const refillService = require('./refillService');
 const dispenseService = require('./dispenseService');
@@ -58,7 +58,6 @@ class PrescriptionService {
             const prescriptionData = {
                 store: { connect: { id: storeId } },
                 prescriptionNumber,
-                patient: patientId ? { connect: { id: patientId } } : undefined,
                 issueDate: new Date(),
                 expiryDate: calculatedExpiryDate,
                 totalRefills,
@@ -67,6 +66,11 @@ class PrescriptionService {
                 source,
                 priority
             };
+
+            // Add patient connection if provided
+            if (patientId) {
+                prescriptionData.patient = { connect: { id: patientId } };
+            }
 
             if (prescriberId) {
                 prescriptionData.prescriberId = prescriberId;

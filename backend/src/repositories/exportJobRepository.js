@@ -1,6 +1,5 @@
-const database = require('../config/database');
 
-const prisma = database.getClient();
+const prisma = require('../db/prisma');
 
 /**
  * Export Job Repository - Data access layer for export job tracking
@@ -15,7 +14,7 @@ class ExportJobRepository {
             data: {
                 storeId: exportData.storeId,
                 entityType: 'audit_export',
-                entityId: exportData.jobId || `export_${Date.now()}`,
+                entityId: exportData.jobId || `export_${Date.now()} `,
                 fileType: exportData.format || 'json',
                 filePath: exportData.filePath || '',
                 fileSize: 0,

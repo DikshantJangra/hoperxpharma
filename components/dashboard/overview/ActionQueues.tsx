@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react"
 import { dashboardApi, ActionQueues as ActionQueuesData } from "@/lib/api/dashboard"
 import { useAuthStore } from "@/lib/store/auth-store"
+import { usePremiumTheme } from "@/lib/hooks/usePremiumTheme";
 
 export default function ActionQueues() {
     const [activeTab, setActiveTab] = useState('verification')
@@ -9,6 +10,7 @@ export default function ActionQueues() {
     const [loading, setLoading] = useState(true)
     const [queues, setQueues] = useState<ActionQueuesData | null>(null)
     const hasStore = useAuthStore(state => state.hasStore)
+    const { isPremium, tokens } = usePremiumTheme();
 
     useEffect(() => {
         const fetchQueues = async () => {
@@ -71,15 +73,26 @@ export default function ActionQueues() {
     const currentQueue = getCurrentQueueData();
 
     return (
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 h-full flex flex-col">
+        <div
+            className={`
+                rounded-xl h-full flex flex-col border transition-all 
+                ${isPremium ? 'duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:scale-[1.01]' : 'duration-200'}
+                ${isPremium
+                    ? 'bg-white border-white/60 shadow-[0_4px_20px_-4px_rgba(0,0,0,0.05)] hover:shadow-[0_8px_30px_-4px_rgba(16,185,129,0.1)] hover:border-emerald-500/20'
+                    : 'bg-white border-gray-100 shadow-sm'
+                }
+            `}
+            style={!isPremium ? {} : {}}
+            {...(isPremium ? { 'data-premium': 'true' } : {})}
+        >
             <div className="px-6 pt-5 border-b border-gray-100">
                 <div className="flex items-center justify-between">
                     <h3 className="text-base font-semibold text-gray-800">Action Queues</h3>
-                    <div className="flex items-center gap-2 border border-gray-200 rounded-lg p-1">
-                        <TabButton label="Verification" count={queues?.pendingPrescriptions?.length || 0} active={activeTab === 'verification'} onClick={() => setActiveTab('verification')} />
-                        <TabButton label="e-Rx" count={queues?.readyForPickup?.length || 0} active={activeTab === 'erx'} onClick={() => setActiveTab('erx')} />
-                        <TabButton label="Dispensing" count={queues?.lowStockItems?.length || 0} active={activeTab === 'dispensing'} onClick={() => setActiveTab('dispensing')} />
-                        <TabButton label="Returns" count={queues?.expiringItems?.length || 0} active={activeTab === 'returns'} onClick={() => setActiveTab('returns')} />
+                    <div className={`flex items-center gap-2 border rounded-lg p-1 ${isPremium ? 'border-gray-100 bg-gray-50/50' : 'border-gray-200'}`}>
+                        <TabButton label="Verification" count={queues?.pendingPrescriptions?.length || 0} active={activeTab === 'verification'} onClick={() => setActiveTab('verification')} isPremium={isPremium} />
+                        <TabButton label="e-Rx" count={queues?.readyForPickup?.length || 0} active={activeTab === 'erx'} onClick={() => setActiveTab('erx')} isPremium={isPremium} />
+                        <TabButton label="Dispensing" count={queues?.lowStockItems?.length || 0} active={activeTab === 'dispensing'} onClick={() => setActiveTab('dispensing')} isPremium={isPremium} />
+                        <TabButton label="Returns" count={queues?.expiringItems?.length || 0} active={activeTab === 'returns'} onClick={() => setActiveTab('returns')} isPremium={isPremium} />
                     </div>
                 </div>
             </div>
@@ -97,6 +110,7 @@ export default function ActionQueues() {
                                 item={item}
                                 type={activeTab}
                                 selected={index === selectedIndex}
+                                isPremium={isPremium}
                             />
                         ))}
                     </div>
@@ -110,18 +124,28 @@ export default function ActionQueues() {
     )
 }
 
-function TabButton({ label, count, active, onClick }: any) {
+function TabButton({ label, count, active, onClick, isPremium }: any) {
     return (
         <button
             onClick={onClick}
-            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${active ? 'bg-emerald-500 text-white shadow-sm' : 'text-gray-600 hover:bg-gray-100'}`}
+            className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${active
+                    ? isPremium
+                        ? 'bg-white text-emerald-700 shadow-sm border border-emerald-100'
+                        : 'bg-emerald-500 text-white shadow-sm'
+                    : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                }`}
         >
-            {label} <span className={`ml-1.5 px-2 py-0.5 rounded-full text-xs font-semibold ${active ? 'bg-white text-emerald-600' : 'bg-gray-200 text-gray-700'}`}>{count}</span>
+            {label} <span className={`ml-1.5 px-2 py-0.5 rounded-full text-xs font-semibold ${active
+                    ? isPremium
+                        ? 'bg-emerald-50 text-emerald-600'
+                        : 'bg-white text-emerald-600'
+                    : 'bg-gray-200 text-gray-700'
+                }`}>{count}</span>
         </button>
     )
 }
 
-function QueueItem({ item, type, selected }: { item: any; type: string; selected: boolean }) {
+function QueueItem({ item, type, selected, isPremium }: { item: any; type: string; selected: boolean; isPremium?: boolean }) {
     const renderContent = () => {
         switch (type) {
             case 'verification':
@@ -166,7 +190,14 @@ function QueueItem({ item, type, selected }: { item: any; type: string; selected
     };
 
     return (
-        <div className={`flex items-center justify-between p-3 rounded-lg border transition-all ${selected ? 'border-[#0ea5a3] bg-[#0ea5a3]/5 ring-2 ring-[#0ea5a3]/20' : 'border-[#e6eef2] hover:border-[#0ea5a3]/30 bg-white'}`}>
+        <div className={`flex items-center justify-between p-3 rounded-lg border transition-all ${selected
+                ? isPremium
+                    ? 'border-emerald-500/30 bg-emerald-50/50 ring-1 ring-emerald-500/20 shadow-sm'
+                    : 'border-[#0ea5a3] bg-[#0ea5a3]/5 ring-2 ring-[#0ea5a3]/20'
+                : isPremium
+                    ? 'border-transparent hover:bg-gray-50 hover:border-gray-200'
+                    : 'border-[#e6eef2] hover:border-[#0ea5a3]/30 bg-white'
+            }`}>
             <div className="flex items-center gap-3 flex-1">
                 <input type="checkbox" className="w-4 h-4 text-[#0ea5a3] border-gray-300 rounded focus:ring-[#0ea5a3]" />
                 <div className="flex-1">

@@ -10,7 +10,10 @@ import TopCustomersTable from './TopCustomersTable';
 import TrendChart from './TrendChart';
 import { HiOutlineCalendar, HiOutlineArrowDownTray, HiOutlineClock } from 'react-icons/hi2';
 
+import { usePremiumTheme } from '@/lib/hooks/usePremiumTheme';
+
 export default function EnterprisePageContent() {
+  const { isPremium } = usePremiumTheme();
   const today = new Date().toISOString().split('T')[0];
   const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
@@ -66,9 +69,12 @@ export default function EnterprisePageContent() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className={`min-h-screen transition-colors ${isPremium ? 'bg-slate-50' : 'bg-gray-50'}`}>
       {/* Header with Filters */}
-      <div className="bg-white border-b border-gray-200 sticky top-0 z-10 shadow-sm">
+      <div className={`border-b sticky top-0 z-10 transition-all ${isPremium
+        ? 'bg-white/80 backdrop-blur-xl border-white/20 shadow-sm'
+        : 'bg-white border-gray-200 shadow-sm'
+        }`}>
         <div className="px-6 py-4">
           <div className="flex items-center justify-between mb-4">
             <div>
@@ -168,7 +174,10 @@ export default function EnterprisePageContent() {
                 </div>
 
                 {/* Table Skeleton */}
-                <div className="bg-white rounded-xl border border-gray-200 p-6 animate-pulse">
+                <div className={`rounded-xl border p-6 animate-pulse ${isPremium
+                  ? 'bg-white/40 border-white/20 shadow-sm'
+                  : 'bg-white border-gray-200'
+                  }`}>
                   <div className="h-6 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 rounded w-48 mb-4 bg-[length:200%_100%] animate-shimmer"></div>
                   <div className="space-y-3">
                     {[1, 2, 3, 4, 5].map((i) => (
@@ -183,7 +192,10 @@ export default function EnterprisePageContent() {
 
               {/* Insights Skeleton */}
               <div className="col-span-3">
-                <div className="bg-white rounded-xl border border-gray-200 p-6 animate-pulse sticky top-24">
+                <div className={`rounded-xl border p-6 animate-pulse sticky top-24 ${isPremium
+                  ? 'bg-white/40 border-white/20 shadow-sm'
+                  : 'bg-white border-gray-200'
+                  }`}>
                   <div className="h-6 bg-gradient-to-r from-gray-200 via-gray-100 to-gray-200 rounded w-32 mb-4 bg-[length:200%_100%] animate-shimmer"></div>
                   <div className="space-y-4">
                     {[1, 2, 3].map((i) => (

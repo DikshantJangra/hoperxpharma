@@ -37,11 +37,11 @@ export const dispenseScenario: Scenario = {
                     }
                 },
                 {
-                    name: 'Initial status is PENDING',
+                    name: 'Initial status is QUEUED',
                     invariant: 'DISP-001',
                     check: async (ctx) => {
                         const did = ctx.get<string>('dispenseId');
-                        return stateAssert.checkDispenseStatus(ctx, did, 'PENDING');
+                        return stateAssert.checkDispenseStatus(ctx, did, 'QUEUED');
                     }
                 }
             ],
@@ -52,14 +52,14 @@ export const dispenseScenario: Scenario = {
         {
             id: 'dispense.process',
             name: 'Start processing dispense (Fill)',
-            execute: async (ctx) => dispenseSteps.updateStatus(ctx, 'IN_PROGRESS'),
+            execute: async (ctx) => dispenseSteps.updateStatus(ctx, 'FILLING'),
             assertions: [
                 {
-                    name: 'Status updated to IN_PROGRESS',
+                    name: 'Status updated to FILLING',
                     invariant: 'DISP-002',
                     check: async (ctx) => {
                         const did = ctx.get<string>('dispenseId');
-                        return stateAssert.checkDispenseStatus(ctx, did, 'IN_PROGRESS');
+                        return stateAssert.checkDispenseStatus(ctx, did, 'FILLING');
                     }
                 }
             ],

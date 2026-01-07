@@ -19,7 +19,10 @@ interface SupplierListProps {
     onRefresh?: number;
 }
 
+import { usePremiumTheme } from '@/lib/hooks/usePremiumTheme';
+
 export default function SupplierList({ onAddClick, onRefresh }: SupplierListProps) {
+    const { isPremium } = usePremiumTheme();
     const [searchTerm, setSearchTerm] = useState('');
     const [suppliers, setSuppliers] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -98,15 +101,18 @@ export default function SupplierList({ onAddClick, onRefresh }: SupplierListProp
     console.log('🎬 Rendering with:', { isLoading, suppliersCount: suppliers.length, suppliers });
 
     return (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200">
+        <div className={`rounded-xl border transition-all ${isPremium
+            ? 'bg-white/80 backdrop-blur-xl border-white/20 shadow-[0_8px_30px_rgb(0,0,0,0.04)]'
+            : 'bg-white shadow-sm border-gray-200'
+            }`}>
             {/* Header & Filters */}
-            <div className="p-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className={`p-4 border-b flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${isPremium ? 'border-gray-100/50' : 'border-gray-100'}`}>
                 <div className="relative flex-1 max-w-md">
                     <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                     <input
                         type="text"
                         placeholder="Search suppliers by name, contact, GST..."
-                        className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                        className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 ${isPremium ? 'bg-white/50 border-gray-200 backdrop-blur-sm' : 'border-gray-200'}`}
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         disabled={isLoading}
@@ -154,7 +160,7 @@ export default function SupplierList({ onAddClick, onRefresh }: SupplierListProp
                             </>
                         ) : suppliers && suppliers.length > 0 ? (
                             suppliers.map((supplier) => (
-                                <tr key={supplier.id} className="hover:bg-gray-50 group">
+                                <tr key={supplier.id} className={`group border-b border-gray-50 last:border-none transition-all ${isPremium ? 'hover:bg-emerald-50/30 hover:shadow-sm' : 'hover:bg-gray-50'}`}>
                                     <td className="px-6 py-4">
                                         <div className="font-medium text-gray-900">{supplier.name}</div>
                                         {supplier.gstin && <div className="text-xs text-gray-500">GST: {supplier.gstin}</div>}

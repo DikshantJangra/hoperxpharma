@@ -137,9 +137,9 @@ export const prescriptionScenario: Scenario = {
                     check: async (ctx) => {
                         const refill = ctx.get<any>('currentRefill');
                         return {
-                            passed: Boolean(refill && refill.status === 'PENDING'),
+                            passed: Boolean(refill && refill.status === 'AVAILABLE'),
                             message: 'Refill must be available',
-                            expected: 'PENDING refill',
+                            expected: 'AVAILABLE',
                             actual: refill?.status || 'None'
                         };
                     }

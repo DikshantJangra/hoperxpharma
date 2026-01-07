@@ -4,10 +4,12 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { FiMinus, FiPlus, FiX, FiTag, FiChevronDown, FiPercent, FiTrash, FiAlertCircle } from 'react-icons/fi';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { usePremiumTheme } from '@/lib/hooks/usePremiumTheme';
 
 export default function Basket({ items, onUpdateItem, onRemoveItem, onClear, onEditBatch }: any) {
   const [expandedItem, setExpandedItem] = useState<number | null>(null);
   const [showClearDialog, setShowClearDialog] = useState(false);
+  const { isPremium } = usePremiumTheme();
 
   const subtotal = items.reduce((sum: number, item: any) => {
     const lineTotal = item.qty * item.mrp - (item.discount || 0);
@@ -30,7 +32,13 @@ export default function Basket({ items, onUpdateItem, onRemoveItem, onClear, onE
         ) : (
           <div className="space-y-2">
             {items.map((item: any, index: number) => (
-              <div key={index} className="bg-white border border-[#e2e8f0] rounded-lg p-3">
+              <div
+                key={index}
+                className={`border rounded-lg p-3 transition-all ${isPremium
+                    ? 'bg-white/60 backdrop-blur-md border-emerald-500/10 shadow-sm hover:bg-white hover:border-emerald-500/30'
+                    : 'bg-white border-[#e2e8f0]'
+                  }`}
+              >
                 <div className="flex items-start justify-between mb-2">
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
@@ -262,10 +270,10 @@ export default function Basket({ items, onUpdateItem, onRemoveItem, onClear, onE
       </div>
 
       {items.length > 0 && (
-        <div className="shrink-0 border-t border-[#e2e8f0] p-4 bg-white">
+        <div className={`shrink-0 border-t p-4 ${isPremium ? 'bg-emerald-50/30 border-emerald-100' : 'bg-white border-[#e2e8f0]'}`}>
           <div className="flex items-center justify-between mb-3">
             <span className="text-sm text-[#64748b]">Subtotal ({items.length} items)</span>
-            <span className="font-semibold text-lg text-[#0f172a]">₹{subtotal.toFixed(2)}</span>
+            <span className={`font-semibold text-lg ${isPremium ? 'text-emerald-700' : 'text-[#0f172a]'}`}>₹{subtotal.toFixed(2)}</span>
           </div>
           <button
             onClick={() => setShowClearDialog(true)}

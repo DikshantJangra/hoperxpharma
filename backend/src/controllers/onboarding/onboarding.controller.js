@@ -6,7 +6,7 @@ const ApiError = require('../../utils/ApiError');
 const ApiResponse = require('../../utils/ApiResponse');
 const asyncHandler = require('../../middlewares/asyncHandler');
 
-const prisma = new PrismaClient();
+const prisma = require('../../db/prisma');
 
 // Map day names to numbers (0 = Sunday, 6 = Saturday)
 const DAY_MAP = {

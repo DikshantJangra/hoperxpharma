@@ -1,9 +1,7 @@
-const database = require('../../config/database');
+const prisma = require('../../db/prisma');
 const asyncHandler = require('../../middlewares/asyncHandler');
 const ApiError = require('../../utils/ApiError');
 const ApiResponse = require('../../utils/ApiResponse');
-
-const prisma = database.getClient();
 
 /**
  * @desc    Get dashboard stats (all KPIs)

@@ -1,6 +1,6 @@
 const { PrismaClient } = require('@prisma/client');
 const logger = require('../../config/logger');
-const prisma = new PrismaClient();
+const prisma = require('../../db/prisma');
 
 class QueueService {
     /**

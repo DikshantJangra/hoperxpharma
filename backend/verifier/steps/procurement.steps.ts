@@ -20,9 +20,15 @@ export const procurementSteps = {
         supplierData: SupplierFixture
     ): Promise<StepResult> {
         try {
+            const storeId = ctx.storeId || ctx.get<any>('currentStore')?.id || ctx.get<string>('storeId');
+            
+            if (!storeId) {
+                throw new Error('storeId is required but not found in context');
+            }
+            
             // Use supplierService for supplier creation
             const supplier = await supplierService.createSupplier({
-                storeId: ctx.storeId,
+                storeId,
                 name: supplierData.name,
                 category: supplierData.category || 'Distributor',
                 status: 'Active',
@@ -58,9 +64,15 @@ export const procurementSteps = {
      * Ensure supplier exists (create if needed)
      */
     async ensureSupplierExists(ctx: ScenarioContext): Promise<any> {
+        const storeId = ctx.storeId || ctx.get<any>('currentStore')?.id || ctx.get<string>('storeId');
+        
+        if (!storeId) {
+            throw new Error('storeId is required but not found in context');
+        }
+        
         let supplier = await prisma.supplier.findFirst({
             where: {
-                storeId: ctx.storeId,
+                storeId,
                 status: 'Active',
                 deletedAt: null
             }
@@ -377,6 +389,42 @@ export const procurementSteps = {
                 data: { mismatches },
                 duration: 0,
                 error: mismatches.length > 0 ? new Error(mismatches.join('; ')) : undefined
+            };
+        } catch (error: any) {
+            return {
+                success: false,
+                error,
+                duration: 0
+            };
+        }
+    },
+    /**
+     * Create Consolidated Invoice
+     */
+    async createConsolidatedInvoice(ctx: ScenarioContext): Promise<StepResult> {
+        try {
+            const grnIds = ctx.get<string[]>('grnIdsToConsolidate');
+            const currentUser = ctx.get<any>('currentUser');
+
+            if (!grnIds || grnIds.length === 0) {
+                throw new Error('No GRNs available to consolidate');
+            }
+
+            const invoice = await consolidatedInvoiceService.create({
+                storeId: ctx.storeId,
+                userId: currentUser.id,
+                grnIds: grnIds,
+                invoiceNumber: `C-INV-${Date.now()}`,
+                invoiceDate: new Date(),
+                paymentDueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+            });
+
+            ctx.set('consolidatedInvoice', invoice);
+
+            return {
+                success: true,
+                data: invoice,
+                duration: 0
             };
         } catch (error: any) {
             return {

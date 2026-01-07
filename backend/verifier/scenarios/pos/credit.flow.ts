@@ -52,7 +52,10 @@ export const creditSaleScenario: Scenario = {
                         suppliers: [],
                         users: []
                     }, userId);
+                    ctx.set('onboardingResult', result);
                     ctx.set('currentStore', result.store);
+                    ctx.storeId = result.store.id;
+                    ctx.set('storeId', result.store.id);
 
                     // 3. Create Patient
                     const patientRes = await patientSteps.createPatient(ctx, {

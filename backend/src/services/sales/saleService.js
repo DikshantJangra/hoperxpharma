@@ -7,7 +7,7 @@ const dispenseService = require('../prescriptions/dispenseService');
 const logger = require('../../config/logger');
 const ApiError = require('../../utils/ApiError');
 const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../../db/prisma');
 const loyaltyService = require('../loyaltyService');
 const gstCalculator = require('../../utils/gstCalculator');
 const gstRepository = require('../../repositories/gstRepository');
@@ -43,117 +43,147 @@ class SaleService {
      * Imports clinical data as snapshot, allows financial edits only
      */
     async createSaleFromDispense(dispenseId, saleData, userId) {
-        // 1. Get dispense with full prescription context
-        const dispense = await dispenseService.getDispenseById(dispenseId);
+        try {
+            logger.info('createSaleFromDispense: Starting', { dispenseId, userId });
 
-        if (!dispense) {
-            throw ApiError.notFound('Dispense not found');
-        }
+            // 1. Get dispense with full prescription context
+            const dispense = await dispenseService.getDispenseById(dispenseId);
 
-        if (dispense.status !== 'READY') {
-            throw ApiError.badRequest(`Dispense must be READY for sale.Current status: ${dispense.status} `);
-        }
-
-        const prescription = dispense.refill.prescription;
-        const prescriptionVersion = dispense.prescriptionVersion;
-
-        // Get defaults from config
-        const defaultGSTRate = await configService.getDefaultGSTRate(saleData.storeId || prescription.storeId);
-        const enableGSTBilling = await configService.getEnableGSTBilling(saleData.storeId || prescription.storeId);
-        const autoRounding = await configService.getAutoRounding(saleData.storeId || prescription.storeId);
-
-        // 2. Build sale items from prescription version (clinical snapshot)
-        const items = prescriptionVersion.items.map(item => ({
-            drugId: item.drugId,
-            batchId: item.batchId || saleData.batches?.[item.drugId], // Use prescribed batch or POS selected batch
-            quantity: item.quantityPrescribed,
-            mrp: saleData.itemPrices?.[item.drugId]?.mrp || 0, // Financial: editable
-            discount: saleData.itemPrices?.[item.drugId]?.discount || 0, // Financial: editable
-            gstRate: enableGSTBilling ? (item.drug.gstRate || defaultGSTRate) : 0,
-            lineTotal: 0 // Will be calculated
-        }));
-
-        // Calculate line totals
-        let saleTotal = 0;
-        let saleTaxTotal = 0;
-
-        items.forEach(item => {
-            const basePrice = item.mrp * item.quantity;
-            const discountAmount = (item.discount / 100) * basePrice;
-            const taxableAmount = basePrice - discountAmount;
-            const gstAmount = (item.gstRate / 100) * taxableAmount;
-            item.lineTotal = taxableAmount + gstAmount;
-
-            saleTotal += item.lineTotal;
-            saleTaxTotal += gstAmount;
-        });
-
-        // Apply auto-rounding if enabled
-        let roundOff = 0;
-        if (autoRounding) {
-            const roundedTotal = Math.round(saleTotal);
-            roundOff = roundedTotal - saleTotal;
-            saleTotal = roundedTotal;
-        }
-
-        // 3. Prepare sale data
-        const { paymentSplits, ...saleInfo } = saleData;
-        saleInfo.total = saleTotal;
-        saleInfo.taxAmount = saleTaxTotal;
-        saleInfo.subtotal = saleTotal - saleTaxTotal;
-        saleInfo.roundOff = roundOff;
-
-        // Generate invoice number
-        const invoiceNumber = await saleRepository.generateInvoiceNumber(saleInfo.storeId);
-
-        // Link to dispense (not prescription directly)
-        const saleDataWithDispense = {
-            ...saleInfo,
-            invoiceNumber,
-            dispenseId: dispense.id, // NEW: Link to dispense
-            prescriptionId: prescription.id, // Legacy: Keep for backward compatibility
-            patientId: prescription.patientId,
-            status: 'COMPLETED'
-        };
-
-        // 4. Create sale using existing repository method
-        const result = await saleRepository.createSale(
-            saleDataWithDispense,
-            items,
-            paymentSplits
-        );
-
-        // 5. Complete dispense workflow
-        const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
-        await dispenseService.completeDispense(dispenseId, userId, totalQuantity);
-
-        // 6. Update prescription status if all refills exhausted
-        await prescriptionService.updatePrescriptionStatus(prescription.id);
-
-        logger.info(`Sale created from dispense: ${invoiceNumber} - Dispense: ${dispenseId}`);
-
-        // 7. Track loyalty event (async, don't block sale completion)
-        if (prescription.patientId) {
-            try {
-                await loyaltyService.processPurchase(
-                    result.sale.id,
-                    prescription.patientId,
-                    saleInfo.storeId,
-                    parseFloat(result.sale.total),
-                    items.length
-                );
-                logger.info(`Loyalty event tracked for patient: ${prescription.patientId}`);
-            } catch (loyaltyError) {
-                // Log error but don't fail the sale
-                logger.error('Failed to track loyalty event:', loyaltyError);
+            if (!dispense) {
+                throw ApiError.notFound('Dispense not found');
             }
-        }
 
-        return {
-            ...result.sale,
-            items: result.items,
-            paymentSplits: result.payments,
-        };
+            if (dispense.status !== 'READY') {
+                throw ApiError.badRequest(`Dispense must be READY for sale. Current status: ${dispense.status}`);
+            }
+
+            const prescription = dispense.refill.prescription;
+            const prescriptionVersion = dispense.prescriptionVersion;
+
+            logger.info('createSaleFromDispense: Got dispense details', {
+                prescriptionId: prescription.id,
+                versionId: prescriptionVersion.id,
+                itemCount: prescriptionVersion.items.length
+            });
+
+            // Get defaults from config
+            const defaultGSTRate = await configService.getDefaultGSTRate(saleData.storeId || prescription.storeId);
+            const enableGSTBilling = await configService.getEnableGSTBilling(saleData.storeId || prescription.storeId);
+            const autoRounding = await configService.getAutoRounding(saleData.storeId || prescription.storeId);
+
+            // 2. Build sale items from prescription version (clinical snapshot)
+            const items = prescriptionVersion.items.map(item => ({
+                drugId: item.drugId,
+                batchId: item.batchId || saleData.batches?.[item.drugId], // Use prescribed batch or POS selected batch
+                quantity: item.quantityPrescribed,
+                mrp: saleData.itemPrices?.[item.drugId]?.mrp || 0, // Financial: editable
+                discount: saleData.itemPrices?.[item.drugId]?.discount || 0, // Financial: editable
+                gstRate: enableGSTBilling ? (item.drug.gstRate || defaultGSTRate) : 0,
+                lineTotal: 0 // Will be calculated
+            }));
+
+            logger.info('createSaleFromDispense: Built sale items', { itemCount: items.length });
+
+            // Calculate line totals
+            let saleTotal = 0;
+            let saleTaxTotal = 0;
+
+            items.forEach(item => {
+                const basePrice = item.mrp * item.quantity;
+                const discountAmount = (item.discount / 100) * basePrice;
+                const taxableAmount = basePrice - discountAmount;
+                const gstAmount = (item.gstRate / 100) * taxableAmount;
+                item.lineTotal = taxableAmount + gstAmount;
+
+                saleTotal += item.lineTotal;
+                saleTaxTotal += gstAmount;
+            });
+
+            // Apply auto-rounding if enabled
+            let roundOff = 0;
+            if (autoRounding) {
+                const roundedTotal = Math.round(saleTotal);
+                roundOff = roundedTotal - saleTotal;
+                saleTotal = roundedTotal;
+            }
+
+            logger.info('createSaleFromDispense: Calculated totals', { saleTotal, saleTaxTotal, roundOff });
+
+            // 3. Prepare sale data
+            const { paymentSplits, ...saleInfo } = saleData;
+            saleInfo.total = saleTotal;
+            saleInfo.taxAmount = saleTaxTotal;
+            saleInfo.subtotal = saleTotal - saleTaxTotal;
+            saleInfo.roundOff = roundOff;
+
+            // Generate invoice number
+            const invoiceNumber = await saleRepository.generateInvoiceNumber(saleInfo.storeId);
+            logger.info('createSaleFromDispense: Generated invoice number', { invoiceNumber });
+
+            // Link to dispense (not prescription directly)
+            const saleDataWithDispense = {
+                ...saleInfo,
+                invoiceNumber,
+                dispenseId: dispense.id, // NEW: Link to dispense
+                prescriptionId: prescription.id, // Legacy: Keep for backward compatibility
+                patientId: prescription.patientId,
+                soldBy: userId, // Add soldBy field
+                status: 'COMPLETED'
+            };
+
+            // 4. Create sale using existing repository method
+            logger.info('createSaleFromDispense: Creating sale in database');
+            const result = await saleRepository.createSale(
+                saleDataWithDispense,
+                items,
+                paymentSplits
+            );
+            logger.info('createSaleFromDispense: Sale created in database', { saleId: result.sale.id });
+
+            // 5. Complete dispense workflow
+            const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
+            logger.info('createSaleFromDispense: Completing dispense');
+            await dispenseService.completeDispense(dispenseId, userId, totalQuantity);
+            logger.info('createSaleFromDispense: Dispense completed');
+
+            // 6. Update prescription status if all refills exhausted
+            logger.info('createSaleFromDispense: Updating prescription status');
+            await prescriptionService.updatePrescriptionStatus(prescription.id);
+            logger.info('createSaleFromDispense: Prescription status updated');
+
+            logger.info(`Sale created from dispense: ${invoiceNumber} - Dispense: ${dispenseId}`);
+
+            // 7. Track loyalty event (async, don't block sale completion)
+            if (prescription.patientId) {
+                try {
+                    await loyaltyService.processPurchase(
+                        result.sale.id,
+                        prescription.patientId,
+                        saleInfo.storeId,
+                        parseFloat(result.sale.total),
+                        items.length
+                    );
+                    logger.info(`Loyalty event tracked for patient: ${prescription.patientId}`);
+                } catch (loyaltyError) {
+                    // Log error but don't fail the sale
+                    logger.error('Failed to track loyalty event:', loyaltyError);
+                }
+            }
+
+            return {
+                ...result.sale,
+                items: result.items,
+                paymentSplits: result.payments,
+            };
+        } catch (error) {
+            logger.error('createSaleFromDispense: Error creating sale', {
+                error: error.message,
+                stack: error.stack,
+                dispenseId,
+                userId
+            });
+            throw error;
+        }
     }
 
     /**
@@ -161,63 +191,106 @@ class SaleService {
      * Auto-creates minimal ONE_TIME prescription in background
      */
     async createQuickSale(saleData, userId) {
-        const { items, paymentSplits, patientId, ...saleInfo } = saleData;
+        try {
+            const { items, paymentSplits, patientId, ...saleInfo } = saleData;
 
-        // 1. Create minimal ONE_TIME prescription in background
-        const prescriptionData = {
-            storeId: saleInfo.storeId,
-            patientId: patientId || null, // Optional for quick sales
-            type: 'ONE_TIME',
-            totalRefills: 0, // No refills for quick sales
-            expiryDate: new Date(Date.now() + 24 * 60 * 60 * 1000), // Expires in 24 hours
-            items: items.map(item => ({
-                drugId: item.drugId,
-                batchId: item.batchId,
-                quantity: item.quantity,
-                sig: 'As directed', // Default instruction
-                substitutionAllowed: true
-            })),
-            instructions: 'Quick Sale - Walk-in customer'
-        };
+            logger.info('createQuickSale: Starting quick sale creation', { storeId: saleInfo.storeId, userId, itemCount: items.length });
 
-        const prescription = await prescriptionService.createPrescription(prescriptionData, userId);
-
-        // 2. Auto-activate prescription
-        await prescriptionService.activatePrescription(prescription.id, userId);
-
-        // 3. Get refill and create dispense
-        const refill = await refillService.getNextAvailableRefill(prescription.id);
-        const version = await versionService.getLatestVersion(prescription.id);
-
-        const dispense = await dispenseService.createDispense(
-            refill.id,
-            version.id,
-            userId
-        );
-
-        // 4. Auto-progress dispense to READY (skip workflow for quick sales)
-        await dispenseService.updateStatus(dispense.id, 'READY', userId, 'Quick Sale - Auto-progressed');
-
-        // 5. Create sale from dispense
-        return await this.createSaleFromDispense(
-            dispense.id,
-            {
-                ...saleInfo,
-                itemPrices: items.reduce((acc, item) => ({
-                    ...acc,
-                    [item.drugId]: {
-                        mrp: item.mrp,
-                        discount: item.discount || 0
+            // Ensure we have a patient (create walk-in if not provided)
+            let actualPatientId = patientId;
+            if (!actualPatientId) {
+                logger.info('createQuickSale: Creating walk-in patient');
+                // Create a walk-in patient
+                const walkInPatient = await prisma.patient.create({
+                    data: {
+                        storeId: saleInfo.storeId,
+                        firstName: 'Walk-in',
+                        lastName: 'Customer',
+                        phoneNumber: `WALKIN-${Date.now()}`
                     }
-                }), {}),
-                batches: items.reduce((acc, item) => ({
-                    ...acc,
-                    [item.drugId]: item.batchId
-                }), {}),
-                paymentSplits
-            },
-            userId
-        );
+                });
+                actualPatientId = walkInPatient.id;
+                logger.info('createQuickSale: Walk-in patient created', { patientId: actualPatientId });
+            }
+
+            // 1. Create minimal ONE_TIME prescription in background
+            logger.info('createQuickSale: Creating ONE_TIME prescription');
+            const prescriptionData = {
+                storeId: saleInfo.storeId,
+                patientId: actualPatientId,
+                type: 'ONE_TIME',
+                totalRefills: 0, // No refills for quick sales
+                expiryDate: new Date(Date.now() + 24 * 60 * 60 * 1000), // Expires in 24 hours
+                items: items.map(item => ({
+                    drugId: item.drugId,
+                    batchId: item.batchId,
+                    quantity: item.quantity,
+                    sig: 'As directed', // Default instruction
+                    substitutionAllowed: true
+                })),
+                instructions: 'Quick Sale - Walk-in customer'
+            };
+
+            const prescription = await prescriptionService.createPrescription(prescriptionData, userId);
+            logger.info('createQuickSale: Prescription created', { prescriptionId: prescription.id });
+
+            // 2. Auto-activate prescription
+            logger.info('createQuickSale: Activating prescription');
+            await prescriptionService.activatePrescription(prescription.id, userId);
+            logger.info('createQuickSale: Prescription activated');
+
+            // 3. Get refill and create dispense
+            logger.info('createQuickSale: Getting refill and version');
+            const refill = await refillService.getNextAvailableRefill(prescription.id);
+            const version = await versionService.getLatestVersion(prescription.id);
+            logger.info('createQuickSale: Got refill and version', { refillId: refill.id, versionId: version.id });
+
+            logger.info('createQuickSale: Creating dispense');
+            const dispense = await dispenseService.createDispense(
+                refill.id,
+                version.id,
+                userId
+            );
+            logger.info('createQuickSale: Dispense created', { dispenseId: dispense.id });
+
+            // 4. Auto-progress dispense to READY (skip workflow for quick sales)
+            logger.info('createQuickSale: Marking dispense as READY');
+            await dispenseService.updateStatus(dispense.id, 'READY', userId, 'Quick Sale - Auto-progressed');
+            logger.info('createQuickSale: Dispense marked as READY');
+
+            // 5. Create sale from dispense
+            logger.info('createQuickSale: Creating sale from dispense');
+            const sale = await this.createSaleFromDispense(
+                dispense.id,
+                {
+                    ...saleInfo,
+                    itemPrices: items.reduce((acc, item) => ({
+                        ...acc,
+                        [item.drugId]: {
+                            mrp: item.mrp,
+                            discount: item.discount || 0
+                        }
+                    }), {}),
+                    batches: items.reduce((acc, item) => ({
+                        ...acc,
+                        [item.drugId]: item.batchId
+                    }), {}),
+                    paymentSplits
+                },
+                userId
+            );
+            logger.info('createQuickSale: Sale created successfully', { saleId: sale.id, invoiceNumber: sale.invoiceNumber });
+
+            return sale;
+        } catch (error) {
+            logger.error('createQuickSale: Error in quick sale creation', {
+                error: error.message,
+                stack: error.stack,
+                storeId: saleData.storeId,
+                userId
+            });
+            throw error;
+        }
     }
 
     /**

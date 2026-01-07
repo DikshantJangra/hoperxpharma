@@ -1,8 +1,8 @@
-const database = require('../config/database');
+
 const logger = require('../config/logger');
 const { buildOrderBy } = require('../utils/queryParser');
 
-const prisma = database.getClient();
+const prisma = require('../db/prisma');
 
 /**
  * Inventory Repository - Data access layer for inventory operations
@@ -325,11 +325,11 @@ class InventoryRepository {
         logger.info('🔍 Repository: fetching low stock items for store:', storeId);
         try {
             const result = await prisma.$queryRaw`
-                SELECT 
-                    d.id as "drugId",
-                    d.name,
-                    d."lowStockThreshold",
-                    SUM(ib."quantityInStock") as "totalStock"
+SELECT
+d.id as "drugId",
+    d.name,
+    d."lowStockThreshold",
+        SUM(ib."quantityInStock") as "totalStock"
                 FROM "Drug" d
                 INNER JOIN "InventoryBatch" ib ON ib."drugId" = d.id
                 WHERE ib."storeId" = ${storeId}
@@ -379,10 +379,10 @@ class InventoryRepository {
      */
     async getInventoryValue(storeId) {
         const result = await prisma.$queryRaw`
-      SELECT 
-        SUM(ib."quantityInStock" * ib."purchasePrice") as "totalValue",
-        COUNT(DISTINCT ib."drugId") as "uniqueDrugs",
-        SUM(ib."quantityInStock") as "totalUnits"
+SELECT
+SUM(ib."quantityInStock" * ib."purchasePrice") as "totalValue",
+    COUNT(DISTINCT ib."drugId") as "uniqueDrugs",
+    SUM(ib."quantityInStock") as "totalUnits"
       FROM "InventoryBatch" ib
       WHERE ib."storeId" = ${storeId}
         AND ib."deletedAt" IS NULL

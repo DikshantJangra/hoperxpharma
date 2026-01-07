@@ -1,5 +1,20 @@
 const { PrismaClient } = require("@prisma/client");
-const prisma = new PrismaClient({
-    log: ['error', 'warn']
+
+let prisma = null;
+
+function getPrismaClient() {
+    if (!prisma) {
+        prisma = new PrismaClient({
+            log: ['error', 'warn']
+        });
+    }
+    return prisma;
+}
+
+// Export a Proxy that lazily initializes Prisma on first property access
+module.exports = new Proxy({}, {
+    get(target, prop) {
+        const client = getPrismaClient();
+        return client[prop];
+    }
 });
-module.exports = prisma;

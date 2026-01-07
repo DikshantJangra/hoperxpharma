@@ -1,7 +1,6 @@
-const database = require('../config/database');
-const logger = require('../config/logger');
 
-const prisma = database.getClient();
+const logger = require('../config/logger');
+const prisma = require('../db/prisma');
 
 /**
  * Store Repository - Data access layer for store operations

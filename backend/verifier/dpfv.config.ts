@@ -20,7 +20,8 @@ export const defaultConfig: DPFVConfig = {
     mode: 'dev',
     verbose: true,
     stopOnFirstFailure: false,
-    outputFormat: 'console'
+    outputFormat: 'json',
+    outputFile: 'dpfv-report.json'
 };
 
 export function buildRunConfig(config: Partial<DPFVConfig> = {}): RunConfig {

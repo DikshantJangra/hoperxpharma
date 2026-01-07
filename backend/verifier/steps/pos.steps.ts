@@ -21,6 +21,13 @@ export const posSteps = {
         }
     ): Promise<StepResult> {
         try {
+            // Get storeId from context - try multiple sources
+            const storeId = ctx.storeId || ctx.get<any>('currentStore')?.id || ctx.get<string>('storeId');
+            
+            if (!storeId) {
+                throw new Error('storeId is required but not found in context');
+            }
+
             // Calculate total for payment splits
             const total = params.items.reduce((sum, item) => {
                 const basePrice = item.mrp * item.quantity;
@@ -29,7 +36,7 @@ export const posSteps = {
             }, 0);
 
             const saleData = {
-                storeId: ctx.storeId,
+                storeId,
                 patientId: params.patientId || null,
                 items: params.items.map(item => ({
                     drugId: item.drugId,
@@ -61,6 +68,7 @@ export const posSteps = {
         } catch (error: any) {
             // Log the actual error for debugging
             console.error('DPFV createQuickSale error:', error.message);
+            console.error('DPFV createQuickSale stack:', error.stack?.split('\n').slice(0, 5).join('\n'));
             return {
                 success: false,
                 error,
@@ -223,9 +231,15 @@ export const posSteps = {
     ): Promise<StepResult> {
         try {
             const saleDraftService = require('../../src/services/sales/saleDraftService');
+            
+            const storeId = ctx.storeId || ctx.get<any>('currentStore')?.id || ctx.get<string>('storeId');
+            
+            if (!storeId) {
+                throw new Error('storeId is required but not found in context');
+            }
 
             const draft = await saleDraftService.saveDraft({
-                storeId: ctx.storeId,
+                storeId,
                 patientId: params.patientId,
                 items: params.items,
                 createdBy: ctx.userId
@@ -273,8 +287,13 @@ export const posSteps = {
     async processRefund(ctx: ScenarioContext, saleId?: string): Promise<StepResult> {
         try {
             const saleRefundService = require('../../src/services/sales/saleRefundService');
-            // Ensure sale exists or get from context
             const salesService = require('../../src/services/sales/saleService');
+            
+            const storeId = ctx.storeId || ctx.get<any>('currentStore')?.id || ctx.get<string>('storeId');
+            
+            if (!storeId) {
+                throw new Error('storeId is required but not found in context');
+            }
 
             const id = saleId || ctx.get<any>('sale').id;
             const sale = await salesService.getSaleById(id);
@@ -292,7 +311,7 @@ export const posSteps = {
                 items: refundItems,
                 reason: 'Defective Product',
                 requestedBy: ctx.userId,
-                storeId: ctx.storeId
+                storeId
             });
 
             // 2. Approve

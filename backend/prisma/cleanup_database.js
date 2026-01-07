@@ -1,695 +1,204 @@
-const { PrismaClient } = require('@prisma/client');
+// NUCLEAR Database Cleanup Script - FAST BULK VERSION
+// Deletes ALL data except for protected users and their stores
 
+const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-const TARGET_STORE_EMAIL = 'globalhopebiotech@gmail.com';
+// Protected entities
+const PROTECTED_EMAILS = [
+    'globalhopebiotech@gmail.com',
+    'hoperxpharma@gmail.com',
+    'dikshantjangra1@gmail.com'
+];
+const PROTECTED_PHONES = ['9812080390'];
 
 async function main() {
-    console.log('🧹 Starting database cleanup...\n');
-    console.log(`Target store email: ${TARGET_STORE_EMAIL}\n`);
+    console.log('🧹 FAST NUCLEAR database cleanup...\n');
 
     try {
-        // Step 1: Find the target store
-        console.log('Step 1: Finding target store...');
-        const targetStore = await prisma.store.findUnique({
-            where: { email: TARGET_STORE_EMAIL },
-            include: {
-                users: {
-                    include: {
-                        user: true
-                    }
-                }
-            }
-        });
-
-        if (!targetStore) {
-            throw new Error(`❌ Store with email ${TARGET_STORE_EMAIL} not found!`);
-        }
-
-        console.log(`✅ Found target store: ${targetStore.name} (ID: ${targetStore.id})\n`);
-
-        // Get user IDs associated with the target store
-        const targetStoreUserIds = targetStore.users.map(su => su.userId);
-        console.log(`Target store has ${targetStoreUserIds.length} associated users\n`);
-
-        // Step 2: Find all other stores
-        console.log('Step 2: Finding stores to delete...');
-        const storesToDelete = await prisma.store.findMany({
+        // Step 1: Get protected user and store IDs
+        console.log('Step 1: Identifying protected entities...');
+        const protectedUsers = await prisma.user.findMany({
             where: {
-                id: {
-                    not: targetStore.id
-                }
+                OR: [
+                    { email: { in: PROTECTED_EMAILS } },
+                    { phoneNumber: { in: PROTECTED_PHONES } }
+                ]
             },
-            select: {
-                id: true,
-                name: true,
-                email: true
-            }
+            select: { id: true, email: true }
         });
 
-        console.log(`Found ${storesToDelete.length} stores to delete:`);
-        storesToDelete.forEach(store => {
-            console.log(`  - ${store.name} (${store.email})`);
-        });
-        console.log('');
-
-        if (storesToDelete.length === 0) {
-            console.log('✅ No other stores to delete. Database is already clean!\n');
-        } else {
-            // Step 3: Delete all related data for each store before deleting the store
-            console.log('Step 3: Deleting stores and their related data...\n');
-
-            for (const store of storesToDelete) {
-                console.log(`  Processing store: ${store.name}...`);
-
-                // Delete in order to respect foreign key constraints
-
-                // 1. Delete Prescriptions and related data
-                const prescriptions = await prisma.prescription.findMany({
-                    where: { storeId: store.id },
-                    select: { id: true }
-                });
-
-                if (prescriptions.length > 0) {
-                    const prescriptionIds = prescriptions.map(p => p.id);
-
-                    // Delete prescription files
-                    await prisma.prescriptionFile.deleteMany({
-                        where: { prescriptionId: { in: prescriptionIds } }
-                    });
-
-                    // Delete dispense events and items
-                    const dispenseEvents = await prisma.dispenseEvent.findMany({
-                        where: { prescriptionId: { in: prescriptionIds } },
-                        select: { id: true }
-                    });
-
-                    if (dispenseEvents.length > 0) {
-                        await prisma.dispenseItem.deleteMany({
-                            where: { dispenseEventId: { in: dispenseEvents.map(d => d.id) } }
-                        });
-                        await prisma.dispenseEvent.deleteMany({
-                            where: { prescriptionId: { in: prescriptionIds } }
-                        });
-                    }
-
-                    // Delete prescription items
-                    await prisma.prescriptionItem.deleteMany({
-                        where: { prescriptionId: { in: prescriptionIds } }
-                    });
-
-                    // Delete prescriptions
-                    await prisma.prescription.deleteMany({
-                        where: { id: { in: prescriptionIds } }
-                    });
-
-                    console.log(`    ✅ Deleted ${prescriptions.length} prescriptions`);
-                }
-
-                // 2. Delete Sales and related data
-                const sales = await prisma.sale.findMany({
-                    where: { storeId: store.id },
-                    select: { id: true }
-                });
-
-                if (sales.length > 0) {
-                    const saleIds = sales.map(s => s.id);
-
-                    // Delete invoice allocations
-                    await prisma.invoiceAllocation.deleteMany({
-                        where: { saleId: { in: saleIds } }
-                    });
-
-                    // Delete payment splits
-                    await prisma.paymentSplit.deleteMany({
-                        where: { saleId: { in: saleIds } }
-                    });
-
-                    // Delete sale items
-                    await prisma.saleItem.deleteMany({
-                        where: { saleId: { in: saleIds } }
-                    });
-
-                    // Delete sale refunds and items
-                    const refunds = await prisma.saleRefund.findMany({
-                        where: { storeId: store.id },
-                        select: { id: true }
-                    });
-
-                    if (refunds.length > 0) {
-                        await prisma.saleRefundItem.deleteMany({
-                            where: { refundId: { in: refunds.map(r => r.id) } }
-                        });
-                        await prisma.saleRefund.deleteMany({
-                            where: { id: { in: refunds.map(r => r.id) } }
-                        });
-                    }
-
-                    // Delete IRN records
-                    await prisma.iRN.deleteMany({
-                        where: { saleId: { in: saleIds } }
-                    });
-
-                    // Delete sales
-                    await prisma.sale.deleteMany({
-                        where: { id: { in: saleIds } }
-                    });
-
-                    console.log(`    ✅ Deleted ${sales.length} sales`);
-                }
-
-                // 3. Delete Purchase Orders and related data
-                const purchaseOrders = await prisma.purchaseOrder.findMany({
-                    where: { storeId: store.id },
-                    select: { id: true }
-                });
-
-                if (purchaseOrders.length > 0) {
-                    const poIds = purchaseOrders.map(po => po.id);
-
-                    // Delete GRNs and related data
-                    const grns = await prisma.goodsReceivedNote.findMany({
-                        where: { poId: { in: poIds } },
-                        select: { id: true }
-                    });
-
-                    if (grns.length > 0) {
-                        const grnIds = grns.map(g => g.id);
-
-                        // Delete consolidated invoice GRNs
-                        await prisma.consolidatedInvoiceGRN.deleteMany({
-                            where: { grnId: { in: grnIds } }
-                        });
-
-                        // Delete GRN attachments
-                        await prisma.gRNAttachment.deleteMany({
-                            where: { grnId: { in: grnIds } }
-                        });
-
-                        // Delete GRN discrepancies
-                        await prisma.gRNDiscrepancy.deleteMany({
-                            where: { grnId: { in: grnIds } }
-                        });
-
-                        // Delete GRN items
-                        await prisma.gRNItem.deleteMany({
-                            where: { grnId: { in: grnIds } }
-                        });
-
-                        // Delete GRNs
-                        await prisma.goodsReceivedNote.deleteMany({
-                            where: { id: { in: grnIds } }
-                        });
-                    }
-
-                    // Delete supplier returns
-                    const returns = await prisma.supplierReturn.findMany({
-                        where: { poId: { in: poIds } },
-                        select: { id: true }
-                    });
-
-                    if (returns.length > 0) {
-                        await prisma.supplierReturnItem.deleteMany({
-                            where: { returnId: { in: returns.map(r => r.id) } }
-                        });
-                        await prisma.supplierReturn.deleteMany({
-                            where: { id: { in: returns.map(r => r.id) } }
-                        });
-                    }
-
-                    // Delete PO attachments
-                    await prisma.pOAttachment.deleteMany({
-                        where: { purchaseOrderId: { in: poIds } }
-                    });
-
-                    // Delete PO receipts
-                    await prisma.pOReceipt.deleteMany({
-                        where: { poId: { in: poIds } }
-                    });
-
-                    // Delete PO items
-                    await prisma.purchaseOrderItem.deleteMany({
-                        where: { poId: { in: poIds } }
-                    });
-
-                    // Delete purchase orders
-                    await prisma.purchaseOrder.deleteMany({
-                        where: { id: { in: poIds } }
-                    });
-
-                    console.log(`    ✅ Deleted ${purchaseOrders.length} purchase orders`);
-                }
-
-                // 4. Delete Consolidated Invoices
-                const consolidatedInvoices = await prisma.consolidatedInvoice.findMany({
-                    where: { storeId: store.id },
-                    select: { id: true }
-                });
-
-                if (consolidatedInvoices.length > 0) {
-                    const invoiceIds = consolidatedInvoices.map(ci => ci.id);
-
-                    await prisma.consolidatedInvoiceItem.deleteMany({
-                        where: { consolidatedInvoiceId: { in: invoiceIds } }
-                    });
-
-                    await prisma.consolidatedInvoice.deleteMany({
-                        where: { id: { in: invoiceIds } }
-                    });
-
-                    console.log(`    ✅ Deleted ${consolidatedInvoices.length} consolidated invoices`);
-                }
-
-                // 5. Delete Inventory and related data
-                const inventoryBatches = await prisma.inventoryBatch.findMany({
-                    where: { storeId: store.id },
-                    select: { id: true }
-                });
-
-                if (inventoryBatches.length > 0) {
-                    const batchIds = inventoryBatches.map(b => b.id);
-
-                    // Delete stock movements
-                    await prisma.stockMovement.deleteMany({
-                        where: { batchId: { in: batchIds } }
-                    });
-
-                    // Delete inventory batches
-                    await prisma.inventoryBatch.deleteMany({
-                        where: { id: { in: batchIds } }
-                    });
-
-                    console.log(`    ✅ Deleted ${inventoryBatches.length} inventory batches`);
-                }
-
-                // 6. Delete Suppliers (suppliers are store-specific)
-                const deletedSuppliers = await prisma.supplier.deleteMany({
-                    where: { storeId: store.id }
-                });
-
-                if (deletedSuppliers.count > 0) {
-                    console.log(`    ✅ Deleted ${deletedSuppliers.count} suppliers`);
-                }
-
-                // 6.5. Transfer drugs to target store (since drugs may be shared via inventory batches)
-                // This prevents cascade delete issues when deleting the store
-                const drugsToTransfer = await prisma.drug.updateMany({
-                    where: { storeId: store.id },
-                    data: { storeId: targetStore.id }
-                });
-
-                if (drugsToTransfer.count > 0) {
-                    console.log(`    ℹ️  Transferred ${drugsToTransfer.count} drugs to target store`);
-                }
-
-                // 7. Delete Patients and related data
-                const patients = await prisma.patient.findMany({
-                    where: { storeId: store.id },
-                    select: { id: true }
-                });
-
-                if (patients.length > 0) {
-                    const patientIds = patients.map(p => p.id);
-
-                    // Delete customer ledger
-                    await prisma.customerLedger.deleteMany({
-                        where: { patientId: { in: patientIds } }
-                    });
-
-                    // Delete patient audit logs
-                    await prisma.patientAudit.deleteMany({
-                        where: { patientId: { in: patientIds } }
-                    });
-
-                    // Delete patient adherence
-                    await prisma.patientAdherence.deleteMany({
-                        where: { patientId: { in: patientIds } }
-                    });
-
-                    // Delete patient insurance
-                    await prisma.patientInsurance.deleteMany({
-                        where: { patientId: { in: patientIds } }
-                    });
-
-                    // Delete patient consents
-                    await prisma.patientConsent.deleteMany({
-                        where: { patientId: { in: patientIds } }
-                    });
-
-                    // Delete patients
-                    await prisma.patient.deleteMany({
-                        where: { id: { in: patientIds } }
-                    });
-
-                    console.log(`    ✅ Deleted ${patients.length} patients`);
-                }
-
-                // 9. Delete Prescribers
-                await prisma.prescriber.deleteMany({
-                    where: { storeId: store.id }
-                });
-
-                // 10. Delete WhatsApp data
-                const whatsappAccount = await prisma.whatsAppAccount.findUnique({
-                    where: { storeId: store.id },
-                    select: { id: true }
-                });
-
-                if (whatsappAccount) {
-                    const conversations = await prisma.conversation.findMany({
-                        where: { storeId: store.id },
-                        select: { id: true }
-                    });
-
-                    if (conversations.length > 0) {
-                        await prisma.message.deleteMany({
-                            where: { conversationId: { in: conversations.map(c => c.id) } }
-                        });
-                        await prisma.conversation.deleteMany({
-                            where: { id: { in: conversations.map(c => c.id) } }
-                        });
-                    }
-
-                    await prisma.whatsAppTemplate.deleteMany({
-                        where: { whatsappAccountId: whatsappAccount.id }
-                    });
-
-                    await prisma.whatsAppAccount.delete({
-                        where: { id: whatsappAccount.id }
-                    });
-                }
-
-                // 11. Delete Campaigns
-                await prisma.campaign.deleteMany({
-                    where: { storeId: store.id }
-                });
-
-                // 12. Delete Expenses
-                await prisma.expense.deleteMany({
-                    where: { storeId: store.id }
-                });
-
-                // 13. Delete Sale Drafts
-                await prisma.saleDraft.deleteMany({
-                    where: { storeId: store.id }
-                });
-
-                // 14. Delete Alerts
-                await prisma.alert.deleteMany({
-                    where: { storeId: store.id }
-                });
-
-                // 15. Delete Audit Logs
-                await prisma.auditLog.deleteMany({
-                    where: { storeId: store.id }
-                });
-
-                // 16. Delete HR data
-                await prisma.attendanceLog.deleteMany({
-                    where: { storeId: store.id }
-                });
-
-                await prisma.shift.deleteMany({
-                    where: { storeId: store.id }
-                });
-
-                await prisma.performanceMetric.deleteMany({
-                    where: { storeId: store.id }
-                });
-
-                // 17. Delete custom roles
-                await prisma.role.deleteMany({
-                    where: { storeId: store.id }
-                });
-
-                // 18. Delete user role assignments
-                await prisma.userRoleAssignment.deleteMany({
-                    where: { storeId: store.id }
-                });
-
-                // 19. Delete store users
-                await prisma.storeUser.deleteMany({
-                    where: { storeId: store.id }
-                });
-
-                // Now delete the store (cascade will handle remaining relations)
-                await prisma.store.delete({
-                    where: { id: store.id }
-                });
-
-                console.log(`  ✅ Deleted store: ${store.name}\n`);
-            }
-        }
-        // Step 4: Clean up orphaned users (users not associated with the target store)
-        console.log('Step 4: Finding orphaned users...');
-        const orphanedUsers = await prisma.user.findMany({
-            where: {
-                id: {
-                    notIn: targetStoreUserIds
-                }
-            },
-            select: {
-                id: true,
-                email: true,
-                firstName: true,
-                lastName: true
-            }
-        });
-
-        console.log(`Found ${orphanedUsers.length} orphaned users to delete:`);
-        orphanedUsers.forEach(user => {
-            console.log(`  - ${user.firstName} ${user.lastName} (${user.email})`);
-        });
-        console.log('');
-
-        if (orphanedUsers.length > 0) {
-            console.log('Deleting orphaned users...');
-            for (const user of orphanedUsers) {
-                // Delete access logs first
-                await prisma.accessLog.deleteMany({
-                    where: { userId: user.id }
-                });
-
-                // Delete saved filters
-                await prisma.savedFilter.deleteMany({
-                    where: { userId: user.id }
-                });
-
-                // Delete user avatars
-                await prisma.userAvatar.deleteMany({
-                    where: { userId: user.id }
-                });
-
-                // Now delete the user
-                await prisma.user.delete({
-                    where: { id: user.id }
-                });
-                console.log(`  ✅ Deleted user: ${user.email}`);
-            }
-            console.log('');
+        if (protectedUsers.length === 0) {
+            console.log('❌ SAFETY: No protected users found. Aborting!');
+            return;
         }
 
-        // Step 5: Clean up global data that might not be store-specific
-        console.log('Step 5: Cleaning up global data...');
+        const protectedUserIds = protectedUsers.map(u => u.id);
+        console.log(`✅ Protected ${protectedUsers.length} users`);
 
-        // Clean up InteractionCheckLog for non-existent stores
-        const deletedInteractionLogs = await prisma.interactionCheckLog.deleteMany({
-            where: {
-                storeId: {
-                    not: targetStore.id
+        const protectedStores = await prisma.storeUser.findMany({
+            where: { userId: { in: protectedUserIds } },
+            select: { storeId: true }
+        });
+        const protectedStoreIds = [...new Set(protectedStores.map(s => s.storeId))];
+        console.log(`✅ Protected ${protectedStoreIds.length} stores`);
+
+        // Step 2: BULK delete all unprotected data
+        console.log('\nStep 2: BULK deleting unprotected data...');
+
+        // Use raw SQL for maximum speed
+        const storeIdList = protectedStoreIds.length > 0
+            ? `'${protectedStoreIds.join("','")}'`
+            : "''";
+        const userIdList = protectedUserIds.length > 0
+            ? `'${protectedUserIds.join("','")}'`
+            : "''";
+
+        // Delete in correct order (children first)
+        const deleteQueries = [
+            // Sales chain
+            `DELETE FROM "IRN" WHERE "saleId" IN (SELECT id FROM "Sale" WHERE "storeId" NOT IN (${storeIdList}))`,
+            `DELETE FROM "InvoiceAllocation" WHERE "saleId" IN (SELECT id FROM "Sale" WHERE "storeId" NOT IN (${storeIdList}))`,
+            `DELETE FROM "PaymentSplit" WHERE "saleId" IN (SELECT id FROM "Sale" WHERE "storeId" NOT IN (${storeIdList}))`,
+            `DELETE FROM "SaleItem" WHERE "saleId" IN (SELECT id FROM "Sale" WHERE "storeId" NOT IN (${storeIdList}))`,
+            `DELETE FROM "SaleRefundItem" WHERE "refundId" IN (SELECT id FROM "SaleRefund" WHERE "storeId" NOT IN (${storeIdList}))`,
+            `DELETE FROM "SaleRefund" WHERE "storeId" NOT IN (${storeIdList})`,
+            `DELETE FROM "Sale" WHERE "storeId" NOT IN (${storeIdList})`,
+            `DELETE FROM "SaleDraft" WHERE "storeId" NOT IN (${storeIdList})`,
+
+            // Prescription chain
+            `DELETE FROM "PrescriptionFile" WHERE "prescriptionId" IN (SELECT id FROM "Prescription" WHERE "storeId" NOT IN (${storeIdList}))`,
+            `DELETE FROM "DispenseItem" WHERE "dispenseEventId" IN (SELECT id FROM "DispenseEvent" WHERE "prescriptionId" IN (SELECT id FROM "Prescription" WHERE "storeId" NOT IN (${storeIdList})))`,
+            `DELETE FROM "DispenseEvent" WHERE "prescriptionId" IN (SELECT id FROM "Prescription" WHERE "storeId" NOT IN (${storeIdList}))`,
+            `DELETE FROM "PrescriptionItem" WHERE "prescriptionId" IN (SELECT id FROM "Prescription" WHERE "storeId" NOT IN (${storeIdList}))`,
+            `DELETE FROM "Prescription" WHERE "storeId" NOT IN (${storeIdList})`,
+
+            // GRN chain
+            `DELETE FROM "grn_attachments" WHERE "grnId" IN (SELECT id FROM "GoodsReceivedNote" WHERE "storeId" NOT IN (${storeIdList}))`,
+            `DELETE FROM "grn_discrepancies" WHERE "grnId" IN (SELECT id FROM "GoodsReceivedNote" WHERE "storeId" NOT IN (${storeIdList}))`,
+            `DELETE FROM "GRNItem" WHERE "grnId" IN (SELECT id FROM "GoodsReceivedNote" WHERE "storeId" NOT IN (${storeIdList}))`,
+            `DELETE FROM "consolidated_invoice_grns" WHERE "grnId" IN (SELECT id FROM "GoodsReceivedNote" WHERE "storeId" NOT IN (${storeIdList}))`,
+            `DELETE FROM "GoodsReceivedNote" WHERE "storeId" NOT IN (${storeIdList})`,
+
+            // PO chain
+            `DELETE FROM "SupplierReturnItem" WHERE "returnId" IN (SELECT id FROM "SupplierReturn" WHERE "storeId" NOT IN (${storeIdList}))`,
+            `DELETE FROM "SupplierReturn" WHERE "storeId" NOT IN (${storeIdList})`,
+            `DELETE FROM "po_attachments" WHERE "purchaseOrderId" IN (SELECT id FROM "PurchaseOrder" WHERE "storeId" NOT IN (${storeIdList}))`,
+            `DELETE FROM "POReceipt" WHERE "poId" IN (SELECT id FROM "PurchaseOrder" WHERE "storeId" NOT IN (${storeIdList}))`,
+            `DELETE FROM "PurchaseOrderItem" WHERE "poId" IN (SELECT id FROM "PurchaseOrder" WHERE "storeId" NOT IN (${storeIdList}))`,
+            `DELETE FROM "PurchaseOrder" WHERE "storeId" NOT IN (${storeIdList})`,
+
+            // Consolidated Invoices
+            `DELETE FROM "consolidated_invoice_items" WHERE "consolidatedInvoiceId" IN (SELECT id FROM "consolidated_invoices" WHERE "storeId" NOT IN (${storeIdList}))`,
+            `DELETE FROM "consolidated_invoices" WHERE "storeId" NOT IN (${storeIdList})`,
+
+            // Inventory
+            `DELETE FROM "StockMovement" WHERE "batchId" IN (SELECT id FROM "InventoryBatch" WHERE "storeId" NOT IN (${storeIdList}))`,
+            `DELETE FROM "InventoryBatch" WHERE "storeId" NOT IN (${storeIdList})`,
+            `DELETE FROM "StockAlert" WHERE "storeId" NOT IN (${storeIdList})`,
+            `DELETE FROM "StockAdjustment" WHERE "storeId" NOT IN (${storeIdList})`,
+            `DELETE FROM "InventoryCount" WHERE "storeId" NOT IN (${storeIdList})`,
+            `DELETE FROM "InventoryForecast" WHERE "storeId" NOT IN (${storeIdList})`,
+
+            // Supplier
+            `DELETE FROM "SupplierLicense" WHERE "supplierId" IN (SELECT id FROM "Supplier" WHERE "storeId" NOT IN (${storeIdList}))`,
+            `DELETE FROM "Supplier" WHERE "storeId" NOT IN (${storeIdList})`,
+
+            // Patient chain
+            `DELETE FROM "PatientAudit" WHERE "patientId" IN (SELECT id FROM "Patient" WHERE "storeId" NOT IN (${storeIdList}))`,
+            `DELETE FROM "PatientAdherence" WHERE "patientId" IN (SELECT id FROM "Patient" WHERE "storeId" NOT IN (${storeIdList}))`,
+            `DELETE FROM "PatientInsurance" WHERE "patientId" IN (SELECT id FROM "Patient" WHERE "storeId" NOT IN (${storeIdList}))`,
+            `DELETE FROM "PatientConsent" WHERE "patientId" IN (SELECT id FROM "Patient" WHERE "storeId" NOT IN (${storeIdList}))`,
+            `DELETE FROM "CustomerLedger" WHERE "patientId" IN (SELECT id FROM "Patient" WHERE "storeId" NOT IN (${storeIdList}))`,
+            `DELETE FROM "LoyaltyProfile" WHERE "patientId" IN (SELECT id FROM "Patient" WHERE "storeId" NOT IN (${storeIdList}))`,
+            `DELETE FROM "Patient" WHERE "storeId" NOT IN (${storeIdList})`,
+            `DELETE FROM "Prescriber" WHERE "storeId" NOT IN (${storeIdList})`,
+
+            // WhatsApp
+            `DELETE FROM "Message" WHERE "conversationId" IN (SELECT id FROM "Conversation" WHERE "storeId" NOT IN (${storeIdList}))`,
+            `DELETE FROM "Conversation" WHERE "storeId" NOT IN (${storeIdList})`,
+            `DELETE FROM "WhatsAppTemplate" WHERE "whatsappAccountId" IN (SELECT id FROM "WhatsAppAccount" WHERE "storeId" NOT IN (${storeIdList}))`,
+            `DELETE FROM "WhatsAppOutboundQueue" WHERE "storeId" NOT IN (${storeIdList})`,
+            `DELETE FROM "WhatsAppFlow" WHERE "storeId" NOT IN (${storeIdList})`,
+            `DELETE FROM "WhatsAppAccount" WHERE "storeId" NOT IN (${storeIdList})`,
+
+            // Communications & Settings
+            `DELETE FROM "Campaign" WHERE "storeId" NOT IN (${storeIdList})`,
+            `DELETE FROM "EmailAccount" WHERE "storeId" NOT IN (${storeIdList})`,
+            `DELETE FROM "HardwareDevice" WHERE "storeId" NOT IN (${storeIdList})`,
+
+            // Admin/HR
+            `DELETE FROM "Expense" WHERE "storeId" NOT IN (${storeIdList})`,
+            `DELETE FROM "Alert" WHERE "storeId" NOT IN (${storeIdList})`,
+            `DELETE FROM "AlertPreference" WHERE "storeId" NOT IN (${storeIdList})`,
+            `DELETE FROM "AuditLog" WHERE "storeId" NOT IN (${storeIdList})`,
+            `DELETE FROM "AttendanceLog" WHERE "storeId" NOT IN (${storeIdList})`,
+            `DELETE FROM "Shift" WHERE "storeId" NOT IN (${storeIdList})`,
+            `DELETE FROM "PerformanceMetric" WHERE "storeId" NOT IN (${storeIdList})`,
+
+            // Store Config
+            `DELETE FROM "UsageQuota" WHERE "subscriptionId" IN (SELECT id FROM "Subscription" WHERE "storeId" NOT IN (${storeIdList}))`,
+            `DELETE FROM "Payment" WHERE "storeId" NOT IN (${storeIdList})`,
+            `DELETE FROM "Subscription" WHERE "storeId" NOT IN (${storeIdList})`,
+            `DELETE FROM "StoreSettings" WHERE "storeId" NOT IN (${storeIdList})`,
+            `DELETE FROM "StoreOperatingHours" WHERE "storeId" NOT IN (${storeIdList})`,
+            `DELETE FROM "StoreLicense" WHERE "storeId" NOT IN (${storeIdList})`,
+
+            // Users & Roles
+            `DELETE FROM "UserRoleAssignment" WHERE "storeId" NOT IN (${storeIdList})`,
+            `DELETE FROM "RolePermission" WHERE "roleId" IN (SELECT id FROM "Role" WHERE "storeId" NOT IN (${storeIdList}))`,
+            `DELETE FROM "Role" WHERE "storeId" IS NOT NULL AND "storeId" NOT IN (${storeIdList})`,
+            `DELETE FROM "StoreUser" WHERE "storeId" NOT IN (${storeIdList})`,
+
+            // Delete Stores
+            `DELETE FROM "Store" WHERE id NOT IN (${storeIdList})`,
+
+            // Orphaned Users
+            `DELETE FROM "OnboardingProgress" WHERE "userId" NOT IN (${userIdList})`,
+            `DELETE FROM "AdminPin" WHERE "userId" NOT IN (${userIdList})`,
+            `DELETE FROM "AuditLog" WHERE "userId" NOT IN (${userIdList})`,
+            `DELETE FROM "AccessLog" WHERE "userId" NOT IN (${userIdList})`,
+            `DELETE FROM "SavedFilter" WHERE "userId" NOT IN (${userIdList})`,
+            `DELETE FROM "UserAvatar" WHERE "userId" NOT IN (${userIdList})`,
+            `DELETE FROM "UserRoleAssignment" WHERE "userId" NOT IN (${userIdList})`,
+            `DELETE FROM "AttendanceLog" WHERE "userId" NOT IN (${userIdList})`,
+            `DELETE FROM "StaffDocument" WHERE "userId" NOT IN (${userIdList})`,
+            `DELETE FROM "PerformanceMetric" WHERE "userId" NOT IN (${userIdList})`,
+            `DELETE FROM "AlertPreference" WHERE "userId" NOT IN (${userIdList})`,
+            `DELETE FROM "StoreUser" WHERE "userId" NOT IN (${userIdList})`,
+            `DELETE FROM "User" WHERE id NOT IN (${userIdList})`,
+        ];
+
+        let count = 0;
+        for (const query of deleteQueries) {
+            try {
+                await prisma.$executeRawUnsafe(query);
+                count++;
+                if (count % 10 === 0) {
+                    process.stdout.write(`  ${count}/${deleteQueries.length} done...\r`);
+                }
+            } catch (e) {
+                // Ignore "table doesn't exist" or "column doesn't exist" errors
+                if (!e.message.includes('does not exist') && !e.message.includes('P2021')) {
+                    console.log(`  ⚠️ Query ${count}: ${e.message.split('\n')[0]}`);
                 }
             }
-        });
-        console.log(`  ✅ Deleted ${deletedInteractionLogs.count} interaction check logs`);
+        }
 
-        // Clean up StockAlert for non-existent stores
-        const deletedStockAlerts = await prisma.stockAlert.deleteMany({
-            where: {
-                storeId: {
-                    not: targetStore.id
-                }
-            }
-        });
-        console.log(`  ✅ Deleted ${deletedStockAlerts.count} stock alerts`);
+        console.log(`\n✅ Executed ${count} cleanup queries.`);
 
-        // Clean up StockAdjustment for non-existent stores
-        const deletedStockAdjustments = await prisma.stockAdjustment.deleteMany({
-            where: {
-                storeId: {
-                    not: targetStore.id
-                }
-            }
-        });
-        console.log(`  ✅ Deleted ${deletedStockAdjustments.count} stock adjustments`);
-
-        // Clean up InventoryCount for non-existent stores
-        const deletedInventoryCounts = await prisma.inventoryCount.deleteMany({
-            where: {
-                storeId: {
-                    not: targetStore.id
-                }
-            }
-        });
-        console.log(`  ✅ Deleted ${deletedInventoryCounts.count} inventory counts`);
-
-        // Clean up InventoryForecast for non-existent stores
-        const deletedInventoryForecasts = await prisma.inventoryForecast.deleteMany({
-            where: {
-                storeId: {
-                    not: targetStore.id
-                }
-            }
-        });
-        console.log(`  ✅ Deleted ${deletedInventoryForecasts.count} inventory forecasts`);
-
-        // Clean up DispenseWorkflowStep for non-existent stores
-        const deletedWorkflowSteps = await prisma.dispenseWorkflowStep.deleteMany({
-            where: {
-                storeId: {
-                    not: targetStore.id
-                }
-            }
-        });
-        console.log(`  ✅ Deleted ${deletedWorkflowSteps.count} dispense workflow steps`);
-
-        // Clean up POTemplate for non-existent stores
-        const deletedPOTemplates = await prisma.pOTemplate.deleteMany({
-            where: {
-                storeId: {
-                    not: targetStore.id
-                }
-            }
-        });
-        console.log(`  ✅ Deleted ${deletedPOTemplates.count} PO templates`);
-
-        // Clean up Claim for non-existent stores
-        const deletedClaims = await prisma.claim.deleteMany({
-            where: {
-                storeId: {
-                    not: targetStore.id
-                }
-            }
-        });
-        console.log(`  ✅ Deleted ${deletedClaims.count} claims`);
-
-        // Clean up Reconciliation for non-existent stores
-        const deletedReconciliations = await prisma.reconciliation.deleteMany({
-            where: {
-                storeId: {
-                    not: targetStore.id
-                }
-            }
-        });
-        console.log(`  ✅ Deleted ${deletedReconciliations.count} reconciliations`);
-
-        // Clean up OCRJob for non-existent stores
-        const deletedOCRJobs = await prisma.oCRJob.deleteMany({
-            where: {
-                storeId: {
-                    not: targetStore.id
-                }
-            }
-        });
-        console.log(`  ✅ Deleted ${deletedOCRJobs.count} OCR jobs`);
-
-        // Clean up BankAccount for non-existent stores
-        const deletedBankAccounts = await prisma.bankAccount.deleteMany({
-            where: {
-                storeId: {
-                    not: targetStore.id
-                }
-            }
-        });
-        console.log(`  ✅ Deleted ${deletedBankAccounts.count} bank accounts`);
-
-        // Clean up PaymentGateway for non-existent stores
-        const deletedPaymentGateways = await prisma.paymentGateway.deleteMany({
-            where: {
-                storeId: {
-                    not: targetStore.id
-                }
-            }
-        });
-        console.log(`  ✅ Deleted ${deletedPaymentGateways.count} payment gateways`);
-
-        // Clean up GSTReturn for non-existent stores
-        const deletedGSTReturns = await prisma.gSTReturn.deleteMany({
-            where: {
-                storeId: {
-                    not: targetStore.id
-                }
-            }
-        });
-        console.log(`  ✅ Deleted ${deletedGSTReturns.count} GST returns`);
-
-        // Clean up GSTTransaction for non-existent stores
-        const deletedGSTTransactions = await prisma.gSTTransaction.deleteMany({
-            where: {
-                storeId: {
-                    not: targetStore.id
-                }
-            }
-        });
-        console.log(`  ✅ Deleted ${deletedGSTTransactions.count} GST transactions`);
-
-        // Clean up ComplianceCheck for non-existent stores
-        const deletedComplianceChecks = await prisma.complianceCheck.deleteMany({
-            where: {
-                storeId: {
-                    not: targetStore.id
-                }
-            }
-        });
-        console.log(`  ✅ Deleted ${deletedComplianceChecks.count} compliance checks`);
-
-        // Clean up WhatsAppOutboundQueue for non-existent stores
-        const deletedWhatsAppQueue = await prisma.whatsAppOutboundQueue.deleteMany({
-            where: {
-                storeId: {
-                    not: targetStore.id
-                }
-            }
-        });
-        console.log(`  ✅ Deleted ${deletedWhatsAppQueue.count} WhatsApp outbound queue items`);
-
-        // Clean up WhatsAppFlow for non-existent stores
-        const deletedWhatsAppFlows = await prisma.whatsAppFlow.deleteMany({
-            where: {
-                storeId: {
-                    not: targetStore.id
-                }
-            }
-        });
-        console.log(`  ✅ Deleted ${deletedWhatsAppFlows.count} WhatsApp flows`);
-
-        console.log('');
-
-        // Step 6: Verification
-        console.log('Step 6: Verifying cleanup...');
+        // Verify
         const remainingStores = await prisma.store.count();
         const remainingUsers = await prisma.user.count();
-
-        console.log(`  Remaining stores: ${remainingStores}`);
-        console.log(`  Remaining users: ${remainingUsers}`);
-        console.log('');
-
-        if (remainingStores === 1) {
-            console.log('✅ Database cleanup completed successfully!');
-            console.log(`✅ Only ${targetStore.name} (${TARGET_STORE_EMAIL}) remains with all its data intact.\n`);
-        } else {
-            console.log('⚠️  Warning: Expected 1 store but found ' + remainingStores);
-        }
+        console.log(`\n📊 Final Count: ${remainingStores} stores, ${remainingUsers} users`);
+        console.log('🎉 NUCLEAR cleanup completed!');
 
     } catch (error) {
-        console.error('\n❌ Error during cleanup:', error);
+        console.error('❌ Error:', error.message);
         throw error;
     } finally {
         await prisma.$disconnect();
     }
 }
 
-main()
-    .catch((error) => {
-        console.error(error);
-        process.exit(1);
-    });
+main();

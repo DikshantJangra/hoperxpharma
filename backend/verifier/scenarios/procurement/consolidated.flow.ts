@@ -51,7 +51,10 @@ export const consolidatedInvoiceScenario: Scenario = {
                     suppliers: [],
                     users: []
                 }, userId);
+                ctx.set('onboardingResult', result);
                 ctx.set('currentStore', result.store);
+                ctx.storeId = result.store.id;
+                ctx.set('storeId', result.store.id);
 
                 // 3. Supplier
                 const suppRes = await procurementSteps.createSupplier(ctx, {
@@ -68,8 +71,9 @@ export const consolidatedInvoiceScenario: Scenario = {
                 if (!suppRes.success) return suppRes;
 
                 // 4. Drug - Use correct method ensuredTestDrugExists
-                const drug = await inventorySteps.ensureTestDrugExists(ctx);
-                ctx.set('consolDrug', drug);
+                const drugRes = await inventorySteps.ensureTestDrugExists(ctx);
+                if (!drugRes.success) return drugRes;
+                ctx.set('consolDrug', drugRes.data);
 
                 return { success: true, duration: 0 };
             },

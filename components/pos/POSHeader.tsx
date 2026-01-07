@@ -1,8 +1,10 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { FiEdit2, FiCheck, FiX } from 'react-icons/fi';
+import { usePremiumTheme } from '@/lib/hooks/usePremiumTheme';
 
 export default function POSHeader({ saleId, onOpenCustomer, onOpenPrescription, activePrescription, invoiceNumber, setInvoiceNumber }: any) {
+  const { isPremium } = usePremiumTheme();
   const [syncStatus, setSyncStatus] = useState<'synced' | 'syncing' | 'offline'>('synced');
   const [isEditingInvoice, setIsEditingInvoice] = useState(false);
   const [tempInvoiceNumber, setTempInvoiceNumber] = useState('');
@@ -26,11 +28,15 @@ export default function POSHeader({ saleId, onOpenCustomer, onOpenPrescription, 
   };
 
   return (
-    <div className="bg-white border-b border-[#e2e8f0] px-3 sm:px-6 py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 shadow-sm z-10 relative">
+    <div className={`px-3 sm:px-6 py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 z-10 relative transition-colors ${isPremium
+        ? 'bg-white/80 backdrop-blur-md border-b border-emerald-500/10 shadow-sm'
+        : 'bg-white border-b border-[#e2e8f0] shadow-sm'
+      }`}>
       <div className="flex items-center gap-4">
         {/* Branch / Context */}
         {activePrescription ? (
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-indigo-600 text-white rounded-lg shadow-sm animate-in fade-in">
+          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-lg shadow-sm animate-in fade-in ${isPremium ? 'bg-emerald-600 text-white shadow-emerald-500/20' : 'bg-indigo-600 text-white'
+            }`}>
             <span className="text-xs font-medium opacity-80 uppercase tracking-wide">Dispensing For</span>
             <span className="text-sm font-bold">{activePrescription.patient?.firstName} {activePrescription.patient?.lastName}</span>
           </div>
@@ -55,11 +61,15 @@ export default function POSHeader({ saleId, onOpenCustomer, onOpenPrescription, 
 
         <button
           onClick={onOpenPrescription}
-          className="ml-2 flex items-center gap-2 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-bold hover:bg-blue-100 transition-colors border border-blue-200 uppercase tracking-wide"
+          className={`ml-2 flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors border uppercase tracking-wide ${isPremium
+              ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+              : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200'
+            }`}
           title="Import Verified Prescription (F6)"
         >
           <span>Import Rx</span>
-          <kbd className="hidden sm:inline-block px-1 py-0.5 bg-white rounded border border-blue-200 text-[10px] font-mono">F6</kbd>
+          <kbd className={`hidden sm:inline-block px-1 py-0.5 rounded border text-[10px] font-mono ${isPremium ? 'bg-emerald-100 border-emerald-200 text-emerald-800' : 'bg-white border-blue-200'
+            }`}>F6</kbd>
         </button>
       </div>
 
