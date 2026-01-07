@@ -29,7 +29,7 @@ class AlertService {
                 const duplicate = await this.findDuplicateAlert(config);
 
                 if (duplicate) {
-                    logger.info(`Duplicate alert found, skipping creation`, {
+                    logger.debug(`Duplicate alert found, skipping creation`, {
                         duplicateId: duplicate.id,
                         ruleId: config.metadata?.ruleId,
                     });
@@ -40,7 +40,7 @@ class AlertService {
                 const alert = await this.createAlert(config.storeId, config);
                 createdAlerts.push(alert);
 
-                logger.info(`Alert created from event`, {
+                logger.debug(`Alert created from event`, {
                     alertId: alert.id,
                     priority: alert.priority,
                     category: alert.category,
@@ -90,17 +90,25 @@ class AlertService {
      * Create a new alert (enhanced version)
      */
     async createAlert(storeId, alertData) {
-        // Map priority to severity if severity not provided
-        // Valid AlertSeverity values: CRITICAL, WARNING, INFO (from Prisma schema)
-        const priorityToSeverity = {
+        // Map priority/severity to valid AlertSeverity enum values: CRITICAL, WARNING, INFO
+        const toValidSeverity = {
             'CRITICAL': 'CRITICAL',
             'HIGH': 'WARNING',
             'High': 'WARNING',
             'MEDIUM': 'INFO',
-            'LOW': 'INFO'
+            'LOW': 'INFO',
+            'WARNING': 'WARNING',
+            'INFO': 'INFO'
         };
 
-        const severity = alertData.severity || priorityToSeverity[alertData.priority] || 'INFO';
+        // Normalize severity - always go through mapping to ensure valid enum
+        const rawSeverity = alertData.severity || alertData.priority || 'INFO';
+        const severity = toValidSeverity[rawSeverity] || toValidSeverity[rawSeverity.toUpperCase?.()] || 'INFO';
+
+        // Normalize priority to valid AlertPriority enum: CRITICAL, HIGH, MEDIUM, LOW
+        const validPriorities = ['CRITICAL', 'HIGH', 'MEDIUM', 'LOW'];
+        const rawPriority = (alertData.priority || 'MEDIUM').toUpperCase?.() || 'MEDIUM';
+        const priority = validPriorities.includes(rawPriority) ? rawPriority : 'MEDIUM';
 
         return await prisma.alert.create({
             data: {
@@ -108,7 +116,7 @@ class AlertService {
                 type: alertData.type || alertData.category || 'SYSTEM',
                 category: alertData.category || 'INVENTORY',
                 severity,
-                priority: alertData.priority || 'MEDIUM',
+                priority,
                 title: alertData.title,
                 description: alertData.description,
                 source: alertData.source,

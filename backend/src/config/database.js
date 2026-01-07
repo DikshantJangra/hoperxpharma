@@ -21,8 +21,9 @@ class Database {
                 },
             });
 
-            // Log queries in development
-            if (process.env.NODE_ENV === 'development') {
+            // Query logging disabled to reduce console noise
+            // Enable via LOG_QUERIES=true if needed for debugging
+            if (process.env.NODE_ENV === 'development' && process.env.LOG_QUERIES === 'true') {
                 this.prisma.$on('query', (e) => {
                     logger.debug(`Query: ${e.query}`);
                     logger.debug(`Duration: ${e.duration}ms`);

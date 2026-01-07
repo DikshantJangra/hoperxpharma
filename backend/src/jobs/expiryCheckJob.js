@@ -25,7 +25,7 @@ async function runExpiryCheck() {
     let eventsEmitted = 0;
 
     try {
-        logger.info('[ExpiryCheck] Starting batch expiry check job...');
+        logger.debug('[ExpiryCheck] Starting batch expiry check job...');
 
         const now = new Date();
         const in90Days = new Date(now.getTime() + EXPIRY_WINDOW_DAYS * 24 * 60 * 60 * 1000);
@@ -55,7 +55,7 @@ async function runExpiryCheck() {
             },
         });
 
-        logger.info(`[ExpiryCheck] Found ${batches.length} batches to check`);
+        logger.debug(`[ExpiryCheck] Found ${batches.length} batches to check`);
         processedCount = batches.length;
 
         // Process batches - failure on one doesn't stop others
@@ -100,7 +100,7 @@ async function runExpiryCheck() {
         }
 
         const duration = Date.now() - startTime;
-        logger.info(`[ExpiryCheck] Completed: ${processedCount} batches processed, ${eventsEmitted} events emitted in ${duration}ms`);
+        logger.debug(`[ExpiryCheck] Completed: ${processedCount} batches processed, ${eventsEmitted} events emitted in ${duration}ms`);
 
     } catch (error) {
         logger.error('[ExpiryCheck] Fatal error in expiry check job:', error);

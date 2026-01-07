@@ -134,7 +134,12 @@ async function refreshTokenIfNeeded(): Promise<void> {
 async function handleRefreshError(error: any) {
     console.error('Token refresh error:', error.message);
     tokenManager.clearTokens();
-    if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+
+    // Don't redirect with session_expired if logout is already in progress
+    // This prevents showing "session_expired" toast when user intentionally logs out
+    const isLoggingOut = typeof sessionStorage !== 'undefined' && sessionStorage.getItem('isLoggingOut') === 'true';
+
+    if (typeof window !== 'undefined' && !window.location.pathname.includes('/login') && !isLoggingOut) {
         window.location.href = '/login?error=session_expired';
     }
 }
@@ -194,8 +199,11 @@ async function baseFetch(
                 // Clear tokens immediately
                 tokenManager.clearTokens();
 
-                // Redirect if not already on login page
-                if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+                // Don't redirect with session_expired if logout is already in progress
+                const isLoggingOut = typeof sessionStorage !== 'undefined' && sessionStorage.getItem('isLoggingOut') === 'true';
+
+                // Redirect if not already on login page and not logging out
+                if (typeof window !== 'undefined' && !window.location.pathname.includes('/login') && !isLoggingOut) {
                     // Use window.location for hard redirect to ensure state clean slate
                     window.location.href = '/login?error=session_expired';
                     // Return empty promise to halt execution chain

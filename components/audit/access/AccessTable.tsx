@@ -114,6 +114,7 @@ export default function AccessTable({ searchQuery, isLive, activeFilter, onEvent
 
                         const methodMap: Record<string, string> = {
                             'password': 'Password',
+                            'Password': 'Password',
                             'magic_link': 'Magic Link',
                             'google_oauth': 'Google OAuth'
                         };
@@ -366,7 +367,7 @@ export default function AccessTable({ searchQuery, isLive, activeFilter, onEvent
                                                 return <FiLogOut size={14} className="text-gray-600" title="Logout" />;
                                             }
 
-                                            if (rawMethod === 'password') {
+                                            if (rawMethod === 'password' || rawMethod === 'Password') {
                                                 return <FiKey size={14} className="text-blue-600" title="Password Authentication" />;
                                             } else if (rawMethod === 'magic_link') {
                                                 return <FiMail size={14} className="text-purple-600" title="Magic Link" />;

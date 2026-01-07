@@ -33,7 +33,7 @@ class EventBus extends EventEmitter {
             }
 
             // Log event
-            logger.info(`Event emitted: ${eventType}`, {
+            logger.debug(`Event emitted: ${eventType}`, {
                 storeId: payload.storeId,
                 entityType: payload.entityType,
                 entityId: payload.entityId

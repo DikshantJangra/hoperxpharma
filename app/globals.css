@@ -7,3 +7,72 @@
 body {
   font-family: 'Poppins', sans-serif;
 }
+
+/* ============================================================================
+   PREMIUM THEME TOKENS
+   These CSS custom properties enable the premium experience layer.
+   ============================================================================ */
+
+:root {
+  /* Motion tokens - Standard */
+  --premium-transition-duration: 200ms;
+  --premium-transition-easing: ease-out;
+  
+  /* Shadow tokens - Standard */
+  --premium-shadow-soft: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --premium-shadow-glow: none;
+}
+
+/* Premium overrides - Applied via data attribute */
+[data-premium="true"] {
+  --premium-transition-duration: 350ms;
+  --premium-transition-easing: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --premium-shadow-soft: 0 4px 6px -1px rgb(16 185 129 / 0.1), 0 2px 4px -2px rgb(16 185 129 / 0.1);
+  --premium-shadow-glow: 0 0 20px rgb(16 185 129 / 0.15);
+}
+
+/* ============================================================================
+   PREMIUM UTILITY CLASSES
+   ============================================================================ */
+
+@layer utilities {
+  /* Duration utility for premium motion */
+  .duration-350 {
+    transition-duration: 350ms;
+  }
+  
+  /* Premium shimmer animation for badges/pills */
+  .animate-shimmer-premium {
+    animation: shimmer-premium 2.5s ease-in-out infinite;
+  }
+  
+  @keyframes shimmer-premium {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.85;
+    }
+  }
+  
+  /* Premium glow effect on hover */
+  .premium-glow {
+    transition: box-shadow var(--premium-transition-duration) var(--premium-transition-easing);
+  }
+  
+  .premium-glow:hover {
+    box-shadow: var(--premium-shadow-glow);
+  }
+  
+  /* Premium accent line (subtle top border gradient) */
+  .premium-accent-line::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(to right, #059669, #14b8a6);
+    opacity: 0.6;
+  }
+}

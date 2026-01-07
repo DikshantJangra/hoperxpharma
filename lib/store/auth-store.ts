@@ -86,6 +86,12 @@ export const useAuthStore = create<AuthState>()(
 
             logout: async () => {
                 set({ isLoggingOut: true, isLoading: true });
+
+                // Set flag to prevent session_expired redirect during logout
+                if (typeof sessionStorage !== 'undefined') {
+                    sessionStorage.setItem('isLoggingOut', 'true');
+                }
+
                 try {
                     await authApi.logout();
                 } catch (error) {

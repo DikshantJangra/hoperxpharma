@@ -10,6 +10,7 @@ import { useAuthStore } from "@/lib/store/auth-store"
 import { useBusinessType } from "@/contexts/BusinessTypeContext"
 import { TrialBadge } from "./TrialBadge"
 import { useFeatureAccess } from "@/lib/hooks/useFeatureAccess"
+import { usePremiumTheme } from "@/lib/hooks/usePremiumTheme"
 
 interface SidebarProps {
     isOpen: boolean
@@ -20,17 +21,23 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ isOpen, isMobile, expandedItems, onToggleItem, onClose }: SidebarProps) {
+    const { isPremium, tokens } = usePremiumTheme();
+
     if (!Array.isArray(sidebarConfig)) return null;
 
     return (
-        <aside className={`
-            ${isMobile
-                ? `fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'}`
-                : `${isOpen ? 'w-64' : 'w-20'} h-full transition-all duration-300`
-            }
-            bg-white border-r border-gray-100 flex flex-col overflow-hidden
-        `}>
-            <SidebarHeader isOpen={isOpen || !!isMobile} />
+        <aside
+            className={`
+                ${isMobile
+                    ? `fixed inset-y-0 left-0 z-50 w-64 transform transition-transform duration-300 ease-in-out ${isOpen ? 'translate-x-0' : '-translate-x-full'}`
+                    : `${isOpen ? 'w-64' : 'w-20'} h-full transition-all duration-300`
+                }
+                ${tokens.sidebar.bg} ${tokens.sidebar.border} border-r flex flex-col overflow-hidden
+                ${isPremium ? tokens.sidebar.shadow : ''}
+            `}
+            {...(isPremium ? { 'data-premium': 'true' } : {})}
+        >
+            <SidebarHeader isOpen={isOpen || !!isMobile} isPremium={isPremium} />
             <nav className="flex-1 py-4 px-3 overflow-y-auto">
                 {sidebarConfig.map((section, idx) => (
                     <SidebarSection
@@ -39,26 +46,28 @@ export default function Sidebar({ isOpen, isMobile, expandedItems, onToggleItem,
                         isOpen={isOpen || !!isMobile}
                         expandedItems={expandedItems || []}
                         onToggleItem={onToggleItem}
+                        isPremium={isPremium}
                     />
                 ))}
             </nav>
-            {/* Trial Badge at bottom */}
-            <TrialBadge isOpen={isOpen || !!isMobile} />
+            {/* Trial Badge at bottom - hide for premium */}
+            {!isPremium && <TrialBadge isOpen={isOpen || !!isMobile} />}
         </aside>
     )
 }
 
-function SidebarHeader({ isOpen }: { isOpen: boolean }) {
+function SidebarHeader({ isOpen, isPremium }: { isOpen: boolean; isPremium?: boolean }) {
+    const { tokens } = usePremiumTheme();
     return (
-        <div className="h-16 flex items-center justify-center border-b border-gray-100 px-4">
+        <div className={`h-14 md:h-16 flex items-center justify-center ${isPremium ? tokens.navbarGradient + ' border-white/10' : 'border-gray-100'} border-b px-4 transition-all duration-300`}>
             <div className="flex items-center gap-3">
-                <Logo size="md" showText={isOpen} subtitle={isOpen ? "Dashboard" : undefined} />
+                <Logo size="md" showText={isOpen} subtitle={isOpen ? "Dashboard" : undefined} isWhite={isPremium} />
             </div>
         </div>
     )
 }
 
-function SidebarSection({ section, isOpen, expandedItems, onToggleItem }: any) {
+function SidebarSection({ section, isOpen, expandedItems, onToggleItem, isPremium }: any) {
     const { permissions } = usePermissions();
     const { user } = useAuthStore();
     const { businessType } = useBusinessType();

@@ -37,6 +37,11 @@ function LoginForm() {
 
     // Check for error in URL (e.g. from Google OAuth)
     useEffect(() => {
+        // Clear logout flag when login page loads
+        if (typeof sessionStorage !== 'undefined') {
+            sessionStorage.removeItem('isLoggingOut');
+        }
+
         if (!searchParams) return;
         const error = searchParams.get('error');
         if (error) {

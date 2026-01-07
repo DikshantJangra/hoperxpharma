@@ -42,6 +42,9 @@ import { emailScenario } from './scenarios/communication/email.flow';
 import { whatsappScenario } from './scenarios/communication/whatsapp.flow';
 import { draftScenario } from './scenarios/pos/draft.flow';
 import { refundScenario } from './scenarios/pos/refund.flow';
+import { creditSaleScenario } from './scenarios/pos/credit.flow';
+import { invoicePdfScenario } from './scenarios/documents/invoice-pdf.flow';
+import { consolidatedInvoiceScenario } from './scenarios/procurement/consolidated.flow';
 
 /**
  * Parse command line arguments
@@ -154,7 +157,10 @@ async function main(): Promise<void> {
         emailScenario,
         whatsappScenario,
         draftScenario,
-        refundScenario
+        refundScenario,
+        creditSaleScenario,
+        invoicePdfScenario,
+        consolidatedInvoiceScenario
     );
 
     try {

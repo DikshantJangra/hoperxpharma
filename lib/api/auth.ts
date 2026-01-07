@@ -81,19 +81,30 @@ export const authApi = {
 
     /**
      * Set logged in cookie (called after successful profile fetch)
+     * Uses Secure and SameSite=None for production HTTPS to ensure cross-origin cookie persistence
      */
     setLoggedInCookie(): void {
         if (typeof document !== 'undefined') {
-            document.cookie = "logged_in=true; path=/; max-age=604800; SameSite=Lax";
+            const isSecure = window.location.protocol === 'https:';
+            // Production (HTTPS): Use SameSite=None with Secure for cross-origin cookie support
+            // Development (HTTP): Use SameSite=Lax without Secure
+            const cookieValue = isSecure
+                ? "logged_in=true; path=/; max-age=604800; SameSite=None; Secure"
+                : "logged_in=true; path=/; max-age=604800; SameSite=Lax";
+            document.cookie = cookieValue;
         }
     },
 
     /**
      * Clear logged in cookie
+     * Clears with all possible attribute combinations to ensure cleanup
      */
     clearLoggedInCookie(): void {
         if (typeof document !== 'undefined') {
+            // Clear with multiple attribute combinations to handle both dev and prod
             document.cookie = "logged_in=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT";
+            document.cookie = "logged_in=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; Secure";
+            document.cookie = "logged_in=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT; Secure; SameSite=None";
         }
     },
 

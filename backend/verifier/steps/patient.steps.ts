@@ -189,22 +189,54 @@ export const patientSteps = {
     },
 
     /**
-     * Get patient ledger balance
+     * Get patient ledger entries
      */
     async getPatientLedger(ctx: ScenarioContext, patientId?: string): Promise<StepResult> {
         try {
             const id = patientId || ctx.get<string>('patientId');
 
-            const ledger = await prisma.customerLedger.findFirst({
-                where: { patientId: id }
+            const ledger = await prisma.customerLedger.findMany({
+                where: { patientId: id },
+                orderBy: { createdAt: 'desc' }
             });
 
             ctx.set('patientLedger', ledger);
 
             return {
                 success: true,
-                data: ledger || { balance: 0 },
+                data: ledger,
                 duration: 0
+            };
+        } catch (error: any) {
+            return {
+                success: false,
+                error,
+                duration: 0
+            };
+        }
+    },
+
+    /**
+     * Verify patient current balance
+     */
+    async verifyPatientBalance(ctx: ScenarioContext, expectedBalance: number): Promise<StepResult> {
+        try {
+            const id = ctx.get<string>('patientId');
+            const patient = await prisma.patient.findUnique({
+                where: { id }
+            });
+
+            if (!patient) throw new Error('Patient not found');
+
+            // Decimal handling
+            const actualBalance = Number(patient.currentBalance);
+            const passed = Math.abs(actualBalance - expectedBalance) < 0.01;
+
+            return {
+                success: passed,
+                data: { expected: expectedBalance, actual: actualBalance },
+                duration: 0,
+                error: !passed ? new Error(`Expected balance ${expectedBalance}, got ${actualBalance}`) : undefined
             };
         } catch (error: any) {
             return {

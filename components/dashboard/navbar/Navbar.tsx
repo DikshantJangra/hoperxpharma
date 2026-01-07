@@ -13,6 +13,7 @@ import { apiClient } from "@/lib/api/client"
 import NotificationButton from "./NotificationButton"
 import { useTrialStatus, getUrgencyColors } from "@/lib/hooks/useTrialStatus"
 import { StatusPill } from "@/components/billing/StatusPill"
+import { usePremiumTheme } from "@/lib/hooks/usePremiumTheme"
 
 interface NavbarProps {
     onToggleSidebar: () => void
@@ -23,27 +24,35 @@ export default function Navbar({ onToggleSidebar, sidebarOpen }: NavbarProps) {
     const [showStoreMenu, setShowStoreMenu] = useState(false)
     const [showUserMenu, setShowUserMenu] = useState(false)
     const [showNotifications, setShowNotifications] = useState(false)
+    const { isPremium, tokens } = usePremiumTheme()
 
     return (
-        <header className="sticky top-0 h-14 md:h-16 bg-white border-b border-gray-100 flex items-center justify-between px-3 sm:px-4 md:px-6 z-40 shadow-sm">
+        <header
+            className={`sticky top-0 h-14 md:h-16 ${tokens.navbarGradient} ${tokens.navbar.border} border-b flex items-center justify-between px-3 sm:px-4 md:px-6 z-40 ${isPremium ? 'shadow-lg shadow-emerald-900/10' : 'shadow-sm'} transition-all duration-300`}
+            {...(isPremium ? { 'data-premium': 'true' } : {})}
+        >
             <LeftSection
                 onToggleSidebar={onToggleSidebar}
                 showStoreMenu={showStoreMenu}
                 setShowStoreMenu={setShowStoreMenu}
                 sidebarOpen={sidebarOpen}
+                isPremium={isPremium}
+                tokens={tokens}
             />
-            <CenterSection />
+            <CenterSection isPremium={isPremium} tokens={tokens} />
             <RightSection
                 showNotifications={showNotifications}
                 setShowNotifications={setShowNotifications}
                 showUserMenu={showUserMenu}
                 setShowUserMenu={setShowUserMenu}
+                isPremium={isPremium}
+                tokens={tokens}
             />
         </header>
     )
 }
 
-function LeftSection({ onToggleSidebar, showStoreMenu, setShowStoreMenu, sidebarOpen }: any) {
+function LeftSection({ onToggleSidebar, showStoreMenu, setShowStoreMenu, sidebarOpen, isPremium, tokens }: any) {
     const storeMenuRef = useRef<HTMLDivElement>(null);
     const { user, primaryStore, isLoading } = useAuthStore();
 
@@ -69,37 +78,40 @@ function LeftSection({ onToggleSidebar, showStoreMenu, setShowStoreMenu, sidebar
         <div className="flex items-center gap-2 md:gap-4 shrink-0">
             <button
                 onClick={onToggleSidebar}
-                className="p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-all"
+                className={`p-2 ${isPremium ? 'text-white/80 hover:text-white hover:bg-white/10' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'} rounded-lg transition-all`}
                 aria-label="Toggle sidebar"
             >
                 {sidebarOpen ? <FiX size={22} /> : <FiMenu size={22} />}
             </button>
 
             {/* Store Selector - Hidden on mobile */}
-            <div className="relative hidden md:block" ref={storeMenuRef}>
+            <div className={`relative hidden md:block ${isPremium ? 'bg-white/10 backdrop-blur-md border border-white/20 rounded-lg' : ''}`} ref={storeMenuRef}>
                 <button
                     onClick={() => setShowStoreMenu(!showStoreMenu)}
-                    className="flex items-center gap-2 px-2 md:px-3 py-1.5 hover:bg-gray-50 rounded-lg transition-all border border-transparent hover:border-gray-200"
+                    className={`flex items-center gap-2 px-2 md:px-3 py-1.5 ${isPremium ? 'hover:bg-white/10 text-white' : 'hover:bg-gray-50 text-gray-700'} rounded-lg transition-all border border-transparent ${isPremium ? 'hover:border-white/20' : 'hover:border-gray-200'}`}
                     title={primaryStore?.displayName || primaryStore?.name || 'My Store'}
                 >
-                    <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center">
-                        <MdStore size={18} className="text-emerald-600" />
+                    <div className={`w-8 h-8 rounded-lg ${tokens.navbar.iconBg} flex items-center justify-center`}>
+                        <MdStore size={18} className={tokens.navbar.iconText} />
                     </div>
                     <div className="hidden md:block text-left min-w-0 max-w-[140px] lg:max-w-[200px]">
-                        <p className="text-sm font-medium text-gray-800 truncate">
+                        <p className={`text-sm font-medium ${tokens.navbar.text} truncate`}>
                             {isLoading ? 'Loading...' : (primaryStore?.displayName || primaryStore?.name || 'My Store')}
                         </p>
-                        <p className="text-xs text-gray-500 truncate">
+                        <p className={`text-xs ${isPremium ? 'text-white/60' : 'text-gray-500'} truncate`}>
                             {isLoading ? '-' : (primaryStore?.city ? `${primaryStore.city}, ${primaryStore.state}` : '-')}
                         </p>
                     </div>
-                    <FiChevronDown size={16} className={`text-gray-400 transition-transform ${showStoreMenu ? 'rotate-180' : ''} hidden md:block`} />
+                    <FiChevronDown size={16} className={`${isPremium ? 'text-white/60 hidden' : 'text-gray-400'} transition-transform ${showStoreMenu ? 'rotate-180' : ''} hidden md:block`} />
                 </button>
 
                 {showStoreMenu && (
-                    <div className="absolute left-0 sm:left-auto top-14 w-[calc(100vw-24px)] sm:w-80 max-w-80 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50">
-                        <div className="px-4 py-2 border-b border-gray-100">
-                            <h3 className="text-sm font-semibold text-gray-800">Your Stores</h3>
+                    <div className={`absolute left-0 sm:left-auto top-14 w-[calc(100vw-24px)] sm:w-80 max-w-80 rounded-lg shadow-xl py-2 z-50 ${isPremium
+                            ? 'bg-white/95 backdrop-blur-xl border border-white/20 shadow-emerald-900/20'
+                            : 'bg-white border border-gray-200'
+                        }`}>
+                        <div className={`px-4 py-2 border-b ${isPremium ? 'border-gray-100/50' : 'border-gray-100'}`}>
+                            <h3 className={`text-sm font-semibold ${isPremium ? 'text-emerald-900' : 'text-gray-800'}`}>Your Stores</h3>
                         </div>
                         {isLoading ? (
                             <div className="px-4 py-8 text-center text-sm text-gray-500">Loading stores...</div>
@@ -115,6 +127,7 @@ function LeftSection({ onToggleSidebar, showStoreMenu, setShowStoreMenu, sidebar
                                         location={`${s.city || ''}, ${s.state || ''}`}
                                         gst={gstin}
                                         active={s.isPrimary}
+                                        isPremium={isPremium}
                                         onClick={() => {
                                             // Future: switch store logic could go here
                                             setShowStoreMenu(false);
@@ -132,16 +145,16 @@ function LeftSection({ onToggleSidebar, showStoreMenu, setShowStoreMenu, sidebar
     );
 }
 
-function StoreMenuItem({ name, location, gst, active, onClick }: any) {
+function StoreMenuItem({ name, location, gst, active, onClick, isPremium }: any) {
     return (
         <button
             onClick={onClick}
-            className={`w-full px-4 py-3 hover:bg-gray-50 transition-colors text-left ${active ? 'bg-emerald-50' : ''}`}
+            className={`w-full px-4 py-3 hover:bg-gray-50 transition-colors text-left ${active ? (isPremium ? 'bg-emerald-50/80' : 'bg-emerald-50') : ''}`}
         >
             <div className="flex items-start justify-between">
                 <div className="flex-1">
                     <div className="flex items-center gap-2">
-                        <p className="text-sm font-semibold text-gray-800">{name}</p>
+                        <p className={`text-sm font-semibold ${isPremium ? 'text-emerald-950' : 'text-gray-800'}`}>{name}</p>
                         {active && <FiCheck size={14} className="text-emerald-600" />}
                     </div>
                     <p className="text-xs text-gray-500 mt-0.5">{location}</p>
@@ -152,7 +165,7 @@ function StoreMenuItem({ name, location, gst, active, onClick }: any) {
     )
 }
 
-function CenterSection() {
+function CenterSection({ isPremium, tokens }: any) {
     const pathname = usePathname()
 
     const getBreadcrumb = () => {
@@ -223,37 +236,40 @@ function CenterSection() {
         <>
             {/* Mobile: Show page title */}
             <div className="flex-1 md:hidden px-2">
-                <h1 className="text-sm font-semibold text-gray-800 truncate">{section}</h1>
-                <p className="text-xs text-gray-500 truncate">{page}</p>
+                <h1 className={`text-sm font-semibold ${isPremium ? 'text-white' : 'text-gray-800'} truncate`}>{section}</h1>
+                <p className={`text-xs ${isPremium ? 'text-white/60' : 'text-gray-500'} truncate`}>{page}</p>
             </div>
             {/* Desktop: Show breadcrumb in center */}
             <div className="hidden md:flex flex-1 items-center justify-center">
                 <div className="flex items-center gap-2 text-sm">
-                    <span className="font-medium text-gray-800">{section}</span>
-                    <FiChevronRight size={14} className="text-gray-400 hidden lg:block" />
-                    <span className="text-gray-600 hidden lg:block">{page}</span>
+                    <span className={`font-medium ${tokens.navbar.text}`}>{section}</span>
+                    <FiChevronRight size={14} className={`${isPremium ? 'text-white/40' : 'text-gray-400'} hidden lg:block`} />
+                    <span className={`${isPremium ? 'text-white/70' : 'text-gray-600'} hidden lg:block`}>{page}</span>
                 </div>
             </div>
         </>
     )
 }
 
-function RightSection({ showNotifications, setShowNotifications, showUserMenu, setShowUserMenu }: any) {
+function RightSection({ showNotifications, setShowNotifications, showUserMenu, setShowUserMenu, isPremium, tokens }: any) {
     const router = useRouter()
 
     return (
         <div className="flex items-center shrink-0">
             {/* StatusPill - Billing awareness (hidden on mobile) */}
             <div className="hidden md:flex items-center mr-3">
-                <StatusPill />
+                <StatusPill isPremium={isPremium} />
             </div>
 
             {/* Quick Actions - Only primary action on mobile */}
-            <div className="flex items-center gap-1 md:gap-2 pr-2 md:pr-4 md:mr-4 md:border-r border-gray-200" data-tour="quick-actions">
+            <div className={`flex items-center gap-1 md:gap-2 pr-2 md:pr-4 md:mr-4 md:border-r ${isPremium ? 'border-emerald-400/20' : 'border-gray-200'}`} data-tour="quick-actions">
                 <Link
                     href="/prescriptions/all-prescriptions"
                     data-tour="quick-new-rx"
-                    className="p-2 md:px-3 md:py-1.5 bg-emerald-500 text-white text-sm font-medium rounded-lg hover:bg-emerald-600 transition-all flex items-center gap-1.5"
+                    className={`p-2 md:px-3 md:py-1.5 ${isPremium
+                        ? 'bg-emerald-500/90 text-white hover:bg-emerald-400 shadow-lg shadow-emerald-500/30 border border-emerald-400/50'
+                        : 'bg-emerald-500 text-white hover:bg-emerald-600'
+                        } text-sm font-medium rounded-lg transition-all flex items-center gap-1.5`}
                     title="New Prescription"
                 >
                     <TbPrescription size={18} />
@@ -262,7 +278,10 @@ function RightSection({ showNotifications, setShowNotifications, showUserMenu, s
                 <Link
                     href="/pos"
                     data-tour="quick-pos"
-                    className="p-2 md:px-3 md:py-1.5 bg-gray-100 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-200 transition-all flex items-center gap-1.5"
+                    className={`p-2 md:px-3 md:py-1.5 ${isPremium
+                        ? 'bg-white/10 text-white/90 hover:bg-white/20 backdrop-blur-sm border border-white/10 hover:border-white/20'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                        } text-sm font-medium rounded-lg transition-all flex items-center gap-1.5`}
                     title="Point of Sale"
                 >
                     <MdShoppingCart size={18} />
@@ -274,32 +293,38 @@ function RightSection({ showNotifications, setShowNotifications, showUserMenu, s
             <div className="flex items-center gap-1 md:gap-2">
                 <Link
                     href="/messages"
-                    className="hidden xs:flex p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-all relative"
+                    className={`hidden xs:flex p-2 ${isPremium
+                        ? 'text-emerald-300/80 hover:text-emerald-300 hover:bg-emerald-500/20'
+                        : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
+                        } rounded-lg transition-all relative`}
                     title="Messages"
                 >
                     <FiMessageSquare size={20} />
-                    <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-green-500 rounded-full border-2 border-white"></span>
+                    <span className={`absolute top-1.5 right-1.5 w-2 h-2 ${isPremium ? 'bg-emerald-400 shadow-sm shadow-emerald-400/50' : 'bg-green-500'} rounded-full border-2 ${isPremium ? 'border-slate-900' : 'border-white'}`}></span>
                 </Link>
 
                 <NotificationButton show={showNotifications} setShow={setShowNotifications} />
 
                 {/* Synced Status - visible on lg+ */}
-                <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-green-50 rounded-lg ml-1">
-                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-                    <span className="text-xs font-medium text-green-700">Synced</span>
+                <div className={`hidden lg:flex items-center gap-2 px-3 py-1.5 ${isPremium
+                    ? 'bg-emerald-500/15 border border-emerald-400/20 backdrop-blur-sm'
+                    : 'bg-green-50'
+                    } rounded-lg ml-1`}>
+                    <div className={`w-2 h-2 ${isPremium ? 'bg-emerald-400 shadow-sm shadow-emerald-400/50' : 'bg-green-500'} rounded-full animate-pulse`}></div>
+                    <span className={`text-xs font-medium ${isPremium ? 'text-emerald-300' : 'text-green-700'}`}>Synced</span>
                 </div>
             </div>
 
             {/* User Menu - always visible */}
-            <div className="ml-1 md:ml-3 pl-1 md:pl-3 border-l border-gray-200">
-                <UserMenu show={showUserMenu} setShow={setShowUserMenu} />
+            <div className={`ml-1 md:ml-3 pl-1 md:pl-3 border-l ${isPremium ? 'border-white/20' : 'border-gray-200'}`}>
+                <UserMenu show={showUserMenu} setShow={setShowUserMenu} isPremium={isPremium} tokens={tokens} />
             </div>
         </div>
     )
 }
 
 
-function UserMenu({ show, setShow }: any) {
+function UserMenu({ show, setShow, isPremium, tokens }: any) {
     const userMenuRef = useRef<HTMLDivElement>(null);
     const { user, isLoading } = useAuthStore();
     const router = useRouter();
@@ -380,29 +405,29 @@ function UserMenu({ show, setShow }: any) {
         <div className="relative ml-2" ref={userMenuRef}>
             <button
                 onClick={() => setShow(!show)}
-                className="flex items-center gap-2 p-1.5 hover:bg-gray-100 rounded-lg transition-colors"
+                className={`flex items-center gap-2 p-1.5 ${isPremium ? 'hover:bg-white/10' : 'hover:bg-gray-100'} rounded-lg transition-colors`}
             >
                 <div className="relative">
                     {avatarUrl ? (
                         <img
                             src={avatarUrl}
                             alt="User avatar"
-                            className="w-9 h-9 rounded-full object-cover border-2 border-emerald-200"
+                            className={`w-9 h-9 rounded-full object-cover border-2 ${isPremium ? tokens.avatar.ring : 'border-emerald-200'} ${isPremium ? tokens.avatar.glow : ''}`}
                         />
                     ) : (
-                        <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 font-semibold text-sm">
+                        <div className={`w-9 h-9 rounded-full ${isPremium ? 'bg-white/20 text-white' : 'bg-emerald-100 text-emerald-600'} flex items-center justify-center font-semibold text-sm`}>
                             {isLoading ? '-' : getInitials()}
                         </div>
                     )}
-                    {/* Trial indicator dot */}
-                    {isOnTrial && (
+                    {/* Trial indicator dot - hidden for premium */}
+                    {isOnTrial && !isPremium && (
                         <span
                             className={`absolute -top-0.5 -right-0.5 w-3 h-3 ${trialColors.dot} rounded-full border-2 border-white`}
                             title={`${daysLeft} days left in trial`}
                         />
                     )}
                 </div>
-                <FiChevronDown size={16} className={`text-gray-400 transition-transform ${show ? 'rotate-180' : ''}`} />
+                <FiChevronDown size={16} className={`${isPremium ? 'text-white/60' : 'text-gray-400'} transition-transform ${show ? 'rotate-180' : ''}`} />
             </button>
             {show && (
                 <div className="absolute right-0 top-12 w-56 bg-white rounded-lg shadow-xl border border-gray-200 py-2 z-50">

@@ -3,6 +3,7 @@
 import { useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuthStore } from '@/lib/store/auth-store';
+import { authApi } from '@/lib/api/auth';
 import { toast } from 'react-hot-toast';
 
 function CallbackContent() {
@@ -31,8 +32,8 @@ function CallbackContent() {
                     tokenManager.saveTokens(token); // Only saves to memory, not localStorage
 
                     // Set logged_in cookie for middleware routing (not sensitive, just a flag)
-                    document.cookie = `logged_in=true; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
-                    // NOTE: We no longer set a non-httpOnly 'token' cookie - that was a security risk
+                    // Uses centralized function that handles Secure/SameSite for production
+                    authApi.setLoggedInCookie();
 
                     // IMPORTANT: Call checkAuth to properly initialize the auth store
                     // This fetches user profile and sets all state correctly

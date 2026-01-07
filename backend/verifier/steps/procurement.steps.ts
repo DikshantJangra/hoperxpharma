@@ -8,6 +8,7 @@ import { StepResult, SupplierFixture, ScenarioContext } from '../types';
 const purchaseOrderService = require('../../src/services/purchaseOrders/purchaseOrderService');
 const supplierService = require('../../src/services/suppliers/supplierService');
 const grnService = require('../../src/services/grn/grnService');
+const consolidatedInvoiceService = require('../../src/services/consolidatedInvoices/consolidatedInvoiceService');
 const prisma = require('../../src/db/prisma');
 
 export const procurementSteps = {

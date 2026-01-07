@@ -94,7 +94,7 @@ class AuthService {
                 eventType: 'login_failure',
                 ipAddress: loginContext.ipAddress || '127.0.0.1',
                 userAgent: loginContext.userAgent,
-                loginMethod: 'EMAIL_PASSWORD'
+                loginMethod: 'Password'
             });
 
             throw ApiError.unauthorized(MESSAGES.AUTH.INVALID_CREDENTIALS);
@@ -125,14 +125,8 @@ class AuthService {
             });
         }
 
-        // Log access
-        await accessLogService.logAccess({
-            userId: user.id,
-            eventType: 'login_success',
-            ipAddress: loginContext.ipAddress || '127.0.0.1',
-            userAgent: loginContext.userAgent,
-            loginMethod: 'EMAIL_PASSWORD'
-        });
+        // NOTE: Access logging for successful login is handled in authController
+        // to avoid duplicate entries
 
         logger.info(`User logged in: ${user.email}`);
 

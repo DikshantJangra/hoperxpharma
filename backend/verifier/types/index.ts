@@ -33,7 +33,30 @@ export interface Scenario {
     modes: ExecutionMode[];
 }
 
-export type ScenarioTag = 'critical' | 'smoke' | 'full' | 'regression' | 'clinical' | 'pos' | 'patients' | 'admin' | 'procurement' | 'billing' | 'communication' | 'audit' | 'reports' | 'compliance';
+// Valid tags for scenarios
+export type ScenarioTag =
+    | 'core'
+    | 'auth'
+    | 'onboarding'
+    | 'inventory'
+    | 'clinical'
+    | 'financial'
+    | 'pos'
+    | 'reports'
+    | 'admin'
+    | 'audit'
+    | 'smoke'
+    | 'regression'
+    | 'wip'
+    | 'billing'
+    | 'credit'
+    | 'communication'
+    | 'compliance'
+    | 'critical'
+    | 'full'
+    | 'patients'
+    | 'procurement'
+    | 'documents';
 export type ExecutionMode = 'dev' | 'staging' | 'ci';
 
 // ============================================================================

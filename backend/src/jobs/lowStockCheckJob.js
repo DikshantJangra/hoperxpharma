@@ -24,7 +24,7 @@ async function runLowStockCheck() {
     let eventsEmitted = 0;
 
     try {
-        logger.info('[LowStockCheck] Starting low stock check job...');
+        logger.debug('[LowStockCheck] Starting low stock check job...');
 
         // Get active stores with batch limit
         const stores = await prisma.store.findMany({
@@ -41,7 +41,7 @@ async function runLowStockCheck() {
             take: MAX_STORES_PER_RUN,
         });
 
-        logger.info(`[LowStockCheck] Processing ${stores.length} stores`);
+        logger.debug(`[LowStockCheck] Processing ${stores.length} stores`);
 
         for (const store of stores) {
             try {
@@ -91,7 +91,7 @@ async function runLowStockCheck() {
         }
 
         const duration = Date.now() - startTime;
-        logger.info(`[LowStockCheck] Completed: ${storesProcessed} stores processed, ${eventsEmitted} events emitted in ${duration}ms`);
+        logger.debug(`[LowStockCheck] Completed: ${storesProcessed} stores processed, ${eventsEmitted} events emitted in ${duration}ms`);
 
     } catch (error) {
         logger.error('[LowStockCheck] Fatal error in low stock check job:', error);

@@ -7,18 +7,23 @@ const logger = require('../config/logger');
 
 class SchedulerService {
     init() {
+        if (process.env.DISABLE_SCHEDULER === 'true') {
+            logger.info('Scheduler disabled by config.');
+            return;
+        }
+
         logger.info('Initializing Scheduler Service...');
 
         // Run daily at midnight: Check licenses and batch expiry
         cron.schedule('0 0 * * *', async () => {
-            logger.info('Running Daily Jobs: License & Batch Expiry Check');
+            logger.debug('Running Daily Jobs: License & Batch Expiry Check');
             await this.checkLicenseExpiry();
             await runExpiryCheck(); // Alert system: batch expiry
         });
 
         // Run every 6 hours: Low stock check
         cron.schedule('0 */6 * * *', async () => {
-            logger.info('Running Low Stock Check');
+            logger.debug('Running Low Stock Check');
             await runLowStockCheck();
         });
 
@@ -55,7 +60,7 @@ class SchedulerService {
                 }
             });
 
-            logger.info(`Found ${licenses.length} licenses expiring within ${warningDays} days.`);
+            logger.debug(`Found ${licenses.length} licenses expiring within ${warningDays} days.`);
 
             for (const license of licenses) {
                 // Check if an open alert specifically for this license already exists
@@ -87,7 +92,7 @@ class SchedulerService {
                         data: { status: 'Expiring Soon' }
                     });
 
-                    logger.info(`Created expiry alert for License ${license.number} in Store ${license.store.name}`);
+                    logger.debug(`Created expiry alert for License ${license.number} in Store ${license.store.name}`);
                 }
             }
 

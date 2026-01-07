@@ -200,28 +200,8 @@ const login = asyncHandler(async (req, res) => {
         res.status(response.statusCode).json(response);
 
     } catch (error) {
-        // Log failed login attempt
-        // Try to find user by email to get userId for failed attempt logging
-        try {
-            const { PrismaClient } = require('@prisma/client');
-            const prisma = new PrismaClient();
-            const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
-
-            if (user) {
-                await accessLogService.logAccess({
-                    userId: user.id,
-                    eventType: 'login_failure',
-                    ipAddress,
-                    userAgent,
-                    deviceInfo: userAgent,
-                    loginMethod: 'password' // Track authentication method
-                });
-            }
-        } catch (logError) {
-            // Silently fail - don't prevent error throwing due to logging issues
-            logger.error('Failed to log failed login attempt:', logError);
-        }
-
+        // NOTE: Failed login attempts are already logged in authService.login()
+        // So we don't need to log them again here to avoid duplicates
         throw error;
     }
 });

@@ -13,8 +13,9 @@ export default function Logo({
     showText = true,
     subtitle,
     className = '',
-    textClassName = ''
-}: LogoProps) {
+    textClassName = '',
+    isWhite = false
+}: LogoProps & { isWhite?: boolean }) {
 
     const sizeClasses = {
         sm: {
@@ -47,16 +48,16 @@ export default function Logo({
 
     return (
         <div className={`flex items-center ${currentSize.gap} ${className}`}>
-            <div className={`${currentSize.container} rounded-full bg-emerald-500 flex items-center justify-center shrink-0 shadow-sm`}>
+            <div className={`${currentSize.container} rounded-full bg-emerald-500 flex items-center justify-center shrink-0 shadow-sm ${isWhite ? 'ring-2 ring-white/20' : ''}`}>
                 <span className={`text-white font-bold ${currentSize.text}`}>Rx</span>
             </div>
             {showText && (
                 <div className="flex flex-col">
-                    <span className={`font-bold text-gray-900 ${currentSize.text} ${textClassName}`}>
-                        Hope<span className="text-emerald-500">Rx</span>Pharma
+                    <span className={`font-bold ${isWhite ? 'text-white' : 'text-gray-900'} ${currentSize.text} ${textClassName}`}>
+                        Hope<span className={isWhite ? 'text-emerald-200' : 'text-emerald-500'}>Rx</span>Pharma
                     </span>
                     {subtitle && (
-                        <span className={`${currentSize.subText} text-gray-500`}>{subtitle}</span>
+                        <span className={`${currentSize.subText} ${isWhite ? 'text-emerald-50/80' : 'text-gray-500'}`}>{subtitle}</span>
                     )}
                 </div>
             )}

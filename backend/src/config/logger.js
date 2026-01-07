@@ -31,7 +31,7 @@ const transports = [];
 if (isDevelopment) {
     transports.push(
         new winston.transports.Console({
-            level: process.env.LOG_LEVEL || 'debug',
+            level: process.env.LOG_LEVEL || 'info',
             format: consoleFormat,
         })
     );
@@ -73,7 +73,7 @@ if (isProduction) {
 
 // Create logger instance
 const logger = winston.createLogger({
-    level: process.env.LOG_LEVEL || (isDevelopment ? 'debug' : 'info'),
+    level: process.env.LOG_LEVEL || 'info',
     format: logFormat,
     transports,
     exitOnError: false,

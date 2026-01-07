@@ -89,7 +89,7 @@ class RuleEngine {
 
                 alertConfigs.push(alertConfig);
 
-                logger.info(`Rule ${rule.id} matched for event ${eventType}`, {
+                logger.debug(`Rule ${rule.id} matched for event ${eventType}`, {
                     storeId: payload.storeId,
                     priority: alertConfig.priority,
                 });

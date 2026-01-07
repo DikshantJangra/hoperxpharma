@@ -87,6 +87,7 @@ const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 5, // 5 attempts per 15 minutes
     skipSuccessfulRequests: true, // Don't count successful logins
+    validate: { trustProxy: false, xForwardedForHeader: false },
     message: {
         success: false,
         message: 'Too many authentication attempts, please try again later',
@@ -116,7 +117,7 @@ const authLimiter = rateLimit({
 const userLimiter = rateLimit({
     windowMs: 60 * 1000, // 1 minute
     max: 200, // 200 requests per minute per user (increased for development)
-    validate: { trustProxy: false, xForwardedForHeader: false }, // Disable validation warnings
+    validate: { trustProxy: false, xForwardedForHeader: false, keyGeneratorIpFallback: false },
     keyGenerator: (req) => {
         // Use user ID if authenticated, else IP address
         return req.user?.id || req.ip;
@@ -151,6 +152,7 @@ const userLimiter = rateLimit({
 const posLimiter = rateLimit({
     windowMs: 60 * 1000, // 1 minute
     max: 120, // 120 requests per minute (2 per second)
+    validate: { trustProxy: false, xForwardedForHeader: false, keyGeneratorIpFallback: false },
     keyGenerator: (req) => req.user?.id || req.ip,
     message: {
         success: false,
@@ -170,6 +172,7 @@ const posLimiter = rateLimit({
 const searchLimiter = rateLimit({
     windowMs: 60 * 1000, // 1 minute
     max: 30, // 30 searches per minute
+    validate: { trustProxy: false, xForwardedForHeader: false, keyGeneratorIpFallback: false },
     keyGenerator: (req) => req.user?.id || req.ip,
     message: {
         success: false,
@@ -189,6 +192,7 @@ const searchLimiter = rateLimit({
 const reportLimiter = rateLimit({
     windowMs: 60 * 1000, // 1 minute
     max: 5, // 5 reports per minute
+    validate: { trustProxy: false, xForwardedForHeader: false, keyGeneratorIpFallback: false },
     keyGenerator: (req) => req.user?.id || req.ip,
     message: {
         success: false,
@@ -220,6 +224,7 @@ const reportLimiter = rateLimit({
 const uploadLimiter = rateLimit({
     windowMs: 60 * 1000, // 1 minute
     max: 10, // 10 uploads per minute
+    validate: { trustProxy: false, xForwardedForHeader: false, keyGeneratorIpFallback: false },
     keyGenerator: (req) => req.user?.id || req.ip,
     message: {
         success: false,

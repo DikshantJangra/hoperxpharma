@@ -69,7 +69,8 @@ class CacheService {
         this.isRedisAvailable = this.client !== null;
 
         // Cleanup expired memory cache entries every minute
-        setInterval(() => this.cleanupMemoryCache(), 60000);
+        const cleanupInterval = setInterval(() => this.cleanupMemoryCache(), 60000);
+        if (cleanupInterval.unref) cleanupInterval.unref();
     }
 
     cleanupMemoryCache() {
