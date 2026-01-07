@@ -30,7 +30,7 @@ function CallbackContent() {
                 // OAuth flow: accessToken + refreshToken in URL
                 if (accessToken && refreshToken) {
                     // Call set-session to establish httpOnly cookies
-                    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/set-session`, {
+                    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/set-session`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         credentials: 'include',
