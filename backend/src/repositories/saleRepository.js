@@ -142,8 +142,8 @@ class SaleRepository {
             total: saleData.total
         });
 
-        const TRANSACTION_TIMEOUT = parseInt(process.env.TRANSACTION_TIMEOUT) || 30000;
-        const TRANSACTION_MAX_WAIT = parseInt(process.env.TRANSACTION_MAX_WAIT) || 30000;
+        const TRANSACTION_TIMEOUT = parseInt(process.env.TRANSACTION_TIMEOUT) || 60000; // Increased to 60s
+        const TRANSACTION_MAX_WAIT = parseInt(process.env.TRANSACTION_MAX_WAIT) || 60000; // Increased to 60s
 
         return await prisma.$transaction(async (tx) => {
             let attachments = [];
@@ -548,69 +548,91 @@ class SaleRepository {
 
 
     /**
-     * Generate invoice number
+     * Generate invoice number with retry logic for concurrent requests
      */
-    async generateInvoiceNumber(storeId) {
-        // 1. Get Store Settings for format
-        const settings = await prisma.storeSettings.findUnique({
-            where: { storeId }
-        });
+    async generateInvoiceNumber(storeId, maxRetries = 5) {
+        for (let attempt = 0; attempt < maxRetries; attempt++) {
+            try {
+                const settings = await prisma.storeSettings.findUnique({
+                    where: { storeId }
+                });
 
-        const format = settings?.invoiceFormat || 'INV/{YYYY}/{SEQ:4}';
+                const format = settings?.invoiceFormat || 'INV/{YYYY}/{SEQ:4}';
+                const now = new Date();
+                const year = now.getFullYear().toString();
+                const yearShort = year.slice(-2);
+                const month = String(now.getMonth() + 1).padStart(2, '0');
+                const day = String(now.getDate()).padStart(2, '0');
 
-        // 2. Parse tokens
-        const now = new Date();
-        const year = now.getFullYear().toString();
-        const yearShort = year.slice(-2); // 2-digit year (e.g., "25" for 2025)
-        const month = String(now.getMonth() + 1).padStart(2, '0');
-        const day = String(now.getDate()).padStart(2, '0');
+                let prefix = format
+                    .replace('{YYYY}', year)
+                    .replace('{YY}', yearShort)
+                    .replace('{MM}', month)
+                    .replace('{DD}', day);
 
-        // Create a regex to match the sequence part, e.g., {SEQ:4} or {SEQ}
-        // Base prefix without the sequence number
-        let prefix = format
-            .replace('{YYYY}', year)
-            .replace('{YY}', yearShort)
-            .replace('{MM}', month)
-            .replace('{DD}', day);
+                let seqLength = 4;
+                const seqMatch = prefix.match(/{SEQ(?::(\d+))?}/);
 
-        // Extract sequence length
-        let seqLength = 4;
-        const seqMatch = prefix.match(/{SEQ(?::(\d+))?}/);
+                if (seqMatch) {
+                    seqLength = seqMatch[1] ? parseInt(seqMatch[1]) : 4;
+                    prefix = prefix.replace(seqMatch[0], '');
+                }
 
-        if (seqMatch) {
-            seqLength = seqMatch[1] ? parseInt(seqMatch[1]) : 4;
-            prefix = prefix.replace(seqMatch[0], ''); // Remove {SEQ...} to get the base
-        }
+                // Use aggregation to get max sequence more efficiently
+                const lastSale = await prisma.sale.findFirst({
+                    where: {
+                        storeId,
+                        invoiceNumber: {
+                            startsWith: prefix,
+                        },
+                    },
+                    orderBy: { createdAt: 'desc' },
+                    select: { invoiceNumber: true }
+                });
 
-        // Find last sale starting with this prefix FOR THIS STORE
-        const lastSale = await prisma.sale.findFirst({
-            where: {
-                storeId,
-                invoiceNumber: {
-                    startsWith: prefix,
-                },
-            },
-            orderBy: { createdAt: 'desc' },
-        });
+                let nextSeq = 1;
+                if (lastSale) {
+                    const remainder = lastSale.invoiceNumber.replace(prefix, '');
+                    const parsed = parseInt(remainder);
+                    if (!isNaN(parsed)) {
+                        nextSeq = parsed + 1;
+                    }
+                }
 
-        let nextSeq = 1;
-        if (lastSale) {
-            const remainder = lastSale.invoiceNumber.replace(prefix, '');
-            const parsed = parseInt(remainder);
-            if (!isNaN(parsed)) {
-                nextSeq = parsed + 1;
+                // Add random offset for concurrent requests (exponential backoff)
+                if (attempt > 0) {
+                    nextSeq += Math.floor(Math.random() * (attempt * 2)) + attempt;
+                }
+
+                let formattedTemplate = format
+                    .replace('{YYYY}', year)
+                    .replace('{YY}', yearShort)
+                    .replace('{MM}', month)
+                    .replace('{DD}', day);
+
+                const seqString = String(nextSeq).padStart(seqLength, '0');
+                const invoiceNumber = formattedTemplate.replace(/{SEQ(?::(\d+))?}/, seqString);
+
+                // Quick existence check
+                const existing = await prisma.sale.findUnique({
+                    where: { invoiceNumber },
+                    select: { id: true }
+                });
+
+                if (!existing) {
+                    return invoiceNumber;
+                }
+
+                logger.warn(`Invoice number ${invoiceNumber} already exists, retrying...`);
+                await new Promise(resolve => setTimeout(resolve, 20 * attempt));
+            } catch (error) {
+                if (attempt === maxRetries - 1) throw error;
+                await new Promise(resolve => setTimeout(resolve, 50 * attempt));
             }
         }
 
-        // Reconstruct full string
-        let formattedTemplate = format
-            .replace('{YYYY}', year)
-            .replace('{YY}', yearShort)
-            .replace('{MM}', month)
-            .replace('{DD}', day);
-
-        const seqString = String(nextSeq).padStart(seqLength, '0');
-        return formattedTemplate.replace(/{SEQ(?::(\d+))?}/, seqString);
+        // Fallback: use timestamp
+        return `INV${Date.now()}`;
     }
 
     /**

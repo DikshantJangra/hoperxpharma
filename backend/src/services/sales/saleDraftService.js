@@ -185,29 +185,57 @@ class SaleDraftService {
     }
 
     /**
-     * Generate draft number
+     * Generate draft number with retry logic
      */
-    async generateDraftNumber(storeId) {
-        const today = new Date();
-        const prefix = `DRF${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')} `;
+    async generateDraftNumber(storeId, maxRetries = 5) {
+        for (let attempt = 0; attempt < maxRetries; attempt++) {
+            try {
+                const today = new Date();
+                const prefix = `DRF${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}`;
 
-        const lastDraft = await prisma.saleDraft.findFirst({
-            where: {
-                storeId,
-                draftNumber: {
-                    startsWith: prefix,
-                },
-            },
-            orderBy: { createdAt: 'desc' },
-        });
+                const lastDraft = await prisma.saleDraft.findFirst({
+                    where: {
+                        storeId,
+                        draftNumber: {
+                            startsWith: prefix,
+                        },
+                    },
+                    orderBy: { createdAt: 'desc' },
+                });
 
-        let sequence = 1;
-        if (lastDraft) {
-            const lastSequence = parseInt(lastDraft.draftNumber.slice(-4));
-            sequence = lastSequence + 1;
+                let sequence = 1;
+                if (lastDraft) {
+                    const lastSequence = parseInt(lastDraft.draftNumber.slice(-4));
+                    sequence = lastSequence + 1;
+                }
+
+                // Add offset for retries
+                if (attempt > 0) {
+                    sequence += attempt;
+                }
+
+                const draftNumber = `${prefix}${String(sequence).padStart(4, '0')}`;
+
+                // Check if exists
+                const existing = await prisma.saleDraft.findUnique({
+                    where: { draftNumber },
+                    select: { id: true }
+                });
+
+                if (!existing) {
+                    return draftNumber;
+                }
+
+                logger.warn(`Draft number ${draftNumber} already exists, retrying...`);
+                await new Promise(resolve => setTimeout(resolve, 50 * attempt));
+            } catch (error) {
+                if (attempt === maxRetries - 1) throw error;
+                await new Promise(resolve => setTimeout(resolve, 100 * attempt));
+            }
         }
 
-        return `${prefix}${String(sequence).padStart(4, '0')} `;
+        // Fallback
+        return `DRF${Date.now()}`;
     }
 }
 

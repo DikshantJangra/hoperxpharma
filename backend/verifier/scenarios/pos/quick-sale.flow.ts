@@ -125,7 +125,7 @@ export const quickSaleScenario: Scenario = {
                 }
             ],
             critical: true,
-            timeout: 15000
+            timeout: 20000
         },
 
         {

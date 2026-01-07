@@ -1,4 +1,6 @@
 const prisma = require('../db/prisma');
+const logger = require('../config/logger');
+const cacheService = require('./cacheService');
 
 /**
  * Feature Toggle Service

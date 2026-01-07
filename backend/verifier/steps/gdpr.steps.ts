@@ -22,13 +22,12 @@ export const gdprSteps = {
 
             return {
                 success: true,
-                data: {
-                    itemCount: Object.keys(exportData).length,
-                    exportDate: exportData.exportDate
-                },
+                data: exportData,
                 duration: 0
             };
         } catch (error: any) {
+            // Set empty export on error so assertions can check it
+            ctx.set('gdprExport', null);
             return {
                 success: false,
                 error,

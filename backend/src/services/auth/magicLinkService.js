@@ -218,8 +218,8 @@ class MagicLinkService {
         });
 
         // Generate auth tokens
-        const authService = require('./authService');
-        const tokens = authService.generateTokens(user.id);
+        const { generateTokens } = require('./tokenService');
+        const tokens = generateTokens(user.id, user.role);
 
         // Log successful magic link authentication
         const accessLogService = require('../audit/accessLogService');

@@ -17,6 +17,23 @@ import { DependencyResolver } from './DependencyResolver';
 import { Reporter } from '../reporter/Reporter';
 import { ConsoleReporter } from '../reporter/ConsoleReporter';
 
+/**
+ * Serialize error for JSON output with full details
+ */
+function serializeError(error: Error | undefined): any {
+    if (!error) return undefined;
+    
+    return {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+        // Preserve Prisma-specific error details
+        code: (error as any).code,
+        meta: (error as any).meta,
+        clientVersion: (error as any).clientVersion
+    };
+}
+
 export class Runner {
     private scenarios: Map<string, Scenario> = new Map();
     private results: Map<string, ScenarioResult> = new Map();
@@ -217,7 +234,10 @@ export class Runner {
             if (stepResult.success) {
                 this.log(`    ✓ Passed (${stepResult.duration}ms)`);
             } else {
-                this.log(`    ✗ Failed: ${stepResult.error?.message || 'Assertion failed'}`);
+                // Extract clean error message for console
+                const errorMsg = stepResult.error?.message || 'Assertion failed';
+                const cleanMsg = errorMsg.split('\n')[0]; // First line only for console
+                this.log(`    ✗ Failed: ${cleanMsg}`);
 
                 // Log failed assertions
                 stepResult.assertions?.filter(a => !a.passed).forEach(a => {
@@ -236,8 +256,11 @@ export class Runner {
                     id: scenario.id,
                     status: 'FAILED',
                     failedAtStep: step.id,
-                    steps: stepResults,
-                    error: stepResult.error,
+                    steps: stepResults.map(sr => ({
+                        ...sr,
+                        error: serializeError(sr.error)
+                    })),
+                    error: serializeError(stepResult.error),
                     duration: Date.now() - startTime
                 };
             }
@@ -249,7 +272,10 @@ export class Runner {
         return {
             id: scenario.id,
             status: 'PASSED',
-            steps: stepResults,
+            steps: stepResults.map(sr => ({
+                ...sr,
+                error: serializeError(sr.error)
+            })),
             duration: Date.now() - startTime
         };
     }
@@ -317,6 +343,25 @@ export class Runner {
             };
 
         } catch (error: any) {
+            // Check for database connection errors
+            const isDatabaseError = error.message?.includes("Can't reach database") ||
+                error.message?.includes("Connection") ||
+                error.code === 'P1001' || // Prisma connection error
+                error.code === 'P1002'; // Prisma timeout
+
+            if (isDatabaseError) {
+                console.error('\n❌ FATAL: Database connection error detected');
+                console.error('Error:', error.message);
+                console.error('\n🧹 Running cleanup and exiting...');
+                
+                // Run cleanup
+                const { cleanupDPFVData } = require('../cleanup');
+                await cleanupDPFVData().catch(() => {});
+                
+                // Exit process
+                process.exit(1);
+            }
+
             return {
                 success: false,
                 error,

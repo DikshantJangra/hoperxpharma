@@ -201,18 +201,24 @@ async function main(): Promise<void> {
         consolidatedInvoiceScenario
     );
 
+    let exitCode = 0;
+    
     try {
         // Run verification
         const report = await runner.run();
 
-        // Exit with appropriate code
-        const hasFailures = report.summary.failed > 0;
-        process.exit(hasFailures ? 1 : 0);
-
-        process.exit(2);
+        // Determine exit code
+        exitCode = report.summary.failed > 0 ? 1 : 0;
+    } catch (error) {
+        console.error('\n❌ Fatal error during test execution:', error);
+        exitCode = 2;
     } finally {
+        // Always cleanup, regardless of success or failure
         await cleanupDPFVData();
     }
+    
+    // Exit after cleanup completes
+    process.exit(exitCode);
 }
 
 // Handle termination signals
@@ -226,7 +232,9 @@ process.on('SIGINT', () => handleSignal('SIGINT'));
 process.on('SIGTERM', () => handleSignal('SIGTERM'));
 
 // Run main
-main().catch(error => {
-    console.error('Unhandled error:', error);
+main().catch(async (error) => {
+    console.error('\n❌ Unhandled error:', error);
+    // Cleanup even on unhandled errors
+    await cleanupDPFVData();
     process.exit(2);
 });

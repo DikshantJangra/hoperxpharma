@@ -43,7 +43,12 @@ const collectUserData = async (userId) => {
             include: {
                 users: {
                     where: { userId },
-                    select: { role: true },
+                    select: {
+                        userId: true,
+                        storeId: true,
+                        isPrimary: true,
+                        assignedAt: true
+                    },
                 },
             },
         });
@@ -132,7 +137,7 @@ const collectUserData = async (userId) => {
             stores: stores.map(store => ({
                 id: store.id,
                 name: store.name,
-                userRole: store.users[0]?.role,
+                isPrimary: store.users[0]?.isPrimary || false,
             })),
             patients: patients.length > 0 ? patients : [],
             prescriptions: prescriptions.length > 0 ? prescriptions : [],

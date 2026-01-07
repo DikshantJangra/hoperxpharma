@@ -1,18 +1,18 @@
 {
-  "runId": "dpfv-2026-01-07-1767796273913",
-  "timestamp": "2026-01-07T14:29:23.885Z",
+  "runId": "dpfv-2026-01-07-1767801798678",
+  "timestamp": "2026-01-07T16:00:53.198Z",
   "mode": "dev",
-  "duration": 110014,
+  "duration": 145477,
   "summary": {
     "total": 24,
-    "passed": 15,
-    "failed": 9,
+    "passed": 16,
+    "failed": 8,
     "blocked": 0,
     "skipped": 0
   },
   "scenarioMap": {
     "core.auth": "PASSED",
-    "reports.sales": "PASSED",
+    "reports.sales": "FAILED",
     "audit.gdpr": "FAILED",
     "pos.draft": "PASSED",
     "pos.refund": "FAILED",
@@ -24,7 +24,7 @@
     "audit.access": "PASSED",
     "communication.email": "PASSED",
     "communication.whatsapp": "PASSED",
-    "pos.quick-sale": "FAILED",
+    "pos.quick-sale": "PASSED",
     "patients.create": "PASSED",
     "clinical.prescription": "PASSED",
     "admin.roles": "FAILED",
@@ -33,7 +33,7 @@
     "billing.subscription": "PASSED",
     "clinical.dispense": "PASSED",
     "procurement.po": "PASSED",
-    "pos.rx-sale": "FAILED",
+    "pos.rx-sale": "PASSED",
     "procurement.grn": "PASSED"
   },
   "scenarios": [
@@ -45,24 +45,24 @@
           "success": true,
           "data": {
             "user": {
-              "id": "cmk446ytw000014rjey7zq1es",
-              "email": "dpfv-test-1767796163886@test.hoperx.com",
-              "phoneNumber": "9796163886",
+              "id": "cmk47glv2000014m8n68ceogg",
+              "email": "dpfv-test-1767801653200@test.hoperx.com",
+              "phoneNumber": "9801653200",
               "firstName": "DPFV",
               "lastName": "TestUser",
               "role": "ADMIN",
               "isActive": true
             },
-            "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjbWs0NDZ5dHcwMDAwMTRyamV5N3pxMWVzIiwicm9sZSI6IkFETUlOIiwidHlwZSI6ImFjY2VzcyIsImlhdCI6MTc2Nzc5NjE2NSwiZXhwIjoxNzY3Nzk5NzY1fQ.NVAU856AekvmrvV8ISDr0q2jRI81bE3lPTmldHpoTW8",
-            "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjbWs0NDZ5dHcwMDAwMTRyamV5N3pxMWVzIiwidHlwZSI6InJlZnJlc2giLCJqdGkiOiI3NzdiMTZiYi1hNmEzLTRiNDctOGUxYy0zODdkNzU1ZmRjZWEiLCJpYXQiOjE3Njc3OTYxNjUsImV4cCI6MTc2ODQwMDk2NX0.M6karNfrEunB1HgKxQ4KueIjGPcj9HaXiqNXBJLO_DI"
+            "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjbWs0N2dsdjIwMDAwMTRtOG42OGNlb2dnIiwicm9sZSI6IkFETUlOIiwidHlwZSI6ImFjY2VzcyIsImlhdCI6MTc2NzgwMTY1MywiZXhwIjoxNzY3ODA1MjUzfQ.Oj0ij-KzX0B5UP2G2YkAxhf2YAxyAR8gNJlsyi-5cRI",
+            "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjbWs0N2dsdjIwMDAwMTRtOG42OGNlb2dnIiwidHlwZSI6InJlZnJlc2giLCJqdGkiOiJjMWJmZjg1ZS1jZjIyLTRlYTgtOThlZi1hYzk3MGYyZmMxOWUiLCJpYXQiOjE3Njc4MDE2NTMsImV4cCI6MTc2ODQwNjQ1M30.Ep2foBmHM2GRRWmc2tWshTz5aElCNMInh3RfaebbLI8"
           },
           "assertions": [
             {
               "passed": true,
               "expected": "User object with id, email, firstName",
               "actual": {
-                "id": "cmk446ytw000014rjey7zq1es",
-                "email": "dpfv-test-1767796163886@test.hoperx.com"
+                "id": "cmk47glv2000014m8n68ceogg",
+                "email": "dpfv-test-1767801653200@test.hoperx.com"
               },
               "message": "Signup must return complete user object",
               "invariant": "AUTH-001"
@@ -82,15 +82,15 @@
               "invariant": "AUTH-001"
             }
           ],
-          "duration": 1373
+          "duration": 642
         },
         {
           "success": true,
           "data": {
             "user": {
-              "id": "cmk446ytw000014rjey7zq1es",
-              "email": "dpfv-test-1767796163886@test.hoperx.com",
-              "phoneNumber": "9796163886",
+              "id": "cmk47glv2000014m8n68ceogg",
+              "email": "dpfv-test-1767801653200@test.hoperx.com",
+              "phoneNumber": "9801653200",
               "firstName": "DPFV",
               "lastName": "TestUser",
               "role": "ADMIN",
@@ -109,8 +109,8 @@
               "emergencyContactPhone": null,
               "employeeId": null,
               "preferences": null,
-              "createdAt": "2026-01-07T14:29:25.076Z",
-              "updatedAt": "2026-01-07T14:29:25.076Z",
+              "createdAt": "2026-01-07T16:00:53.678Z",
+              "updatedAt": "2026-01-07T16:00:53.678Z",
               "deletedAt": null,
               "storeUsers": []
             },
@@ -136,14 +136,14 @@
               "settings.manage",
               "users.manage"
             ],
-            "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjbWs0NDZ5dHcwMDAwMTRyamV5N3pxMWVzIiwicm9sZSI6IkFETUlOIiwidHlwZSI6ImFjY2VzcyIsImlhdCI6MTc2Nzc5NjE2NSwiZXhwIjoxNzY3Nzk5NzY1fQ.NVAU856AekvmrvV8ISDr0q2jRI81bE3lPTmldHpoTW8",
-            "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjbWs0NDZ5dHcwMDAwMTRyamV5N3pxMWVzIiwidHlwZSI6InJlZnJlc2giLCJqdGkiOiJlMDE3ZmVjYi0xZTc5LTQwZjMtYTRhMi1mODcwMmU3MDg0ZWYiLCJpYXQiOjE3Njc3OTYxNjUsImV4cCI6MTc2ODQwMDk2NX0.cQf0iUB_QSYcpV6O4Ly3cvY1ObEkrEZTCYpiAdGIVo4"
+            "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjbWs0N2dsdjIwMDAwMTRtOG42OGNlb2dnIiwicm9sZSI6IkFETUlOIiwidHlwZSI6ImFjY2VzcyIsImlhdCI6MTc2NzgwMTY1NCwiZXhwIjoxNzY3ODA1MjU0fQ.Z9Od4XrKjG8dcWMEII662S5P5ruKI9bNfneI3YbtN78",
+            "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjbWs0N2dsdjIwMDAwMTRtOG42OGNlb2dnIiwidHlwZSI6InJlZnJlc2giLCJqdGkiOiJkMGUwNTE0NC01NTY5LTRiOWItYmNiMy00NDI5ZTE5YTJhZDQiLCJpYXQiOjE3Njc4MDE2NTQsImV4cCI6MTc2ODQwNjQ1NH0.z3gCbuLP0hDBNc0HuD6DT-igsRY8_UYSdQTWd3Uk5OU"
           },
           "assertions": [
             {
               "passed": true,
-              "expected": "cmk446ytw000014rjey7zq1es",
-              "actual": "cmk446ytw000014rjey7zq1es",
+              "expected": "cmk47glv2000014m8n68ceogg",
+              "actual": "cmk47glv2000014m8n68ceogg",
               "message": "Login must return same user as signup",
               "invariant": "AUTH-001"
             },
@@ -155,13 +155,13 @@
               "invariant": "AUTH-001"
             }
           ],
-          "duration": 1720
+          "duration": 1505
         },
         {
           "success": true,
           "data": {
-            "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjbWs0NDZ5dHcwMDAwMTRyamV5N3pxMWVzIiwicm9sZSI6IkFETUlOIiwidHlwZSI6ImFjY2VzcyIsImlhdCI6MTc2Nzc5NjE2NywiZXhwIjoxNzY3Nzk5NzY3fQ.nmZpXYs9be6UN96mmAF-A6WJPCVYAaEDiTdzOboX6P8",
-            "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjbWs0NDZ5dHcwMDAwMTRyamV5N3pxMWVzIiwidHlwZSI6InJlZnJlc2giLCJqdGkiOiIxMjk4Nzc1Ny1jNzE2LTRmMzktYmM5NS03ZjIwOGI5MDVjNjAiLCJpYXQiOjE3Njc3OTYxNjcsImV4cCI6MTc2ODQwMDk2N30.2w5E0nc8hk4cv9M06J71eKD2E03xjsIdS8CQnuDBDPc"
+            "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjbWs0N2dsdjIwMDAwMTRtOG42OGNlb2dnIiwicm9sZSI6IkFETUlOIiwidHlwZSI6ImFjY2VzcyIsImlhdCI6MTc2NzgwMTY1NSwiZXhwIjoxNzY3ODA1MjU1fQ.xOeRoYSnVFWnsFxt5o8WVaaxC2YDXSbzTVZ_70SB7-M",
+            "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjbWs0N2dsdjIwMDAwMTRtOG42OGNlb2dnIiwidHlwZSI6InJlZnJlc2giLCJqdGkiOiJhOGY3NDkyMC01YjM4LTRiOWYtYWNiZC1kMTEyNTU5MDUyNDEiLCJpYXQiOjE3Njc4MDE2NTUsImV4cCI6MTc2ODQwNjQ1NX0.1LMZYbF-SvXAjKEi1hJCPkh1pauIA1mvET3YrW7IvWM"
           },
           "assertions": [
             {
@@ -172,14 +172,14 @@
               "invariant": "AUTH-001"
             }
           ],
-          "duration": 258
+          "duration": 382
         },
         {
           "success": true,
           "data": {
-            "id": "cmk446ytw000014rjey7zq1es",
-            "email": "dpfv-test-1767796163886@test.hoperx.com",
-            "phoneNumber": "9796163886",
+            "id": "cmk47glv2000014m8n68ceogg",
+            "email": "dpfv-test-1767801653200@test.hoperx.com",
+            "phoneNumber": "9801653200",
             "firstName": "DPFV",
             "lastName": "TestUser",
             "role": "ADMIN",
@@ -198,16 +198,16 @@
             "emergencyContactPhone": null,
             "employeeId": null,
             "preferences": null,
-            "createdAt": "2026-01-07T14:29:25.076Z",
-            "updatedAt": "2026-01-07T14:29:25.076Z",
+            "createdAt": "2026-01-07T16:00:53.678Z",
+            "updatedAt": "2026-01-07T16:00:53.678Z",
             "deletedAt": null,
             "storeUsers": []
           },
           "assertions": [
             {
               "passed": true,
-              "expected": "dpfv-test-1767796163886@test.hoperx.com",
-              "actual": "dpfv-test-1767796163886@test.hoperx.com",
+              "expected": "dpfv-test-1767801653200@test.hoperx.com",
+              "actual": "dpfv-test-1767801653200@test.hoperx.com",
               "message": "Profile email must match user email",
               "invariant": "AUTH-001"
             },
@@ -219,24 +219,25 @@
               "invariant": "AUTH-002"
             }
           ],
-          "duration": 172
+          "duration": 163
         }
       ],
-      "duration": 3525
+      "duration": 2697
     },
     {
       "id": "reports.sales",
-      "status": "PASSED",
+      "status": "FAILED",
+      "failedAtStep": "reports.get-today",
       "steps": [
         {
           "success": true,
           "data": {
             "store": {
-              "id": "cmk44714p000414rjl4licdaz",
-              "name": "Report Test Pharmacy 1767796167412",
-              "displayName": "Report Pharma 1767796167412",
-              "email": "report-store-1767796167412@test.hoperx.com",
-              "phoneNumber": "9796167412",
+              "id": "cmk47gnyf000414m84fztmw74",
+              "name": "Report Test Pharmacy 1767801655896",
+              "displayName": "Report Pharma 1767801655896",
+              "email": "report-store-1767801655896@test.hoperx.com",
+              "phoneNumber": "9801655896",
               "whatsapp": null,
               "businessType": "Retail Pharmacy",
               "logoUrl": null,
@@ -261,21 +262,21 @@
               "latitude": null,
               "longitude": null,
               "geofenceRadius": 50,
-              "createdAt": "2026-01-07T14:29:28.058Z",
-              "updatedAt": "2026-01-07T14:29:28.058Z",
+              "createdAt": "2026-01-07T16:00:56.391Z",
+              "updatedAt": "2026-01-07T16:00:56.391Z",
               "deletedAt": null
             },
             "message": "Onboarding completed successfully",
             "patient": {
-              "id": "cmk4472pw000814rj55y9ttmq",
-              "storeId": "cmk44714p000414rjl4licdaz",
+              "id": "cmk47gp46000814m8wqgwki1g",
+              "storeId": "cmk47gnyf000414m84fztmw74",
               "firstName": "Test",
               "middleName": null,
               "lastName": "Patient",
               "dateOfBirth": null,
               "gender": "Male",
               "photoUrl": null,
-              "phoneNumber": "9796167412",
+              "phoneNumber": "9801655896",
               "email": null,
               "addressLine1": null,
               "addressLine2": null,
@@ -289,24 +290,24 @@
               "emergencyContactPhone": null,
               "currentBalance": "0",
               "creditLimit": "0",
-              "createdAt": "2026-01-07T14:29:30.116Z",
-              "updatedAt": "2026-01-07T14:29:30.116Z",
+              "createdAt": "2026-01-07T16:00:57.894Z",
+              "updatedAt": "2026-01-07T16:00:57.894Z",
               "deletedAt": null,
               "deletedBy": null
             }
           },
           "assertions": [],
-          "duration": 2875
+          "duration": 2160
         },
         {
           "success": true,
           "data": {
-            "id": "cmk447c69000q14rjx9fm5gbq",
-            "storeId": "cmk44714p000414rjl4licdaz",
-            "invoiceNumber": "INV/2026/0001",
+            "id": "cmk47gyul000q14m8nryl15vy",
+            "storeId": "cmk47gnyf000414m84fztmw74",
+            "invoiceNumber": "INV1767801669956",
             "invoiceType": "RECEIPT",
             "status": "COMPLETED",
-            "patientId": "cmk4472pw000814rj55y9ttmq",
+            "patientId": "cmk47gp46000814m8wqgwki1g",
             "dispenseForPatientId": null,
             "subtotal": "200",
             "discountAmount": "0",
@@ -324,232 +325,37 @@
             "gstrCategory": null,
             "originalSaleId": null,
             "creditReason": null,
-            "soldBy": "cmk4470u8000314rjly2ov0z5",
+            "soldBy": "cmk47gntv000314m8geunsk2n",
             "attachments": null,
-            "prescriptionId": "cmk4473zn000d14rjdd236ghy",
-            "dispenseId": "cmk4478tk000o14rjkog94ddg",
+            "prescriptionId": "cmk47gqa0000d14m8vkh3byu2",
+            "dispenseId": "cmk47gul2000o14m85jm7d7mh",
             "balance": "0",
             "paymentStatus": "PAID",
-            "createdAt": "2026-01-07T14:29:42.369Z",
-            "updatedAt": "2026-01-07T14:29:42.369Z",
+            "createdAt": "2026-01-07T16:01:10.509Z",
+            "updatedAt": "2026-01-07T16:01:10.509Z",
             "deletedAt": null,
             "items": [],
             "paymentSplits": []
           },
           "assertions": [],
-          "duration": 16711
+          "duration": 16915
         },
         {
-          "success": true,
-          "data": {
-            "kpis": {
-              "revenue": 224,
-              "orders": 1,
-              "aov": 224,
-              "customers": 1,
-              "newCustomers": 1,
-              "returningCustomers": 0,
-              "refunds": 0,
-              "returnRate": 0,
-              "delta": {
-                "revenue": 0,
-                "orders": 0,
-                "aov": 0
-              },
-              "avgOrdersPerDay": 1,
-              "avgOrdersPerHour": 0.041666666666666664,
-              "period": {
-                "start": "2026-01-06T18:30:00.000Z",
-                "end": "2026-01-07T18:29:59.999Z",
-                "preset": "today"
-              }
-            },
-            "trends": {
-              "current": [
-                {
-                  "date": "2026-01-07",
-                  "revenue": 224,
-                  "orders": 1,
-                  "items": 2,
-                  "aov": 224
-                }
-              ],
-              "previous": [],
-              "period": {
-                "start": "2026-01-06T18:30:00.000Z",
-                "end": "2026-01-07T18:29:59.999Z"
-              }
-            },
-            "breakdown": {
-              "byCategory": [
-                {
-                  "category": "Tablet",
-                  "revenue": 224,
-                  "orders": 1,
-                  "revenueShare": 100,
-                  "margin": 89.29
-                }
-              ],
-              "byPaymentMethod": [
-                {
-                  "method": "CASH",
-                  "amount": 200,
-                  "count": 1,
-                  "percentage": 100
-                }
-              ],
-              "period": {
-                "start": "2026-01-06T18:30:00.000Z",
-                "end": "2026-01-07T18:29:59.999Z"
-              }
-            },
-            "performance": {
-              "topProducts": [
-                {
-                  "drugId": "cmk4472za000a14rjnxiafvf4",
-                  "drugName": "Report Test Drug",
-                  "manufacturer": "-",
-                  "category": "Tablet",
-                  "revenue": 224,
-                  "quantity": 2,
-                  "orders": 1,
-                  "avgPrice": 112,
-                  "stockLeft": 48,
-                  "trend": "stable"
-                }
-              ],
-              "topCustomers": [
-                {
-                  "customerId": "cmk4472pw000814rj55y9ttmq",
-                  "customerName": "Test Patient",
-                  "phoneNumber": "9796167412",
-                  "totalSpend": 224,
-                  "orders": 1,
-                  "lastVisit": "2026-01-07T14:29:42.369Z",
-                  "loyaltyStatus": "NEW",
-                  "avgOrderValue": 224
-                }
-              ],
-              "period": {
-                "start": "2026-01-06T18:30:00.000Z",
-                "end": "2026-01-07T18:29:59.999Z"
-              }
-            },
-            "insights": [],
-            "generatedAt": "2026-01-07T14:29:49.221Z"
+          "success": false,
+          "error": {
+            "name": "Error",
+            "message": "Step \"Get sales report for today\" timed out after 5000ms",
+            "stack": "Error: Step \"Get sales report for today\" timed out after 5000ms\n    at Timeout._onTimeout (/Users/dikshantjangra/Desktop/hoperxpharma/backend/verifier/runner/Runner.ts:379:24)\n    at listOnTimeout (node:internal/timers:594:17)\n    at processTimers (node:internal/timers:529:7)"
           },
-          "assertions": [
-            {
-              "passed": true,
-              "expected": ">= 224",
-              "actual": 224,
-              "message": "Report revenue must include the tracked sale",
-              "invariant": "RPT-001"
-            },
-            {
-              "passed": true,
-              "expected": "> 0",
-              "actual": 1,
-              "message": "Order count must be positive",
-              "invariant": "RPT-002"
-            }
-          ],
-          "duration": 2224
-        },
-        {
-          "success": true,
-          "data": {
-            "data": {
-              "metadata": {
-                "storeName": "Store",
-                "reportType": "Sales Analytics",
-                "period": {
-                  "start": "2026-01-06T18:30:00.000Z",
-                  "end": "2026-01-07T18:29:59.999Z",
-                  "preset": "today"
-                },
-                "generatedAt": "2026-01-07T14:29:50.357Z"
-              },
-              "summary": {
-                "revenue": 224,
-                "orders": 1,
-                "aov": 224,
-                "customers": 1,
-                "refunds": 0
-              },
-              "trends": [
-                {
-                  "date": "2026-01-07",
-                  "revenue": 224,
-                  "orders": 1,
-                  "items": 2,
-                  "aov": 224
-                }
-              ],
-              "topProducts": [
-                {
-                  "drugId": "cmk4472za000a14rjnxiafvf4",
-                  "drugName": "Report Test Drug",
-                  "manufacturer": "-",
-                  "category": "Tablet",
-                  "revenue": 224,
-                  "quantity": 2,
-                  "orders": 1,
-                  "avgPrice": 112,
-                  "stockLeft": 48,
-                  "trend": "stable"
-                }
-              ],
-              "topCustomers": [
-                {
-                  "customerId": "cmk4472pw000814rj55y9ttmq",
-                  "customerName": "Test Patient",
-                  "phoneNumber": "9796167412",
-                  "totalSpend": 224,
-                  "orders": 1,
-                  "lastVisit": "2026-01-07T14:29:42.369Z",
-                  "loyaltyStatus": "NEW",
-                  "avgOrderValue": 224
-                }
-              ],
-              "categoryBreakdown": [
-                {
-                  "category": "Tablet",
-                  "revenue": 224,
-                  "orders": 1,
-                  "revenueShare": 100,
-                  "margin": 89.29
-                }
-              ],
-              "paymentBreakdown": [
-                {
-                  "method": "CASH",
-                  "amount": 200,
-                  "count": 1,
-                  "percentage": 100
-                }
-              ]
-            },
-            "format": "csv",
-            "filename": "sales-report-today-2026-01-07.csv"
-          },
-          "assertions": [
-            {
-              "passed": true,
-              "expected": "Valid export object",
-              "actual": [
-                "data",
-                "format",
-                "filename"
-              ],
-              "message": "Export must return data and filename",
-              "invariant": "RPT-003"
-            }
-          ],
-          "duration": 1135
+          "duration": 5002
         }
       ],
-      "duration": 22947
+      "error": {
+        "name": "Error",
+        "message": "Step \"Get sales report for today\" timed out after 5000ms",
+        "stack": "Error: Step \"Get sales report for today\" timed out after 5000ms\n    at Timeout._onTimeout (/Users/dikshantjangra/Desktop/hoperxpharma/backend/verifier/runner/Runner.ts:379:24)\n    at listOnTimeout (node:internal/timers:594:17)\n    at processTimers (node:internal/timers:529:7)"
+      },
+      "duration": 24081
     },
     {
       "id": "audit.gdpr",
@@ -559,7 +365,7 @@
         {
           "success": true,
           "assertions": [],
-          "duration": 2454
+          "duration": 2314
         },
         {
           "success": false,
@@ -567,24 +373,32 @@
             {
               "passed": false,
               "expected": "No error",
-              "actual": "Context key \"gdprExport\" not found. Available keys: authToken, signupResult, currentUser, refreshToken, userId, storeId, loginResult, originalToken, userProfile, onboardingResult, currentStore, currentPatient, patientId, sale, saleId, invoiceNumber, trackedSale, lastSalesReport, lastExport",
-              "message": "Assertion \"Export contains user profile\" threw: Context key \"gdprExport\" not found. Available keys: authToken, signupResult, currentUser, refreshToken, userId, storeId, loginResult, originalToken, userProfile, onboardingResult, currentStore, currentPatient, patientId, sale, saleId, invoiceNumber, trackedSale, lastSalesReport, lastExport",
+              "actual": "Cannot read properties of null (reading 'user')",
+              "message": "Assertion \"Export contains user profile\" threw: Cannot read properties of null (reading 'user')",
               "invariant": "INV-AUDIT"
             },
             {
               "passed": false,
               "expected": "No error",
-              "actual": "Context key \"gdprExport\" not found. Available keys: authToken, signupResult, currentUser, refreshToken, userId, storeId, loginResult, originalToken, userProfile, onboardingResult, currentStore, currentPatient, patientId, sale, saleId, invoiceNumber, trackedSale, lastSalesReport, lastExport",
-              "message": "Assertion \"Export contains stores\" threw: Context key \"gdprExport\" not found. Available keys: authToken, signupResult, currentUser, refreshToken, userId, storeId, loginResult, originalToken, userProfile, onboardingResult, currentStore, currentPatient, patientId, sale, saleId, invoiceNumber, trackedSale, lastSalesReport, lastExport",
+              "actual": "Cannot read properties of null (reading 'stores')",
+              "message": "Assertion \"Export contains stores\" threw: Cannot read properties of null (reading 'stores')",
               "invariant": "INV-AUDIT"
             }
           ],
-          "duration": 195,
-          "error": {}
+          "duration": 503,
+          "error": {
+            "name": "Error",
+            "message": "Assertion(s) failed",
+            "stack": "Error: Assertion(s) failed\n    at Runner.executeStep (/Users/dikshantjangra/Desktop/hoperxpharma/backend/verifier/runner/Runner.ts:342:58)\n    at async Runner.executeScenario (/Users/dikshantjangra/Desktop/hoperxpharma/backend/verifier/runner/Runner.ts:230:32)\n    at async Runner.run (/Users/dikshantjangra/Desktop/hoperxpharma/backend/verifier/runner/Runner.ts:119:28)\n    at async main (/Users/dikshantjangra/Desktop/hoperxpharma/backend/verifier/run.ts:208:24)"
+          }
         }
       ],
-      "error": {},
-      "duration": 2649
+      "error": {
+        "name": "Error",
+        "message": "Assertion(s) failed",
+        "stack": "Error: Assertion(s) failed\n    at Runner.executeStep (/Users/dikshantjangra/Desktop/hoperxpharma/backend/verifier/runner/Runner.ts:342:58)\n    at async Runner.executeScenario (/Users/dikshantjangra/Desktop/hoperxpharma/backend/verifier/runner/Runner.ts:230:32)\n    at async Runner.run (/Users/dikshantjangra/Desktop/hoperxpharma/backend/verifier/runner/Runner.ts:119:28)\n    at async main (/Users/dikshantjangra/Desktop/hoperxpharma/backend/verifier/run.ts:208:24)"
+      },
+      "duration": 2818
     },
     {
       "id": "pos.draft",
@@ -594,11 +408,11 @@
           "success": true,
           "data": {
             "store": {
-              "id": "cmk447ktg001414rjfl4ywxvo",
-              "name": "Draft Test Store 1767796193007",
+              "id": "cmk47h8pt001414m8m1otljnu",
+              "name": "Draft Test Store 1767801682795",
               "displayName": "Draft Store",
-              "email": "draft-store-1767796193007@test.hoperx.com",
-              "phoneNumber": "9796193007",
+              "email": "draft-store-1767801682795@test.hoperx.com",
+              "phoneNumber": "9801682795",
               "whatsapp": null,
               "businessType": "Retail Pharmacy",
               "logoUrl": null,
@@ -623,21 +437,21 @@
               "latitude": null,
               "longitude": null,
               "geofenceRadius": 50,
-              "createdAt": "2026-01-07T14:29:53.572Z",
-              "updatedAt": "2026-01-07T14:29:53.572Z",
+              "createdAt": "2026-01-07T16:01:23.298Z",
+              "updatedAt": "2026-01-07T16:01:23.298Z",
               "deletedAt": null
             },
             "message": "Onboarding completed successfully"
           },
           "assertions": [],
-          "duration": 1504
+          "duration": 1411
         },
         {
           "success": true,
           "data": {
-            "id": "cmk447m2t001814rj6yqb6zbp",
-            "storeId": "",
-            "draftNumber": "DRF202601 0001 ",
+            "id": "cmk47haym001814m8540l242y",
+            "storeId": "cmk47h8pt001414m8m1otljnu",
+            "draftNumber": "DRF1767801686205",
             "customerName": null,
             "customerPhone": null,
             "customerId": null,
@@ -646,16 +460,16 @@
             "subtotal": "0",
             "taxAmount": "0",
             "total": "0",
-            "createdBy": "cmk447kod001314rj5f0l1un0",
-            "expiresAt": "2026-01-14T14:29:55.030Z",
-            "createdAt": "2026-01-07T14:29:55.205Z",
-            "updatedAt": "2026-01-07T14:29:55.205Z"
+            "createdBy": "cmk47h8l5001314m8rr0kzgng",
+            "expiresAt": "2026-01-14T16:01:24.709Z",
+            "createdAt": "2026-01-07T16:01:26.207Z",
+            "updatedAt": "2026-01-07T16:01:26.207Z"
           },
           "assertions": [],
-          "duration": 874
+          "duration": 2165
         }
       ],
-      "duration": 2378
+      "duration": 3576
     },
     {
       "id": "pos.refund",
@@ -665,15 +479,24 @@
         {
           "success": true,
           "assertions": [],
-          "duration": 2392
+          "duration": 2345
         },
         {
           "success": false,
-          "assertions": [],
-          "duration": 1097
+          "error": {
+            "name": "Error",
+            "message": "Step \"Create Sale to Refund\" timed out after 5000ms",
+            "stack": "Error: Step \"Create Sale to Refund\" timed out after 5000ms\n    at Timeout._onTimeout (/Users/dikshantjangra/Desktop/hoperxpharma/backend/verifier/runner/Runner.ts:379:24)\n    at listOnTimeout (node:internal/timers:594:17)\n    at processTimers (node:internal/timers:529:7)"
+          },
+          "duration": 5001
         }
       ],
-      "duration": 3489
+      "error": {
+        "name": "Error",
+        "message": "Step \"Create Sale to Refund\" timed out after 5000ms",
+        "stack": "Error: Step \"Create Sale to Refund\" timed out after 5000ms\n    at Timeout._onTimeout (/Users/dikshantjangra/Desktop/hoperxpharma/backend/verifier/runner/Runner.ts:379:24)\n    at listOnTimeout (node:internal/timers:594:17)\n    at processTimers (node:internal/timers:529:7)"
+      },
+      "duration": 7347
     },
     {
       "id": "pos.credit",
@@ -683,7 +506,7 @@
         {
           "success": true,
           "assertions": [],
-          "duration": 2386
+          "duration": 4073
         },
         {
           "success": true,
@@ -692,25 +515,24 @@
             "actual": 0
           },
           "assertions": [],
-          "duration": 176
+          "duration": 171
         },
         {
           "success": false,
-          "assertions": [
-            {
-              "passed": false,
-              "message": "Sale balance matches total (UNPAID)",
-              "expected": true,
-              "actual": false,
-              "invariant": "SALE-002"
-            }
-          ],
-          "duration": 434,
-          "error": {}
+          "error": {
+            "name": "Error",
+            "message": "Step \"Create Sale on Credit\" timed out after 5000ms",
+            "stack": "Error: Step \"Create Sale on Credit\" timed out after 5000ms\n    at Timeout._onTimeout (/Users/dikshantjangra/Desktop/hoperxpharma/backend/verifier/runner/Runner.ts:379:24)\n    at listOnTimeout (node:internal/timers:594:17)\n    at processTimers (node:internal/timers:529:7)"
+          },
+          "duration": 5009
         }
       ],
-      "error": {},
-      "duration": 2996
+      "error": {
+        "name": "Error",
+        "message": "Step \"Create Sale on Credit\" timed out after 5000ms",
+        "stack": "Error: Step \"Create Sale on Credit\" timed out after 5000ms\n    at Timeout._onTimeout (/Users/dikshantjangra/Desktop/hoperxpharma/backend/verifier/runner/Runner.ts:379:24)\n    at listOnTimeout (node:internal/timers:594:17)\n    at processTimers (node:internal/timers:529:7)"
+      },
+      "duration": 9255
     },
     {
       "id": "documents.invoice-pdf",
@@ -720,28 +542,51 @@
         {
           "success": true,
           "assertions": [],
-          "duration": 2324
+          "duration": 3505
         },
         {
           "success": false,
-          "assertions": [],
-          "duration": 528
+          "error": {
+            "name": "Error",
+            "message": "Step \"Create Sale for Invoice\" timed out after 5000ms",
+            "stack": "Error: Step \"Create Sale for Invoice\" timed out after 5000ms\n    at Timeout._onTimeout (/Users/dikshantjangra/Desktop/hoperxpharma/backend/verifier/runner/Runner.ts:379:24)\n    at listOnTimeout (node:internal/timers:594:17)\n    at processTimers (node:internal/timers:529:7)"
+          },
+          "duration": 5001
         }
       ],
-      "duration": 2852
+      "error": {
+        "name": "Error",
+        "message": "Step \"Create Sale for Invoice\" timed out after 5000ms",
+        "stack": "Error: Step \"Create Sale for Invoice\" timed out after 5000ms\n    at Timeout._onTimeout (/Users/dikshantjangra/Desktop/hoperxpharma/backend/verifier/runner/Runner.ts:379:24)\n    at listOnTimeout (node:internal/timers:594:17)\n    at processTimers (node:internal/timers:529:7)"
+      },
+      "duration": 8507
     },
     {
       "id": "procurement.consolidated",
       "status": "FAILED",
-      "failedAtStep": "consolidated.setup",
+      "failedAtStep": "consolidated.create-grn-1",
       "steps": [
         {
-          "success": false,
+          "success": true,
           "assertions": [],
-          "duration": 1467
+          "duration": 2229
+        },
+        {
+          "success": false,
+          "error": {
+            "name": "Error",
+            "message": "Step \"Create First GRN\" timed out after 5000ms",
+            "stack": "Error: Step \"Create First GRN\" timed out after 5000ms\n    at Timeout._onTimeout (/Users/dikshantjangra/Desktop/hoperxpharma/backend/verifier/runner/Runner.ts:379:24)\n    at listOnTimeout (node:internal/timers:594:17)\n    at processTimers (node:internal/timers:529:7)"
+          },
+          "duration": 5002
         }
       ],
-      "duration": 1467
+      "error": {
+        "name": "Error",
+        "message": "Step \"Create First GRN\" timed out after 5000ms",
+        "stack": "Error: Step \"Create First GRN\" timed out after 5000ms\n    at Timeout._onTimeout (/Users/dikshantjangra/Desktop/hoperxpharma/backend/verifier/runner/Runner.ts:379:24)\n    at listOnTimeout (node:internal/timers:594:17)\n    at processTimers (node:internal/timers:529:7)"
+      },
+      "duration": 7232
     },
     {
       "id": "core.onboarding",
@@ -751,11 +596,11 @@
           "success": true,
           "data": {
             "store": {
-              "id": "cmk447ume002a14rjtimaff88",
-              "name": "DPFV Test Pharmacy 1767796206192",
-              "displayName": "Test Pharma 1767796206192",
-              "email": "store-1767796206192@test.hoperx.com",
-              "phoneNumber": "9796206192",
+              "id": "cmk47i040004314m8lw4wrcuo",
+              "name": "DPFV Test Pharmacy 1767801718714",
+              "displayName": "Test Pharma 1767801718714",
+              "email": "store-1767801718714@test.hoperx.com",
+              "phoneNumber": "9801718714",
               "whatsapp": null,
               "businessType": "Retail Pharmacy",
               "logoUrl": null,
@@ -780,8 +625,8 @@
               "latitude": null,
               "longitude": null,
               "geofenceRadius": 50,
-              "createdAt": "2026-01-07T14:30:06.278Z",
-              "updatedAt": "2026-01-07T14:30:06.278Z",
+              "createdAt": "2026-01-07T16:01:58.801Z",
+              "updatedAt": "2026-01-07T16:01:58.801Z",
               "deletedAt": null
             },
             "message": "Onboarding completed successfully"
@@ -790,27 +635,27 @@
             {
               "passed": true,
               "expected": "Store with ID",
-              "actual": "cmk447ume002a14rjtimaff88",
+              "actual": "cmk47i040004314m8lw4wrcuo",
               "message": "Onboarding must create store with ID",
               "invariant": "INV-008"
             },
             {
               "passed": true,
               "expected": "Store name contains \"DPFV Test Pharmacy\"",
-              "actual": "DPFV Test Pharmacy 1767796206192",
+              "actual": "DPFV Test Pharmacy 1767801718714",
               "message": "Store name must match input",
               "invariant": "INV-008"
             }
           ],
-          "duration": 1020
+          "duration": 1028
         },
         {
           "success": true,
           "data": {
-            "userId": "cmk447tm2002614rjnsqm7ea4",
-            "storeId": "cmk447ume002a14rjtimaff88",
+            "userId": "cmk47hush003j14m8rlvtq199",
+            "storeId": "cmk47i040004314m8lw4wrcuo",
             "isPrimary": true,
-            "assignedAt": "2026-01-07T14:30:06.363Z"
+            "assignedAt": "2026-01-07T16:01:58.886Z"
           },
           "assertions": [
             {
@@ -821,25 +666,25 @@
               "invariant": "INV-008"
             }
           ],
-          "duration": 262
+          "duration": 171
         },
         {
           "success": true,
           "data": {
-            "id": "cmk447v0i002c14rj5looh1wq",
-            "storeId": "cmk447ume002a14rjtimaff88",
+            "id": "cmk47i0ia004714m8a12wiozj",
+            "storeId": "cmk47i040004314m8lw4wrcuo",
             "planId": "cmiudhheo000014skldx27kfs",
             "status": "TRIAL",
             "activeVerticals": [],
             "comboBundle": null,
             "monthlyAmount": null,
             "billingCycle": "monthly",
-            "trialEndsAt": "2026-01-21T14:30:06.785Z",
-            "currentPeriodStart": "2026-01-07T14:30:06.785Z",
-            "currentPeriodEnd": "2026-01-21T14:30:06.785Z",
+            "trialEndsAt": "2026-01-21T16:01:59.313Z",
+            "currentPeriodStart": "2026-01-07T16:01:59.313Z",
+            "currentPeriodEnd": "2026-01-21T16:01:59.313Z",
             "autoRenew": true,
-            "createdAt": "2026-01-07T14:30:06.786Z",
-            "updatedAt": "2026-01-07T14:30:06.786Z"
+            "createdAt": "2026-01-07T16:01:59.315Z",
+            "updatedAt": "2026-01-07T16:01:59.315Z"
           },
           "assertions": [
             {
@@ -860,14 +705,14 @@
               "passed": true,
               "expected": "trialEndsAt and currentPeriodStart set",
               "actual": {
-                "trialEndsAt": "2026-01-21T14:30:06.785Z",
-                "currentPeriodStart": "2026-01-07T14:30:06.785Z"
+                "trialEndsAt": "2026-01-21T16:01:59.313Z",
+                "currentPeriodStart": "2026-01-07T16:01:59.313Z"
               },
               "message": "Trial dates must be configured",
               "invariant": "INV-008"
             }
           ],
-          "duration": 172
+          "duration": 176
         },
         {
           "success": true,
@@ -887,10 +732,10 @@
               "invariant": "INV-008"
             }
           ],
-          "duration": 685
+          "duration": 688
         }
       ],
-      "duration": 2140
+      "duration": 2063
     },
     {
       "id": "admin.pin",
@@ -911,7 +756,7 @@
               "invariant": "INV-013"
             }
           ],
-          "duration": 869
+          "duration": 761
         },
         {
           "success": true,
@@ -927,7 +772,7 @@
               "invariant": "SEC-001"
             }
           ],
-          "duration": 619
+          "duration": 596
         },
         {
           "success": false,
@@ -940,10 +785,10 @@
               "invariant": "SEC-002"
             }
           ],
-          "duration": 610
+          "duration": 437
         }
       ],
-      "duration": 2098
+      "duration": 1796
     },
     {
       "id": "audit.access",
@@ -953,7 +798,7 @@
           "success": true,
           "data": {
             "user": {
-              "id": "cmk43vinj001k14aw3qvj6ly8",
+              "id": "cmk47i3a8004h14m83hb1okth",
               "email": "dpfv-audit-admin@test.hoperx.com",
               "phoneNumber": "9998887776",
               "firstName": "Audit",
@@ -974,8 +819,8 @@
               "emergencyContactPhone": null,
               "employeeId": null,
               "preferences": null,
-              "createdAt": "2026-01-07T14:20:30.895Z",
-              "updatedAt": "2026-01-07T14:20:30.895Z",
+              "createdAt": "2026-01-07T16:02:02.913Z",
+              "updatedAt": "2026-01-07T16:02:02.913Z",
               "deletedAt": null,
               "storeUsers": []
             },
@@ -1001,24 +846,24 @@
               "settings.manage",
               "users.manage"
             ],
-            "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjbWs0M3ZpbmowMDFrMTRhdzNxdmo2bHk4Iiwicm9sZSI6IkFETUlOIiwidHlwZSI6ImFjY2VzcyIsImlhdCI6MTc2Nzc5NjIxMSwiZXhwIjoxNzY3Nzk5ODExfQ.NROSVLv56cIrZJbMD6IcVff51XYb_bfvvFfdCdXHRoQ",
-            "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjbWs0M3ZpbmowMDFrMTRhdzNxdmo2bHk4IiwidHlwZSI6InJlZnJlc2giLCJqdGkiOiIxZTk5ODQ2YS1iNzFkLTQxZTEtOTA2Yi02N2YzZWIxMDk0ZTIiLCJpYXQiOjE3Njc3OTYyMTEsImV4cCI6MTc2ODQwMTAxMX0.RnhiulWq3oxOIMmJwLpVBz3AXZS03YzDwn-I3Tz2Sos"
+            "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjbWs0N2kzYTgwMDRoMTRtODNoYjFva3RoIiwicm9sZSI6IkFETUlOIiwidHlwZSI6ImFjY2VzcyIsImlhdCI6MTc2NzgwMTcyMywiZXhwIjoxNzY3ODA1MzIzfQ.OsVB7rgmIYiymJk7G1LGkQVpaRJfxcrWbgu9qBaZ1jo",
+            "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiJjbWs0N2kzYTgwMDRoMTRtODNoYjFva3RoIiwidHlwZSI6InJlZnJlc2giLCJqdGkiOiI0YzZlYzJjYi1jYjExLTRkY2UtODc3MC1iZmNhNjBlODUzYmYiLCJpYXQiOjE3Njc4MDE3MjMsImV4cCI6MTc2ODQwNjUyM30.cnbMKepLec8AIuvtkwnIYLWWQPngk2R2NuPhSGBXy28"
           },
           "assertions": [],
-          "duration": 1766
+          "duration": 1965
         },
         {
           "success": true,
           "data": {
-            "id": "cmk447ynu002g14rjnqq3mujg",
-            "userId": "cmk43vinj001k14aw3qvj6ly8",
+            "id": "cmk47i40j004j14m80jzrdcyh",
+            "userId": "cmk47i3a8004h14m83hb1okth",
             "eventType": "login_success",
             "loginMethod": "EMAIL_PASSWORD",
             "ipAddress": "127.0.0.1",
             "userAgent": "DPFV-Verifier",
             "deviceInfo": null,
             "geolocation": null,
-            "createdAt": "2026-01-07T14:30:11.515Z"
+            "createdAt": "2026-01-07T16:02:03.859Z"
           },
           "assertions": [
             {
@@ -1036,7 +881,7 @@
               "invariant": "AUDIT-002"
             }
           ],
-          "duration": 278
+          "duration": 272
         },
         {
           "success": true,
@@ -1044,20 +889,20 @@
             "error": "Unauthorized"
           },
           "assertions": [],
-          "duration": 1032
+          "duration": 1031
         },
         {
           "success": true,
           "data": {
-            "id": "cmk447zl6002i14rjdu94jbum",
-            "userId": "cmk43vinj001k14aw3qvj6ly8",
+            "id": "cmk47i4y6004l14m8eyw1irgk",
+            "userId": "cmk47i3a8004h14m83hb1okth",
             "eventType": "login_failure",
             "loginMethod": "Password",
             "ipAddress": "127.0.0.1",
             "userAgent": "DPFV-Verifier-Fail",
             "deviceInfo": null,
             "geolocation": null,
-            "createdAt": "2026-01-07T14:30:12.714Z"
+            "createdAt": "2026-01-07T16:02:05.071Z"
           },
           "assertions": [
             {
@@ -1068,10 +913,10 @@
               "invariant": "AUDIT-001"
             }
           ],
-          "duration": 193
+          "duration": 192
         }
       ],
-      "duration": 3269
+      "duration": 3460
     },
     {
       "id": "communication.email",
@@ -1080,8 +925,8 @@
         {
           "success": true,
           "data": {
-            "id": "cmk4480ih002k14rjf4an9e5k",
-            "storeId": "cmk447ume002a14rjtimaff88",
+            "id": "cmk47i5tn004n14m8go6riyhc",
+            "storeId": "cmk47i040004314m8lw4wrcuo",
             "email": "test@hoperx.com",
             "provider": "GMAIL",
             "authMethod": "OAUTH",
@@ -1092,18 +937,18 @@
             "useTLS": true,
             "gmailRefreshToken": "mock_refresh",
             "gmailAccessToken": "mock_token",
-            "gmailTokenExpiry": "2026-01-07T15:30:13.912Z",
+            "gmailTokenExpiry": "2026-01-07T17:02:06.201Z",
             "oauthConnectedAt": null,
             "isPrimary": true,
             "isVerified": true,
             "isActive": true,
             "lastTestedAt": null,
-            "createdAt": "2026-01-07T14:30:13.913Z",
-            "updatedAt": "2026-01-07T14:30:13.913Z",
+            "createdAt": "2026-01-07T16:02:06.203Z",
+            "updatedAt": "2026-01-07T16:02:06.203Z",
             "store": {
-              "id": "cmk447ume002a14rjtimaff88",
-              "name": "DPFV Test Pharmacy 1767796206192",
-              "email": "store-1767796206192@test.hoperx.com"
+              "id": "cmk47i040004314m8lw4wrcuo",
+              "name": "DPFV Test Pharmacy 1767801718714",
+              "email": "store-1767801718714@test.hoperx.com"
             }
           },
           "assertions": [
@@ -1111,34 +956,34 @@
               "passed": true,
               "message": "Email account available",
               "expected": "Account ID",
-              "actual": "cmk4480ih002k14rjf4an9e5k",
+              "actual": "cmk47i5tn004n14m8go6riyhc",
               "invariant": "DATA-001"
             }
           ],
-          "duration": 950
+          "duration": 882
         },
         {
           "success": true,
           "data": {
-            "id": "cmk4481ar002m14rjx2a1n6mf",
-            "emailAccountId": "cmk4480ih002k14rjf4an9e5k",
+            "id": "cmk47i6mv004p14m87n8vb4qf",
+            "emailAccountId": "cmk47i5tn004n14m8go6riyhc",
             "to": [
               "recipient@hoperx.com"
             ],
             "cc": [],
             "bcc": [],
-            "subject": "DPFV Test Email 1767796214649",
+            "subject": "DPFV Test Email 1767801726914",
             "bodyHtml": "<p>Test Body</p>",
             "attachments": null,
             "status": "FAILED",
             "errorMessage": "Gmail not connected or token expired. Please reconnect.",
-            "sentBy": "cmk43vinj001k14aw3qvj6ly8",
+            "sentBy": "cmk47i3a8004h14m83hb1okth",
             "contextType": null,
             "contextId": null,
-            "createdAt": "2026-01-07T14:30:14.931Z",
+            "createdAt": "2026-01-07T16:02:07.255Z",
             "sentAt": null,
             "emailAccount": {
-              "id": "cmk4480ih002k14rjf4an9e5k",
+              "id": "cmk47i5tn004n14m8go6riyhc",
               "email": "test@hoperx.com",
               "provider": "GMAIL",
               "isActive": true
@@ -1160,10 +1005,10 @@
               "invariant": "INV-AUDIT"
             }
           ],
-          "duration": 1631
+          "duration": 1630
         }
       ],
-      "duration": 2581
+      "duration": 2513
     },
     {
       "id": "communication.whatsapp",
@@ -1172,38 +1017,37 @@
         {
           "success": true,
           "data": {
-            "messageId": "wa_1767796216281"
+            "messageId": "wa_1767801728545"
           },
           "assertions": [],
-          "duration": 1
+          "duration": 0
         }
       ],
-      "duration": 1
+      "duration": 0
     },
     {
       "id": "pos.quick-sale",
-      "status": "FAILED",
-      "failedAtStep": "quick-sale.create-sale",
+      "status": "PASSED",
       "steps": [
         {
           "success": true,
           "data": {
-            "id": "cmk4482je002q14rjl7vj7426",
-            "storeId": "cmk447ume002a14rjtimaff88",
-            "drugId": "cmk4482en002o14rj495svjx3",
-            "batchNumber": "DPFV-1767796216452",
-            "expiryDate": "2027-01-07T14:30:16.452Z",
+            "id": "cmk47i81b004t14m8lfw1geni",
+            "storeId": "cmk47i040004314m8lw4wrcuo",
+            "drugId": "cmk47i7rt004r14m806zpuzpl",
+            "batchNumber": "DPFV-1767801728898",
+            "expiryDate": "2027-01-07T16:02:08.898Z",
             "quantityInStock": 100,
             "mrp": "25",
             "purchasePrice": "20",
             "supplierId": null,
             "location": null,
-            "createdAt": "2026-01-07T14:30:16.538Z",
-            "updatedAt": "2026-01-07T14:30:16.538Z",
+            "createdAt": "2026-01-07T16:02:09.072Z",
+            "updatedAt": "2026-01-07T16:02:09.072Z",
             "deletedAt": null,
             "drug": {
-              "id": "cmk4482en002o14rj495svjx3",
-              "storeId": "cmk447ume002a14rjtimaff88",
+              "id": "cmk47i7rt004r14m806zpuzpl",
+              "storeId": "cmk47i040004314m8lw4wrcuo",
               "rxcui": null,
               "name": "Paracetamol 500mg",
               "genericName": "Paracetamol 500mg",
@@ -1219,8 +1063,8 @@
               "lowStockThreshold": null,
               "description": null,
               "lastSyncedAt": null,
-              "createdAt": "2026-01-07T14:30:16.367Z",
-              "updatedAt": "2026-01-07T14:30:16.367Z"
+              "createdAt": "2026-01-07T16:02:08.729Z",
+              "updatedAt": "2026-01-07T16:02:08.729Z"
             }
           },
           "assertions": [
@@ -1234,104 +1078,178 @@
             {
               "passed": true,
               "expected": "Future expiry date",
-              "actual": "2027-01-07T14:30:16.452Z",
+              "actual": "2027-01-07T16:02:08.898Z",
               "message": "Test batch must not be expired",
               "invariant": "INV-001"
             }
           ],
-          "duration": 685
+          "duration": 1120
         },
         {
-          "success": false,
+          "success": true,
+          "data": {
+            "id": "cmk47ihr5005d14m82pjxlbxe",
+            "storeId": "cmk47i040004314m8lw4wrcuo",
+            "invoiceNumber": "INV1767801741067",
+            "invoiceType": "RECEIPT",
+            "status": "COMPLETED",
+            "patientId": "cmk47i8hw004v14m86etar8lb",
+            "dispenseForPatientId": null,
+            "subtotal": "237.5",
+            "discountAmount": "0",
+            "taxAmount": "28.5",
+            "roundOff": "0",
+            "total": "266",
+            "buyerGstin": null,
+            "placeOfSupply": null,
+            "isIgst": false,
+            "cgstAmount": "0",
+            "sgstAmount": "0",
+            "igstAmount": "0",
+            "cessAmount": "0",
+            "taxableAmount": "0",
+            "gstrCategory": null,
+            "originalSaleId": null,
+            "creditReason": null,
+            "soldBy": "cmk47i3a8004h14m83hb1okth",
+            "attachments": null,
+            "prescriptionId": "cmk47i8tp004w14m8h8by778z",
+            "dispenseId": "cmk47id8v005b14m8xwrok4yd",
+            "balance": "0",
+            "paymentStatus": "PAID",
+            "createdAt": "2026-01-07T16:02:21.665Z",
+            "updatedAt": "2026-01-07T16:02:21.665Z",
+            "deletedAt": null,
+            "items": [],
+            "paymentSplits": []
+          },
           "assertions": [
             {
               "passed": true,
               "expected": "Sale with ID",
-              "actual": "cmk447c69000q14rjx9fm5gbq",
+              "actual": "cmk47ihr5005d14m82pjxlbxe",
               "message": "Sale must be created with ID",
               "invariant": "SALE-001"
             },
             {
               "passed": true,
               "expected": "Invoice number present",
-              "actual": "INV/2026/0001",
+              "actual": "INV1767801741067",
               "message": "Invoice number must be generated",
               "invariant": "SALE-001"
             },
             {
-              "passed": false,
-              "expected": "No error",
-              "actual": "\nInvalid `prisma.sale.findUnique()` invocation in\n/Users/dikshantjangra/Desktop/hoperxpharma/backend/verifier/assertions/financial.assert.ts:16:40\n\n  13 async checkPaymentTotal(ctx: ScenarioContext, saleId?: string): Promise<AssertionResult> {\n  14     const targetSaleId = saleId || ctx.get<string>('saleId');\n  15 \n→ 16     const sale = await prisma.sale.findUnique({\n           where: {\n             id: \"cmk447c69000q14rjx9fm5gbq\"\n           },\n           include: {\n             payments: true,\n             ~~~~~~~~\n         ?   store?: true,\n         ?   prescription?: true,\n         ?   dispense?: true,\n         ?   patient?: true,\n         ?   dispenseForPatient?: true,\n         ?   originalSale?: true,\n         ?   creditNotes?: true,\n         ?   items?: true,\n         ?   paymentSplits?: true,\n         ?   refunds?: true,\n         ?   allocations?: true\n           }\n         })\n\nUnknown field `payments` for include statement on model `Sale`. Available options are marked with ?.",
-              "message": "Assertion \"Payment total matches sale total\" threw: \nInvalid `prisma.sale.findUnique()` invocation in\n/Users/dikshantjangra/Desktop/hoperxpharma/backend/verifier/assertions/financial.assert.ts:16:40\n\n  13 async checkPaymentTotal(ctx: ScenarioContext, saleId?: string): Promise<AssertionResult> {\n  14     const targetSaleId = saleId || ctx.get<string>('saleId');\n  15 \n→ 16     const sale = await prisma.sale.findUnique({\n           where: {\n             id: \"cmk447c69000q14rjx9fm5gbq\"\n           },\n           include: {\n             payments: true,\n             ~~~~~~~~\n         ?   store?: true,\n         ?   prescription?: true,\n         ?   dispense?: true,\n         ?   patient?: true,\n         ?   dispenseForPatient?: true,\n         ?   originalSale?: true,\n         ?   creditNotes?: true,\n         ?   items?: true,\n         ?   paymentSplits?: true,\n         ?   refunds?: true,\n         ?   allocations?: true\n           }\n         })\n\nUnknown field `payments` for include statement on model `Sale`. Available options are marked with ?.",
+              "passed": true,
+              "expected": 266,
+              "actual": 266,
+              "message": "Sum of payment splits must equal sale total",
               "invariant": "INV-002"
             }
           ],
-          "duration": 12223,
-          "error": {}
-        }
-      ],
-      "error": {},
-      "duration": 12908
-    },
-    {
-      "id": "patients.create",
-      "status": "PASSED",
-      "steps": [
-        {
-          "success": true,
-          "data": {
-            "id": "cmk448cds003814rjmc64cnjt",
-            "storeId": "cmk447ume002a14rjtimaff88",
-            "firstName": "John",
-            "middleName": null,
-            "lastName": "Doe",
-            "dateOfBirth": "1990-01-15T00:00:00.000Z",
-            "gender": "MALE",
-            "photoUrl": null,
-            "phoneNumber": "9796229189",
-            "email": "john.doe.1767796229189@test.com",
-            "addressLine1": null,
-            "addressLine2": null,
-            "city": null,
-            "state": null,
-            "pinCode": null,
-            "bloodGroup": null,
-            "allergies": [],
-            "chronicConditions": [],
-            "emergencyContactName": null,
-            "emergencyContactPhone": null,
-            "currentBalance": "0",
-            "creditLimit": "0",
-            "createdAt": "2026-01-07T14:30:29.296Z",
-            "updatedAt": "2026-01-07T14:30:29.296Z",
-            "deletedAt": null,
-            "deletedBy": null
-          },
-          "assertions": [
-            {
-              "passed": true,
-              "message": "Patient must be created",
-              "expected": "Patient object",
-              "actual": "Created",
-              "invariant": "DATA-001"
-            }
-          ],
-          "duration": 201
+          "duration": 17216
         },
         {
           "success": true,
           "data": {
+            "id": "cmk47i81b004t14m8lfw1geni",
+            "storeId": "cmk47i040004314m8lw4wrcuo",
+            "drugId": "cmk47i7rt004r14m806zpuzpl",
+            "batchNumber": "DPFV-1767801728898",
+            "expiryDate": "2027-01-07T16:02:08.898Z",
+            "quantityInStock": 90,
+            "mrp": "25",
+            "purchasePrice": "20",
+            "supplierId": null,
+            "location": null,
+            "createdAt": "2026-01-07T16:02:09.072Z",
+            "updatedAt": "2026-01-07T16:02:22.518Z",
+            "deletedAt": null,
+            "drug": {
+              "id": "cmk47i7rt004r14m806zpuzpl",
+              "storeId": "cmk47i040004314m8lw4wrcuo",
+              "rxcui": null,
+              "name": "Paracetamol 500mg",
+              "genericName": "Paracetamol 500mg",
+              "strength": null,
+              "form": "Tablet",
+              "manufacturer": null,
+              "schedule": null,
+              "hsnCodeId": null,
+              "hsnCode": null,
+              "gstRate": "12",
+              "requiresPrescription": false,
+              "defaultUnit": null,
+              "lowStockThreshold": null,
+              "description": null,
+              "lastSyncedAt": null,
+              "createdAt": "2026-01-07T16:02:08.729Z",
+              "updatedAt": "2026-01-07T16:02:08.729Z"
+            }
+          },
+          "assertions": [
+            {
+              "passed": true,
+              "expected": 90,
+              "actual": 90,
+              "message": "Stock must be deducted by exact sold quantity",
+              "invariant": "INV-001"
+            },
+            {
+              "passed": true,
+              "expected": ">= 0",
+              "actual": 90,
+              "message": "Stock quantity must never be negative",
+              "invariant": "INV-001"
+            }
+          ],
+          "duration": 340
+        },
+        {
+          "success": true,
+          "data": {
+            "id": "cmk47ihr5005d14m82pjxlbxe",
+            "storeId": "cmk47i040004314m8lw4wrcuo",
+            "invoiceNumber": "INV1767801741067",
+            "invoiceType": "RECEIPT",
+            "status": "COMPLETED",
+            "patientId": "cmk47i8hw004v14m86etar8lb",
+            "dispenseForPatientId": null,
+            "subtotal": "237.5",
+            "discountAmount": "0",
+            "taxAmount": "28.5",
+            "roundOff": "0",
+            "total": "266",
+            "buyerGstin": null,
+            "placeOfSupply": null,
+            "isIgst": false,
+            "cgstAmount": "0",
+            "sgstAmount": "0",
+            "igstAmount": "0",
+            "cessAmount": "0",
+            "taxableAmount": "0",
+            "gstrCategory": null,
+            "originalSaleId": null,
+            "creditReason": null,
+            "soldBy": "cmk47i3a8004h14m83hb1okth",
+            "attachments": null,
+            "prescriptionId": "cmk47i8tp004w14m8h8by778z",
+            "dispenseId": "cmk47id8v005b14m8xwrok4yd",
+            "balance": "0",
+            "paymentStatus": "PAID",
+            "createdAt": "2026-01-07T16:02:21.665Z",
+            "updatedAt": "2026-01-07T16:02:21.665Z",
+            "deletedAt": null,
             "patient": {
-              "id": "cmk448cds003814rjmc64cnjt",
-              "storeId": "cmk447ume002a14rjtimaff88",
-              "firstName": "John",
+              "id": "cmk47i8hw004v14m86etar8lb",
+              "storeId": "cmk47i040004314m8lw4wrcuo",
+              "firstName": "Walk-in",
               "middleName": null,
-              "lastName": "Doe",
-              "dateOfBirth": "1990-01-15T00:00:00.000Z",
-              "gender": "MALE",
+              "lastName": "Customer",
+              "dateOfBirth": null,
+              "gender": null,
               "photoUrl": null,
-              "phoneNumber": "9796229189",
-              "email": "john.doe.1767796229189@test.com",
+              "phoneNumber": "WALKIN-1767801729666",
+              "email": null,
               "addressLine1": null,
               "addressLine2": null,
               "city": null,
@@ -1344,8 +1262,215 @@
               "emergencyContactPhone": null,
               "currentBalance": "0",
               "creditLimit": "0",
-              "createdAt": "2026-01-07T14:30:29.296Z",
-              "updatedAt": "2026-01-07T14:30:29.296Z",
+              "createdAt": "2026-01-07T16:02:09.667Z",
+              "updatedAt": "2026-01-07T16:02:09.667Z",
+              "deletedAt": null,
+              "deletedBy": null
+            },
+            "dispenseForPatient": null,
+            "store": {
+              "id": "cmk47i040004314m8lw4wrcuo",
+              "name": "DPFV Test Pharmacy 1767801718714",
+              "displayName": "Test Pharma 1767801718714",
+              "email": "store-1767801718714@test.hoperx.com",
+              "phoneNumber": "9801718714",
+              "whatsapp": null,
+              "businessType": "Retail Pharmacy",
+              "logoUrl": null,
+              "isDemo": false,
+              "featureOverrides": null,
+              "gstin": null,
+              "dlNumber": null,
+              "pan": null,
+              "addressLine1": "123 Test Street",
+              "addressLine2": null,
+              "landmark": null,
+              "city": "Mumbai",
+              "state": "Maharashtra",
+              "pinCode": "400001",
+              "signatureUrl": null,
+              "bankDetails": null,
+              "termsAndConditions": null,
+              "jurisdiction": null,
+              "is24x7": false,
+              "homeDelivery": false,
+              "whatsappMode": null,
+              "latitude": null,
+              "longitude": null,
+              "geofenceRadius": 50,
+              "createdAt": "2026-01-07T16:01:58.801Z",
+              "updatedAt": "2026-01-07T16:01:58.801Z",
+              "deletedAt": null,
+              "settings": null
+            },
+            "items": [
+              {
+                "id": "cmk47ihvz005e14m8q6zazl8c",
+                "saleId": "cmk47ihr5005d14m82pjxlbxe",
+                "drugId": "cmk47i7rt004r14m806zpuzpl",
+                "batchId": "cmk47i81b004t14m8lfw1geni",
+                "quantity": 10,
+                "mrp": "25",
+                "discount": "5",
+                "gstRate": "12",
+                "lineTotal": "266",
+                "hsnCode": null,
+                "taxSlabId": null,
+                "taxableAmount": "0",
+                "cgstAmount": "0",
+                "sgstAmount": "0",
+                "igstAmount": "0",
+                "cessAmount": "0",
+                "drug": {
+                  "id": "cmk47i7rt004r14m806zpuzpl",
+                  "storeId": "cmk47i040004314m8lw4wrcuo",
+                  "rxcui": null,
+                  "name": "Paracetamol 500mg",
+                  "genericName": "Paracetamol 500mg",
+                  "strength": null,
+                  "form": "Tablet",
+                  "manufacturer": null,
+                  "schedule": null,
+                  "hsnCodeId": null,
+                  "hsnCode": null,
+                  "gstRate": "12",
+                  "requiresPrescription": false,
+                  "defaultUnit": null,
+                  "lowStockThreshold": null,
+                  "description": null,
+                  "lastSyncedAt": null,
+                  "createdAt": "2026-01-07T16:02:08.729Z",
+                  "updatedAt": "2026-01-07T16:02:08.729Z"
+                },
+                "batch": {
+                  "id": "cmk47i81b004t14m8lfw1geni",
+                  "storeId": "cmk47i040004314m8lw4wrcuo",
+                  "drugId": "cmk47i7rt004r14m806zpuzpl",
+                  "batchNumber": "DPFV-1767801728898",
+                  "expiryDate": "2027-01-07T16:02:08.898Z",
+                  "quantityInStock": 90,
+                  "mrp": "25",
+                  "purchasePrice": "20",
+                  "supplierId": null,
+                  "location": null,
+                  "createdAt": "2026-01-07T16:02:09.072Z",
+                  "updatedAt": "2026-01-07T16:02:22.518Z",
+                  "deletedAt": null
+                }
+              }
+            ],
+            "paymentSplits": [
+              {
+                "id": "cmk47ihvz005f14m8zgn3dz5m",
+                "saleId": "cmk47ihr5005d14m82pjxlbxe",
+                "paymentMethod": "CASH",
+                "amount": "266",
+                "cardLast4": null,
+                "cardBrand": null,
+                "cardAuthCode": null,
+                "upiTransactionId": null,
+                "upiVpa": null,
+                "walletProvider": null,
+                "walletTxnId": null,
+                "createdAt": "2026-01-07T16:02:21.839Z"
+              }
+            ]
+          },
+          "assertions": [
+            {
+              "passed": true,
+              "expected": {
+                "drugId": "cmk47i7rt004r14m806zpuzpl",
+                "quantity": 10
+              },
+              "actual": [
+                {
+                  "drugId": "cmk47i7rt004r14m806zpuzpl",
+                  "qty": 10
+                }
+              ],
+              "message": "Sale items must match what was in cart",
+              "invariant": "SALE-001"
+            }
+          ],
+          "duration": 936
+        }
+      ],
+      "duration": 19612
+    },
+    {
+      "id": "patients.create",
+      "status": "PASSED",
+      "steps": [
+        {
+          "success": true,
+          "data": {
+            "id": "cmk47imwa005n14m87qq8g4b9",
+            "storeId": "cmk47i040004314m8lw4wrcuo",
+            "firstName": "John",
+            "middleName": null,
+            "lastName": "Doe",
+            "dateOfBirth": "1990-01-15T00:00:00.000Z",
+            "gender": "MALE",
+            "photoUrl": null,
+            "phoneNumber": "9801748158",
+            "email": "john.doe.1767801748158@test.com",
+            "addressLine1": null,
+            "addressLine2": null,
+            "city": null,
+            "state": null,
+            "pinCode": null,
+            "bloodGroup": null,
+            "allergies": [],
+            "chronicConditions": [],
+            "emergencyContactName": null,
+            "emergencyContactPhone": null,
+            "currentBalance": "0",
+            "creditLimit": "0",
+            "createdAt": "2026-01-07T16:02:28.330Z",
+            "updatedAt": "2026-01-07T16:02:28.330Z",
+            "deletedAt": null,
+            "deletedBy": null
+          },
+          "assertions": [
+            {
+              "passed": true,
+              "message": "Patient must be created",
+              "expected": "Patient object",
+              "actual": "Created",
+              "invariant": "DATA-001"
+            }
+          ],
+          "duration": 345
+        },
+        {
+          "success": true,
+          "data": {
+            "patient": {
+              "id": "cmk47imwa005n14m87qq8g4b9",
+              "storeId": "cmk47i040004314m8lw4wrcuo",
+              "firstName": "John",
+              "middleName": null,
+              "lastName": "Doe",
+              "dateOfBirth": "1990-01-15T00:00:00.000Z",
+              "gender": "MALE",
+              "photoUrl": null,
+              "phoneNumber": "9801748158",
+              "email": "john.doe.1767801748158@test.com",
+              "addressLine1": null,
+              "addressLine2": null,
+              "city": null,
+              "state": null,
+              "pinCode": null,
+              "bloodGroup": null,
+              "allergies": [],
+              "chronicConditions": [],
+              "emergencyContactName": null,
+              "emergencyContactPhone": null,
+              "currentBalance": "0",
+              "creditLimit": "0",
+              "createdAt": "2026-01-07T16:02:28.330Z",
+              "updatedAt": "2026-01-07T16:02:28.330Z",
               "deletedAt": null,
               "deletedBy": null
             },
@@ -1374,10 +1499,10 @@
               "invariant": "FIN-005"
             }
           ],
-          "duration": 205
+          "duration": 171
         }
       ],
-      "duration": 408
+      "duration": 517
     },
     {
       "id": "clinical.prescription",
@@ -1386,16 +1511,16 @@
         {
           "success": true,
           "data": {
-            "id": "cmk4482vb002s14rjmnz2o4ug",
-            "storeId": "cmk447ume002a14rjtimaff88",
-            "firstName": "Walk-in",
+            "id": "cmk47imwa005n14m87qq8g4b9",
+            "storeId": "cmk47i040004314m8lw4wrcuo",
+            "firstName": "John",
             "middleName": null,
-            "lastName": "Customer",
-            "dateOfBirth": null,
-            "gender": null,
+            "lastName": "Doe",
+            "dateOfBirth": "1990-01-15T00:00:00.000Z",
+            "gender": "MALE",
             "photoUrl": null,
-            "phoneNumber": "WALKIN-1767796216967",
-            "email": null,
+            "phoneNumber": "9801748158",
+            "email": "john.doe.1767801748158@test.com",
             "addressLine1": null,
             "addressLine2": null,
             "city": null,
@@ -1408,8 +1533,8 @@
             "emergencyContactPhone": null,
             "currentBalance": "0",
             "creditLimit": "0",
-            "createdAt": "2026-01-07T14:30:16.968Z",
-            "updatedAt": "2026-01-07T14:30:16.968Z",
+            "createdAt": "2026-01-07T16:02:28.330Z",
+            "updatedAt": "2026-01-07T16:02:28.330Z",
             "deletedAt": null,
             "deletedBy": null
           },
@@ -1418,19 +1543,19 @@
               "passed": true,
               "message": "Patient must exist with ID",
               "expected": "Valid ID",
-              "actual": "cmk4482vb002s14rjmnz2o4ug",
+              "actual": "cmk47imwa005n14m87qq8g4b9",
               "invariant": "DATA-001"
             }
           ],
-          "duration": 260
+          "duration": 173
         },
         {
           "success": true,
           "data": {
-            "id": "cmk448ctf003a14rjclw83opr",
-            "storeId": "cmk447ume002a14rjtimaff88",
+            "id": "cmk47inao005p14m8l6tqol5p",
+            "storeId": "cmk47i040004314m8lw4wrcuo",
             "rxcui": null,
-            "name": "DPFV Test Drug 1767796229858",
+            "name": "DPFV Test Drug 1767801748847",
             "genericName": "Test Generic",
             "strength": "500mg",
             "form": "Tablet",
@@ -1444,22 +1569,22 @@
             "lowStockThreshold": null,
             "description": null,
             "lastSyncedAt": null,
-            "createdAt": "2026-01-07T14:30:29.860Z",
-            "updatedAt": "2026-01-07T14:30:29.860Z"
+            "createdAt": "2026-01-07T16:02:28.849Z",
+            "updatedAt": "2026-01-07T16:02:28.849Z"
           },
           "assertions": [],
-          "duration": 355
+          "duration": 172
         },
         {
           "success": true,
           "data": {
-            "id": "cmk448dah003b14rj34uqnli3",
-            "storeId": "cmk447ume002a14rjtimaff88",
+            "id": "cmk47ink8005q14m8ug9quuh7",
+            "storeId": "cmk47i040004314m8lw4wrcuo",
             "prescriptionNumber": "RX000002",
-            "patientId": "cmk4482vb002s14rjmnz2o4ug",
+            "patientId": "cmk47imwa005n14m87qq8g4b9",
             "prescriberId": null,
-            "issueDate": "2026-01-07T14:30:30.472Z",
-            "expiryDate": "2026-07-07T14:30:30.214Z",
+            "issueDate": "2026-01-07T16:02:29.191Z",
+            "expiryDate": "2026-07-07T16:02:29.019Z",
             "totalRefills": 3,
             "status": "DRAFT",
             "type": "REGULAR",
@@ -1474,20 +1599,20 @@
             "reminderSent": null,
             "nextRefillDue": null,
             "notes": null,
-            "createdAt": "2026-01-07T14:30:30.473Z",
-            "updatedAt": "2026-01-07T14:30:30.473Z",
+            "createdAt": "2026-01-07T16:02:29.192Z",
+            "updatedAt": "2026-01-07T16:02:29.192Z",
             "deletedAt": null,
             "patient": {
-              "id": "cmk4482vb002s14rjmnz2o4ug",
-              "storeId": "cmk447ume002a14rjtimaff88",
-              "firstName": "Walk-in",
+              "id": "cmk47imwa005n14m87qq8g4b9",
+              "storeId": "cmk47i040004314m8lw4wrcuo",
+              "firstName": "John",
               "middleName": null,
-              "lastName": "Customer",
-              "dateOfBirth": null,
-              "gender": null,
+              "lastName": "Doe",
+              "dateOfBirth": "1990-01-15T00:00:00.000Z",
+              "gender": "MALE",
               "photoUrl": null,
-              "phoneNumber": "WALKIN-1767796216967",
-              "email": null,
+              "phoneNumber": "9801748158",
+              "email": "john.doe.1767801748158@test.com",
               "addressLine1": null,
               "addressLine2": null,
               "city": null,
@@ -1500,18 +1625,18 @@
               "emergencyContactPhone": null,
               "currentBalance": "0",
               "creditLimit": "0",
-              "createdAt": "2026-01-07T14:30:16.968Z",
-              "updatedAt": "2026-01-07T14:30:16.968Z",
+              "createdAt": "2026-01-07T16:02:28.330Z",
+              "updatedAt": "2026-01-07T16:02:28.330Z",
               "deletedAt": null,
               "deletedBy": null
             },
             "prescriber": null,
             "store": {
-              "id": "cmk447ume002a14rjtimaff88",
-              "name": "DPFV Test Pharmacy 1767796206192",
-              "displayName": "Test Pharma 1767796206192",
-              "email": "store-1767796206192@test.hoperx.com",
-              "phoneNumber": "9796206192",
+              "id": "cmk47i040004314m8lw4wrcuo",
+              "name": "DPFV Test Pharmacy 1767801718714",
+              "displayName": "Test Pharma 1767801718714",
+              "email": "store-1767801718714@test.hoperx.com",
+              "phoneNumber": "9801718714",
               "whatsapp": null,
               "businessType": "Retail Pharmacy",
               "logoUrl": null,
@@ -1536,26 +1661,26 @@
               "latitude": null,
               "longitude": null,
               "geofenceRadius": 50,
-              "createdAt": "2026-01-07T14:30:06.278Z",
-              "updatedAt": "2026-01-07T14:30:06.278Z",
+              "createdAt": "2026-01-07T16:01:58.801Z",
+              "updatedAt": "2026-01-07T16:01:58.801Z",
               "deletedAt": null
             },
             "versions": [
               {
-                "id": "cmk448dq2003d14rj13u2shro",
-                "prescriptionId": "cmk448dah003b14rj34uqnli3",
+                "id": "cmk47intu005s14m8ub9iwkq1",
+                "prescriptionId": "cmk47ink8005q14m8ug9quuh7",
                 "versionNumber": 1,
                 "instructions": "DPFV Test Prescription",
                 "substitutionNotes": null,
                 "attachments": null,
                 "changedReason": null,
-                "createdBy": "cmk43vinj001k14aw3qvj6ly8",
-                "createdAt": "2026-01-07T14:30:31.034Z",
+                "createdBy": "cmk47i3a8004h14m83hb1okth",
+                "createdAt": "2026-01-07T16:02:29.539Z",
                 "items": [
                   {
-                    "id": "cmk448dq2003f14rjanayupse",
-                    "prescriptionVersionId": "cmk448dq2003d14rj13u2shro",
-                    "drugId": "cmk448ctf003a14rjclw83opr",
+                    "id": "cmk47intv005u14m8bf3zbktc",
+                    "prescriptionVersionId": "cmk47intu005s14m8ub9iwkq1",
+                    "drugId": "cmk47inao005p14m8l6tqol5p",
                     "batchId": null,
                     "quantityPrescribed": 30,
                     "sig": "1 tablet daily",
@@ -1564,10 +1689,10 @@
                     "isControlled": false,
                     "refillsAllowed": 0,
                     "drug": {
-                      "id": "cmk448ctf003a14rjclw83opr",
-                      "storeId": "cmk447ume002a14rjtimaff88",
+                      "id": "cmk47inao005p14m8l6tqol5p",
+                      "storeId": "cmk47i040004314m8lw4wrcuo",
                       "rxcui": null,
-                      "name": "DPFV Test Drug 1767796229858",
+                      "name": "DPFV Test Drug 1767801748847",
                       "genericName": "Test Generic",
                       "strength": "500mg",
                       "form": "Tablet",
@@ -1581,8 +1706,8 @@
                       "lowStockThreshold": null,
                       "description": null,
                       "lastSyncedAt": null,
-                      "createdAt": "2026-01-07T14:30:29.860Z",
-                      "updatedAt": "2026-01-07T14:30:29.860Z"
+                      "createdAt": "2026-01-07T16:02:28.849Z",
+                      "updatedAt": "2026-01-07T16:02:28.849Z"
                     },
                     "batch": null
                   }
@@ -1591,68 +1716,68 @@
             ],
             "refills": [
               {
-                "id": "cmk448dxm003g14rj3dlelsjb",
-                "prescriptionId": "cmk448dah003b14rj34uqnli3",
+                "id": "cmk47io0y005v14m82m1syapv",
+                "prescriptionId": "cmk47ink8005q14m8ug9quuh7",
                 "refillNumber": 0,
                 "authorizedQty": 30,
                 "dispensedQty": 0,
                 "remainingQty": 30,
                 "status": "AVAILABLE",
-                "expiresAt": "2026-07-07T14:30:30.214Z",
+                "expiresAt": "2026-07-07T16:02:29.019Z",
                 "notes": null,
-                "createdAt": "2026-01-07T14:30:31.307Z",
-                "updatedAt": "2026-01-07T14:30:31.307Z",
+                "createdAt": "2026-01-07T16:02:29.794Z",
+                "updatedAt": "2026-01-07T16:02:29.794Z",
                 "items": []
               },
               {
-                "id": "cmk448dxm003h14rje34bfqzo",
-                "prescriptionId": "cmk448dah003b14rj34uqnli3",
+                "id": "cmk47io0y005w14m8doyq20y4",
+                "prescriptionId": "cmk47ink8005q14m8ug9quuh7",
                 "refillNumber": 1,
                 "authorizedQty": 30,
                 "dispensedQty": 0,
                 "remainingQty": 30,
                 "status": "AVAILABLE",
-                "expiresAt": "2026-07-07T14:30:30.214Z",
+                "expiresAt": "2026-07-07T16:02:29.019Z",
                 "notes": null,
-                "createdAt": "2026-01-07T14:30:31.307Z",
-                "updatedAt": "2026-01-07T14:30:31.307Z",
+                "createdAt": "2026-01-07T16:02:29.794Z",
+                "updatedAt": "2026-01-07T16:02:29.794Z",
                 "items": []
               },
               {
-                "id": "cmk448dxm003i14rj287tghpv",
-                "prescriptionId": "cmk448dah003b14rj34uqnli3",
+                "id": "cmk47io0y005x14m8lz10v7fx",
+                "prescriptionId": "cmk47ink8005q14m8ug9quuh7",
                 "refillNumber": 2,
                 "authorizedQty": 30,
                 "dispensedQty": 0,
                 "remainingQty": 30,
                 "status": "AVAILABLE",
-                "expiresAt": "2026-07-07T14:30:30.214Z",
+                "expiresAt": "2026-07-07T16:02:29.019Z",
                 "notes": null,
-                "createdAt": "2026-01-07T14:30:31.307Z",
-                "updatedAt": "2026-01-07T14:30:31.307Z",
+                "createdAt": "2026-01-07T16:02:29.794Z",
+                "updatedAt": "2026-01-07T16:02:29.794Z",
                 "items": []
               },
               {
-                "id": "cmk448dxm003j14rj6ct5jgdz",
-                "prescriptionId": "cmk448dah003b14rj34uqnli3",
+                "id": "cmk47io0y005y14m8vamch8n6",
+                "prescriptionId": "cmk47ink8005q14m8ug9quuh7",
                 "refillNumber": 3,
                 "authorizedQty": 30,
                 "dispensedQty": 0,
                 "remainingQty": 30,
                 "status": "AVAILABLE",
-                "expiresAt": "2026-07-07T14:30:30.214Z",
+                "expiresAt": "2026-07-07T16:02:29.019Z",
                 "notes": null,
-                "createdAt": "2026-01-07T14:30:31.307Z",
-                "updatedAt": "2026-01-07T14:30:31.307Z",
+                "createdAt": "2026-01-07T16:02:29.794Z",
+                "updatedAt": "2026-01-07T16:02:29.794Z",
                 "items": []
               }
             ],
             "files": [],
             "items": [
               {
-                "id": "cmk448dq2003f14rjanayupse",
-                "prescriptionVersionId": "cmk448dq2003d14rj13u2shro",
-                "drugId": "cmk448ctf003a14rjclw83opr",
+                "id": "cmk47intv005u14m8bf3zbktc",
+                "prescriptionVersionId": "cmk47intu005s14m8ub9iwkq1",
+                "drugId": "cmk47inao005p14m8l6tqol5p",
                 "batchId": null,
                 "quantityPrescribed": 30,
                 "sig": "1 tablet daily",
@@ -1661,10 +1786,10 @@
                 "isControlled": false,
                 "refillsAllowed": 0,
                 "drug": {
-                  "id": "cmk448ctf003a14rjclw83opr",
-                  "storeId": "cmk447ume002a14rjtimaff88",
+                  "id": "cmk47inao005p14m8l6tqol5p",
+                  "storeId": "cmk47i040004314m8lw4wrcuo",
                   "rxcui": null,
-                  "name": "DPFV Test Drug 1767796229858",
+                  "name": "DPFV Test Drug 1767801748847",
                   "genericName": "Test Generic",
                   "strength": "500mg",
                   "form": "Tablet",
@@ -1678,8 +1803,8 @@
                   "lowStockThreshold": null,
                   "description": null,
                   "lastSyncedAt": null,
-                  "createdAt": "2026-01-07T14:30:29.860Z",
-                  "updatedAt": "2026-01-07T14:30:29.860Z"
+                  "createdAt": "2026-01-07T16:02:28.849Z",
+                  "updatedAt": "2026-01-07T16:02:28.849Z"
                 },
                 "batch": null
               }
@@ -1687,12 +1812,12 @@
             "currentVersion": 1,
             "auditLogs": [
               {
-                "id": "cmk448e2j003l14rjr9ufv8o3",
-                "storeId": "cmk447ume002a14rjtimaff88",
-                "userId": "cmk43vinj001k14aw3qvj6ly8",
+                "id": "cmk47io5o006014m8iodafp8i",
+                "storeId": "cmk47i040004314m8lw4wrcuo",
+                "userId": "cmk47i3a8004h14m83hb1okth",
                 "action": "PRESCRIPTION_CREATED",
                 "entityType": "Prescription",
-                "entityId": "cmk448dah003b14rj34uqnli3",
+                "entityId": "cmk47ink8005q14m8ug9quuh7",
                 "changes": {
                   "type": "REGULAR",
                   "itemCount": 1,
@@ -1700,9 +1825,9 @@
                   "prescriptionNumber": "RX000002"
                 },
                 "ipAddress": null,
-                "createdAt": "2026-01-07T14:30:31.483Z",
+                "createdAt": "2026-01-07T16:02:29.964Z",
                 "user": {
-                  "id": "cmk43vinj001k14aw3qvj6ly8",
+                  "id": "cmk47i3a8004h14m83hb1okth",
                   "firstName": "Audit",
                   "lastName": "Admin",
                   "email": "dpfv-audit-admin@test.hoperx.com"
@@ -1726,18 +1851,18 @@
               "invariant": "RX-001"
             }
           ],
-          "duration": 2645
+          "duration": 2308
         },
         {
           "success": true,
           "data": {
-            "id": "cmk448dah003b14rj34uqnli3",
-            "storeId": "cmk447ume002a14rjtimaff88",
+            "id": "cmk47ink8005q14m8ug9quuh7",
+            "storeId": "cmk47i040004314m8lw4wrcuo",
             "prescriptionNumber": "RX000002",
-            "patientId": "cmk4482vb002s14rjmnz2o4ug",
+            "patientId": "cmk47imwa005n14m87qq8g4b9",
             "prescriberId": null,
-            "issueDate": "2026-01-07T14:30:30.472Z",
-            "expiryDate": "2026-07-07T14:30:30.214Z",
+            "issueDate": "2026-01-07T16:02:29.191Z",
+            "expiryDate": "2026-07-07T16:02:29.019Z",
             "totalRefills": 3,
             "status": "ACTIVE",
             "type": "REGULAR",
@@ -1752,20 +1877,20 @@
             "reminderSent": null,
             "nextRefillDue": null,
             "notes": null,
-            "createdAt": "2026-01-07T14:30:30.473Z",
-            "updatedAt": "2026-01-07T14:30:32.943Z",
+            "createdAt": "2026-01-07T16:02:29.192Z",
+            "updatedAt": "2026-01-07T16:02:31.413Z",
             "deletedAt": null,
             "patient": {
-              "id": "cmk4482vb002s14rjmnz2o4ug",
-              "storeId": "cmk447ume002a14rjtimaff88",
-              "firstName": "Walk-in",
+              "id": "cmk47imwa005n14m87qq8g4b9",
+              "storeId": "cmk47i040004314m8lw4wrcuo",
+              "firstName": "John",
               "middleName": null,
-              "lastName": "Customer",
-              "dateOfBirth": null,
-              "gender": null,
+              "lastName": "Doe",
+              "dateOfBirth": "1990-01-15T00:00:00.000Z",
+              "gender": "MALE",
               "photoUrl": null,
-              "phoneNumber": "WALKIN-1767796216967",
-              "email": null,
+              "phoneNumber": "9801748158",
+              "email": "john.doe.1767801748158@test.com",
               "addressLine1": null,
               "addressLine2": null,
               "city": null,
@@ -1778,18 +1903,18 @@
               "emergencyContactPhone": null,
               "currentBalance": "0",
               "creditLimit": "0",
-              "createdAt": "2026-01-07T14:30:16.968Z",
-              "updatedAt": "2026-01-07T14:30:16.968Z",
+              "createdAt": "2026-01-07T16:02:28.330Z",
+              "updatedAt": "2026-01-07T16:02:28.330Z",
               "deletedAt": null,
               "deletedBy": null
             },
             "prescriber": null,
             "store": {
-              "id": "cmk447ume002a14rjtimaff88",
-              "name": "DPFV Test Pharmacy 1767796206192",
-              "displayName": "Test Pharma 1767796206192",
-              "email": "store-1767796206192@test.hoperx.com",
-              "phoneNumber": "9796206192",
+              "id": "cmk47i040004314m8lw4wrcuo",
+              "name": "DPFV Test Pharmacy 1767801718714",
+              "displayName": "Test Pharma 1767801718714",
+              "email": "store-1767801718714@test.hoperx.com",
+              "phoneNumber": "9801718714",
               "whatsapp": null,
               "businessType": "Retail Pharmacy",
               "logoUrl": null,
@@ -1814,26 +1939,26 @@
               "latitude": null,
               "longitude": null,
               "geofenceRadius": 50,
-              "createdAt": "2026-01-07T14:30:06.278Z",
-              "updatedAt": "2026-01-07T14:30:06.278Z",
+              "createdAt": "2026-01-07T16:01:58.801Z",
+              "updatedAt": "2026-01-07T16:01:58.801Z",
               "deletedAt": null
             },
             "versions": [
               {
-                "id": "cmk448dq2003d14rj13u2shro",
-                "prescriptionId": "cmk448dah003b14rj34uqnli3",
+                "id": "cmk47intu005s14m8ub9iwkq1",
+                "prescriptionId": "cmk47ink8005q14m8ug9quuh7",
                 "versionNumber": 1,
                 "instructions": "DPFV Test Prescription",
                 "substitutionNotes": null,
                 "attachments": null,
                 "changedReason": null,
-                "createdBy": "cmk43vinj001k14aw3qvj6ly8",
-                "createdAt": "2026-01-07T14:30:31.034Z",
+                "createdBy": "cmk47i3a8004h14m83hb1okth",
+                "createdAt": "2026-01-07T16:02:29.539Z",
                 "items": [
                   {
-                    "id": "cmk448dq2003f14rjanayupse",
-                    "prescriptionVersionId": "cmk448dq2003d14rj13u2shro",
-                    "drugId": "cmk448ctf003a14rjclw83opr",
+                    "id": "cmk47intv005u14m8bf3zbktc",
+                    "prescriptionVersionId": "cmk47intu005s14m8ub9iwkq1",
+                    "drugId": "cmk47inao005p14m8l6tqol5p",
                     "batchId": null,
                     "quantityPrescribed": 30,
                     "sig": "1 tablet daily",
@@ -1842,10 +1967,10 @@
                     "isControlled": false,
                     "refillsAllowed": 0,
                     "drug": {
-                      "id": "cmk448ctf003a14rjclw83opr",
-                      "storeId": "cmk447ume002a14rjtimaff88",
+                      "id": "cmk47inao005p14m8l6tqol5p",
+                      "storeId": "cmk47i040004314m8lw4wrcuo",
                       "rxcui": null,
-                      "name": "DPFV Test Drug 1767796229858",
+                      "name": "DPFV Test Drug 1767801748847",
                       "genericName": "Test Generic",
                       "strength": "500mg",
                       "form": "Tablet",
@@ -1859,8 +1984,8 @@
                       "lowStockThreshold": null,
                       "description": null,
                       "lastSyncedAt": null,
-                      "createdAt": "2026-01-07T14:30:29.860Z",
-                      "updatedAt": "2026-01-07T14:30:29.860Z"
+                      "createdAt": "2026-01-07T16:02:28.849Z",
+                      "updatedAt": "2026-01-07T16:02:28.849Z"
                     },
                     "batch": null
                   }
@@ -1869,68 +1994,68 @@
             ],
             "refills": [
               {
-                "id": "cmk448dxm003g14rj3dlelsjb",
-                "prescriptionId": "cmk448dah003b14rj34uqnli3",
+                "id": "cmk47io0y005v14m82m1syapv",
+                "prescriptionId": "cmk47ink8005q14m8ug9quuh7",
                 "refillNumber": 0,
                 "authorizedQty": 30,
                 "dispensedQty": 0,
                 "remainingQty": 30,
                 "status": "AVAILABLE",
-                "expiresAt": "2026-07-07T14:30:30.214Z",
+                "expiresAt": "2026-07-07T16:02:29.019Z",
                 "notes": null,
-                "createdAt": "2026-01-07T14:30:31.307Z",
-                "updatedAt": "2026-01-07T14:30:31.307Z",
+                "createdAt": "2026-01-07T16:02:29.794Z",
+                "updatedAt": "2026-01-07T16:02:29.794Z",
                 "items": []
               },
               {
-                "id": "cmk448dxm003h14rje34bfqzo",
-                "prescriptionId": "cmk448dah003b14rj34uqnli3",
+                "id": "cmk47io0y005w14m8doyq20y4",
+                "prescriptionId": "cmk47ink8005q14m8ug9quuh7",
                 "refillNumber": 1,
                 "authorizedQty": 30,
                 "dispensedQty": 0,
                 "remainingQty": 30,
                 "status": "AVAILABLE",
-                "expiresAt": "2026-07-07T14:30:30.214Z",
+                "expiresAt": "2026-07-07T16:02:29.019Z",
                 "notes": null,
-                "createdAt": "2026-01-07T14:30:31.307Z",
-                "updatedAt": "2026-01-07T14:30:31.307Z",
+                "createdAt": "2026-01-07T16:02:29.794Z",
+                "updatedAt": "2026-01-07T16:02:29.794Z",
                 "items": []
               },
               {
-                "id": "cmk448dxm003i14rj287tghpv",
-                "prescriptionId": "cmk448dah003b14rj34uqnli3",
+                "id": "cmk47io0y005x14m8lz10v7fx",
+                "prescriptionId": "cmk47ink8005q14m8ug9quuh7",
                 "refillNumber": 2,
                 "authorizedQty": 30,
                 "dispensedQty": 0,
                 "remainingQty": 30,
                 "status": "AVAILABLE",
-                "expiresAt": "2026-07-07T14:30:30.214Z",
+                "expiresAt": "2026-07-07T16:02:29.019Z",
                 "notes": null,
-                "createdAt": "2026-01-07T14:30:31.307Z",
-                "updatedAt": "2026-01-07T14:30:31.307Z",
+                "createdAt": "2026-01-07T16:02:29.794Z",
+                "updatedAt": "2026-01-07T16:02:29.794Z",
                 "items": []
               },
               {
-                "id": "cmk448dxm003j14rj6ct5jgdz",
-                "prescriptionId": "cmk448dah003b14rj34uqnli3",
+                "id": "cmk47io0y005y14m8vamch8n6",
+                "prescriptionId": "cmk47ink8005q14m8ug9quuh7",
                 "refillNumber": 3,
                 "authorizedQty": 30,
                 "dispensedQty": 0,
                 "remainingQty": 30,
                 "status": "AVAILABLE",
-                "expiresAt": "2026-07-07T14:30:30.214Z",
+                "expiresAt": "2026-07-07T16:02:29.019Z",
                 "notes": null,
-                "createdAt": "2026-01-07T14:30:31.307Z",
-                "updatedAt": "2026-01-07T14:30:31.307Z",
+                "createdAt": "2026-01-07T16:02:29.794Z",
+                "updatedAt": "2026-01-07T16:02:29.794Z",
                 "items": []
               }
             ],
             "files": [],
             "items": [
               {
-                "id": "cmk448dq2003f14rjanayupse",
-                "prescriptionVersionId": "cmk448dq2003d14rj13u2shro",
-                "drugId": "cmk448ctf003a14rjclw83opr",
+                "id": "cmk47intv005u14m8bf3zbktc",
+                "prescriptionVersionId": "cmk47intu005s14m8ub9iwkq1",
+                "drugId": "cmk47inao005p14m8l6tqol5p",
                 "batchId": null,
                 "quantityPrescribed": 30,
                 "sig": "1 tablet daily",
@@ -1939,10 +2064,10 @@
                 "isControlled": false,
                 "refillsAllowed": 0,
                 "drug": {
-                  "id": "cmk448ctf003a14rjclw83opr",
-                  "storeId": "cmk447ume002a14rjtimaff88",
+                  "id": "cmk47inao005p14m8l6tqol5p",
+                  "storeId": "cmk47i040004314m8lw4wrcuo",
                   "rxcui": null,
-                  "name": "DPFV Test Drug 1767796229858",
+                  "name": "DPFV Test Drug 1767801748847",
                   "genericName": "Test Generic",
                   "strength": "500mg",
                   "form": "Tablet",
@@ -1956,8 +2081,8 @@
                   "lowStockThreshold": null,
                   "description": null,
                   "lastSyncedAt": null,
-                  "createdAt": "2026-01-07T14:30:29.860Z",
-                  "updatedAt": "2026-01-07T14:30:29.860Z"
+                  "createdAt": "2026-01-07T16:02:28.849Z",
+                  "updatedAt": "2026-01-07T16:02:28.849Z"
                 },
                 "batch": null
               }
@@ -1965,32 +2090,32 @@
             "currentVersion": 1,
             "auditLogs": [
               {
-                "id": "cmk448fbq003n14rjgkaf19yo",
-                "storeId": "cmk447ume002a14rjtimaff88",
-                "userId": "cmk43vinj001k14aw3qvj6ly8",
+                "id": "cmk47ipeq006214m8uir9xkcf",
+                "storeId": "cmk47i040004314m8lw4wrcuo",
+                "userId": "cmk47i3a8004h14m83hb1okth",
                 "action": "PRESCRIPTION_ACTIVATED",
                 "entityType": "Prescription",
-                "entityId": "cmk448dah003b14rj34uqnli3",
+                "entityId": "cmk47ink8005q14m8ug9quuh7",
                 "changes": {
                   "newStatus": "ACTIVE",
                   "previousStatus": "DRAFT"
                 },
                 "ipAddress": null,
-                "createdAt": "2026-01-07T14:30:33.110Z",
+                "createdAt": "2026-01-07T16:02:31.587Z",
                 "user": {
-                  "id": "cmk43vinj001k14aw3qvj6ly8",
+                  "id": "cmk47i3a8004h14m83hb1okth",
                   "firstName": "Audit",
                   "lastName": "Admin",
                   "email": "dpfv-audit-admin@test.hoperx.com"
                 }
               },
               {
-                "id": "cmk448e2j003l14rjr9ufv8o3",
-                "storeId": "cmk447ume002a14rjtimaff88",
-                "userId": "cmk43vinj001k14aw3qvj6ly8",
+                "id": "cmk47io5o006014m8iodafp8i",
+                "storeId": "cmk47i040004314m8lw4wrcuo",
+                "userId": "cmk47i3a8004h14m83hb1okth",
                 "action": "PRESCRIPTION_CREATED",
                 "entityType": "Prescription",
-                "entityId": "cmk448dah003b14rj34uqnli3",
+                "entityId": "cmk47ink8005q14m8ug9quuh7",
                 "changes": {
                   "type": "REGULAR",
                   "itemCount": 1,
@@ -1998,9 +2123,9 @@
                   "prescriptionNumber": "RX000002"
                 },
                 "ipAddress": null,
-                "createdAt": "2026-01-07T14:30:31.483Z",
+                "createdAt": "2026-01-07T16:02:29.964Z",
                 "user": {
-                  "id": "cmk43vinj001k14aw3qvj6ly8",
+                  "id": "cmk47i3a8004h14m83hb1okth",
                   "firstName": "Audit",
                   "lastName": "Admin",
                   "email": "dpfv-audit-admin@test.hoperx.com"
@@ -2024,22 +2149,22 @@
               "invariant": "RX-003"
             }
           ],
-          "duration": 1526
+          "duration": 1374
         },
         {
           "success": true,
           "data": {
-            "id": "cmk448dxm003g14rj3dlelsjb",
-            "prescriptionId": "cmk448dah003b14rj34uqnli3",
+            "id": "cmk47io0y005v14m82m1syapv",
+            "prescriptionId": "cmk47ink8005q14m8ug9quuh7",
             "refillNumber": 0,
             "authorizedQty": 30,
             "dispensedQty": 0,
             "remainingQty": 30,
             "status": "AVAILABLE",
-            "expiresAt": "2026-07-07T14:30:30.214Z",
+            "expiresAt": "2026-07-07T16:02:29.019Z",
             "notes": null,
-            "createdAt": "2026-01-07T14:30:31.307Z",
-            "updatedAt": "2026-01-07T14:30:31.307Z"
+            "createdAt": "2026-01-07T16:02:29.794Z",
+            "updatedAt": "2026-01-07T16:02:29.794Z"
           },
           "assertions": [
             {
@@ -2050,10 +2175,10 @@
               "invariant": "RX-004"
             }
           ],
-          "duration": 1031
+          "duration": 1018
         }
       ],
-      "duration": 5819
+      "duration": 5045
     },
     {
       "id": "admin.roles",
@@ -2065,48 +2190,134 @@
           "assertions": [
             {
               "passed": false,
-              "expected": "No error",
-              "actual": "Context key \"role\" not found. Available keys: authToken, signupResult, currentUser, refreshToken, userId, storeId, loginResult, originalToken, userProfile, onboardingResult, currentStore, currentPatient, patientId, sale, saleId, invoiceNumber, trackedSale, lastSalesReport, lastExport, draft, refundBatch, patient, creditBatch, pdfBatch, newStore, storeUser, subscription, adminPin, lastAccessLog, loginError, targetUserId, emailAccount, latestEmailLog, testBatch, initialStock, patientLedger, testDrug, prescription, prescriptionId, currentRefill, refillId, versionId",
-              "message": "Assertion \"Role created\" threw: Context key \"role\" not found. Available keys: authToken, signupResult, currentUser, refreshToken, userId, storeId, loginResult, originalToken, userProfile, onboardingResult, currentStore, currentPatient, patientId, sale, saleId, invoiceNumber, trackedSale, lastSalesReport, lastExport, draft, refundBatch, patient, creditBatch, pdfBatch, newStore, storeUser, subscription, adminPin, lastAccessLog, loginError, targetUserId, emailAccount, latestEmailLog, testBatch, initialStock, patientLedger, testDrug, prescription, prescriptionId, currentRefill, refillId, versionId",
+              "message": "Role object must be returned",
+              "expected": "Role",
+              "actual": "Null",
               "invariant": "DATA-001"
             },
             {
-              "passed": false,
-              "expected": "No error",
-              "actual": "Context key \"role\" not found. Available keys: authToken, signupResult, currentUser, refreshToken, userId, storeId, loginResult, originalToken, userProfile, onboardingResult, currentStore, currentPatient, patientId, sale, saleId, invoiceNumber, trackedSale, lastSalesReport, lastExport, draft, refundBatch, patient, creditBatch, pdfBatch, newStore, storeUser, subscription, adminPin, lastAccessLog, loginError, targetUserId, emailAccount, latestEmailLog, testBatch, initialStock, patientLedger, testDrug, prescription, prescriptionId, currentRefill, refillId, versionId",
-              "message": "Assertion \"Role is not built-in\" threw: Context key \"role\" not found. Available keys: authToken, signupResult, currentUser, refreshToken, userId, storeId, loginResult, originalToken, userProfile, onboardingResult, currentStore, currentPatient, patientId, sale, saleId, invoiceNumber, trackedSale, lastSalesReport, lastExport, draft, refundBatch, patient, creditBatch, pdfBatch, newStore, storeUser, subscription, adminPin, lastAccessLog, loginError, targetUserId, emailAccount, latestEmailLog, testBatch, initialStock, patientLedger, testDrug, prescription, prescriptionId, currentRefill, refillId, versionId",
+              "passed": null,
+              "message": "Custom role must not be built-in",
+              "expected": false,
               "invariant": "INV-011"
             }
           ],
-          "duration": 259,
-          "error": {}
+          "duration": 257,
+          "error": {
+            "name": "Error",
+            "message": "Assertion(s) failed",
+            "stack": "Error: Assertion(s) failed\n    at Runner.executeStep (/Users/dikshantjangra/Desktop/hoperxpharma/backend/verifier/runner/Runner.ts:342:58)\n    at async Runner.executeScenario (/Users/dikshantjangra/Desktop/hoperxpharma/backend/verifier/runner/Runner.ts:230:32)\n    at async Runner.run (/Users/dikshantjangra/Desktop/hoperxpharma/backend/verifier/runner/Runner.ts:119:28)\n    at async main (/Users/dikshantjangra/Desktop/hoperxpharma/backend/verifier/run.ts:208:24)"
+          }
         }
       ],
-      "error": {},
+      "error": {
+        "name": "Error",
+        "message": "Assertion(s) failed",
+        "stack": "Error: Assertion(s) failed\n    at Runner.executeStep (/Users/dikshantjangra/Desktop/hoperxpharma/backend/verifier/runner/Runner.ts:342:58)\n    at async Runner.executeScenario (/Users/dikshantjangra/Desktop/hoperxpharma/backend/verifier/runner/Runner.ts:230:32)\n    at async Runner.run (/Users/dikshantjangra/Desktop/hoperxpharma/backend/verifier/runner/Runner.ts:119:28)\n    at async main (/Users/dikshantjangra/Desktop/hoperxpharma/backend/verifier/run.ts:208:24)"
+      },
       "duration": 259
     },
     {
       "id": "admin.features",
       "status": "FAILED",
-      "failedAtStep": "features.get",
+      "failedAtStep": "features.update",
       "steps": [
         {
-          "success": false,
+          "success": true,
+          "data": {
+            "featureConfig": {
+              "gst": "essential",
+              "pos": "essential",
+              "help": "essential",
+              "team": "essential",
+              "audit": "essential",
+              "store": "essential",
+              "claims": "optional",
+              "engage": "essential",
+              "orders": "essential",
+              "finance": "essential",
+              "reports": "essential",
+              "dispense": "essential",
+              "insights": "essential",
+              "messages": "essential",
+              "patients": "essential",
+              "dashboard": "essential",
+              "inventory": "essential",
+              "knowledge": "essential",
+              "suppliers": "essential",
+              "multiStore": "hidden",
+              "regulations": "essential",
+              "integrations": "essential",
+              "prescriptions": "essential"
+            },
+            "enabledSections": [
+              "Operations",
+              "Inventory & Supply",
+              "Billing & Finance",
+              "Analytics",
+              "Communication",
+              "Compliance",
+              "Settings",
+              "Support"
+            ],
+            "defaultPermissions": [
+              "prescription.read",
+              "prescription.create",
+              "prescription.fulfill",
+              "patient.read",
+              "patient.create",
+              "inventory.read",
+              "po.read",
+              "po.create",
+              "sales.create",
+              "sales.read",
+              "communication.send",
+              "marketing.loyalty"
+            ]
+          },
           "assertions": [
             {
-              "passed": false,
-              "expected": "No error",
-              "actual": "Context key \"storeFeatures\" not found. Available keys: authToken, signupResult, currentUser, refreshToken, userId, storeId, loginResult, originalToken, userProfile, onboardingResult, currentStore, currentPatient, patientId, sale, saleId, invoiceNumber, trackedSale, lastSalesReport, lastExport, draft, refundBatch, patient, creditBatch, pdfBatch, newStore, storeUser, subscription, adminPin, lastAccessLog, loginError, targetUserId, emailAccount, latestEmailLog, testBatch, initialStock, patientLedger, testDrug, prescription, prescriptionId, currentRefill, refillId, versionId",
-              "message": "Assertion \"Returns feature config\" threw: Context key \"storeFeatures\" not found. Available keys: authToken, signupResult, currentUser, refreshToken, userId, storeId, loginResult, originalToken, userProfile, onboardingResult, currentStore, currentPatient, patientId, sale, saleId, invoiceNumber, trackedSale, lastSalesReport, lastExport, draft, refundBatch, patient, creditBatch, pdfBatch, newStore, storeUser, subscription, adminPin, lastAccessLog, loginError, targetUserId, emailAccount, latestEmailLog, testBatch, initialStock, patientLedger, testDrug, prescription, prescriptionId, currentRefill, refillId, versionId",
+              "passed": true,
+              "message": "Feature config must exist",
+              "expected": "Config object",
+              "actual": "Found",
               "invariant": "DATA-001"
             }
           ],
-          "duration": 1,
-          "error": {}
+          "duration": 341
+        },
+        {
+          "success": false,
+          "data": {
+            "id": "cmk47i040004314m8lw4wrcuo",
+            "businessType": "Retail Pharmacy",
+            "featureOverrides": {
+              "pos": "hidden"
+            }
+          },
+          "assertions": [
+            {
+              "passed": false,
+              "message": "POS should be hidden",
+              "expected": "hidden",
+              "actual": "undefined",
+              "invariant": "CONF-001"
+            }
+          ],
+          "duration": 263,
+          "error": {
+            "name": "Error",
+            "message": "Assertion(s) failed",
+            "stack": "Error: Assertion(s) failed\n    at Runner.executeStep (/Users/dikshantjangra/Desktop/hoperxpharma/backend/verifier/runner/Runner.ts:342:58)\n    at async Runner.executeScenario (/Users/dikshantjangra/Desktop/hoperxpharma/backend/verifier/runner/Runner.ts:230:32)\n    at async Runner.run (/Users/dikshantjangra/Desktop/hoperxpharma/backend/verifier/runner/Runner.ts:119:28)\n    at async main (/Users/dikshantjangra/Desktop/hoperxpharma/backend/verifier/run.ts:208:24)"
+          }
         }
       ],
-      "error": {},
-      "duration": 1
+      "error": {
+        "name": "Error",
+        "message": "Assertion(s) failed",
+        "stack": "Error: Assertion(s) failed\n    at Runner.executeStep (/Users/dikshantjangra/Desktop/hoperxpharma/backend/verifier/runner/Runner.ts:342:58)\n    at async Runner.executeScenario (/Users/dikshantjangra/Desktop/hoperxpharma/backend/verifier/runner/Runner.ts:230:32)\n    at async Runner.run (/Users/dikshantjangra/Desktop/hoperxpharma/backend/verifier/runner/Runner.ts:119:28)\n    at async main (/Users/dikshantjangra/Desktop/hoperxpharma/backend/verifier/run.ts:208:24)"
+      },
+      "duration": 606
     },
     {
       "id": "procurement.supplier",
@@ -2115,8 +2326,8 @@
         {
           "success": true,
           "data": {
-            "id": "cmk448hid003p14rj0l32sfaz",
-            "storeId": "cmk447ume002a14rjtimaff88",
+            "id": "cmk47irx5006414m8v4tqezgr",
+            "storeId": "cmk47i040004314m8lw4wrcuo",
             "name": "Alpha Pharma Distributors",
             "category": "Distributor",
             "status": "Active",
@@ -2134,8 +2345,8 @@
             "pinCode": "411001",
             "paymentTerms": null,
             "creditLimit": null,
-            "createdAt": "2026-01-07T14:30:35.942Z",
-            "updatedAt": "2026-01-07T14:30:35.942Z",
+            "createdAt": "2026-01-07T16:02:34.842Z",
+            "updatedAt": "2026-01-07T16:02:34.842Z",
             "deletedAt": null
           },
           "assertions": [
@@ -2143,11 +2354,11 @@
               "passed": true,
               "message": "Supplier must have ID",
               "expected": "ID present",
-              "actual": "cmk448hid003p14rj0l32sfaz",
+              "actual": "cmk47irx5006414m8v4tqezgr",
               "invariant": "DATA-001"
             }
           ],
-          "duration": 524
+          "duration": 520
         },
         {
           "success": false,
@@ -2160,10 +2371,10 @@
               "invariant": "DATA-INTEGRITY"
             }
           ],
-          "duration": 87
+          "duration": 86
         }
       ],
-      "duration": 611
+      "duration": 606
     },
     {
       "id": "billing.subscription",
@@ -2174,20 +2385,20 @@
           "data": {
             "isActive": true,
             "subscription": {
-              "id": "cmk447v0i002c14rj5looh1wq",
-              "storeId": "cmk447ume002a14rjtimaff88",
+              "id": "cmk47i0ia004714m8a12wiozj",
+              "storeId": "cmk47i040004314m8lw4wrcuo",
               "planId": "cmiudhheo000014skldx27kfs",
               "status": "TRIAL",
               "activeVerticals": [],
               "comboBundle": null,
               "monthlyAmount": null,
               "billingCycle": "monthly",
-              "trialEndsAt": "2026-01-21T14:30:06.785Z",
-              "currentPeriodStart": "2026-01-07T14:30:06.785Z",
-              "currentPeriodEnd": "2026-01-21T14:30:06.785Z",
+              "trialEndsAt": "2026-01-21T16:01:59.313Z",
+              "currentPeriodStart": "2026-01-07T16:01:59.313Z",
+              "currentPeriodEnd": "2026-01-21T16:01:59.313Z",
               "autoRenew": true,
-              "createdAt": "2026-01-07T14:30:06.786Z",
-              "updatedAt": "2026-01-07T14:30:06.786Z",
+              "createdAt": "2026-01-07T16:01:59.315Z",
+              "updatedAt": "2026-01-07T16:01:59.315Z",
               "plan": {
                 "id": "cmiudhheo000014skldx27kfs",
                 "name": "free_trial",
@@ -2214,25 +2425,25 @@
               "invariant": "SUB-001"
             }
           ],
-          "duration": 356
+          "duration": 513
         },
         {
           "success": true,
           "data": {
-            "id": "cmk447v0i002c14rj5looh1wq",
-            "storeId": "cmk447ume002a14rjtimaff88",
+            "id": "cmk47i0ia004714m8a12wiozj",
+            "storeId": "cmk47i040004314m8lw4wrcuo",
             "planId": "cmiudhheo000014skldx27kfs",
             "status": "EXPIRED",
             "activeVerticals": [],
             "comboBundle": null,
             "monthlyAmount": null,
             "billingCycle": "monthly",
-            "trialEndsAt": "2026-01-21T14:30:06.785Z",
-            "currentPeriodStart": "2026-01-07T14:30:06.785Z",
-            "currentPeriodEnd": "2026-01-06T14:30:36.826Z",
+            "trialEndsAt": "2026-01-21T16:01:59.313Z",
+            "currentPeriodStart": "2026-01-07T16:01:59.313Z",
+            "currentPeriodEnd": "2026-01-06T16:02:35.874Z",
             "autoRenew": true,
-            "createdAt": "2026-01-07T14:30:06.786Z",
-            "updatedAt": "2026-01-07T14:30:36.827Z",
+            "createdAt": "2026-01-07T16:01:59.315Z",
+            "updatedAt": "2026-01-07T16:02:35.876Z",
             "plan": {
               "id": "cmiudhheo000014skldx27kfs",
               "name": "free_trial",
@@ -2254,31 +2465,31 @@
               "passed": true,
               "message": "End date is in past",
               "expected": "Past Date",
-              "actual": "2026-01-06T14:30:36.826Z",
+              "actual": "2026-01-06T16:02:35.874Z",
               "invariant": "SUB-002"
             }
           ],
-          "duration": 1114
+          "duration": 938
         },
         {
           "success": true,
           "data": {
             "isActive": false,
             "subscription": {
-              "id": "cmk447v0i002c14rj5looh1wq",
-              "storeId": "cmk447ume002a14rjtimaff88",
+              "id": "cmk47i0ia004714m8a12wiozj",
+              "storeId": "cmk47i040004314m8lw4wrcuo",
               "planId": "cmiudhheo000014skldx27kfs",
               "status": "EXPIRED",
               "activeVerticals": [],
               "comboBundle": null,
               "monthlyAmount": null,
               "billingCycle": "monthly",
-              "trialEndsAt": "2026-01-21T14:30:06.785Z",
-              "currentPeriodStart": "2026-01-07T14:30:06.785Z",
-              "currentPeriodEnd": "2026-01-06T14:30:36.826Z",
+              "trialEndsAt": "2026-01-21T16:01:59.313Z",
+              "currentPeriodStart": "2026-01-07T16:01:59.313Z",
+              "currentPeriodEnd": "2026-01-06T16:02:35.874Z",
               "autoRenew": true,
-              "createdAt": "2026-01-07T14:30:06.786Z",
-              "updatedAt": "2026-01-07T14:30:36.827Z",
+              "createdAt": "2026-01-07T16:01:59.315Z",
+              "updatedAt": "2026-01-07T16:02:35.876Z",
               "plan": {
                 "id": "cmiudhheo000014skldx27kfs",
                 "name": "free_trial",
@@ -2305,13 +2516,13 @@
               "invariant": "SUB-003"
             }
           ],
-          "duration": 348
+          "duration": 346
         },
         {
           "success": true,
           "data": {
-            "id": "cmk447v0i002c14rj5looh1wq",
-            "storeId": "cmk447ume002a14rjtimaff88",
+            "id": "cmk47i0ia004714m8a12wiozj",
+            "storeId": "cmk47i040004314m8lw4wrcuo",
             "planId": "cmiudhi1f000114sknt4k3mqx",
             "status": "ACTIVE",
             "activeVerticals": [],
@@ -2319,11 +2530,11 @@
             "monthlyAmount": null,
             "billingCycle": "monthly",
             "trialEndsAt": null,
-            "currentPeriodStart": "2026-01-07T14:30:38.625Z",
-            "currentPeriodEnd": "2026-02-07T14:30:38.625Z",
+            "currentPeriodStart": "2026-01-07T16:02:37.501Z",
+            "currentPeriodEnd": "2026-02-07T16:02:37.501Z",
             "autoRenew": true,
-            "createdAt": "2026-01-07T14:30:06.786Z",
-            "updatedAt": "2026-01-07T14:30:38.626Z",
+            "createdAt": "2026-01-07T16:01:59.315Z",
+            "updatedAt": "2026-01-07T16:02:37.502Z",
             "plan": {
               "id": "cmiudhi1f000114sknt4k3mqx",
               "name": "basic",
@@ -2349,15 +2560,15 @@
               "invariant": "SUB-004"
             }
           ],
-          "duration": 1243
+          "duration": 1193
         },
         {
           "success": true,
           "data": {
             "isActive": true,
             "subscription": {
-              "id": "cmk447v0i002c14rj5looh1wq",
-              "storeId": "cmk447ume002a14rjtimaff88",
+              "id": "cmk47i0ia004714m8a12wiozj",
+              "storeId": "cmk47i040004314m8lw4wrcuo",
               "planId": "cmiudhi1f000114sknt4k3mqx",
               "status": "ACTIVE",
               "activeVerticals": [],
@@ -2365,11 +2576,11 @@
               "monthlyAmount": null,
               "billingCycle": "monthly",
               "trialEndsAt": null,
-              "currentPeriodStart": "2026-01-07T14:30:38.625Z",
-              "currentPeriodEnd": "2026-02-07T14:30:38.625Z",
+              "currentPeriodStart": "2026-01-07T16:02:37.501Z",
+              "currentPeriodEnd": "2026-02-07T16:02:37.501Z",
               "autoRenew": true,
-              "createdAt": "2026-01-07T14:30:06.786Z",
-              "updatedAt": "2026-01-07T14:30:38.626Z",
+              "createdAt": "2026-01-07T16:01:59.315Z",
+              "updatedAt": "2026-01-07T16:02:37.502Z",
               "plan": {
                 "id": "cmiudhi1f000114sknt4k3mqx",
                 "name": "basic",
@@ -2396,10 +2607,10 @@
               "invariant": "SUB-005"
             }
           ],
-          "duration": 498
+          "duration": 425
         }
       ],
-      "duration": 3560
+      "duration": 3416
     },
     {
       "id": "clinical.dispense",
@@ -2408,18 +2619,18 @@
         {
           "success": true,
           "data": {
-            "id": "cmk448kov003r14rjy9lizpb5",
-            "refillId": "cmk448dxm003g14rj3dlelsjb",
-            "prescriptionVersionId": "cmk448dq2003d14rj13u2shro",
+            "id": "cmk47iuyn006614m89mox8hdr",
+            "refillId": "cmk47io0y005v14m82m1syapv",
+            "prescriptionVersionId": "cmk47intu005s14m8ub9iwkq1",
             "status": "QUEUED",
-            "queuedAt": "2026-01-07T14:30:40.062Z",
+            "queuedAt": "2026-01-07T16:02:38.781Z",
             "verifyingAt": null,
             "fillingAt": null,
             "checkingAt": null,
             "readyAt": null,
             "completedAt": null,
             "cancelledAt": null,
-            "queuedBy": "cmk43vinj001k14aw3qvj6ly8",
+            "queuedBy": "cmk47i3a8004h14m83hb1okth",
             "verifiedBy": null,
             "filledBy": null,
             "checkedBy": null,
@@ -2427,28 +2638,28 @@
             "quantityDispensed": null,
             "notes": null,
             "cancellationReason": null,
-            "createdAt": "2026-01-07T14:30:40.063Z",
-            "updatedAt": "2026-01-07T14:30:40.063Z",
+            "createdAt": "2026-01-07T16:02:38.783Z",
+            "updatedAt": "2026-01-07T16:02:38.783Z",
             "refill": {
-              "id": "cmk448dxm003g14rj3dlelsjb",
-              "prescriptionId": "cmk448dah003b14rj34uqnli3",
+              "id": "cmk47io0y005v14m82m1syapv",
+              "prescriptionId": "cmk47ink8005q14m8ug9quuh7",
               "refillNumber": 0,
               "authorizedQty": 30,
               "dispensedQty": 0,
               "remainingQty": 30,
               "status": "AVAILABLE",
-              "expiresAt": "2026-07-07T14:30:30.214Z",
+              "expiresAt": "2026-07-07T16:02:29.019Z",
               "notes": null,
-              "createdAt": "2026-01-07T14:30:31.307Z",
-              "updatedAt": "2026-01-07T14:30:31.307Z",
+              "createdAt": "2026-01-07T16:02:29.794Z",
+              "updatedAt": "2026-01-07T16:02:29.794Z",
               "prescription": {
-                "id": "cmk448dah003b14rj34uqnli3",
-                "storeId": "cmk447ume002a14rjtimaff88",
+                "id": "cmk47ink8005q14m8ug9quuh7",
+                "storeId": "cmk47i040004314m8lw4wrcuo",
                 "prescriptionNumber": "RX000002",
-                "patientId": "cmk4482vb002s14rjmnz2o4ug",
+                "patientId": "cmk47imwa005n14m87qq8g4b9",
                 "prescriberId": null,
-                "issueDate": "2026-01-07T14:30:30.472Z",
-                "expiryDate": "2026-07-07T14:30:30.214Z",
+                "issueDate": "2026-01-07T16:02:29.191Z",
+                "expiryDate": "2026-07-07T16:02:29.019Z",
                 "totalRefills": 3,
                 "status": "ACTIVE",
                 "type": "REGULAR",
@@ -2463,20 +2674,20 @@
                 "reminderSent": null,
                 "nextRefillDue": null,
                 "notes": null,
-                "createdAt": "2026-01-07T14:30:30.473Z",
-                "updatedAt": "2026-01-07T14:30:32.943Z",
+                "createdAt": "2026-01-07T16:02:29.192Z",
+                "updatedAt": "2026-01-07T16:02:31.413Z",
                 "deletedAt": null,
                 "patient": {
-                  "id": "cmk4482vb002s14rjmnz2o4ug",
-                  "storeId": "cmk447ume002a14rjtimaff88",
-                  "firstName": "Walk-in",
+                  "id": "cmk47imwa005n14m87qq8g4b9",
+                  "storeId": "cmk47i040004314m8lw4wrcuo",
+                  "firstName": "John",
                   "middleName": null,
-                  "lastName": "Customer",
-                  "dateOfBirth": null,
-                  "gender": null,
+                  "lastName": "Doe",
+                  "dateOfBirth": "1990-01-15T00:00:00.000Z",
+                  "gender": "MALE",
                   "photoUrl": null,
-                  "phoneNumber": "WALKIN-1767796216967",
-                  "email": null,
+                  "phoneNumber": "9801748158",
+                  "email": "john.doe.1767801748158@test.com",
                   "addressLine1": null,
                   "addressLine2": null,
                   "city": null,
@@ -2489,8 +2700,8 @@
                   "emergencyContactPhone": null,
                   "currentBalance": "0",
                   "creditLimit": "0",
-                  "createdAt": "2026-01-07T14:30:16.968Z",
-                  "updatedAt": "2026-01-07T14:30:16.968Z",
+                  "createdAt": "2026-01-07T16:02:28.330Z",
+                  "updatedAt": "2026-01-07T16:02:28.330Z",
                   "deletedAt": null,
                   "deletedBy": null
                 },
@@ -2498,20 +2709,20 @@
               }
             },
             "prescriptionVersion": {
-              "id": "cmk448dq2003d14rj13u2shro",
-              "prescriptionId": "cmk448dah003b14rj34uqnli3",
+              "id": "cmk47intu005s14m8ub9iwkq1",
+              "prescriptionId": "cmk47ink8005q14m8ug9quuh7",
               "versionNumber": 1,
               "instructions": "DPFV Test Prescription",
               "substitutionNotes": null,
               "attachments": null,
               "changedReason": null,
-              "createdBy": "cmk43vinj001k14aw3qvj6ly8",
-              "createdAt": "2026-01-07T14:30:31.034Z",
+              "createdBy": "cmk47i3a8004h14m83hb1okth",
+              "createdAt": "2026-01-07T16:02:29.539Z",
               "items": [
                 {
-                  "id": "cmk448dq2003f14rjanayupse",
-                  "prescriptionVersionId": "cmk448dq2003d14rj13u2shro",
-                  "drugId": "cmk448ctf003a14rjclw83opr",
+                  "id": "cmk47intv005u14m8bf3zbktc",
+                  "prescriptionVersionId": "cmk47intu005s14m8ub9iwkq1",
+                  "drugId": "cmk47inao005p14m8l6tqol5p",
                   "batchId": null,
                   "quantityPrescribed": 30,
                   "sig": "1 tablet daily",
@@ -2520,10 +2731,10 @@
                   "isControlled": false,
                   "refillsAllowed": 0,
                   "drug": {
-                    "id": "cmk448ctf003a14rjclw83opr",
-                    "storeId": "cmk447ume002a14rjtimaff88",
+                    "id": "cmk47inao005p14m8l6tqol5p",
+                    "storeId": "cmk47i040004314m8lw4wrcuo",
                     "rxcui": null,
-                    "name": "DPFV Test Drug 1767796229858",
+                    "name": "DPFV Test Drug 1767801748847",
                     "genericName": "Test Generic",
                     "strength": "500mg",
                     "form": "Tablet",
@@ -2537,8 +2748,8 @@
                     "lowStockThreshold": null,
                     "description": null,
                     "lastSyncedAt": null,
-                    "createdAt": "2026-01-07T14:30:29.860Z",
-                    "updatedAt": "2026-01-07T14:30:29.860Z"
+                    "createdAt": "2026-01-07T16:02:28.849Z",
+                    "updatedAt": "2026-01-07T16:02:28.849Z"
                   },
                   "batch": null
                 }
@@ -2561,52 +2772,52 @@
               "invariant": "DISP-001"
             }
           ],
-          "duration": 1802
+          "duration": 1113
         },
         {
           "success": true,
           "data": {
-            "id": "cmk448kov003r14rjy9lizpb5",
-            "refillId": "cmk448dxm003g14rj3dlelsjb",
-            "prescriptionVersionId": "cmk448dq2003d14rj13u2shro",
+            "id": "cmk47iuyn006614m89mox8hdr",
+            "refillId": "cmk47io0y005v14m82m1syapv",
+            "prescriptionVersionId": "cmk47intu005s14m8ub9iwkq1",
             "status": "FILLING",
-            "queuedAt": "2026-01-07T14:30:40.062Z",
+            "queuedAt": "2026-01-07T16:02:38.781Z",
             "verifyingAt": null,
-            "fillingAt": "2026-01-07T14:30:41.650Z",
+            "fillingAt": "2026-01-07T16:02:39.720Z",
             "checkingAt": null,
             "readyAt": null,
             "completedAt": null,
             "cancelledAt": null,
-            "queuedBy": "cmk43vinj001k14aw3qvj6ly8",
+            "queuedBy": "cmk47i3a8004h14m83hb1okth",
             "verifiedBy": null,
-            "filledBy": "cmk43vinj001k14aw3qvj6ly8",
+            "filledBy": "cmk47i3a8004h14m83hb1okth",
             "checkedBy": null,
             "dispensedBy": null,
             "quantityDispensed": null,
             "notes": "DPFV: Progressed to FILLING",
             "cancellationReason": null,
-            "createdAt": "2026-01-07T14:30:40.063Z",
-            "updatedAt": "2026-01-07T14:30:41.652Z",
+            "createdAt": "2026-01-07T16:02:38.783Z",
+            "updatedAt": "2026-01-07T16:02:39.722Z",
             "refill": {
-              "id": "cmk448dxm003g14rj3dlelsjb",
-              "prescriptionId": "cmk448dah003b14rj34uqnli3",
+              "id": "cmk47io0y005v14m82m1syapv",
+              "prescriptionId": "cmk47ink8005q14m8ug9quuh7",
               "refillNumber": 0,
               "authorizedQty": 30,
               "dispensedQty": 0,
               "remainingQty": 30,
               "status": "AVAILABLE",
-              "expiresAt": "2026-07-07T14:30:30.214Z",
+              "expiresAt": "2026-07-07T16:02:29.019Z",
               "notes": null,
-              "createdAt": "2026-01-07T14:30:31.307Z",
-              "updatedAt": "2026-01-07T14:30:31.307Z",
+              "createdAt": "2026-01-07T16:02:29.794Z",
+              "updatedAt": "2026-01-07T16:02:29.794Z",
               "prescription": {
-                "id": "cmk448dah003b14rj34uqnli3",
-                "storeId": "cmk447ume002a14rjtimaff88",
+                "id": "cmk47ink8005q14m8ug9quuh7",
+                "storeId": "cmk47i040004314m8lw4wrcuo",
                 "prescriptionNumber": "RX000002",
-                "patientId": "cmk4482vb002s14rjmnz2o4ug",
+                "patientId": "cmk47imwa005n14m87qq8g4b9",
                 "prescriberId": null,
-                "issueDate": "2026-01-07T14:30:30.472Z",
-                "expiryDate": "2026-07-07T14:30:30.214Z",
+                "issueDate": "2026-01-07T16:02:29.191Z",
+                "expiryDate": "2026-07-07T16:02:29.019Z",
                 "totalRefills": 3,
                 "status": "ACTIVE",
                 "type": "REGULAR",
@@ -2621,20 +2832,20 @@
                 "reminderSent": null,
                 "nextRefillDue": null,
                 "notes": null,
-                "createdAt": "2026-01-07T14:30:30.473Z",
-                "updatedAt": "2026-01-07T14:30:32.943Z",
+                "createdAt": "2026-01-07T16:02:29.192Z",
+                "updatedAt": "2026-01-07T16:02:31.413Z",
                 "deletedAt": null,
                 "patient": {
-                  "id": "cmk4482vb002s14rjmnz2o4ug",
-                  "storeId": "cmk447ume002a14rjtimaff88",
-                  "firstName": "Walk-in",
+                  "id": "cmk47imwa005n14m87qq8g4b9",
+                  "storeId": "cmk47i040004314m8lw4wrcuo",
+                  "firstName": "John",
                   "middleName": null,
-                  "lastName": "Customer",
-                  "dateOfBirth": null,
-                  "gender": null,
+                  "lastName": "Doe",
+                  "dateOfBirth": "1990-01-15T00:00:00.000Z",
+                  "gender": "MALE",
                   "photoUrl": null,
-                  "phoneNumber": "WALKIN-1767796216967",
-                  "email": null,
+                  "phoneNumber": "9801748158",
+                  "email": "john.doe.1767801748158@test.com",
                   "addressLine1": null,
                   "addressLine2": null,
                   "city": null,
@@ -2647,8 +2858,8 @@
                   "emergencyContactPhone": null,
                   "currentBalance": "0",
                   "creditLimit": "0",
-                  "createdAt": "2026-01-07T14:30:16.968Z",
-                  "updatedAt": "2026-01-07T14:30:16.968Z",
+                  "createdAt": "2026-01-07T16:02:28.330Z",
+                  "updatedAt": "2026-01-07T16:02:28.330Z",
                   "deletedAt": null,
                   "deletedBy": null
                 },
@@ -2656,20 +2867,20 @@
               }
             },
             "prescriptionVersion": {
-              "id": "cmk448dq2003d14rj13u2shro",
-              "prescriptionId": "cmk448dah003b14rj34uqnli3",
+              "id": "cmk47intu005s14m8ub9iwkq1",
+              "prescriptionId": "cmk47ink8005q14m8ug9quuh7",
               "versionNumber": 1,
               "instructions": "DPFV Test Prescription",
               "substitutionNotes": null,
               "attachments": null,
               "changedReason": null,
-              "createdBy": "cmk43vinj001k14aw3qvj6ly8",
-              "createdAt": "2026-01-07T14:30:31.034Z",
+              "createdBy": "cmk47i3a8004h14m83hb1okth",
+              "createdAt": "2026-01-07T16:02:29.539Z",
               "items": [
                 {
-                  "id": "cmk448dq2003f14rjanayupse",
-                  "prescriptionVersionId": "cmk448dq2003d14rj13u2shro",
-                  "drugId": "cmk448ctf003a14rjclw83opr",
+                  "id": "cmk47intv005u14m8bf3zbktc",
+                  "prescriptionVersionId": "cmk47intu005s14m8ub9iwkq1",
+                  "drugId": "cmk47inao005p14m8l6tqol5p",
                   "batchId": null,
                   "quantityPrescribed": 30,
                   "sig": "1 tablet daily",
@@ -2678,10 +2889,10 @@
                   "isControlled": false,
                   "refillsAllowed": 0,
                   "drug": {
-                    "id": "cmk448ctf003a14rjclw83opr",
-                    "storeId": "cmk447ume002a14rjtimaff88",
+                    "id": "cmk47inao005p14m8l6tqol5p",
+                    "storeId": "cmk47i040004314m8lw4wrcuo",
                     "rxcui": null,
-                    "name": "DPFV Test Drug 1767796229858",
+                    "name": "DPFV Test Drug 1767801748847",
                     "genericName": "Test Generic",
                     "strength": "500mg",
                     "form": "Tablet",
@@ -2695,8 +2906,8 @@
                     "lowStockThreshold": null,
                     "description": null,
                     "lastSyncedAt": null,
-                    "createdAt": "2026-01-07T14:30:29.860Z",
-                    "updatedAt": "2026-01-07T14:30:29.860Z"
+                    "createdAt": "2026-01-07T16:02:28.849Z",
+                    "updatedAt": "2026-01-07T16:02:28.849Z"
                   }
                 }
               ]
@@ -2711,52 +2922,52 @@
               "invariant": "DISP-002"
             }
           ],
-          "duration": 1256
+          "duration": 1405
         },
         {
           "success": true,
           "data": {
-            "id": "cmk448kov003r14rjy9lizpb5",
-            "refillId": "cmk448dxm003g14rj3dlelsjb",
-            "prescriptionVersionId": "cmk448dq2003d14rj13u2shro",
+            "id": "cmk47iuyn006614m89mox8hdr",
+            "refillId": "cmk47io0y005v14m82m1syapv",
+            "prescriptionVersionId": "cmk47intu005s14m8ub9iwkq1",
             "status": "READY",
-            "queuedAt": "2026-01-07T14:30:40.062Z",
+            "queuedAt": "2026-01-07T16:02:38.781Z",
             "verifyingAt": null,
-            "fillingAt": "2026-01-07T14:30:41.650Z",
+            "fillingAt": "2026-01-07T16:02:39.720Z",
             "checkingAt": null,
-            "readyAt": "2026-01-07T14:30:42.907Z",
+            "readyAt": "2026-01-07T16:02:41.125Z",
             "completedAt": null,
             "cancelledAt": null,
-            "queuedBy": "cmk43vinj001k14aw3qvj6ly8",
+            "queuedBy": "cmk47i3a8004h14m83hb1okth",
             "verifiedBy": null,
-            "filledBy": "cmk43vinj001k14aw3qvj6ly8",
+            "filledBy": "cmk47i3a8004h14m83hb1okth",
             "checkedBy": null,
             "dispensedBy": null,
             "quantityDispensed": null,
             "notes": "DPFV: Progressed to READY",
             "cancellationReason": null,
-            "createdAt": "2026-01-07T14:30:40.063Z",
-            "updatedAt": "2026-01-07T14:30:42.908Z",
+            "createdAt": "2026-01-07T16:02:38.783Z",
+            "updatedAt": "2026-01-07T16:02:41.127Z",
             "refill": {
-              "id": "cmk448dxm003g14rj3dlelsjb",
-              "prescriptionId": "cmk448dah003b14rj34uqnli3",
+              "id": "cmk47io0y005v14m82m1syapv",
+              "prescriptionId": "cmk47ink8005q14m8ug9quuh7",
               "refillNumber": 0,
               "authorizedQty": 30,
               "dispensedQty": 0,
               "remainingQty": 30,
               "status": "AVAILABLE",
-              "expiresAt": "2026-07-07T14:30:30.214Z",
+              "expiresAt": "2026-07-07T16:02:29.019Z",
               "notes": null,
-              "createdAt": "2026-01-07T14:30:31.307Z",
-              "updatedAt": "2026-01-07T14:30:31.307Z",
+              "createdAt": "2026-01-07T16:02:29.794Z",
+              "updatedAt": "2026-01-07T16:02:29.794Z",
               "prescription": {
-                "id": "cmk448dah003b14rj34uqnli3",
-                "storeId": "cmk447ume002a14rjtimaff88",
+                "id": "cmk47ink8005q14m8ug9quuh7",
+                "storeId": "cmk47i040004314m8lw4wrcuo",
                 "prescriptionNumber": "RX000002",
-                "patientId": "cmk4482vb002s14rjmnz2o4ug",
+                "patientId": "cmk47imwa005n14m87qq8g4b9",
                 "prescriberId": null,
-                "issueDate": "2026-01-07T14:30:30.472Z",
-                "expiryDate": "2026-07-07T14:30:30.214Z",
+                "issueDate": "2026-01-07T16:02:29.191Z",
+                "expiryDate": "2026-07-07T16:02:29.019Z",
                 "totalRefills": 3,
                 "status": "ACTIVE",
                 "type": "REGULAR",
@@ -2771,20 +2982,20 @@
                 "reminderSent": null,
                 "nextRefillDue": null,
                 "notes": null,
-                "createdAt": "2026-01-07T14:30:30.473Z",
-                "updatedAt": "2026-01-07T14:30:32.943Z",
+                "createdAt": "2026-01-07T16:02:29.192Z",
+                "updatedAt": "2026-01-07T16:02:31.413Z",
                 "deletedAt": null,
                 "patient": {
-                  "id": "cmk4482vb002s14rjmnz2o4ug",
-                  "storeId": "cmk447ume002a14rjtimaff88",
-                  "firstName": "Walk-in",
+                  "id": "cmk47imwa005n14m87qq8g4b9",
+                  "storeId": "cmk47i040004314m8lw4wrcuo",
+                  "firstName": "John",
                   "middleName": null,
-                  "lastName": "Customer",
-                  "dateOfBirth": null,
-                  "gender": null,
+                  "lastName": "Doe",
+                  "dateOfBirth": "1990-01-15T00:00:00.000Z",
+                  "gender": "MALE",
                   "photoUrl": null,
-                  "phoneNumber": "WALKIN-1767796216967",
-                  "email": null,
+                  "phoneNumber": "9801748158",
+                  "email": "john.doe.1767801748158@test.com",
                   "addressLine1": null,
                   "addressLine2": null,
                   "city": null,
@@ -2797,8 +3008,8 @@
                   "emergencyContactPhone": null,
                   "currentBalance": "0",
                   "creditLimit": "0",
-                  "createdAt": "2026-01-07T14:30:16.968Z",
-                  "updatedAt": "2026-01-07T14:30:16.968Z",
+                  "createdAt": "2026-01-07T16:02:28.330Z",
+                  "updatedAt": "2026-01-07T16:02:28.330Z",
                   "deletedAt": null,
                   "deletedBy": null
                 },
@@ -2806,20 +3017,20 @@
               }
             },
             "prescriptionVersion": {
-              "id": "cmk448dq2003d14rj13u2shro",
-              "prescriptionId": "cmk448dah003b14rj34uqnli3",
+              "id": "cmk47intu005s14m8ub9iwkq1",
+              "prescriptionId": "cmk47ink8005q14m8ug9quuh7",
               "versionNumber": 1,
               "instructions": "DPFV Test Prescription",
               "substitutionNotes": null,
               "attachments": null,
               "changedReason": null,
-              "createdBy": "cmk43vinj001k14aw3qvj6ly8",
-              "createdAt": "2026-01-07T14:30:31.034Z",
+              "createdBy": "cmk47i3a8004h14m83hb1okth",
+              "createdAt": "2026-01-07T16:02:29.539Z",
               "items": [
                 {
-                  "id": "cmk448dq2003f14rjanayupse",
-                  "prescriptionVersionId": "cmk448dq2003d14rj13u2shro",
-                  "drugId": "cmk448ctf003a14rjclw83opr",
+                  "id": "cmk47intv005u14m8bf3zbktc",
+                  "prescriptionVersionId": "cmk47intu005s14m8ub9iwkq1",
+                  "drugId": "cmk47inao005p14m8l6tqol5p",
                   "batchId": null,
                   "quantityPrescribed": 30,
                   "sig": "1 tablet daily",
@@ -2828,10 +3039,10 @@
                   "isControlled": false,
                   "refillsAllowed": 0,
                   "drug": {
-                    "id": "cmk448ctf003a14rjclw83opr",
-                    "storeId": "cmk447ume002a14rjtimaff88",
+                    "id": "cmk47inao005p14m8l6tqol5p",
+                    "storeId": "cmk47i040004314m8lw4wrcuo",
                     "rxcui": null,
-                    "name": "DPFV Test Drug 1767796229858",
+                    "name": "DPFV Test Drug 1767801748847",
                     "genericName": "Test Generic",
                     "strength": "500mg",
                     "form": "Tablet",
@@ -2845,8 +3056,8 @@
                     "lowStockThreshold": null,
                     "description": null,
                     "lastSyncedAt": null,
-                    "createdAt": "2026-01-07T14:30:29.860Z",
-                    "updatedAt": "2026-01-07T14:30:29.860Z"
+                    "createdAt": "2026-01-07T16:02:28.849Z",
+                    "updatedAt": "2026-01-07T16:02:28.849Z"
                   }
                 }
               ]
@@ -2861,143 +3072,53 @@
               "invariant": "DISP-003"
             }
           ],
-          "duration": 1035
+          "duration": 1027
         },
         {
           "success": true,
           "data": [
             {
-              "id": "cmk44884x003414rjx8ho5djg",
-              "refillId": "cmk44841w002y14rjptfiuv7o",
-              "prescriptionVersionId": "cmk4483l5002v14rjg92t2enp",
+              "id": "cmk47iuyn006614m89mox8hdr",
+              "refillId": "cmk47io0y005v14m82m1syapv",
+              "prescriptionVersionId": "cmk47intu005s14m8ub9iwkq1",
               "status": "READY",
-              "queuedAt": "2026-01-07T14:30:23.792Z",
+              "queuedAt": "2026-01-07T16:02:38.781Z",
               "verifyingAt": null,
-              "fillingAt": null,
+              "fillingAt": "2026-01-07T16:02:39.720Z",
               "checkingAt": null,
-              "readyAt": "2026-01-07T14:30:25.260Z",
+              "readyAt": "2026-01-07T16:02:41.125Z",
               "completedAt": null,
               "cancelledAt": null,
-              "queuedBy": "cmk43vinj001k14aw3qvj6ly8",
+              "queuedBy": "cmk47i3a8004h14m83hb1okth",
               "verifiedBy": null,
-              "filledBy": null,
-              "checkedBy": null,
-              "dispensedBy": null,
-              "quantityDispensed": null,
-              "notes": "Quick Sale - Auto-progressed",
-              "cancellationReason": null,
-              "createdAt": "2026-01-07T14:30:23.793Z",
-              "updatedAt": "2026-01-07T14:30:25.261Z",
-              "refill": {
-                "id": "cmk44841w002y14rjptfiuv7o",
-                "prescriptionId": "cmk44834y002t14rjsgtimykf",
-                "refillNumber": 0,
-                "authorizedQty": 10,
-                "dispensedQty": 0,
-                "remainingQty": 10,
-                "status": "AVAILABLE",
-                "expiresAt": "2026-01-08T14:30:17.053Z",
-                "notes": null,
-                "createdAt": "2026-01-07T14:30:18.500Z",
-                "updatedAt": "2026-01-07T14:30:18.500Z",
-                "prescription": {
-                  "id": "cmk44834y002t14rjsgtimykf",
-                  "storeId": "cmk447ume002a14rjtimaff88",
-                  "prescriptionNumber": "RX000001",
-                  "patientId": "cmk4482vb002s14rjmnz2o4ug",
-                  "prescriberId": null,
-                  "issueDate": "2026-01-07T14:30:17.313Z",
-                  "expiryDate": "2026-01-08T14:30:17.053Z",
-                  "totalRefills": 0,
-                  "status": "ACTIVE",
-                  "type": "ONE_TIME",
-                  "source": "manual",
-                  "priority": "Normal",
-                  "controlledFlag": false,
-                  "eRxId": null,
-                  "eRxMetadata": null,
-                  "uploadedImages": [],
-                  "ocrText": null,
-                  "ocrConfidence": null,
-                  "reminderSent": null,
-                  "nextRefillDue": null,
-                  "notes": null,
-                  "createdAt": "2026-01-07T14:30:17.314Z",
-                  "updatedAt": "2026-01-07T14:30:21.047Z",
-                  "deletedAt": null,
-                  "patient": {
-                    "id": "cmk4482vb002s14rjmnz2o4ug",
-                    "storeId": "cmk447ume002a14rjtimaff88",
-                    "firstName": "Walk-in",
-                    "middleName": null,
-                    "lastName": "Customer",
-                    "dateOfBirth": null,
-                    "gender": null,
-                    "photoUrl": null,
-                    "phoneNumber": "WALKIN-1767796216967",
-                    "email": null,
-                    "addressLine1": null,
-                    "addressLine2": null,
-                    "city": null,
-                    "state": null,
-                    "pinCode": null,
-                    "bloodGroup": null,
-                    "allergies": [],
-                    "chronicConditions": [],
-                    "emergencyContactName": null,
-                    "emergencyContactPhone": null,
-                    "currentBalance": "0",
-                    "creditLimit": "0",
-                    "createdAt": "2026-01-07T14:30:16.968Z",
-                    "updatedAt": "2026-01-07T14:30:16.968Z",
-                    "deletedAt": null,
-                    "deletedBy": null
-                  }
-                }
-              }
-            },
-            {
-              "id": "cmk448kov003r14rjy9lizpb5",
-              "refillId": "cmk448dxm003g14rj3dlelsjb",
-              "prescriptionVersionId": "cmk448dq2003d14rj13u2shro",
-              "status": "READY",
-              "queuedAt": "2026-01-07T14:30:40.062Z",
-              "verifyingAt": null,
-              "fillingAt": "2026-01-07T14:30:41.650Z",
-              "checkingAt": null,
-              "readyAt": "2026-01-07T14:30:42.907Z",
-              "completedAt": null,
-              "cancelledAt": null,
-              "queuedBy": "cmk43vinj001k14aw3qvj6ly8",
-              "verifiedBy": null,
-              "filledBy": "cmk43vinj001k14aw3qvj6ly8",
+              "filledBy": "cmk47i3a8004h14m83hb1okth",
               "checkedBy": null,
               "dispensedBy": null,
               "quantityDispensed": null,
               "notes": "DPFV: Progressed to READY",
               "cancellationReason": null,
-              "createdAt": "2026-01-07T14:30:40.063Z",
-              "updatedAt": "2026-01-07T14:30:42.908Z",
+              "createdAt": "2026-01-07T16:02:38.783Z",
+              "updatedAt": "2026-01-07T16:02:41.127Z",
               "refill": {
-                "id": "cmk448dxm003g14rj3dlelsjb",
-                "prescriptionId": "cmk448dah003b14rj34uqnli3",
+                "id": "cmk47io0y005v14m82m1syapv",
+                "prescriptionId": "cmk47ink8005q14m8ug9quuh7",
                 "refillNumber": 0,
                 "authorizedQty": 30,
                 "dispensedQty": 0,
                 "remainingQty": 30,
                 "status": "AVAILABLE",
-                "expiresAt": "2026-07-07T14:30:30.214Z",
+                "expiresAt": "2026-07-07T16:02:29.019Z",
                 "notes": null,
-                "createdAt": "2026-01-07T14:30:31.307Z",
-                "updatedAt": "2026-01-07T14:30:31.307Z",
+                "createdAt": "2026-01-07T16:02:29.794Z",
+                "updatedAt": "2026-01-07T16:02:29.794Z",
                 "prescription": {
-                  "id": "cmk448dah003b14rj34uqnli3",
-                  "storeId": "cmk447ume002a14rjtimaff88",
+                  "id": "cmk47ink8005q14m8ug9quuh7",
+                  "storeId": "cmk47i040004314m8lw4wrcuo",
                   "prescriptionNumber": "RX000002",
-                  "patientId": "cmk4482vb002s14rjmnz2o4ug",
+                  "patientId": "cmk47imwa005n14m87qq8g4b9",
                   "prescriberId": null,
-                  "issueDate": "2026-01-07T14:30:30.472Z",
-                  "expiryDate": "2026-07-07T14:30:30.214Z",
+                  "issueDate": "2026-01-07T16:02:29.191Z",
+                  "expiryDate": "2026-07-07T16:02:29.019Z",
                   "totalRefills": 3,
                   "status": "ACTIVE",
                   "type": "REGULAR",
@@ -3012,20 +3133,20 @@
                   "reminderSent": null,
                   "nextRefillDue": null,
                   "notes": null,
-                  "createdAt": "2026-01-07T14:30:30.473Z",
-                  "updatedAt": "2026-01-07T14:30:32.943Z",
+                  "createdAt": "2026-01-07T16:02:29.192Z",
+                  "updatedAt": "2026-01-07T16:02:31.413Z",
                   "deletedAt": null,
                   "patient": {
-                    "id": "cmk4482vb002s14rjmnz2o4ug",
-                    "storeId": "cmk447ume002a14rjtimaff88",
-                    "firstName": "Walk-in",
+                    "id": "cmk47imwa005n14m87qq8g4b9",
+                    "storeId": "cmk47i040004314m8lw4wrcuo",
+                    "firstName": "John",
                     "middleName": null,
-                    "lastName": "Customer",
-                    "dateOfBirth": null,
-                    "gender": null,
+                    "lastName": "Doe",
+                    "dateOfBirth": "1990-01-15T00:00:00.000Z",
+                    "gender": "MALE",
                     "photoUrl": null,
-                    "phoneNumber": "WALKIN-1767796216967",
-                    "email": null,
+                    "phoneNumber": "9801748158",
+                    "email": "john.doe.1767801748158@test.com",
                     "addressLine1": null,
                     "addressLine2": null,
                     "city": null,
@@ -3038,8 +3159,8 @@
                     "emergencyContactPhone": null,
                     "currentBalance": "0",
                     "creditLimit": "0",
-                    "createdAt": "2026-01-07T14:30:16.968Z",
-                    "updatedAt": "2026-01-07T14:30:16.968Z",
+                    "createdAt": "2026-01-07T16:02:28.330Z",
+                    "updatedAt": "2026-01-07T16:02:28.330Z",
                     "deletedAt": null,
                     "deletedBy": null
                   }
@@ -3056,10 +3177,10 @@
               "invariant": "POS-001"
             }
           ],
-          "duration": 601
+          "duration": 429
         }
       ],
-      "duration": 4696
+      "duration": 3974
     },
     {
       "id": "procurement.po",
@@ -3068,10 +3189,10 @@
         {
           "success": true,
           "data": {
-            "id": "cmk448o5d003t14rjld7vfxuz",
-            "storeId": "cmk447ume002a14rjtimaff88",
+            "id": "cmk47ixw7006814m84lnlx3a7",
+            "storeId": "cmk47i040004314m8lw4wrcuo",
             "rxcui": null,
-            "name": "PO Test Drug 1767796244544",
+            "name": "PO Test Drug 1767801762582",
             "genericName": null,
             "strength": null,
             "form": null,
@@ -3085,8 +3206,8 @@
             "lowStockThreshold": null,
             "description": null,
             "lastSyncedAt": null,
-            "createdAt": "2026-01-07T14:30:44.545Z",
-            "updatedAt": "2026-01-07T14:30:44.545Z"
+            "createdAt": "2026-01-07T16:02:42.583Z",
+            "updatedAt": "2026-01-07T16:02:42.583Z"
           },
           "assertions": [],
           "duration": 174
@@ -3094,12 +3215,12 @@
         {
           "success": true,
           "data": {
-            "id": "cmk448pqg003v14rj7uwvig2d",
-            "storeId": "cmk447ume002a14rjtimaff88",
-            "supplierId": "cmk448hid003p14rj0l32sfaz",
-            "poNumber": "PO202601246511",
+            "id": "cmk47izh5006a14m8j7tbb9ja",
+            "storeId": "cmk47i040004314m8lw4wrcuo",
+            "supplierId": "cmk47irx5006414m8v4tqezgr",
+            "poNumber": "PO202601764547",
             "status": "DRAFT",
-            "orderDate": "2026-01-07T14:30:46.600Z",
+            "orderDate": "2026-01-07T16:02:44.633Z",
             "expectedDeliveryDate": null,
             "subtotal": "5000",
             "taxAmount": "600",
@@ -3107,17 +3228,17 @@
             "currency": "INR",
             "paymentTerms": null,
             "notes": null,
-            "createdBy": "cmk43vinj001k14aw3qvj6ly8",
+            "createdBy": "cmk47i3a8004h14m83hb1okth",
             "approvedBy": null,
             "approvedAt": null,
-            "createdAt": "2026-01-07T14:30:46.600Z",
-            "updatedAt": "2026-01-07T14:30:46.600Z",
+            "createdAt": "2026-01-07T16:02:44.633Z",
+            "updatedAt": "2026-01-07T16:02:44.633Z",
             "deletedAt": null,
             "items": [
               {
-                "id": "cmk448pzz003x14rjsleuf2ja",
-                "poId": "cmk448pqg003v14rj7uwvig2d",
-                "drugId": "cmk448o5d003t14rjld7vfxuz",
+                "id": "cmk47izqx006c14m8zdfdtb0y",
+                "poId": "cmk47izh5006a14m8j7tbb9ja",
+                "drugId": "cmk47ixw7006814m84lnlx3a7",
                 "quantity": 100,
                 "receivedQty": 0,
                 "packSize": 1,
@@ -3145,17 +3266,17 @@
               "invariant": "STATE-001"
             }
           ],
-          "duration": 2484
+          "duration": 2490
         },
         {
           "success": true,
           "data": {
-            "id": "cmk448pqg003v14rj7uwvig2d",
-            "storeId": "cmk447ume002a14rjtimaff88",
-            "supplierId": "cmk448hid003p14rj0l32sfaz",
-            "poNumber": "PO202601246511",
+            "id": "cmk47izh5006a14m8j7tbb9ja",
+            "storeId": "cmk47i040004314m8lw4wrcuo",
+            "supplierId": "cmk47irx5006414m8v4tqezgr",
+            "poNumber": "PO202601764547",
             "status": "APPROVED",
-            "orderDate": "2026-01-07T14:30:46.600Z",
+            "orderDate": "2026-01-07T16:02:44.633Z",
             "expectedDeliveryDate": null,
             "subtotal": "5000",
             "taxAmount": "600",
@@ -3163,11 +3284,11 @@
             "currency": "INR",
             "paymentTerms": null,
             "notes": null,
-            "createdBy": "cmk43vinj001k14aw3qvj6ly8",
-            "approvedBy": "cmk43vinj001k14aw3qvj6ly8",
-            "approvedAt": "2026-01-07T14:30:48.332Z",
-            "createdAt": "2026-01-07T14:30:46.600Z",
-            "updatedAt": "2026-01-07T14:30:48.338Z",
+            "createdBy": "cmk47i3a8004h14m83hb1okth",
+            "approvedBy": "cmk47i3a8004h14m83hb1okth",
+            "approvedAt": "2026-01-07T16:02:46.280Z",
+            "createdAt": "2026-01-07T16:02:44.633Z",
+            "updatedAt": "2026-01-07T16:02:46.281Z",
             "deletedAt": null
           },
           "assertions": [
@@ -3179,17 +3300,17 @@
               "invariant": "STATE-002"
             }
           ],
-          "duration": 1477
+          "duration": 1376
         },
         {
           "success": true,
           "data": {
-            "id": "cmk448pqg003v14rj7uwvig2d",
-            "storeId": "cmk447ume002a14rjtimaff88",
-            "supplierId": "cmk448hid003p14rj0l32sfaz",
-            "poNumber": "PO202601246511",
+            "id": "cmk47izh5006a14m8j7tbb9ja",
+            "storeId": "cmk47i040004314m8lw4wrcuo",
+            "supplierId": "cmk47irx5006414m8v4tqezgr",
+            "poNumber": "PO202601764547",
             "status": "SENT",
-            "orderDate": "2026-01-07T14:30:46.600Z",
+            "orderDate": "2026-01-07T16:02:44.633Z",
             "expectedDeliveryDate": null,
             "subtotal": "5000",
             "taxAmount": "600",
@@ -3197,11 +3318,11 @@
             "currency": "INR",
             "paymentTerms": null,
             "notes": null,
-            "createdBy": "cmk43vinj001k14aw3qvj6ly8",
-            "approvedBy": "cmk43vinj001k14aw3qvj6ly8",
-            "approvedAt": "2026-01-07T14:30:48.332Z",
-            "createdAt": "2026-01-07T14:30:46.600Z",
-            "updatedAt": "2026-01-07T14:30:49.281Z",
+            "createdBy": "cmk47i3a8004h14m83hb1okth",
+            "approvedBy": "cmk47i3a8004h14m83hb1okth",
+            "approvedAt": "2026-01-07T16:02:46.280Z",
+            "createdAt": "2026-01-07T16:02:44.633Z",
+            "updatedAt": "2026-01-07T16:02:47.214Z",
             "deletedAt": null
           },
           "assertions": [
@@ -3213,18 +3334,53 @@
               "invariant": "STATE-003"
             }
           ],
-          "duration": 852
+          "duration": 855
         }
       ],
-      "duration": 4988
+      "duration": 4897
     },
     {
       "id": "pos.rx-sale",
-      "status": "FAILED",
-      "failedAtStep": "rx-sale.create",
+      "status": "PASSED",
       "steps": [
         {
-          "success": false,
+          "success": true,
+          "data": {
+            "id": "cmk47j95w006q14m820z4y059",
+            "storeId": "cmk47i040004314m8lw4wrcuo",
+            "invoiceNumber": "INV1767801776584",
+            "invoiceType": "RECEIPT",
+            "status": "COMPLETED",
+            "patientId": "cmk47imwa005n14m87qq8g4b9",
+            "dispenseForPatientId": null,
+            "subtotal": "3000",
+            "discountAmount": "0",
+            "taxAmount": "360",
+            "roundOff": "0",
+            "total": "3360",
+            "buyerGstin": null,
+            "placeOfSupply": null,
+            "isIgst": false,
+            "cgstAmount": "0",
+            "sgstAmount": "0",
+            "igstAmount": "0",
+            "cessAmount": "0",
+            "taxableAmount": "0",
+            "gstrCategory": null,
+            "originalSaleId": null,
+            "creditReason": null,
+            "soldBy": "cmk47i3a8004h14m83hb1okth",
+            "attachments": null,
+            "prescriptionId": "cmk47j1t0006d14m8kc360coi",
+            "dispenseId": "cmk47j51m006o14m8i8u51kou",
+            "balance": "0",
+            "paymentStatus": "PAID",
+            "createdAt": "2026-01-07T16:02:57.188Z",
+            "updatedAt": "2026-01-07T16:02:57.188Z",
+            "deletedAt": null,
+            "items": [],
+            "paymentSplits": []
+          },
           "assertions": [
             {
               "passed": true,
@@ -3237,14 +3393,213 @@
               "passed": true,
               "message": "Invoice number generated",
               "expected": "Invoice number",
-              "actual": "INV/2026/0001",
+              "actual": "INV1767801776584",
               "invariant": "SALE-002"
             }
           ],
-          "duration": 7893
+          "duration": 14520
+        },
+        {
+          "success": true,
+          "data": {
+            "id": "cmk47iuyn006614m89mox8hdr",
+            "refillId": "cmk47io0y005v14m82m1syapv",
+            "prescriptionVersionId": "cmk47intu005s14m8ub9iwkq1",
+            "status": "COMPLETED",
+            "queuedAt": "2026-01-07T16:02:38.781Z",
+            "verifyingAt": null,
+            "fillingAt": "2026-01-07T16:02:39.720Z",
+            "checkingAt": null,
+            "readyAt": "2026-01-07T16:02:41.125Z",
+            "completedAt": "2026-01-07T16:03:01.999Z",
+            "cancelledAt": null,
+            "queuedBy": "cmk47i3a8004h14m83hb1okth",
+            "verifiedBy": null,
+            "filledBy": "cmk47i3a8004h14m83hb1okth",
+            "checkedBy": null,
+            "dispensedBy": "cmk47i3a8004h14m83hb1okth",
+            "quantityDispensed": null,
+            "notes": "DPFV: Progressed to COMPLETED",
+            "cancellationReason": null,
+            "createdAt": "2026-01-07T16:02:38.783Z",
+            "updatedAt": "2026-01-07T16:03:02.001Z",
+            "refill": {
+              "id": "cmk47io0y005v14m82m1syapv",
+              "prescriptionId": "cmk47ink8005q14m8ug9quuh7",
+              "refillNumber": 0,
+              "authorizedQty": 30,
+              "dispensedQty": 0,
+              "remainingQty": 30,
+              "status": "AVAILABLE",
+              "expiresAt": "2026-07-07T16:02:29.019Z",
+              "notes": null,
+              "createdAt": "2026-01-07T16:02:29.794Z",
+              "updatedAt": "2026-01-07T16:02:29.794Z",
+              "prescription": {
+                "id": "cmk47ink8005q14m8ug9quuh7",
+                "storeId": "cmk47i040004314m8lw4wrcuo",
+                "prescriptionNumber": "RX000002",
+                "patientId": "cmk47imwa005n14m87qq8g4b9",
+                "prescriberId": null,
+                "issueDate": "2026-01-07T16:02:29.191Z",
+                "expiryDate": "2026-07-07T16:02:29.019Z",
+                "totalRefills": 3,
+                "status": "ACTIVE",
+                "type": "REGULAR",
+                "source": "manual",
+                "priority": "Normal",
+                "controlledFlag": false,
+                "eRxId": null,
+                "eRxMetadata": null,
+                "uploadedImages": [],
+                "ocrText": null,
+                "ocrConfidence": null,
+                "reminderSent": null,
+                "nextRefillDue": null,
+                "notes": null,
+                "createdAt": "2026-01-07T16:02:29.192Z",
+                "updatedAt": "2026-01-07T16:02:31.413Z",
+                "deletedAt": null,
+                "patient": {
+                  "id": "cmk47imwa005n14m87qq8g4b9",
+                  "storeId": "cmk47i040004314m8lw4wrcuo",
+                  "firstName": "John",
+                  "middleName": null,
+                  "lastName": "Doe",
+                  "dateOfBirth": "1990-01-15T00:00:00.000Z",
+                  "gender": "MALE",
+                  "photoUrl": null,
+                  "phoneNumber": "9801748158",
+                  "email": "john.doe.1767801748158@test.com",
+                  "addressLine1": null,
+                  "addressLine2": null,
+                  "city": null,
+                  "state": null,
+                  "pinCode": null,
+                  "bloodGroup": null,
+                  "allergies": [],
+                  "chronicConditions": [],
+                  "emergencyContactName": null,
+                  "emergencyContactPhone": null,
+                  "currentBalance": "0",
+                  "creditLimit": "0",
+                  "createdAt": "2026-01-07T16:02:28.330Z",
+                  "updatedAt": "2026-01-07T16:02:28.330Z",
+                  "deletedAt": null,
+                  "deletedBy": null
+                },
+                "prescriber": null
+              }
+            },
+            "prescriptionVersion": {
+              "id": "cmk47intu005s14m8ub9iwkq1",
+              "prescriptionId": "cmk47ink8005q14m8ug9quuh7",
+              "versionNumber": 1,
+              "instructions": "DPFV Test Prescription",
+              "substitutionNotes": null,
+              "attachments": null,
+              "changedReason": null,
+              "createdBy": "cmk47i3a8004h14m83hb1okth",
+              "createdAt": "2026-01-07T16:02:29.539Z",
+              "items": [
+                {
+                  "id": "cmk47intv005u14m8bf3zbktc",
+                  "prescriptionVersionId": "cmk47intu005s14m8ub9iwkq1",
+                  "drugId": "cmk47inao005p14m8l6tqol5p",
+                  "batchId": null,
+                  "quantityPrescribed": 30,
+                  "sig": "1 tablet daily",
+                  "daysSupply": null,
+                  "substitutionAllowed": true,
+                  "isControlled": false,
+                  "refillsAllowed": 0,
+                  "drug": {
+                    "id": "cmk47inao005p14m8l6tqol5p",
+                    "storeId": "cmk47i040004314m8lw4wrcuo",
+                    "rxcui": null,
+                    "name": "DPFV Test Drug 1767801748847",
+                    "genericName": "Test Generic",
+                    "strength": "500mg",
+                    "form": "Tablet",
+                    "manufacturer": "Test Pharma",
+                    "schedule": null,
+                    "hsnCodeId": null,
+                    "hsnCode": null,
+                    "gstRate": "12",
+                    "requiresPrescription": false,
+                    "defaultUnit": null,
+                    "lowStockThreshold": null,
+                    "description": null,
+                    "lastSyncedAt": null,
+                    "createdAt": "2026-01-07T16:02:28.849Z",
+                    "updatedAt": "2026-01-07T16:02:28.849Z"
+                  }
+                }
+              ]
+            }
+          },
+          "assertions": [
+            {
+              "passed": true,
+              "message": "Dispense status must be COMPLETED",
+              "expected": "COMPLETED",
+              "actual": "COMPLETED",
+              "invariant": "DISP-004"
+            }
+          ],
+          "duration": 940
+        },
+        {
+          "success": true,
+          "data": {
+            "id": "cmk47i81b004t14m8lfw1geni",
+            "storeId": "cmk47i040004314m8lw4wrcuo",
+            "drugId": "cmk47i7rt004r14m806zpuzpl",
+            "batchNumber": "DPFV-1767801728898",
+            "expiryDate": "2027-01-07T16:02:08.898Z",
+            "quantityInStock": 60,
+            "mrp": "25",
+            "purchasePrice": "20",
+            "supplierId": null,
+            "location": null,
+            "createdAt": "2026-01-07T16:02:09.072Z",
+            "updatedAt": "2026-01-07T16:02:58.040Z",
+            "deletedAt": null,
+            "drug": {
+              "id": "cmk47i7rt004r14m806zpuzpl",
+              "storeId": "cmk47i040004314m8lw4wrcuo",
+              "rxcui": null,
+              "name": "Paracetamol 500mg",
+              "genericName": "Paracetamol 500mg",
+              "strength": null,
+              "form": "Tablet",
+              "manufacturer": null,
+              "schedule": null,
+              "hsnCodeId": null,
+              "hsnCode": null,
+              "gstRate": "12",
+              "requiresPrescription": false,
+              "defaultUnit": null,
+              "lowStockThreshold": null,
+              "description": null,
+              "lastSyncedAt": null,
+              "createdAt": "2026-01-07T16:02:08.729Z",
+              "updatedAt": "2026-01-07T16:02:08.729Z"
+            }
+          },
+          "assertions": [
+            {
+              "passed": true,
+              "expected": ">= 0",
+              "actual": 60,
+              "message": "Stock quantity must never be negative",
+              "invariant": "INV-001"
+            }
+          ],
+          "duration": 340
         }
       ],
-      "duration": 7894
+      "duration": 15803
     },
     {
       "id": "procurement.grn",
@@ -3253,29 +3608,29 @@
         {
           "success": true,
           "data": {
-            "id": "cmk44904u004d14rjchzu66rn",
-            "grnNumber": "GRN202601 259991 ",
-            "poId": "cmk448pqg003v14rj7uwvig2d",
-            "storeId": "cmk447ume002a14rjtimaff88",
-            "supplierId": "cmk448hid003p14rj0l32sfaz",
+            "id": "cmk47jfw7007014m8547s5l7a",
+            "grnNumber": "GRN202601 785825 ",
+            "poId": "cmk47izh5006a14m8j7tbb9ja",
+            "storeId": "cmk47i040004314m8lw4wrcuo",
+            "supplierId": "cmk47irx5006414m8v4tqezgr",
             "status": "DRAFT",
             "supplierInvoiceNo": null,
             "supplierInvoiceDate": null,
             "receivedBy": "DPFV Test",
-            "receivedDate": "2026-01-07T14:31:00.079Z",
+            "receivedDate": "2026-01-07T16:03:05.911Z",
             "subtotal": "0",
             "taxAmount": "0",
             "total": "0",
             "notes": null,
             "completedAt": null,
-            "createdAt": "2026-01-07T14:31:00.079Z",
-            "updatedAt": "2026-01-07T14:31:00.079Z",
+            "createdAt": "2026-01-07T16:03:05.911Z",
+            "updatedAt": "2026-01-07T16:03:05.911Z",
             "items": [
               {
-                "id": "cmk44909l004e14rjw680v0ld",
-                "grnId": "cmk44904u004d14rjchzu66rn",
-                "poItemId": "cmk448pzz003x14rjsleuf2ja",
-                "drugId": "cmk448o5d003t14rjld7vfxuz",
+                "id": "cmk47jg0w007114m8gnp5nzoq",
+                "grnId": "cmk47jfw7007014m8547s5l7a",
+                "poItemId": "cmk47izqx006c14m8zdfdtb0y",
+                "drugId": "cmk47ixw7006814m84lnlx3a7",
                 "orderedQty": 100,
                 "receivedQty": 100,
                 "freeQty": 0,
@@ -3292,10 +3647,10 @@
                 "parentItemId": null,
                 "isSplit": false,
                 "drug": {
-                  "id": "cmk448o5d003t14rjld7vfxuz",
-                  "storeId": "cmk447ume002a14rjtimaff88",
+                  "id": "cmk47ixw7006814m84lnlx3a7",
+                  "storeId": "cmk47i040004314m8lw4wrcuo",
                   "rxcui": null,
-                  "name": "PO Test Drug 1767796244544",
+                  "name": "PO Test Drug 1767801762582",
                   "genericName": null,
                   "strength": null,
                   "form": null,
@@ -3309,19 +3664,19 @@
                   "lowStockThreshold": null,
                   "description": null,
                   "lastSyncedAt": null,
-                  "createdAt": "2026-01-07T14:30:44.545Z",
-                  "updatedAt": "2026-01-07T14:30:44.545Z"
+                  "createdAt": "2026-01-07T16:02:42.583Z",
+                  "updatedAt": "2026-01-07T16:02:42.583Z"
                 }
               }
             ],
             "discrepancies": [],
             "po": {
-              "id": "cmk448pqg003v14rj7uwvig2d",
-              "storeId": "cmk447ume002a14rjtimaff88",
-              "supplierId": "cmk448hid003p14rj0l32sfaz",
-              "poNumber": "PO202601246511",
+              "id": "cmk47izh5006a14m8j7tbb9ja",
+              "storeId": "cmk47i040004314m8lw4wrcuo",
+              "supplierId": "cmk47irx5006414m8v4tqezgr",
+              "poNumber": "PO202601764547",
               "status": "SENT",
-              "orderDate": "2026-01-07T14:30:46.600Z",
+              "orderDate": "2026-01-07T16:02:44.633Z",
               "expectedDeliveryDate": null,
               "subtotal": "5000",
               "taxAmount": "600",
@@ -3329,17 +3684,17 @@
               "currency": "INR",
               "paymentTerms": null,
               "notes": null,
-              "createdBy": "cmk43vinj001k14aw3qvj6ly8",
-              "approvedBy": "cmk43vinj001k14aw3qvj6ly8",
-              "approvedAt": "2026-01-07T14:30:48.332Z",
-              "createdAt": "2026-01-07T14:30:46.600Z",
-              "updatedAt": "2026-01-07T14:30:49.281Z",
+              "createdBy": "cmk47i3a8004h14m83hb1okth",
+              "approvedBy": "cmk47i3a8004h14m83hb1okth",
+              "approvedAt": "2026-01-07T16:02:46.280Z",
+              "createdAt": "2026-01-07T16:02:44.633Z",
+              "updatedAt": "2026-01-07T16:02:47.214Z",
               "deletedAt": null,
               "items": [
                 {
-                  "id": "cmk448pzz003x14rjsleuf2ja",
-                  "poId": "cmk448pqg003v14rj7uwvig2d",
-                  "drugId": "cmk448o5d003t14rjld7vfxuz",
+                  "id": "cmk47izqx006c14m8zdfdtb0y",
+                  "poId": "cmk47izh5006a14m8j7tbb9ja",
+                  "drugId": "cmk47ixw7006814m84lnlx3a7",
                   "quantity": 100,
                   "receivedQty": 0,
                   "packSize": 1,
@@ -3349,10 +3704,10 @@
                   "gstPercent": "12",
                   "lineTotal": "5600",
                   "drug": {
-                    "id": "cmk448o5d003t14rjld7vfxuz",
-                    "storeId": "cmk447ume002a14rjtimaff88",
+                    "id": "cmk47ixw7006814m84lnlx3a7",
+                    "storeId": "cmk47i040004314m8lw4wrcuo",
                     "rxcui": null,
-                    "name": "PO Test Drug 1767796244544",
+                    "name": "PO Test Drug 1767801762582",
                     "genericName": null,
                     "strength": null,
                     "form": null,
@@ -3366,14 +3721,14 @@
                     "lowStockThreshold": null,
                     "description": null,
                     "lastSyncedAt": null,
-                    "createdAt": "2026-01-07T14:30:44.545Z",
-                    "updatedAt": "2026-01-07T14:30:44.545Z"
+                    "createdAt": "2026-01-07T16:02:42.583Z",
+                    "updatedAt": "2026-01-07T16:02:42.583Z"
                   }
                 }
               ],
               "supplier": {
-                "id": "cmk448hid003p14rj0l32sfaz",
-                "storeId": "cmk447ume002a14rjtimaff88",
+                "id": "cmk47irx5006414m8v4tqezgr",
+                "storeId": "cmk47i040004314m8lw4wrcuo",
                 "name": "Alpha Pharma Distributors",
                 "category": "Distributor",
                 "status": "Active",
@@ -3391,8 +3746,8 @@
                 "pinCode": "411001",
                 "paymentTerms": null,
                 "creditLimit": null,
-                "createdAt": "2026-01-07T14:30:35.942Z",
-                "updatedAt": "2026-01-07T14:30:35.942Z",
+                "createdAt": "2026-01-07T16:02:34.842Z",
+                "updatedAt": "2026-01-07T16:02:34.842Z",
                 "deletedAt": null
               }
             },
@@ -3403,25 +3758,25 @@
               "passed": true,
               "message": "GRN object created",
               "expected": "GRN ID",
-              "actual": "cmk44904u004d14rjchzu66rn",
+              "actual": "cmk47jfw7007014m8547s5l7a",
               "invariant": "DATA-001"
             }
           ],
-          "duration": 4593
+          "duration": 4258
         },
         {
           "success": true,
           "data": {
-            "id": "cmk44909l004e14rjw680v0ld",
-            "grnId": "cmk44904u004d14rjchzu66rn",
-            "poItemId": "cmk448pzz003x14rjsleuf2ja",
-            "drugId": "cmk448o5d003t14rjld7vfxuz",
+            "id": "cmk47jg0w007114m8gnp5nzoq",
+            "grnId": "cmk47jfw7007014m8547s5l7a",
+            "poItemId": "cmk47izqx006c14m8zdfdtb0y",
+            "drugId": "cmk47ixw7006814m84lnlx3a7",
             "orderedQty": 100,
             "receivedQty": 100,
             "freeQty": 0,
             "rejectedQty": 0,
-            "batchNumber": "BATCH-1767796262019",
-            "expiryDate": "2027-01-07T14:31:02.019Z",
+            "batchNumber": "BATCH-1767801787539",
+            "expiryDate": "2027-01-07T16:03:07.539Z",
             "mrp": "100",
             "unitPrice": "50",
             "discountPercent": "0",
@@ -3441,40 +3796,40 @@
               "invariant": "DATA-002"
             }
           ],
-          "duration": 3968
+          "duration": 3324
         },
         {
           "success": true,
           "data": {
-            "id": "cmk44904u004d14rjchzu66rn",
-            "grnNumber": "GRN202601 259991 ",
-            "poId": "cmk448pqg003v14rj7uwvig2d",
-            "storeId": "cmk447ume002a14rjtimaff88",
-            "supplierId": "cmk448hid003p14rj0l32sfaz",
+            "id": "cmk47jfw7007014m8547s5l7a",
+            "grnNumber": "GRN202601 785825 ",
+            "poId": "cmk47izh5006a14m8j7tbb9ja",
+            "storeId": "cmk47i040004314m8lw4wrcuo",
+            "supplierId": "cmk47irx5006414m8v4tqezgr",
             "status": "COMPLETED",
-            "supplierInvoiceNo": "INV-1767796265992",
-            "supplierInvoiceDate": "2026-01-07T14:31:05.992Z",
+            "supplierInvoiceNo": "INV-1767801790863",
+            "supplierInvoiceDate": "2026-01-07T16:03:10.863Z",
             "receivedBy": "DPFV Test",
-            "receivedDate": "2026-01-07T14:31:00.079Z",
+            "receivedDate": "2026-01-07T16:03:05.911Z",
             "subtotal": "5000",
             "taxAmount": "600",
             "total": "5600",
             "notes": null,
-            "completedAt": "2026-01-07T14:31:12.929Z",
-            "createdAt": "2026-01-07T14:31:00.079Z",
-            "updatedAt": "2026-01-07T14:31:12.931Z",
+            "completedAt": "2026-01-07T16:03:17.469Z",
+            "createdAt": "2026-01-07T16:03:05.911Z",
+            "updatedAt": "2026-01-07T16:03:17.471Z",
             "items": [
               {
-                "id": "cmk44909l004e14rjw680v0ld",
-                "grnId": "cmk44904u004d14rjchzu66rn",
-                "poItemId": "cmk448pzz003x14rjsleuf2ja",
-                "drugId": "cmk448o5d003t14rjld7vfxuz",
+                "id": "cmk47jg0w007114m8gnp5nzoq",
+                "grnId": "cmk47jfw7007014m8547s5l7a",
+                "poItemId": "cmk47izqx006c14m8zdfdtb0y",
+                "drugId": "cmk47ixw7006814m84lnlx3a7",
                 "orderedQty": 100,
                 "receivedQty": 100,
                 "freeQty": 0,
                 "rejectedQty": 0,
-                "batchNumber": "BATCH-1767796262019",
-                "expiryDate": "2027-01-07T14:31:02.019Z",
+                "batchNumber": "BATCH-1767801787539",
+                "expiryDate": "2027-01-07T16:03:07.539Z",
                 "mrp": "100",
                 "unitPrice": "50",
                 "discountPercent": "0",
@@ -3488,12 +3843,12 @@
             ],
             "discrepancies": [],
             "po": {
-              "id": "cmk448pqg003v14rj7uwvig2d",
-              "storeId": "cmk447ume002a14rjtimaff88",
-              "supplierId": "cmk448hid003p14rj0l32sfaz",
-              "poNumber": "PO202601246511",
+              "id": "cmk47izh5006a14m8j7tbb9ja",
+              "storeId": "cmk47i040004314m8lw4wrcuo",
+              "supplierId": "cmk47irx5006414m8v4tqezgr",
+              "poNumber": "PO202601764547",
               "status": "RECEIVED",
-              "orderDate": "2026-01-07T14:30:46.600Z",
+              "orderDate": "2026-01-07T16:02:44.633Z",
               "expectedDeliveryDate": null,
               "subtotal": "5000",
               "taxAmount": "600",
@@ -3501,17 +3856,17 @@
               "currency": "INR",
               "paymentTerms": null,
               "notes": null,
-              "createdBy": "cmk43vinj001k14aw3qvj6ly8",
-              "approvedBy": "cmk43vinj001k14aw3qvj6ly8",
-              "approvedAt": "2026-01-07T14:30:48.332Z",
-              "createdAt": "2026-01-07T14:30:46.600Z",
-              "updatedAt": "2026-01-07T14:31:12.758Z",
+              "createdBy": "cmk47i3a8004h14m83hb1okth",
+              "approvedBy": "cmk47i3a8004h14m83hb1okth",
+              "approvedAt": "2026-01-07T16:02:46.280Z",
+              "createdAt": "2026-01-07T16:02:44.633Z",
+              "updatedAt": "2026-01-07T16:03:17.299Z",
               "deletedAt": null,
               "items": [
                 {
-                  "id": "cmk448pzz003x14rjsleuf2ja",
-                  "poId": "cmk448pqg003v14rj7uwvig2d",
-                  "drugId": "cmk448o5d003t14rjld7vfxuz",
+                  "id": "cmk47izqx006c14m8zdfdtb0y",
+                  "poId": "cmk47izh5006a14m8j7tbb9ja",
+                  "drugId": "cmk47ixw7006814m84lnlx3a7",
                   "quantity": 100,
                   "receivedQty": 100,
                   "packSize": 1,
@@ -3523,8 +3878,8 @@
                 }
               ],
               "supplier": {
-                "id": "cmk448hid003p14rj0l32sfaz",
-                "storeId": "cmk447ume002a14rjtimaff88",
+                "id": "cmk47irx5006414m8v4tqezgr",
+                "storeId": "cmk47i040004314m8lw4wrcuo",
                 "name": "Alpha Pharma Distributors",
                 "category": "Distributor",
                 "status": "Active",
@@ -3542,8 +3897,8 @@
                 "pinCode": "411001",
                 "paymentTerms": null,
                 "creditLimit": null,
-                "createdAt": "2026-01-07T14:30:35.942Z",
-                "updatedAt": "2026-01-07T14:30:35.942Z",
+                "createdAt": "2026-01-07T16:02:34.842Z",
+                "updatedAt": "2026-01-07T16:02:34.842Z",
                 "deletedAt": null
               }
             }
@@ -3557,7 +3912,7 @@
               "invariant": "STATE-001"
             }
           ],
-          "duration": 7817
+          "duration": 7731
         },
         {
           "success": true,
@@ -3573,13 +3928,25 @@
               "invariant": "INV-004"
             }
           ],
-          "duration": 90
+          "duration": 81
         }
       ],
-      "duration": 16473
+      "duration": 15394
     }
   ],
   "failures": [
+    {
+      "scenarioId": "reports.sales",
+      "scenarioName": "Sales Reporting & Analytics",
+      "stepId": "reports.get-today",
+      "stepName": "Get sales report for today",
+      "invariant": "UNKNOWN",
+      "businessImpact": "UNKNOWN: Requires investigation",
+      "blockedDownstream": [],
+      "suggestedActions": [
+        "Review the failing step implementation"
+      ]
+    },
     {
       "scenarioId": "audit.gdpr",
       "scenarioName": "GDPR Data Export",
@@ -3587,7 +3954,7 @@
       "stepName": "Export User Data (JSON)",
       "invariant": "INV-AUDIT",
       "expected": "No error",
-      "actual": "Context key \"gdprExport\" not found. Available keys: authToken, signupResult, currentUser, refreshToken, userId, storeId, loginResult, originalToken, userProfile, onboardingResult, currentStore, currentPatient, patientId, sale, saleId, invoiceNumber, trackedSale, lastSalesReport, lastExport",
+      "actual": "Cannot read properties of null (reading 'user')",
       "businessImpact": "UNKNOWN: Requires investigation",
       "blockedDownstream": [],
       "suggestedActions": [
@@ -3611,9 +3978,7 @@
       "scenarioName": "Credit Sale Flow",
       "stepId": "credit.create-sale",
       "stepName": "Create Sale on Credit",
-      "invariant": "SALE-002",
-      "expected": true,
-      "actual": false,
+      "invariant": "UNKNOWN",
       "businessImpact": "UNKNOWN: Requires investigation",
       "blockedDownstream": [],
       "suggestedActions": [
@@ -3635,8 +4000,8 @@
     {
       "scenarioId": "procurement.consolidated",
       "scenarioName": "Consolidated Invoice Flow",
-      "stepId": "consolidated.setup",
-      "stepName": "Setup for Consolidation",
+      "stepId": "consolidated.create-grn-1",
+      "stepName": "Create First GRN",
       "invariant": "UNKNOWN",
       "businessImpact": "UNKNOWN: Requires investigation",
       "blockedDownstream": [],
@@ -3645,28 +4010,13 @@
       ]
     },
     {
-      "scenarioId": "pos.quick-sale",
-      "scenarioName": "Quick Sale (Walk-in Customer)",
-      "stepId": "quick-sale.create-sale",
-      "stepName": "Create quick sale with payment",
-      "invariant": "INV-002",
-      "expected": "No error",
-      "actual": "\nInvalid `prisma.sale.findUnique()` invocation in\n/Users/dikshantjangra/Desktop/hoperxpharma/backend/verifier/assertions/financial.assert.ts:16:40\n\n  13 async checkPaymentTotal(ctx: ScenarioContext, saleId?: string): Promise<AssertionResult> {\n  14     const targetSaleId = saleId || ctx.get<string>('saleId');\n  15 \n→ 16     const sale = await prisma.sale.findUnique({\n           where: {\n             id: \"cmk447c69000q14rjx9fm5gbq\"\n           },\n           include: {\n             payments: true,\n             ~~~~~~~~\n         ?   store?: true,\n         ?   prescription?: true,\n         ?   dispense?: true,\n         ?   patient?: true,\n         ?   dispenseForPatient?: true,\n         ?   originalSale?: true,\n         ?   creditNotes?: true,\n         ?   items?: true,\n         ?   paymentSplits?: true,\n         ?   refunds?: true,\n         ?   allocations?: true\n           }\n         })\n\nUnknown field `payments` for include statement on model `Sale`. Available options are marked with ?.",
-      "businessImpact": "CRITICAL: Payment reconciliation will fail",
-      "blockedDownstream": [],
-      "suggestedActions": [
-        "Check payment split calculation in POS",
-        "Verify rounding logic in saleService"
-      ]
-    },
-    {
       "scenarioId": "admin.roles",
       "scenarioName": "Roles & Permissions Flow",
       "stepId": "roles.create",
       "stepName": "Create custom role",
       "invariant": "DATA-001",
-      "expected": "No error",
-      "actual": "Context key \"role\" not found. Available keys: authToken, signupResult, currentUser, refreshToken, userId, storeId, loginResult, originalToken, userProfile, onboardingResult, currentStore, currentPatient, patientId, sale, saleId, invoiceNumber, trackedSale, lastSalesReport, lastExport, draft, refundBatch, patient, creditBatch, pdfBatch, newStore, storeUser, subscription, adminPin, lastAccessLog, loginError, targetUserId, emailAccount, latestEmailLog, testBatch, initialStock, patientLedger, testDrug, prescription, prescriptionId, currentRefill, refillId, versionId",
+      "expected": "Role",
+      "actual": "Null",
       "businessImpact": "UNKNOWN: Requires investigation",
       "blockedDownstream": [],
       "suggestedActions": [
@@ -3676,23 +4026,11 @@
     {
       "scenarioId": "admin.features",
       "scenarioName": "Feature Toggles Flow",
-      "stepId": "features.get",
-      "stepName": "Get store features",
-      "invariant": "DATA-001",
-      "expected": "No error",
-      "actual": "Context key \"storeFeatures\" not found. Available keys: authToken, signupResult, currentUser, refreshToken, userId, storeId, loginResult, originalToken, userProfile, onboardingResult, currentStore, currentPatient, patientId, sale, saleId, invoiceNumber, trackedSale, lastSalesReport, lastExport, draft, refundBatch, patient, creditBatch, pdfBatch, newStore, storeUser, subscription, adminPin, lastAccessLog, loginError, targetUserId, emailAccount, latestEmailLog, testBatch, initialStock, patientLedger, testDrug, prescription, prescriptionId, currentRefill, refillId, versionId",
-      "businessImpact": "UNKNOWN: Requires investigation",
-      "blockedDownstream": [],
-      "suggestedActions": [
-        "Review the failing step implementation"
-      ]
-    },
-    {
-      "scenarioId": "pos.rx-sale",
-      "scenarioName": "Prescription Sale Flow",
-      "stepId": "rx-sale.create",
-      "stepName": "Create sale from dispense",
-      "invariant": "UNKNOWN",
+      "stepId": "features.update",
+      "stepName": "Override feature (Disable POS)",
+      "invariant": "CONF-001",
+      "expected": "hidden",
+      "actual": "undefined",
       "businessImpact": "UNKNOWN: Requires investigation",
       "blockedDownstream": [],
       "suggestedActions": [
@@ -3702,6 +4040,9 @@
   ],
   "impactAnalysis": {
     "affectedFeatures": [
+      "reports",
+      "analytics",
+      "kpi",
       "gdpr",
       "compliance",
       "audit",
@@ -3716,13 +4057,10 @@
       "procurement",
       "grn",
       "billing",
-      "gst",
-      "payments",
       "admin",
       "roles",
       "permissions",
-      "features",
-      "clinical"
+      "features"
     ],
     "totalBlocked": 0,
     "criticalBlocked": 0

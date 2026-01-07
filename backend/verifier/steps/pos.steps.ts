@@ -21,19 +21,26 @@ export const posSteps = {
         }
     ): Promise<StepResult> {
         try {
-            // Get storeId from context - try multiple sources
             const storeId = ctx.storeId || ctx.get<any>('currentStore')?.id || ctx.get<string>('storeId');
             
             if (!storeId) {
                 throw new Error('storeId is required but not found in context');
             }
 
-            // Calculate total for payment splits
-            const total = params.items.reduce((sum, item) => {
+            // Calculate total matching backend logic exactly
+            let saleTotal = 0;
+            params.items.forEach(item => {
                 const basePrice = item.mrp * item.quantity;
-                const discount = (item.discount || 0) / 100 * basePrice;
-                return sum + (basePrice - discount);
-            }, 0);
+                const discountAmount = ((item.discount || 0) / 100) * basePrice;
+                const taxableAmount = basePrice - discountAmount;
+                const gstRate = 12; // Default GST rate
+                const gstAmount = (gstRate / 100) * taxableAmount;
+                const lineTotal = taxableAmount + gstAmount;
+                saleTotal += lineTotal;
+            });
+
+            // Apply auto-rounding (backend does Math.round)
+            const roundedTotal = Math.round(saleTotal);
 
             const saleData = {
                 storeId,
@@ -48,12 +55,11 @@ export const posSteps = {
                 paymentSplits: [
                     {
                         method: params.paymentMethod || 'CASH',
-                        amount: total
+                        amount: roundedTotal
                     }
                 ]
             };
 
-            // Use createQuickSale with userId
             const sale = await saleService.createQuickSale(saleData, ctx.userId);
 
             ctx.set('sale', sale);
@@ -66,7 +72,6 @@ export const posSteps = {
                 duration: 0
             };
         } catch (error: any) {
-            // Log the actual error for debugging
             console.error('DPFV createQuickSale error:', error.message);
             console.error('DPFV createQuickSale stack:', error.stack?.split('\n').slice(0, 5).join('\n'));
             return {

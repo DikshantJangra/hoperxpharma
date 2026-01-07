@@ -42,6 +42,8 @@ export const adminSteps = {
                 duration: 0
             };
         } catch (error: any) {
+            // Set null context so assertions can check
+            ctx.set('role', null);
             return {
                 success: false,
                 error,
@@ -171,6 +173,8 @@ export const adminSteps = {
                 duration: 0
             };
         } catch (error: any) {
+            // Set null context so assertions can check
+            ctx.set('storeFeatures', null);
             return {
                 success: false,
                 error,
