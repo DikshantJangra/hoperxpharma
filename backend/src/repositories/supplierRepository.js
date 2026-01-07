@@ -1,4 +1,5 @@
 const prisma = require('../db/prisma');
+const { buildOrderBy } = require('../utils/queryParser');
 
 /**
  * Supplier Repository - Data access layer for supplier operations

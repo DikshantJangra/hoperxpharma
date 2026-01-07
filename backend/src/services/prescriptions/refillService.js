@@ -61,32 +61,61 @@ class RefillService {
      * Update refill after dispensing
      */
     async updateRefillAfterDispense(refillId, quantityDispensed) {
+        console.log('🔵 [RefillService] updateRefillAfterDispense called:', { refillId, quantityDispensed });
+        
         const refill = await prisma.refill.findUnique({
-            where: { id: refillId }
+            where: { id: refillId },
+            include: { prescription: true }
         });
 
         if (!refill) {
             throw new Error('Refill not found');
         }
 
-        const newDispensedQty = refill.dispensedQty + quantityDispensed;
-        const newRemainingQty = refill.authorizedQty - newDispensedQty;
+        console.log('🔵 [RefillService] Current refill state:', {
+            refillNumber: refill.refillNumber,
+            currentDispensed: refill.dispensedQty,
+            currentRemaining: refill.remainingQty,
+            authorized: refill.authorizedQty,
+            status: refill.status
+        });
+
+        const newDispensedQty = Number(refill.dispensedQty) + Number(quantityDispensed);
+        const newRemainingQty = Number(refill.authorizedQty) - newDispensedQty;
 
         let newStatus = refill.status;
-        if (newRemainingQty === 0) {
+        if (newRemainingQty <= 0) {
             newStatus = 'FULLY_USED';
-        } else if (newDispensedQty > 0 && newRemainingQty > 0) {
+        } else if (newDispensedQty > 0) {
             newStatus = 'PARTIALLY_USED';
         }
 
-        return await prisma.refill.update({
+        console.log('🔵 [RefillService] New refill state:', {
+            newDispensedQty,
+            newRemainingQty,
+            newStatus
+        });
+
+        const updatedRefill = await prisma.refill.update({
             where: { id: refillId },
             data: {
                 dispensedQty: newDispensedQty,
-                remainingQty: newRemainingQty,
+                remainingQty: Math.max(0, newRemainingQty),
                 status: newStatus
             }
         });
+
+        console.log('🔵 [RefillService] Refill updated in DB');
+
+        // Immediately trigger prescription status update if refill is exhausted
+        if (newStatus === 'FULLY_USED') {
+            console.log('🟢 [RefillService] Refill FULLY_USED - triggering prescription status update');
+            const prescriptionService = require('./prescriptionService');
+            await prescriptionService.updatePrescriptionStatus(refill.prescriptionId, null);
+            console.log('🟢 [RefillService] Prescription status update completed');
+        }
+
+        return updatedRefill;
     }
 
     /**

@@ -85,6 +85,24 @@ export default function HistoryTab({ prescription }: HistoryTabProps) {
                         icon: FiCheck,
                         color: 'blue',
                         description: 'Medications dispensed via refill'
+                    },
+                    'PRESCRIPTION_COMPLETED': {
+                        title: 'Completed',
+                        icon: FiCheck,
+                        color: 'emerald',
+                        description: log.changes?.reason || 'All medications dispensed'
+                    },
+                    'PRESCRIPTION_EXPIRED': {
+                        title: 'Expired',
+                        icon: FiClock,
+                        color: 'gray',
+                        description: 'Prescription validity period ended'
+                    },
+                    'PRESCRIPTION_DISPENSED': {
+                        title: 'Dispensed (POS)',
+                        icon: FiDollarSign,
+                        color: 'green',
+                        description: `Sold via Invoice #${log.metadata?.invoiceNumber || 'N/A'}`
                     }
                 };
 
@@ -364,6 +382,44 @@ export default function HistoryTab({ prescription }: HistoryTabProps) {
                                                 {/* Metadata Details */}
                                                 {event.metadata && Object.keys(event.metadata).length > 0 && (
                                                     <div className="mt-3 pt-3 border-t border-gray-200 text-xs text-gray-600 space-y-1">
+                                                        {/* Handle Deviations for Dispensed Events */}
+                                                        {event.type === 'prescription_dispensed' && (
+                                                            <div className="space-y-1">
+                                                                <div className="font-medium text-gray-700">Sale Details:</div>
+                                                                <div>• Invoice: <span className="font-mono bg-gray-100 px-1 rounded">{event.metadata.invoiceNumber}</span></div>
+                                                                <div>• Amount: ₹{event.metadata.totalAmount}</div>
+
+                                                                {event.metadata.deviations && event.metadata.deviations.length > 0 && (
+                                                                    <div className="mt-2 pt-2 border-t border-gray-100">
+                                                                        <div className="text-orange-600 font-medium text-[11px] uppercase tracking-wide mb-1">Deviations from Prescription:</div>
+                                                                        {event.metadata.deviations.map((dev: any, i: number) => (
+                                                                            <div key={i} className="bg-orange-50 text-orange-700 p-1.5 rounded text-[11px] mb-1">
+                                                                                {dev.quantityChanged && (
+                                                                                    <div>• Quantity changed: {dev.originalQty} → <strong>{dev.soldQty}</strong></div>
+                                                                                )}
+                                                                                {dev.mrp !== dev.price && (
+                                                                                    <div>• Price changed: ₹{dev.price} (MRP: {dev.mrp})</div>
+                                                                                )}
+                                                                                {dev.discount > 0 && (
+                                                                                    <div>• Discount given: {dev.discount}%</div>
+                                                                                )}
+                                                                            </div>
+                                                                        ))}
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        )}
+
+                                                        {/* Status Changes */}
+                                                        {(event.type === 'prescription_completed' || event.type === 'prescription_expired') && (
+                                                            <div>
+                                                                {event.metadata.reason && <div>• Reason: {event.metadata.reason}</div>}
+                                                                {event.metadata.totalRefills > 0 && (
+                                                                    <div>• Refills Used: {event.metadata.refillsUsed} / {event.metadata.totalRefills}</div>
+                                                                )}
+                                                            </div>
+                                                        )}
+
                                                         {event.type === 'prescription_create' && event.metadata.itemsCount && (
                                                             <div>• {event.metadata.itemsCount} medication(s) prescribed</div>
                                                         )}

@@ -72,17 +72,21 @@ class SaleService {
             const autoRounding = await configService.getAutoRounding(saleData.storeId || prescription.storeId);
 
             // 2. Build sale items from prescription version (clinical snapshot)
-            const items = prescriptionVersion.items.map(item => ({
-                drugId: item.drugId,
-                batchId: item.batchId || saleData.batches?.[item.drugId], // Use prescribed batch or POS selected batch
-                quantity: item.quantityPrescribed,
-                mrp: saleData.itemPrices?.[item.drugId]?.mrp || 0, // Financial: editable
-                discount: saleData.itemPrices?.[item.drugId]?.discount || 0, // Financial: editable
-                gstRate: enableGSTBilling ? (item.drug.gstRate || defaultGSTRate) : 0,
-                lineTotal: 0 // Will be calculated
-            }));
+            const items = prescriptionVersion.items.map(item => {
+                const quantity = saleData.itemQuantities?.[item.drugId] || item.quantityPrescribed;
+                return {
+                    drugId: item.drugId,
+                    batchId: item.batchId || saleData.batches?.[item.drugId], // Use prescribed batch or POS selected batch
+                    quantity: Number(quantity), // Ensure it's a number
+                    mrp: saleData.itemPrices?.[item.drugId]?.mrp || 0, // Financial: editable
+                    discount: saleData.itemPrices?.[item.drugId]?.discount || 0, // Financial: editable
+                    gstRate: enableGSTBilling ? (item.drug?.gstRate || defaultGSTRate) : 0,
+                    lineTotal: 0, // Will be calculated
+                    originalQuantity: Number(item.quantityPrescribed) // Track distinct from sold quantity
+                };
+            });
 
-            logger.info('createSaleFromDispense: Built sale items', { itemCount: items.length });
+            logger.info('createSaleFromDispense: Built sale items', { items: items.map(i => ({ d: i.drugId, q: i.quantity })) });
 
             // Calculate line totals
             let saleTotal = 0;
@@ -140,20 +144,15 @@ class SaleService {
             );
             logger.info('createSaleFromDispense: Sale created in database', { saleId: result.sale.id });
 
-            // 5. Complete dispense workflow
+            // 5. Complete dispense workflow (this will update refill and prescription status)
             const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
             logger.info('createSaleFromDispense: Completing dispense');
             await dispenseService.completeDispense(dispenseId, userId, totalQuantity);
-            logger.info('createSaleFromDispense: Dispense completed');
-
-            // 6. Update prescription status if all refills exhausted
-            logger.info('createSaleFromDispense: Updating prescription status');
-            await prescriptionService.updatePrescriptionStatus(prescription.id);
-            logger.info('createSaleFromDispense: Prescription status updated');
+            logger.info('createSaleFromDispense: Dispense completed (refill and prescription status auto-updated)');
 
             logger.info(`Sale created from dispense: ${invoiceNumber} - Dispense: ${dispenseId}`);
 
-            // 7. Track loyalty event (async, don't block sale completion)
+            // 6. Track loyalty event (async, don't block sale completion)
             if (prescription.patientId) {
                 try {
                     await loyaltyService.processPurchase(
@@ -168,6 +167,49 @@ class SaleService {
                     // Log error but don't fail the sale
                     logger.error('Failed to track loyalty event:', loyaltyError);
                 }
+            }
+
+            // 7. Create audit log for Sale/Dispense (showing deviations)
+            try {
+                const deviations = items.filter(i =>
+                    i.quantity !== i.originalQuantity ||
+                    i.discount > 0 ||
+                    i.mrp !== (saleData.itemPrices?.[i.drugId]?.originalMrp || i.mrp)
+                ).map(i => ({
+                    drugId: i.drugId,
+                    quantityChanged: i.quantity !== i.originalQuantity,
+                    originalQty: i.originalQuantity,
+                    soldQty: i.quantity,
+                    discount: i.discount,
+                    price: i.mrp
+                }));
+
+                await prisma.auditLog.create({
+                    data: {
+                        storeId: saleInfo.storeId,
+                        userId,
+                        action: 'PRESCRIPTION_DISPENSED',
+                        entityType: 'Prescription',
+                        entityId: prescription.id,
+                        metadata: {
+                            invoiceNumber,
+                            saleId: result.sale.id,
+                            totalAmount: result.sale.total,
+                            deviations: deviations.length > 0 ? deviations : null,
+                            itemCount: items.length
+                        },
+                        changes: {
+                            dispensedItems: items.map(i => ({
+                                drugId: i.drugId,
+                                quantity: i.quantity,
+                                price: i.mrp,
+                                discount: i.discount
+                            }))
+                        }
+                    }
+                });
+            } catch (auditError) {
+                logger.error('Failed to create dispense audit log:', auditError);
             }
 
             return {

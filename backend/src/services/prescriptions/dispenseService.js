@@ -205,7 +205,13 @@ class DispenseService {
     async completeDispense(dispenseId, userId, quantityDispensed) {
         const dispense = await prisma.dispense.findUnique({
             where: { id: dispenseId },
-            include: { refill: true }
+            include: { 
+                refill: {
+                    include: {
+                        prescription: true
+                    }
+                }
+            }
         });
 
         if (!dispense) {
@@ -215,7 +221,7 @@ class DispenseService {
         // Update dispense status
         const updatedDispense = await this.updateStatus(dispenseId, 'COMPLETED', userId);
 
-        // Update refill quantities (handled by RefillService)
+        // Update refill quantities (this will also trigger prescription status update)
         const refillService = require('./refillService');
         await refillService.updateRefillAfterDispense(dispense.refillId, quantityDispensed);
 

@@ -18,7 +18,7 @@ export default function OverviewTab({ prescription }: OverviewTabProps) {
 
   // Count valid refills - refills that have been dispensed (FULLY_USED or PARTIALLY_USED)
   const validRefills = prescription?.refills?.filter((r: any) =>
-    r.status === 'FULLY_USED' || r.status === 'PARTIALLY_USED' || 
+    r.status === 'FULLY_USED' || r.status === 'PARTIALLY_USED' ||
     r.items?.some((item: any) => item.dispensedAt)
   ) || [];
 
@@ -205,7 +205,7 @@ export default function OverviewTab({ prescription }: OverviewTabProps) {
                 <div>
                   <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Name</label>
                   <p className="text-base font-semibold text-gray-900 mt-1">
-                    Dr. {prescriber?.firstName} {prescriber?.lastName}
+                    Dr. {prescriber?.name || 'Unknown Prescriber'}
                   </p>
                 </div>
 
@@ -270,10 +270,10 @@ export default function OverviewTab({ prescription }: OverviewTabProps) {
                     <div className="pt-3 border-t border-gray-200">
                       <label className="text-sm font-medium text-gray-500">Last Refill Date</label>
                       <p className="text-sm font-medium text-gray-900">
-                        {new Date(validRefills[validRefills.length - 1].processedAt || validRefills[validRefills.length - 1].createdAt).toLocaleDateString('en-US', { 
-                          year: 'numeric', 
-                          month: 'long', 
-                          day: 'numeric' 
+                        {new Date(validRefills[validRefills.length - 1].processedAt || validRefills[validRefills.length - 1].createdAt).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric'
                         })}
                       </p>
                     </div>

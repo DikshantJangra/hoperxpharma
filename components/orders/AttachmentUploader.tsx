@@ -2,6 +2,8 @@
 
 import React, { useRef, useState, useEffect } from 'react';
 import { MdAttachFile, MdDescription, MdClose, MdImage, MdPictureAsPdf } from 'react-icons/md';
+import { tokenManager } from '@/lib/api/client';
+import { getApiBaseUrl } from '@/lib/config/env';
 
 interface Attachment {
   id: string;
@@ -33,6 +35,7 @@ export default function AttachmentUploader({
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const [loadedAttachments, setLoadedAttachments] = useState<Attachment[]>(attachments || []);
   const [loading, setLoading] = useState(false);
+  const apiBaseUrl = getApiBaseUrl();
 
   // Fetch attachments when poId changes
   useEffect(() => {

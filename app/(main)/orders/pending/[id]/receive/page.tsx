@@ -19,6 +19,7 @@ export default function ReceiveShipmentPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [autoSaving, setAutoSaving] = useState(false);
+    const [completing, setCompleting] = useState(false);
     const [grn, setGrn] = useState<any>(null);
     const [po, setPO] = useState<any>(null);
     const [showSummary, setShowSummary] = useState(false);
@@ -763,6 +764,7 @@ export default function ReceiveShipmentPage() {
 
     const handleComplete = async (targetStatus?: 'COMPLETED' | 'PARTIALLY_RECEIVED') => {
         setSaving(true);
+        setCompleting(true);
         setShowStatusModal(false);
         try {
             const token = tokenManager.getAccessToken();
@@ -793,11 +795,13 @@ export default function ReceiveShipmentPage() {
                     setTimeout(() => router.push('/orders/received'), 1000);
                 } else {
                     toast.error(errorMessage);
+                    setCompleting(false);
                 }
             }
         } catch (error) {
             console.error('Error completing GRN:', error);
             toast.error('Failed to complete GRN');
+            setCompleting(false);
         } finally {
             setSaving(false);
         }
@@ -884,7 +888,7 @@ export default function ReceiveShipmentPage() {
                     <div>
                         <h1 className="text-2xl font-bold text-gray-900">Receive Shipment</h1>
                         <p className="text-sm text-gray-500 mt-1">
-                            PO: {po.poNumber} | Supplier: {po.supplier.name}
+                            PO: {po.poNumber} | Supplier: {po.supplier.name} | Received By: {grn.receivedByUser ? `${grn.receivedByUser.firstName} ${grn.receivedByUser.lastName}` : grn.receivedBy || 'Unknown'}
                             {lastSaved && (
                                 <span className="ml-3 text-xs text-gray-400">
                                     {autoSaving ? 'Saving...' : `Last saved: ${lastSaved.toLocaleTimeString()}`}
@@ -896,25 +900,26 @@ export default function ReceiveShipmentPage() {
                     <div className="flex items-center gap-3">
                         <button
                             onClick={() => handleCancel(false)}
-                            className="px-4 py-2 border border-gray-300 rounded-lg text-red-600 hover:bg-red-50 flex items-center gap-2"
+                            disabled={completing}
+                            className="px-4 py-2 border border-gray-300 rounded-lg text-red-600 hover:bg-red-50 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <HiOutlineXMark className="h-5 w-5" />
                             Discard Draft
                         </button>
                         <button
                             onClick={() => handleSaveDraft(false)}
-                            disabled={saving || autoSaving}
-                            className="px-4 py-2 border border-emerald-600 text-emerald-600 rounded-lg hover:bg-emerald-50 flex items-center gap-2 disabled:opacity-50"
+                            disabled={saving || autoSaving || completing}
+                            className="px-4 py-2 border border-emerald-600 text-emerald-600 rounded-lg hover:bg-emerald-50 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             {saving ? 'Saving...' : 'Save Draft'}
                         </button>
                         <button
                             onClick={handleCompleteClick}
-                            disabled={saving}
-                            className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center gap-2 disabled:opacity-50"
+                            disabled={saving || completing}
+                            className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <HiOutlineCheck className="h-5 w-5" />
-                            {saving ? 'Completing...' : 'Complete Receiving'}
+                            {saving || completing ? 'Completing...' : 'Complete Receiving'}
                         </button>
                     </div>
                 </div>
@@ -923,7 +928,7 @@ export default function ReceiveShipmentPage() {
             {/* Invoice Details */}
             <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mb-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">Invoice Details</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                             Supplier Invoice Number
@@ -951,17 +956,6 @@ export default function ReceiveShipmentPage() {
                             value={invoiceDate}
                             onChange={(e) => setInvoiceDate(e.target.value)}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                        />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Received By
-                        </label>
-                        <input
-                            type="text"
-                            value={grn.receivedByUser ? `${grn.receivedByUser.firstName} ${grn.receivedByUser.lastName}` : grn.receivedBy}
-                            disabled
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
                         />
                     </div>
                 </div>

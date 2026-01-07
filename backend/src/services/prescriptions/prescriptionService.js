@@ -155,7 +155,7 @@ class PrescriptionService {
             });
 
             return prescription.id;
-        });
+        }, { timeout: 30000 }); // Increased to 30s due to multiple nested creates
 
         // Return complete prescription data
         return await this.getPrescriptionById(result);
@@ -301,7 +301,7 @@ class PrescriptionService {
             });
 
             return prescription.id;
-        });
+        }, { timeout: 30000 }); // Increased to 30s to match createPrescription
 
         // Return complete prescription data
         return await this.getPrescriptionById(result);
@@ -351,30 +351,92 @@ class PrescriptionService {
      * Update prescription status based on refills
      * Call this after refill changes to auto-manage status
      */
-    async updatePrescriptionStatus(prescriptionId) {
+    async updatePrescriptionStatus(prescriptionId, userId = null) {
+        console.log('🔴 [PrescriptionService] updatePrescriptionStatus called:', { prescriptionId, userId });
+        
         const prescription = await prisma.prescription.findUnique({
             where: { id: prescriptionId },
             include: { refills: true }
         });
 
-        if (!prescription) return;
+        if (!prescription) {
+            console.log('❌ [PrescriptionService] Prescription not found');
+            return;
+        }
+
+        console.log('🔴 [PrescriptionService] Current prescription state:', {
+            prescriptionNumber: prescription.prescriptionNumber,
+            currentStatus: prescription.status,
+            totalRefills: prescription.totalRefills,
+            refillsCount: prescription.refills?.length,
+            refillsData: prescription.refills?.map(r => ({
+                num: r.refillNumber,
+                status: r.status,
+                dispensed: r.dispensedQty,
+                remaining: r.remainingQty
+            }))
+        });
 
         let newStatus = prescription.status;
+        let statusReason = null;
 
         // Check if expired
         if (new Date() > prescription.expiryDate) {
             newStatus = 'EXPIRED';
+            statusReason = 'Prescription expired';
         }
         // Check if all refills exhausted
-        else if (await refillService.areAllRefillsExhausted(prescriptionId)) {
-            newStatus = 'COMPLETED';
+        else {
+            const exhausted = await refillService.areAllRefillsExhausted(prescriptionId);
+            console.log('🔴 [PrescriptionService] areAllRefillsExhausted:', exhausted);
+            
+            if (exhausted) {
+                newStatus = 'COMPLETED';
+                statusReason = 'All refills dispensed';
+            }
+            // If currently VERIFIED and has dispense activity -> ACTIVE
+            else if (prescription.status === 'VERIFIED') {
+                const hasActivity = prescription.refills?.some(r => Number(r.dispensedQty) > 0);
+                console.log('🔴 [PrescriptionService] hasActivity:', hasActivity);
+                
+                if (hasActivity) {
+                    newStatus = 'ACTIVE';
+                    statusReason = 'Dispensing started';
+                }
+            }
         }
 
+        console.log('🔴 [PrescriptionService] Determined new status:', { newStatus, statusReason });
+
         if (newStatus !== prescription.status) {
+            console.log('🟢 [PrescriptionService] Status changed! Updating database...');
+            
             await prisma.prescription.update({
                 where: { id: prescriptionId },
                 data: { status: newStatus }
             });
+
+            // Create audit log for status change (for history display)
+            await prisma.auditLog.create({
+                data: {
+                    storeId: prescription.storeId,
+                    userId: userId || prescription.storeId,
+                    action: `PRESCRIPTION_${newStatus}`,
+                    entityType: 'Prescription',
+                    entityId: prescriptionId,
+                    changes: {
+                        previousStatus: prescription.status,
+                        newStatus,
+                        reason: statusReason,
+                        refillsUsed: prescription.refills?.filter(r => r.status === 'FULLY_USED').length || 0,
+                        totalRefills: prescription.refills?.length || 0
+                    }
+                }
+            });
+
+            console.log(`✅ [PrescriptionService] Prescription ${prescriptionId} status changed: ${prescription.status} → ${newStatus} (${statusReason})`);
+        } else {
+            console.log('⚠️ [PrescriptionService] No status change needed');
         }
 
         return newStatus;
@@ -797,10 +859,10 @@ class PrescriptionService {
                 action: 'PRESCRIPTION_VERIFIED',
                 entityType: 'Prescription',
                 entityId: id,
-                changes: { 
-                    previousStatus: prescription.status, 
+                changes: {
+                    previousStatus: prescription.status,
                     newStatus: 'VERIFIED',
-                    reason 
+                    reason
                 }
             }
         });
