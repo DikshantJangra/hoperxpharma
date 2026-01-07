@@ -1,3 +1,4 @@
+const asyncHandler = require('../../middlewares/asyncHandler');
 const express = require('express');
 const authController = require('../../controllers/auth/authController');
 const validate = require('../../middlewares/validate');
@@ -40,6 +41,57 @@ router.post(
     '/refresh',
     authController.refresh
 );
+
+// Session setup endpoint (for OAuth callback)
+router.post('/set-session', asyncHandler(async (req, res) => {
+    const { accessToken, refreshToken } = req.body;
+
+    if (!accessToken || !refreshToken) {
+        return res.status(400).json({
+            success: false,
+            message: 'Access token and refresh token are required'
+        });
+    }
+
+    // Verify tokens are valid
+    const { verifyAccessToken, verifyRefreshToken } = require('../../services/auth/tokenService');
+    try {
+        verifyAccessToken(accessToken);
+        verifyRefreshToken(refreshToken);
+    } catch (error) {
+        return res.status(401).json({
+            success: false,
+            message: 'Invalid tokens'
+        });
+    }
+
+    const isProduction = process.env.NODE_ENV === 'production' || (process.env.FRONTEND_URL && process.env.FRONTEND_URL.startsWith('https'));
+
+    // Set refresh token in httpOnly cookie
+    res.cookie('refreshToken', refreshToken, {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: isProduction ? 'none' : 'lax',
+        partitioned: isProduction,
+        maxAge: 7 * 24 * 60 * 60 * 1000,
+        path: '/'
+    });
+
+    // Set access token in httpOnly cookie
+    res.cookie('accessToken', accessToken, {
+        httpOnly: true,
+        secure: isProduction,
+        sameSite: isProduction ? 'none' : 'lax',
+        partitioned: isProduction,
+        maxAge: 15 * 60 * 1000,
+        path: '/'
+    });
+
+    res.json({
+        success: true,
+        message: 'Session established successfully'
+    });
+}));
 
 // Protected routes
 router.post(
@@ -124,25 +176,9 @@ router.get('/google/callback', (req, res, next) => {
         // Determine production mode securely
         const isProduction = process.env.NODE_ENV === 'production' || (process.env.FRONTEND_URL && process.env.FRONTEND_URL.startsWith('https'));
 
-        // Set refresh token in httpOnly cookie
-        res.cookie('refreshToken', refreshToken, {
-            httpOnly: true,
-            secure: isProduction,
-            sameSite: isProduction ? 'none' : 'lax',
-            partitioned: isProduction, // CHIPS support for Arc and strict browsers
-            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-            path: '/',
-        });
-
-        // Set access token in httpOnly cookie (XSS protection)
-        res.cookie('accessToken', accessToken, {
-            httpOnly: true,
-            secure: isProduction,
-            sameSite: isProduction ? 'none' : 'lax',
-            partitioned: isProduction, // CHIPS support for Arc and strict browsers
-            maxAge: 15 * 60 * 1000, // 15 minutes
-            path: '/',
-        });
+        // CRITICAL: Cookies during redirect don't work reliably cross-origin
+        // Instead, pass tokens in URL and let frontend set them via /auth/set-session endpoint
+        // This is more reliable than trying to set cookies during OAuth redirect
 
         // Check if user needs onboarding (no stores)
         const needsOnboarding = !user.storeUsers || user.storeUsers.length === 0;
@@ -154,10 +190,9 @@ router.get('/google/callback', (req, res, next) => {
             return res.status(500).send('Configuration Error: Login cannot complete.');
         }
 
-        // Redirect to frontend with access token only
-        // NOTE: refreshToken is NOT passed in URL - it's set as httpOnly cookie
-        // This prevents token exposure in browser history, logs, and referrer headers
-        res.redirect(`${frontendUrl}/auth/callback?token=${accessToken}${needsOnboarding ? '&onboarding=true' : ''}`);
+        // Redirect to frontend with both tokens
+        // Frontend will immediately call /auth/set-session to store them as httpOnly cookies
+        res.redirect(`${frontendUrl}/auth/callback?accessToken=${accessToken}&refreshToken=${refreshToken}${needsOnboarding ? '&onboarding=true' : ''}`);
     })(req, res, next);
 });
 

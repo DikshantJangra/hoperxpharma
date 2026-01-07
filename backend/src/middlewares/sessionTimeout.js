@@ -33,9 +33,19 @@ const sessionTimeout = (req, res, next) => {
         // Clear user activity
         userActivity.delete(userId);
 
-        // Clear access token cookie
-        res.clearCookie('accessToken', { path: '/' });
-        res.clearCookie('refreshToken', { path: '/' });
+        // Clear cookies with matching attributes (CRITICAL for production)
+        const isProduction = process.env.NODE_ENV === 'production' || 
+            (process.env.FRONTEND_URL && process.env.FRONTEND_URL.startsWith('https'));
+        
+        const cookieOptions = {
+            path: '/',
+            httpOnly: true,
+            secure: isProduction,
+            sameSite: isProduction ? 'none' : 'lax'
+        };
+        
+        res.clearCookie('accessToken', cookieOptions);
+        res.clearCookie('refreshToken', cookieOptions);
 
         // Return 401 Unauthorized with specific timeout message
         return res.status(401).json({
