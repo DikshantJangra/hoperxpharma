@@ -43,7 +43,8 @@ class PrescriptionService {
             expiryDate,
             items,
             instructions,
-            files
+            files,
+            status = 'DRAFT' // Allow status to be passed, default to DRAFT
         } = data;
 
         // Generate prescription number
@@ -61,7 +62,7 @@ class PrescriptionService {
                 issueDate: new Date(),
                 expiryDate: calculatedExpiryDate,
                 totalRefills,
-                status: 'DRAFT',
+                status, // Use the status from parameter
                 type,
                 source,
                 priority
