@@ -95,7 +95,7 @@ class MagicLinkService {
         }
     }
 
-    async verifyMagicLink(token) {
+    async verifyMagicLink(token, requestContext = {}) {
         try {
             // Verify JWT token
             const decoded = this.verifyToken(token);
@@ -161,9 +161,30 @@ class MagicLinkService {
                 logger.info(`New user created via magic link: ${user.email}`);
             }
 
+            // Generate auth tokens
+            const { generateTokens } = require('./auth/tokenService');
+            const tokens = generateTokens(user.id, user.role);
+
+            // Log successful magic link login
+            if (requestContext.ipAddress) {
+                const accessLogService = require('./audit/accessLogService');
+                await accessLogService.logAccess({
+                    userId: user.id,
+                    eventType: 'login_success',
+                    ipAddress: requestContext.ipAddress,
+                    userAgent: requestContext.userAgent,
+                    deviceInfo: requestContext.userAgent,
+                    loginMethod: 'magic_link'
+                }).catch(err => {
+                    logger.error('Failed to log magic link access:', err);
+                });
+            }
+
             return {
                 success: true,
-                user
+                user,
+                accessToken: tokens.accessToken,
+                refreshToken: tokens.refreshToken
             };
         } catch (error) {
             logger.error('Magic link verification failed:', error);
