@@ -14,54 +14,65 @@ function CallbackContent() {
     useEffect(() => {
         if (!searchParams) return;
 
-        const token = searchParams.get('token');
         const error = searchParams.get('error');
-
         if (error) {
             toast.error('Authentication failed. Please try again.');
             router.push('/login');
             return;
         }
 
-        if (token) {
-            const handleCallback = async () => {
-                try {
-                    // SECURITY: Access token is stored in memory only
-                    // Refresh token is already set as httpOnly cookie by the backend OAuth redirect
+        const accessToken = searchParams.get('accessToken');
+        const refreshToken = searchParams.get('refreshToken');
+        const token = searchParams.get('token'); // Legacy magic link support
+
+        const handleCallback = async () => {
+            try {
+                // OAuth flow: accessToken + refreshToken in URL
+                if (accessToken && refreshToken) {
+                    // Call set-session to establish httpOnly cookies
+                    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/set-session`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({ accessToken, refreshToken })
+                    });
+
+                    if (!response.ok) throw new Error('Failed to establish session');
+
+                    // Store access token in memory
                     const { tokenManager } = await import('@/lib/api/client');
-                    tokenManager.saveTokens(token); // Only saves to memory, not localStorage
+                    tokenManager.saveTokens(accessToken);
 
-                    // Set logged_in cookie for middleware routing (not sensitive, just a flag)
-                    // Uses centralized function that handles Secure/SameSite for production
-                    authApi.setLoggedInCookie();
-
-                    // IMPORTANT: Call checkAuth to properly initialize the auth store
-                    // This fetches user profile and sets all state correctly
-                    await checkAuth();
-
-                    toast.success('Successfully logged in!');
-
-                    // Check if user needs onboarding
-                    const needsOnboarding = searchParams.get('onboarding');
-
-                    // Navigate to appropriate page
-                    if (needsOnboarding === 'true') {
-                        router.push('/onboarding/welcome');
-                    } else {
-                        router.push('/dashboard/overview');
-                    }
-                } catch (err) {
-                    console.error('Callback error:', err);
-                    toast.error('Login processing failed');
-                    router.push('/login');
+                    // Clear tokens from URL
+                    window.history.replaceState({}, '', '/auth/callback');
                 }
-            };
+                // Magic link flow: single token in URL (cookies already set by backend)
+                else if (token) {
+                    const { tokenManager } = await import('@/lib/api/client');
+                    tokenManager.saveTokens(token);
+                } else {
+                    router.push('/login');
+                    return;
+                }
 
-            handleCallback();
-        } else {
-            // No token, no error -> invalid access
-            router.push('/login');
-        }
+                authApi.setLoggedInCookie();
+                await checkAuth();
+                toast.success('Successfully logged in!');
+
+                const needsOnboarding = searchParams.get('onboarding');
+                if (needsOnboarding === 'true') {
+                    router.push('/onboarding/welcome');
+                } else {
+                    router.push('/dashboard/overview');
+                }
+            } catch (err) {
+                console.error('Callback error:', err);
+                toast.error('Login processing failed');
+                router.push('/login');
+            }
+        };
+
+        handleCallback();
     }, [searchParams, router, checkAuth]);
 
     return (
