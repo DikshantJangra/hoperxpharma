@@ -117,9 +117,11 @@ export default function DocumentsTab({ prescription, onUpdate }: DocumentsTabPro
       {/* Upload Section */}
       <Card>
         <CardContent className="p-6">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
-              <FiUpload className="h-5 w-5 text-blue-600" />
+              <div className="p-2 bg-blue-50 rounded-lg">
+                <FiUpload className="h-5 w-5 text-blue-600" />
+              </div>
               <h3 className="text-lg font-semibold">Upload Documents</h3>
             </div>
 
@@ -156,9 +158,9 @@ export default function DocumentsTab({ prescription, onUpdate }: DocumentsTabPro
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {documents.map((document: any) => (
-              <Card key={document.id} className="overflow-hidden">
+              <Card key={document.id} className="overflow-hidden hover:shadow-md transition-shadow">
                 <CardContent className="p-0">
                   {/* Preview Section */}
                   {isImage(document.fileUrl) ? (
@@ -169,15 +171,15 @@ export default function DocumentsTab({ prescription, onUpdate }: DocumentsTabPro
                       <img
                         src={document.fileUrl}
                         alt="Prescription document"
-                        className="w-full h-full object-contain"
+                        className="w-full h-full object-cover"
                       />
-                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all flex items-center justify-center">
+                      <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all flex items-center justify-center">
                         <FiEye className="h-8 w-8 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
                       </div>
                     </div>
                   ) : isPDF(document.fileUrl) ? (
                     <div
-                      className="h-48 bg-gradient-to-br from-red-50 to-red-100 flex items-center justify-center cursor-pointer group"
+                      className="h-48 bg-gradient-to-br from-red-50 to-red-100 flex items-center justify-center cursor-pointer group hover:from-red-100 hover:to-red-200 transition-all"
                       onClick={() => handleView(document.fileUrl)}
                     >
                       <div className="text-center">
@@ -192,48 +194,49 @@ export default function DocumentsTab({ prescription, onUpdate }: DocumentsTabPro
                   )}
 
                   {/* Info & Actions */}
-                  <div className="p-4">
-                    <div className="flex items-start justify-between mb-2">
-                      <div className="flex-1 min-w-0">
-                        <h4 className="font-semibold text-sm truncate">
-                          {document.fileUrl?.split('/').pop()?.split('?')[0] || 'Document'}
-                        </h4>
-                        <p className="text-xs text-gray-500">
-                          {getFileType(document.fileUrl)} • {new Date(document.createdAt).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-1 flex-shrink-0 ml-2">
-                        {isImage(document.fileUrl) && (
-                          <button
-                            onClick={() => handlePreview(document.fileUrl)}
-                            className="p-1.5 hover:bg-gray-100 rounded transition-colors"
-                            title="Preview"
-                          >
-                            <FiImage className="h-4 w-4 text-gray-600" />
-                          </button>
-                        )}
+                  <div className="p-4 bg-white">
+                    <div className="mb-3">
+                      <h4 className="font-semibold text-sm truncate text-gray-900">
+                        {document.fileUrl?.split('/').pop()?.split('?')[0]?.slice(0, 30) || 'Document'}
+                      </h4>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {getFileType(document.fileUrl)} • {new Date(document.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      {isImage(document.fileUrl) && (
                         <button
-                          onClick={() => handleView(document.fileUrl)}
-                          className="p-1.5 hover:bg-gray-100 rounded transition-colors"
-                          title="Open in new tab"
+                          onClick={() => handlePreview(document.fileUrl)}
+                          className="flex-1 p-2 hover:bg-blue-50 rounded transition-colors text-blue-600 flex items-center justify-center gap-1"
+                          title="Preview"
                         >
-                          <FiEye className="h-4 w-4 text-gray-600" />
+                          <FiImage className="h-4 w-4" />
+                          <span className="text-xs font-medium">Preview</span>
                         </button>
-                        <button
-                          onClick={() => handleDownload(document.fileUrl)}
-                          className="p-1.5 hover:bg-gray-100 rounded transition-colors"
-                          title="Download"
-                        >
-                          <FiDownload className="h-4 w-4 text-gray-600" />
-                        </button>
-                        <button
-                          onClick={() => setConfirmDelete(document.id)}
-                          className="p-1.5 hover:bg-red-100 rounded transition-colors"
-                          title="Delete"
-                        >
-                          <FiTrash2 className="h-4 w-4 text-red-600" />
-                        </button>
-                      </div>
+                      )}
+                      <button
+                        onClick={() => handleView(document.fileUrl)}
+                        className="flex-1 p-2 hover:bg-gray-100 rounded transition-colors text-gray-700 flex items-center justify-center gap-1"
+                        title="Open"
+                      >
+                        <FiEye className="h-4 w-4" />
+                        <span className="text-xs font-medium">Open</span>
+                      </button>
+                      <button
+                        onClick={() => handleDownload(document.fileUrl)}
+                        className="flex-1 p-2 hover:bg-gray-100 rounded transition-colors text-gray-700 flex items-center justify-center gap-1"
+                        title="Download"
+                      >
+                        <FiDownload className="h-4 w-4" />
+                        <span className="text-xs font-medium">Download</span>
+                      </button>
+                      <button
+                        onClick={() => setConfirmDelete(document.id)}
+                        className="p-2 hover:bg-red-50 rounded transition-colors text-red-600"
+                        title="Delete"
+                      >
+                        <FiTrash2 className="h-4 w-4" />
+                      </button>
                     </div>
                   </div>
                 </CardContent>

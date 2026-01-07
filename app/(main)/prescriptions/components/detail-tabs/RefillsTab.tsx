@@ -404,9 +404,11 @@ export default function RefillsTab({ prescription, onUpdate }: RefillsTabProps) 
       {/* Refill Summary */}
       <Card>
         <CardContent className="p-6">
-          <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-3">
-              <FiRefreshCw className="h-5 w-5 text-blue-600 cursor-pointer hover:rotate-180 transition-all duration-500" onClick={refreshData} />
+              <div className="p-2 bg-blue-50 rounded-lg">
+                <FiRefreshCw className="h-5 w-5 text-blue-600 cursor-pointer hover:rotate-180 transition-all duration-500" onClick={refreshData} />
+              </div>
               <h3 className="text-lg font-semibold">Refill Status</h3>
               <Button variant="ghost" size="sm" onClick={refreshData} className="text-xs text-blue-600 h-6 px-2">
                 Refresh

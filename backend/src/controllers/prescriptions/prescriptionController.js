@@ -78,6 +78,13 @@ class PrescriptionController {
                 });
             }
 
+            if (!items || items.length === 0) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'At least one medication item is required'
+                });
+            }
+
             // Parse all FormData fields properly
             const prescriptionData = {
                 storeId,

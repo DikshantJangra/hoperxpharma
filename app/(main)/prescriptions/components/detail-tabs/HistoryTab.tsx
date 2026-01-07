@@ -285,27 +285,27 @@ export default function HistoryTab({ prescription }: HistoryTabProps) {
             {/* Summary Stats */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <Card>
-                    <CardContent className="p-4">
-                        <div className="text-sm text-gray-500 mb-1">Total Events</div>
-                        <div className="text-2xl font-bold">{timeline.length}</div>
+                    <CardContent className="p-5">
+                        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Total Events</div>
+                        <div className="text-2xl font-bold text-gray-900">{timeline.length}</div>
                     </CardContent>
                 </Card>
                 <Card>
-                    <CardContent className="p-4">
-                        <div className="text-sm text-gray-500 mb-1">Refills</div>
-                        <div className="text-2xl font-bold">{validRefillsCount}</div>
+                    <CardContent className="p-5">
+                        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Refills</div>
+                        <div className="text-2xl font-bold text-gray-900">{validRefillsCount}</div>
                     </CardContent>
                 </Card>
                 <Card>
-                    <CardContent className="p-4">
-                        <div className="text-sm text-gray-500 mb-1">Versions</div>
-                        <div className="text-2xl font-bold">{prescription.versions?.length || 0}</div>
+                    <CardContent className="p-5">
+                        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Versions</div>
+                        <div className="text-2xl font-bold text-gray-900">{prescription.versions?.length || 0}</div>
                     </CardContent>
                 </Card>
                 <Card>
-                    <CardContent className="p-4">
-                        <div className="text-sm text-gray-500 mb-1">Documents</div>
-                        <div className="text-2xl font-bold">{prescription.files?.length || 0}</div>
+                    <CardContent className="p-5">
+                        <div className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Documents</div>
+                        <div className="text-2xl font-bold text-gray-900">{prescription.files?.length || 0}</div>
                     </CardContent>
                 </Card>
             </div>
@@ -313,10 +313,12 @@ export default function HistoryTab({ prescription }: HistoryTabProps) {
             {/* Timeline */}
             <Card>
                 <CardContent className="p-6">
-                    <h3 className="text-lg font-semibold mb-6 flex items-center gap-2">
-                        <FiClock className="h-5 w-5 text-gray-600" />
-                        Activity Timeline
-                    </h3>
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="p-2 bg-blue-50 rounded-lg">
+                            <FiClock className="h-5 w-5 text-blue-600" />
+                        </div>
+                        <h3 className="text-lg font-semibold">Activity Timeline</h3>
+                    </div>
 
                     {timeline.length === 0 ? (
                         <div className="text-center py-12 text-gray-500">

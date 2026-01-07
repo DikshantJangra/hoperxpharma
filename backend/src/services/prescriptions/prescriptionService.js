@@ -73,7 +73,7 @@ class PrescriptionService {
             }
 
             if (prescriberId) {
-                prescriptionData.prescriberId = prescriberId;
+                prescriptionData.prescriber = { connect: { id: prescriberId } };
             }
 
             // Handle uploaded images (legacy field)
@@ -176,8 +176,8 @@ class PrescriptionService {
             });
 
             const updateData = {};
-            if (prescriptionData.patientId) updateData.patientId = prescriptionData.patientId;
-            if (prescriptionData.prescriberId) updateData.prescriberId = prescriptionData.prescriberId;
+            if (prescriptionData.patientId) updateData.patient = { connect: { id: prescriptionData.patientId } };
+            if (prescriptionData.prescriberId) updateData.prescriber = { connect: { id: prescriptionData.prescriberId } };
             if (prescriptionData.priority) updateData.priority = prescriptionData.priority;
             if (prescriptionData.source) updateData.source = prescriptionData.source;
             if (prescriptionData.status) updateData.status = prescriptionData.status;
@@ -762,6 +762,49 @@ class PrescriptionService {
         });
 
         return dispense;
+    }
+
+    /**
+     * Verify prescription (DRAFT → VERIFIED)
+     */
+    async verifyPrescription(id, userId, reason = null) {
+        const prescription = await prisma.prescription.findUnique({
+            where: { id }
+        });
+
+        if (!prescription) {
+            throw new Error('Prescription not found');
+        }
+
+        if (prescription.status !== 'DRAFT') {
+            throw new Error(`Cannot verify prescription in ${prescription.status} status`);
+        }
+
+        const updated = await prisma.prescription.update({
+            where: { id },
+            data: {
+                status: 'VERIFIED',
+                updatedAt: new Date()
+            }
+        });
+
+        // Audit log
+        await prisma.auditLog.create({
+            data: {
+                storeId: prescription.storeId,
+                userId,
+                action: 'PRESCRIPTION_VERIFIED',
+                entityType: 'Prescription',
+                entityId: id,
+                changes: { 
+                    previousStatus: prescription.status, 
+                    newStatus: 'VERIFIED',
+                    reason 
+                }
+            }
+        });
+
+        return await this.getPrescriptionById(id);
     }
 
     /**

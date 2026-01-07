@@ -484,28 +484,41 @@ export default function PrescriptionsListPage() {
                                     </p>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                    {selectedRx.status === 'DRAFT' && (
-                                        <button
-                                            onClick={async () => {
-                                                // Fetch full details before editing to ensure all data is loaded
-                                                try {
-                                                    const detailsResponse = await prescriptionApi.getPrescriptionById(selectedRx.id);
-                                                    if (detailsResponse.success && detailsResponse.data) {
-                                                        setEditingPrescription(detailsResponse.data);
-                                                    } else {
+                                    {(selectedRx.status === 'DRAFT' || selectedRx.status === 'ACTIVE') && (
+                                        <>
+                                            <button
+                                                onClick={async () => {
+                                                    try {
+                                                        const detailsResponse = await prescriptionApi.getPrescriptionById(selectedRx.id);
+                                                        if (detailsResponse.success && detailsResponse.data) {
+                                                            setEditingPrescription(detailsResponse.data);
+                                                        } else {
+                                                            setEditingPrescription(selectedRx);
+                                                        }
+                                                    } catch (error) {
+                                                        console.error('Failed to fetch prescription details:', error);
                                                         setEditingPrescription(selectedRx);
                                                     }
-                                                } catch (error) {
-                                                    console.error('Failed to fetch prescription details:', error);
-                                                    setEditingPrescription(selectedRx); // Fallback to cached data
-                                                }
-                                                setRightPanel('new');
-                                            }}
-                                            className="px-3 py-1.5 bg-teal-600 text-white rounded-lg text-sm font-medium hover:bg-teal-700 transition-colors flex items-center gap-1.5"
-                                        >
-                                            <FiEdit className="w-4 h-4" />
-                                            Edit
-                                        </button>
+                                                    setRightPanel('new');
+                                                }}
+                                                className="px-3 py-1.5 bg-teal-600 text-white rounded-lg text-sm font-medium hover:bg-teal-700 transition-colors flex items-center gap-1.5"
+                                            >
+                                                <FiEdit className="w-4 h-4" />
+                                                Edit
+                                            </button>
+                                            <button
+                                                onClick={() => handleVerify(selectedRx.id)}
+                                                disabled={verifyingId === selectedRx.id}
+                                                className="px-3 py-1.5 bg-green-600 text-white rounded-lg text-sm font-medium hover:bg-green-700 transition-colors flex items-center gap-1.5 disabled:opacity-75"
+                                            >
+                                                {verifyingId === selectedRx.id ? (
+                                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                                ) : (
+                                                    <FiCheck className="w-4 h-4" />
+                                                )}
+                                                Verify
+                                            </button>
+                                        </>
                                     )}
                                     {selectedRx.status === 'VERIFIED' && (
                                         <button
@@ -548,23 +561,23 @@ export default function PrescriptionsListPage() {
                                         </TabsTrigger>
                                     </TabsList>
 
-                                    <TabsContent value="medications" className="p-5 mt-0">
+                                    <TabsContent value="medications" className="p-6 mt-0">
                                         <MedicationsTab prescription={selectedRx} onUpdate={fetchPrescriptions} />
                                     </TabsContent>
 
-                                    <TabsContent value="refills" className="p-5 mt-0">
+                                    <TabsContent value="refills" className="p-6 mt-0">
                                         <RefillsTab prescription={selectedRx} onUpdate={fetchPrescriptions} />
                                     </TabsContent>
 
-                                    <TabsContent value="overview" className="p-5 mt-0">
+                                    <TabsContent value="overview" className="p-6 mt-0">
                                         <OverviewTab prescription={selectedRx} />
                                     </TabsContent>
 
-                                    <TabsContent value="history" className="p-5 mt-0">
+                                    <TabsContent value="history" className="p-6 mt-0">
                                         <HistoryTab prescription={selectedRx} />
                                     </TabsContent>
 
-                                    <TabsContent value="documents" className="p-5 mt-0">
+                                    <TabsContent value="documents" className="p-6 mt-0">
                                         <DocumentsTab prescription={selectedRx} onUpdate={fetchPrescriptions} />
                                     </TabsContent>
                                 </Tabs>

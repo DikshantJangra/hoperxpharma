@@ -408,19 +408,19 @@ class SaleRepository {
             };
 
             for (const soldItem of saleItems) {
-                log(`Checking sold item drugId: ${soldItem.drugId}`);
+                logger.debug(`Checking sold item drugId: ${soldItem.drugId}`);
 
                 // Use the self-healing helper
                 const rxItem = await getOrCreateCanonicalItem(soldItem.drugId, soldItem.quantity);
 
                 if (rxItem) {
-                    log(`MATCH FOUND: RxItem ID ${rxItem.id} for Drug ${soldItem.drugId}`);
+                    logger.debug(`MATCH FOUND: RxItem ID ${rxItem.id} for Drug ${soldItem.drugId}`);
                     matchedItems.push({
                         rxItem, // This is now guaranteed to be a valid PrescriptionItem (Canonical)
                         soldQty: soldItem.quantity
                     });
                 } else {
-                    log(`NO MATCH for Drug ${soldItem.drugId} - Not in Prescription or Versions`);
+                    logger.debug(`NO MATCH for Drug ${soldItem.drugId} - Not in Prescription or Versions`);
                 }
             }
 
@@ -450,7 +450,7 @@ class SaleRepository {
                     }
                 });
 
-                log(`Drug ${m.rxItem.drugId}: Used ${used} / Allowed ${allowed}`);
+                logger.debug(`Drug ${m.rxItem.drugId}: Used ${used} / Allowed ${allowed}`);
 
                 if (used >= allowed) {
                     // Strict error to rollback transaction
@@ -467,7 +467,7 @@ class SaleRepository {
             });
 
             const nextRefillNumber = (lastRefill?.refillNumber || 0) + 1;
-            log(`Creating Refill #${nextRefillNumber}`);
+            logger.debug(`Creating Refill #${nextRefillNumber}`);
 
             // Create the Refill entry
             const refillQty = matchedItems.reduce((sum, m) => sum + m.soldQty, 0);
@@ -483,11 +483,11 @@ class SaleRepository {
                     notes: `Dispensed via Sale ID: ${saleId}`,
                 }
             });
-            log(`Refill created with ID: ${refill.id}, Qty: ${refillQty}`);
+            logger.debug(`Refill created with ID: ${refill.id}, Qty: ${refillQty}`);
 
             // Create RefillItems explicitly using loop for safety and debug
             if (matchedItems.length > 0) {
-                log(`Attempting to create ${matchedItems.length} RefillItems...`);
+                logger.debug(`Attempting to create ${matchedItems.length} RefillItems...`);
                 let createdCount = 0;
                 for (const m of matchedItems) {
                     try {
@@ -501,23 +501,43 @@ class SaleRepository {
                         });
                         createdCount++;
                     } catch (e) {
-                        log(`ERROR creating RefillItem for RxItemId ${m.rxItem.id}: ${e.message}`);
+                        logger.error(`ERROR creating RefillItem for RxItemId ${m.rxItem.id}: ${e.message}`);
                         // We re-throw to ensure the transaction rolls back if data is inconsistent
                         throw e;
                     }
                 }
-                log(`RefillItems created successfully! Count: ${createdCount}`);
+                logger.debug(`RefillItems created successfully! Count: ${createdCount}`);
             }
 
             // 4. Removed update of "quantityUsed" as column does not exist on PrescriptionItem table.
             // Usage should be calculated by summing RefillItems.
 
-            // 5. Create Audit Log
+            // 5. Check if all refills are exhausted and update prescription status
+            const totalRefillsAllowed = prescription.totalRefills || 0;
+            const totalRefillsUsed = await tx.refill.count({
+                where: {
+                    prescriptionId,
+                    status: { in: ['FULLY_USED', 'PARTIALLY_USED'] }
+                }
+            });
+
+            logger.debug(`Refills status: ${totalRefillsUsed}/${totalRefillsAllowed}`);
+
+            // Update prescription status to COMPLETED if all refills are used
+            if (totalRefillsUsed >= totalRefillsAllowed && totalRefillsAllowed > 0) {
+                await tx.prescription.update({
+                    where: { id: prescriptionId },
+                    data: { status: 'COMPLETED', updatedAt: new Date() }
+                });
+                logger.info('Prescription marked as COMPLETED - all refills exhausted', { prescriptionId });
+            }
+
+            // 6. Create Audit Log
             if (refill) {
                 await tx.auditLog.create({
                     data: {
                         userId: userId,
-                        storeId: prescription.storeId || null, // Context might be needed
+                        storeId: prescription.storeId || null,
                         action: 'REFILL_DISPENSE',
                         entityType: 'Refill',
                         entityId: refill.id,
@@ -529,6 +549,26 @@ class SaleRepository {
                         }
                     }
                 });
+
+                // Also create audit log for prescription if status changed to COMPLETED
+                if (totalRefillsUsed >= totalRefillsAllowed && totalRefillsAllowed > 0) {
+                    await tx.auditLog.create({
+                        data: {
+                            userId: userId,
+                            storeId: prescription.storeId || null,
+                            action: 'PRESCRIPTION_COMPLETED',
+                            entityType: 'Prescription',
+                            entityId: prescriptionId,
+                            changes: {
+                                previousStatus: prescription.status,
+                                newStatus: 'COMPLETED',
+                                reason: 'All refills exhausted',
+                                totalRefills: totalRefillsAllowed,
+                                refillsUsed: totalRefillsUsed
+                            }
+                        }
+                    });
+                }
             }
 
             logger.info('Refill process completed successfully', {

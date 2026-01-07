@@ -30,62 +30,64 @@ export default function MedicationsTab({ prescription, onUpdate }: MedicationsTa
       {medications.map((medication: any, index: number) => (
         <Card key={medication.id || index}>
           <CardContent className="p-6">
-            <div className="flex items-start justify-between mb-4">
+            <div className="flex items-start justify-between mb-6">
               <div className="flex items-center gap-3">
-                <RiCapsuleFill className="h-5 w-5 text-blue-600" />
+                <div className="p-2 bg-blue-50 rounded-lg">
+                  <RiCapsuleFill className="h-5 w-5 text-blue-600" />
+                </div>
                 <div>
-                  <h3 className="text-lg font-semibold">{medication.drug?.name || 'Unknown Medication'}</h3>
-                  <p className="text-sm text-gray-500">
+                  <h3 className="text-lg font-semibold text-gray-900">{medication.drug?.name || 'Unknown Medication'}</h3>
+                  <p className="text-sm text-gray-500 mt-0.5">
                     {medication.drug?.strength && `${medication.drug.strength} • `}
                     {medication.drug?.form || 'Tablet'}
                   </p>
                 </div>
               </div>
 
-              <Badge variant="outline">
+              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
                 {medication.status || 'Active'}
               </Badge>
             </div>
 
             {/* Main Prescription Info */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
               <div>
-                <label className="text-sm font-medium text-gray-500">Quantity Prescribed</label>
-                <p className="text-sm font-semibold">{medication.quantityPrescribed || medication.quantity || 0} units</p>
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Quantity Prescribed</label>
+                <p className="text-sm font-semibold text-gray-900 mt-1">{medication.quantityPrescribed || medication.quantity || 0} units</p>
               </div>
 
               <div>
-                <label className="text-sm font-medium text-gray-500">Dosage Instructions</label>
-                <p className="text-sm">{medication.sig || 'As directed'}</p>
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Dosage Instructions</label>
+                <p className="text-sm text-gray-900 mt-1">{medication.sig || 'As directed'}</p>
               </div>
 
               <div>
-                <label className="text-sm font-medium text-gray-500">Duration</label>
-                <p className="text-sm">{medication.daysSupply ? `${medication.daysSupply} days` : 'Not specified'}</p>
+                <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Duration</label>
+                <p className="text-sm text-gray-900 mt-1">{medication.daysSupply ? `${medication.daysSupply} days` : 'Not specified'}</p>
               </div>
             </div>
 
             {/* Batch Information */}
             {medication.batch && (
-              <div className="mt-4 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                <div className="flex items-center gap-2 mb-3">
+              <div className="mt-5 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="flex items-center gap-2 mb-4">
                   <FiPackage className="h-4 w-4 text-gray-600" />
                   <span className="text-sm font-semibold text-gray-700">Batch Information</span>
                 </div>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div>
-                    <label className="text-xs text-gray-500 flex items-center gap-1">
+                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1">
                       <FiHash className="h-3 w-3" />
                       Batch Number
                     </label>
-                    <p className="text-sm font-medium">{medication.batch.batchNumber}</p>
+                    <p className="text-sm font-medium text-gray-900 mt-1">{medication.batch.batchNumber}</p>
                   </div>
                   <div>
-                    <label className="text-xs text-gray-500 flex items-center gap-1">
+                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1">
                       <FiCalendar className="h-3 w-3" />
                       Expiry Date
                     </label>
-                    <p className="text-sm font-medium">
+                    <p className="text-sm font-medium text-gray-900 mt-1">
                       {new Date(medication.batch.expiryDate).toLocaleDateString('en-US', {
                         month: 'short',
                         year: 'numeric'
@@ -93,18 +95,18 @@ export default function MedicationsTab({ prescription, onUpdate }: MedicationsTa
                     </p>
                   </div>
                   <div>
-                    <label className="text-xs text-gray-500 flex items-center gap-1">
+                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1">
                       <FiPackage className="h-3 w-3" />
                       Stock Available
                     </label>
-                    <p className="text-sm font-medium">{medication.batch.quantityInStock} units</p>
+                    <p className="text-sm font-medium text-gray-900 mt-1">{medication.batch.quantityInStock} units</p>
                   </div>
                   <div>
-                    <label className="text-xs text-gray-500 flex items-center gap-1">
+                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1">
                       <FiMapPin className="h-3 w-3" />
                       Location
                     </label>
-                    <p className="text-sm font-medium">{medication.batch.location || 'N/A'}</p>
+                    <p className="text-sm font-medium text-gray-900 mt-1">{medication.batch.location || 'N/A'}</p>
                   </div>
                 </div>
               </div>
@@ -112,23 +114,23 @@ export default function MedicationsTab({ prescription, onUpdate }: MedicationsTa
 
             {/* Additional Drug Info */}
             {medication.drug && (
-              <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+              <div className="mt-5 grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
                 {medication.drug.manufacturer && (
                   <div>
-                    <label className="text-xs text-gray-500">Manufacturer</label>
-                    <p className="font-medium">{medication.drug.manufacturer}</p>
+                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Manufacturer</label>
+                    <p className="font-medium text-gray-900 mt-1">{medication.drug.manufacturer}</p>
                   </div>
                 )}
                 {medication.drug.requiresPrescription !== undefined && (
                   <div>
-                    <label className="text-xs text-gray-500">Requires Prescription</label>
-                    <p className="font-medium">{medication.drug.requiresPrescription ? 'Yes' : 'No'}</p>
+                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Requires Prescription</label>
+                    <p className="font-medium text-gray-900 mt-1">{medication.drug.requiresPrescription ? 'Yes' : 'No'}</p>
                   </div>
                 )}
                 {medication.batch?.mrp && (
                   <div>
-                    <label className="text-xs text-gray-500">MRP</label>
-                    <p className="font-medium">₹{parseFloat(medication.batch.mrp).toFixed(2)}</p>
+                    <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">MRP</label>
+                    <p className="font-medium text-gray-900 mt-1">₹{parseFloat(medication.batch.mrp).toFixed(2)}</p>
                   </div>
                 )}
               </div>
