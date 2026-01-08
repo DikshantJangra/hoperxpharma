@@ -55,6 +55,8 @@ jobs:
           npx prisma db push --accept-data-loss --skip-generate
 
       - name: Build application
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:5000
         run: |
           npm run build
           cd backend && npm run build
@@ -111,21 +113,22 @@ jobs:
         with:
           report-folder: playwright-report
 
-      - name: Slack notification on failure
-        if: failure() && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
-        uses: slackapi/slack-github-action@v1
-        with:
-          webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
-          payload: |
-            {
-              "text": "❌ Playwright tests failed",
-              "blocks": [
-                {
-                  "type": "section",
-                  "text": {
-                    "type": "mrkdwn",
-                    "text": "*E2E Tests Failed*\n\nBranch: ${{ github.ref }}\nCommit: ${{ github.sha }}\nActor: ${{ github.actor }}"
-                  }
-                }
-              ]
-            }
+      # - name: Slack notification on failure
+      #   if: failure() && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+      #   uses: slackapi/slack-github-action@v1
+      #   env:
+      #     SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+      #   with:
+      #     payload: |
+      #       {
+      #         "text": "❌ Playwright tests failed",
+      #         "blocks": [
+      #           {
+      #             "type": "section",
+      #             "text": {
+      #               "type": "mrkdwn",
+      #               "text": "*E2E Tests Failed*\n\nBranch: ${{ github.ref }}\nCommit: ${{ github.sha }}\nActor: ${{ github.actor }}"
+      #             }
+      #           }
+      #         ]
+      #       }
