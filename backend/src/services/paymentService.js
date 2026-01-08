@@ -18,7 +18,14 @@ const {
 const ApiError = require('../utils/ApiError');
 const httpStatus = require('http-status');
 
-const razorpayInstance = createRazorpayInstance();
+// Lazy initialization - only create instance when needed
+let razorpayInstance = null;
+const getRazorpayInstance = () => {
+    if (!razorpayInstance) {
+        razorpayInstance = createRazorpayInstance();
+    }
+    return razorpayInstance;
+};
 
 /**
  * Create payment order (SERVER DECIDES AMOUNT - NEVER TRUST CLIENT)
@@ -61,7 +68,29 @@ const createPaymentOrder = async (userId, storeId, planId) => {
     // 3. Generate idempotency key
     const idempotencyKey = `payment_${userId}_${planId}_${Date.now()}_${Math.random().toString(36).substring(7)}`;
 
-    // 4. Create payment record in our database FIRST (status: CREATED)
+    // 4. Create Razorpay order FIRST
+    let razorpayOrder;
+    try {
+        razorpayOrder = await getRazorpayInstance().orders.create({
+            amount: amountPaise,
+            currency: plan.currency,
+            receipt: `${storeId}_${Date.now()}`,
+            notes: {
+                store_id: storeId,
+                user_id: userId,
+                plan_id: planId,
+                plan_name: plan.name
+            }
+        });
+    } catch (error) {
+        throw new ApiError(
+            httpStatus.INTERNAL_SERVER_ERROR,
+            PAYMENT_ERROR_CODE.RAZORPAY_API_ERROR,
+            'Failed to create Razorpay order: ' + error.message
+        );
+    }
+
+    // 5. Create payment record in database with Razorpay order ID
     const payment = await prisma.payment.create({
         data: {
             storeId,
@@ -69,82 +98,40 @@ const createPaymentOrder = async (userId, storeId, planId) => {
             amount: parseFloat(plan.price),
             amountPaise,
             currency: plan.currency,
-            status: PAYMENT_STATUS.CREATED,
+            status: PAYMENT_STATUS.INITIATED,
+            razorpayOrderId: razorpayOrder.id,
             idempotencyKey,
             metadata: {
                 planId: plan.id,
                 planName: plan.name,
                 planDisplayName: plan.displayName,
                 billingCycle: plan.billingCycle,
-                vertical: plan.name.split('_')[0] // retail, wholesale, hospital
+                vertical: plan.name.split('_')[0]
             }
         }
     });
 
-    // 5. Log payment creation event
+    // 6. Log payment creation event
     await logPaymentEvent({
         paymentId: payment.id,
-        eventType: PAYMENT_EVENT_TYPE.ORDER_CREATED,
+        eventType: PAYMENT_EVENT_TYPE.RAZORPAY_ORDER_CREATED,
         eventSource: EVENT_SOURCE.SYSTEM,
         oldStatus: null,
-        newStatus: PAYMENT_STATUS.CREATED,
-        rawPayload: { planId, amountPaise, currency: plan.currency },
+        newStatus: PAYMENT_STATUS.INITIATED,
+        rawPayload: razorpayOrder,
         createdBy: userId
     });
 
-    // 6. Create Razorpay order
-    try {
-        const razorpayOrder = await razorpayInstance.orders.create({
-            amount: amountPaise,
-            currency: plan.currency,
-            receipt: payment.id, // Our internal payment ID
-            notes: {
-                payment_id: payment.id,
-                store_id: storeId,
-                user_id: userId,
-                plan_id: planId,
-                plan_name: plan.name
-            }
-        });
-
-        // 7. Update payment with Razorpay order ID (transition to INITIATED)
-        await transitionPaymentState({
-            paymentId: payment.id,
-            newStatus: PAYMENT_STATUS.INITIATED,
-            eventType: PAYMENT_EVENT_TYPE.RAZORPAY_ORDER_CREATED,
-            eventSource: EVENT_SOURCE.SYSTEM,
-            rawPayload: razorpayOrder,
-            createdBy: userId,
-            razorpayOrderId: razorpayOrder.id
-        });
-
-        // 8. Return ONLY data needed for frontend
-        return {
-            paymentId: payment.id,
-            razorpayOrderId: razorpayOrder.id,
-            amountPaise,
-            amountRupees: paiseToRupees(amountPaise),
-            currency: plan.currency,
-            planName: plan.displayName,
-            keyId: require('../config/razorpay.config').getPublicKey() // Frontend needs this for Razorpay checkout
-        };
-    } catch (error) {
-        // Mark payment as FAILED if Razorpay order creation fails
-        await transitionPaymentState({
-            paymentId: payment.id,
-            newStatus: PAYMENT_STATUS.FAILED,
-            eventType: PAYMENT_EVENT_TYPE.MANUAL_UPDATE,
-            eventSource: EVENT_SOURCE.SYSTEM,
-            rawPayload: { error: error.message },
-            createdBy: 'system'
-        });
-
-        throw new ApiError(
-            httpStatus.INTERNAL_SERVER_ERROR,
-            PAYMENT_ERROR_CODE.RAZORPAY_API_ERROR,
-            'Failed to create Razorpay order: ' + error.message
-        );
-    }
+    // 7. Return data for frontend
+    return {
+        paymentId: payment.id,
+        razorpayOrderId: razorpayOrder.id,
+        amountPaise,
+        amountRupees: paiseToRupees(amountPaise),
+        currency: plan.currency,
+        planName: plan.displayName,
+        keyId: require('../config/razorpay.config').getPublicKey()
+    };
 };
 
 /**
@@ -227,7 +214,7 @@ const verifyPaymentSignature = async (userId, razorpayOrderId, razorpayPaymentId
     }
 
     // 5. Fetch payment details from Razorpay to verify amount
-    const razorpayPayment = await razorpayInstance.payments.fetch(razorpayPaymentId);
+    const razorpayPayment = await getRazorpayInstance().payments.fetch(razorpayPaymentId);
 
     // 6. CRITICAL: Verify amount matches
     if (razorpayPayment.amount !== payment.amountPaise) {
