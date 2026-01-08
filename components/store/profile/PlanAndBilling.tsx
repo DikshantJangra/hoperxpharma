@@ -214,12 +214,21 @@ export default function PlanAndBilling() {
                                         <>
                                             <PaymentButton
                                                 amount={getVerticalPrice(vertical, false, true)}
+                                                planName={`HopeRx ${vertical.displayName} - ${billingCycle === 'yearly' ? 'Annual' : 'Monthly'}`}
                                                 user={{
                                                     firstName: user?.firstName,
                                                     lastName: user?.lastName,
                                                     email: user?.email,
                                                     phoneNumber: user?.phoneNumber,
                                                     storeId: store?.id || user?.storeUsers?.[0]?.storeId
+                                                }}
+                                                onSuccess={(paymentData) => {
+                                                    console.log('Payment successful:', paymentData);
+                                                    // Reload store data to reflect subscription change
+                                                    window.location.reload();
+                                                }}
+                                                onError={(error) => {
+                                                    console.error('Payment error:', error);
                                                 }}
                                                 className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2"
                                             />

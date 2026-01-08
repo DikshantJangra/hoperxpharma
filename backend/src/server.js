@@ -43,6 +43,11 @@ database.connect().then(() => {
     const schedulerService = require('./services/schedulerService');
     schedulerService.init();
 
+    // Initialize Payment Background Jobs
+    const { initializeJobs } = require('./jobs');
+    initializeJobs();
+    logger.info('✅ Payment background jobs initialized');
+
     // Start server
     const server = app.listen(PORT, '0.0.0.0', () => {
         logger.info(`Server is running on port http://localhost:${PORT}`);

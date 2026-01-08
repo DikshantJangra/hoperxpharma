@@ -10,7 +10,7 @@ datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
   directUrl = env("DIRECT_URL")
-  
+
   // Connection pooling configuration
   // Uses connection pooler for better performance
   // Direct URL used for migrations
@@ -118,6 +118,17 @@ enum PaymentMethod {
   CREDIT
 }
 
+enum PaymentStatus {
+  CREATED // Order created in our DB, no Razorpay order yet
+  INITIATED // Razorpay order created, user can pay
+  PROCESSING // Payment signature verified, awaiting webhook
+  SUCCESS // Webhook confirmed, subscription activated
+  FAILED // Payment failed or rejected
+  EXPIRED // User didn't complete payment in time
+  DISPUTED // Chargeback filed
+  REFUNDED // Payment refunded (full or partial)
+}
+
 enum InvoiceType {
   RECEIPT
   GST_INVOICE
@@ -186,7 +197,6 @@ enum AlertChannel {
   EMAIL
   SMS
 }
-
 
 enum GRNStatus {
   DRAFT
@@ -329,7 +339,7 @@ model MagicLink {
   id        String   @id @default(cuid())
   email     String
   token     String   @unique
-  userId    String?  // Optional - for existing users
+  userId    String? // Optional - for existing users
   expiresAt DateTime
   used      Boolean  @default(false)
 
@@ -516,23 +526,23 @@ model Store {
   roles          Role[] // Custom roles created by this store
 
   // Relations to other tables
-  patients        Patient[]
-  prescribers     Prescriber[]
-  prescriptions   Prescription[]
-  inventory       InventoryBatch[]
-  suppliers       Supplier[]
-  drugs           Drug[]
-  sales           Sale[]
-  saleDrafts      SaleDraft[]
-  saleRefunds     SaleRefund[]
-  purchaseOrders  PurchaseOrder[]
-  expenses        Expense[]
-  campaigns       Campaign[]
-  auditLogs       AuditLog[]
-  alerts          Alert[]
+  patients         Patient[]
+  prescribers      Prescriber[]
+  prescriptions    Prescription[]
+  inventory        InventoryBatch[]
+  suppliers        Supplier[]
+  drugs            Drug[]
+  sales            Sale[]
+  saleDrafts       SaleDraft[]
+  saleRefunds      SaleRefund[]
+  purchaseOrders   PurchaseOrder[]
+  expenses         Expense[]
+  campaigns        Campaign[]
+  auditLogs        AuditLog[]
+  alerts           Alert[]
   alertPreferences AlertPreference[]
-  returns         SupplierReturn[]
-  whatsappAccount WhatsAppAccount?
+  returns          SupplierReturn[]
+  whatsappAccount  WhatsAppAccount?
 
   // HR Relations
   attendanceLogs     AttendanceLog[]
@@ -673,21 +683,21 @@ model SubscriptionPlan {
 model Subscription {
   id      String             @id @default(cuid())
   storeId String             @unique
-  planId  String?            // Deprecated: kept for backward compatibility
+  planId  String? // Deprecated: kept for backward compatibility
   status  SubscriptionStatus @default(TRIAL)
 
   // NEW: Vertical-based subscription fields
-  activeVerticals  String[]  @default([])     // ["retail", "wholesale", "hospital"]
-  comboBundle      String?                     // "retail-wholesale", "complete-suite", etc.
-  monthlyAmount    Decimal?  @db.Decimal(10, 2) // Current billing amount
-  billingCycle     String    @default("monthly") // "monthly" | "yearly"
+  activeVerticals String[] @default([]) // ["retail", "wholesale", "hospital"]
+  comboBundle     String? // "retail-wholesale", "complete-suite", etc.
+  monthlyAmount   Decimal? @db.Decimal(10, 2) // Current billing amount
+  billingCycle    String   @default("monthly") // "monthly" | "yearly"
 
   trialEndsAt        DateTime?
   currentPeriodStart DateTime
   currentPeriodEnd   DateTime
   autoRenew          Boolean   @default(true)
 
-  store      Store            @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  store      Store             @relation(fields: [storeId], references: [id], onDelete: Cascade)
   plan       SubscriptionPlan? @relation(fields: [planId], references: [id])
   usageQuota UsageQuota?
   payments   Payment[]
@@ -715,29 +725,137 @@ model UsageQuota {
 }
 
 model Payment {
-  id          String   @id @default(cuid())
-  storeId     String
+  id             String  @id @default(cuid())
+  storeId        String
+  userId         String? // User who initiated payment
   subscriptionId String?
-  amount      Decimal  @db.Decimal(10, 2)
-  currency    String   @default("INR")
-  status      String   // PENDING, COMPLETED, FAILED
-  method      String?  // UPI, etc.
-  
-  // Razorpay specific
-  razorpayOrderId   String   @unique
-  razorpayPaymentId String?  @unique
-  razorpaySignature String?
-  
-  metadata    Json?    // Any extra info
-  
-  store         Store         @relation(fields: [storeId], references: [id])
-  subscription  Subscription? @relation(fields: [subscriptionId], references: [id])
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
+
+  // Financial data (immutable after creation)
+  amountPaise Int // Amount in paise (₹1 = 100 paise) for precision
+  currency    String @default("INR")
+
+  // State management
+  status PaymentStatus @default(CREATED)
+
+  // Payment method (updated after completion)
+  method String? // UPI, Card, NetBanking, Wallet
+
+  // Razorpay identifiers
+  razorpayOrderId   String? @unique // Created after INITIATED
+  razorpayPaymentId String? @unique // Received after payment attempt
+  razorpaySignature String? // Signature for verification
+
+  // Idempotency & retry protection
+  idempotencyKey String? @unique // Prevent duplicate processing
+
+  // Metadata (plan details, notes)
+  metadata Json? // { planId, planName, billingCycle, etc }
+
+  // Audit timestamps
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime? // When payment reached SUCCESS/FAILED
+
+  // Relations
+  store        Store          @relation(fields: [storeId], references: [id])
+  subscription Subscription?  @relation(fields: [subscriptionId], references: [id])
+  events       PaymentEvent[]
+
   @@index([storeId])
+  @@index([userId])
+  @@index([status])
   @@index([razorpayOrderId])
+  @@index([razorpayPaymentId])
+  @@index([createdAt])
+}
+
+// Immutable audit log of all payment state transitions
+model PaymentEvent {
+  id        String @id @default(cuid())
+  paymentId String
+
+  eventType   String // order_created, signature_verified, payment_captured, etc.
+  eventSource String // system, razorpay_webhook, manual, reconciliation
+
+  oldStatus PaymentStatus?
+  newStatus PaymentStatus?
+
+  // Store complete event payload for debugging
+  rawPayload Json?
+
+  // Audit trail
+  createdAt DateTime @default(now())
+  createdBy String? // User ID or 'system'
+
+  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@index([paymentId])
+  @@index([eventType])
+  @@index([createdAt])
+}
+
+// Store raw webhook events for idempotency and debugging
+model WebhookEvent {
+  id String @id @default(cuid())
+
+  // Razorpay event identifiers
+  razorpayEventId String @unique // From payload (payment.id or order.id)
+  eventType       String // payment.captured, payment.failed, etc.
+
+  // Webhook data
+  signature  String // x-razorpay-signature header
+  rawPayload Json // Complete webhook body
+
+  // Processing status
+  processed       Boolean   @default(false)
+  processedAt     DateTime?
+  processingError String? // Error message if processing failed
+
+  // Audit
+  receivedAt DateTime @default(now())
+
+  @@index([razorpayEventId])
+  @@index([eventType])
+  @@index([processed])
+  @@index([receivedAt])
+}
+
+// Track payment reconciliation attempts for stuck payments
+model PaymentReconciliation {
+  id        String @id @default(cuid())
+  paymentId String
+
+  attemptNumber Int // 1, 2, 3...
+  status        String // checking, resolved, failed
+
+  // Razorpay API response
+  razorpayStatus String? // From Razorpay.payments.fetch()
+  apiResponse    Json?
+
+  resolution String? // marked_success, marked_failed, still_pending
+  notes      String? // Manual notes from admin
+
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+
+  @@index([paymentId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+// Idempotency cache for API endpoints
+model IdempotencyCache {
+  id String @id @default(cuid())
+
+  key          String @unique // Idempotency-Key header value
+  statusCode   Int // HTTP status code of cached response
+  responseBody Json // Cached response
+
+  createdAt DateTime @default(now())
+  expiresAt DateTime // Cache for 24 hours
+
+  @@index([key])
+  @@index([expiresAt])
 }
 
 // ============================================================================
@@ -2070,8 +2188,8 @@ model Sale {
   paymentSplits      PaymentSplit[]
   refunds            SaleRefund[]
 
-  balance       Decimal             @default(0.00) @db.Decimal(10, 2)
-  paymentStatus PaymentStatus       @default(PAID)
+  balance       Decimal              @default(0.00) @db.Decimal(10, 2)
+  paymentStatus InvoicePaymentStatus @default(PAID)
   allocations   InvoiceAllocation[]
 
   createdAt DateTime  @default(now())
@@ -2093,7 +2211,7 @@ model Sale {
   @@index([gstrCategory])
 }
 
-enum PaymentStatus {
+enum InvoicePaymentStatus {
   PAID
   PARTIAL
   UNPAID
@@ -2969,45 +3087,45 @@ model AccessLog {
 }
 
 model Alert {
-  id          String        @id @default(cuid())
-  storeId     String
-  
+  id      String @id @default(cuid())
+  storeId String
+
   // Classification
-  type        String // inventory, compliance, workflow, system (DEPRECATED - use category)
-  category    AlertCategory @default(INVENTORY)
-  severity    AlertSeverity
-  priority    AlertPriority @default(MEDIUM)
-  
+  type     String // inventory, compliance, workflow, system (DEPRECATED - use category)
+  category AlertCategory @default(INVENTORY)
+  severity AlertSeverity
+  priority AlertPriority @default(MEDIUM)
+
   // Content
   title       String
-  description String        @db.Text
+  description String @db.Text
   source      String
-  
+
   // Status tracking
-  status      AlertStatus   @default(NEW)
-  
+  status AlertStatus @default(NEW)
+
   // Entity reference (what triggered this alert)
   relatedType String?
   relatedId   String?
-  
+
   // Actions
   actionUrl   String? // Deep link to resolve (e.g., /inventory/batches/:id)
   actionLabel String? // Button text (e.g., "View Batch")
   blockAction Boolean @default(false) // If true, blocks operation until resolved
-  
+
   // Metadata
-  metadata    Json? // Event-specific data (batch details, stock levels, etc.)
-  channels    AlertChannel[] @default([IN_APP]) // Delivery channels
-  
+  metadata Json? // Event-specific data (batch details, stock levels, etc.)
+  channels AlertChannel[] @default([IN_APP]) // Delivery channels
+
   // User interaction tracking
-  seenAt      DateTime?
-  seenBy      String? // User ID who viewed it
-  
+  seenAt DateTime?
+  seenBy String? // User ID who viewed it
+
   resolvedBy  String?
   resolvedAt  DateTime?
   snoozeUntil DateTime?
   expiresAt   DateTime? // Auto-dismiss after this time
-  
+
   store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
@@ -3022,26 +3140,26 @@ model Alert {
 }
 
 model AlertPreference {
-  id          String          @id @default(cuid())
-  userId      String
-  storeId     String
-  category    AlertCategory
-  channels    AlertChannel[]  @default([IN_APP])
-  enabled     Boolean         @default(true)
-  
+  id       String         @id @default(cuid())
+  userId   String
+  storeId  String
+  category AlertCategory
+  channels AlertChannel[] @default([IN_APP])
+  enabled  Boolean        @default(true)
+
   // Quiet hours (HH:MM format in 24h, e.g., "22:00" to "08:00")
-  quietHoursStart  String?
-  quietHoursEnd    String?
-  
+  quietHoursStart String?
+  quietHoursEnd   String?
+
   // Digest mode: batch low-priority alerts into daily summary
-  digestMode  Boolean         @default(false)
-  
+  digestMode Boolean @default(false)
+
   user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
   store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
+
   @@unique([userId, storeId, category])
   @@index([userId, storeId])
 }
@@ -3209,29 +3327,29 @@ model AvatarObject {
 // ============================================================================
 
 model EmailAccount {
-  id                    String    @id @default(cuid())
-  storeId               String
-  email                 String
-  provider              String
-  authMethod            String    @default("SMTP")  // "SMTP" or "OAUTH"
-  
+  id         String @id @default(cuid())
+  storeId    String
+  email      String
+  provider   String
+  authMethod String @default("SMTP") // "SMTP" or "OAUTH"
+
   // SMTP fields (optional - only for SMTP auth)
   smtpHost              String?
   smtpPort              Int?
   smtpUser              String?
-  smtpPasswordEncrypted String?   @db.Text
-  useTLS                Boolean   @default(true)
-  
+  smtpPasswordEncrypted String? @db.Text
+  useTLS                Boolean @default(true)
+
   // OAuth fields (for Gmail OAuth)
-  gmailRefreshToken     String?   @db.Text  // Encrypted
-  gmailAccessToken      String?   @db.Text  // Encrypted
-  gmailTokenExpiry      DateTime?
-  oauthConnectedAt      DateTime?
-  
-  isPrimary             Boolean   @default(false)
-  isVerified            Boolean   @default(false)
-  isActive              Boolean   @default(true)
-  lastTestedAt          DateTime?
+  gmailRefreshToken String?   @db.Text // Encrypted
+  gmailAccessToken  String?   @db.Text // Encrypted
+  gmailTokenExpiry  DateTime?
+  oauthConnectedAt  DateTime?
+
+  isPrimary    Boolean   @default(false)
+  isVerified   Boolean   @default(false)
+  isActive     Boolean   @default(true)
+  lastTestedAt DateTime?
 
   store      Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
   sentEmails EmailLog[]
@@ -3415,22 +3533,22 @@ model LoyaltyReward {
 // ============================================================================
 
 model PlatformEmailConfig {
-  id                    String    @id @default("platform_email")
-  
+  id String @id @default("platform_email")
+
   // Auth method: "OAUTH" only
-  authMethod            String    @default("OAUTH")
-  
+  authMethod String @default("OAUTH")
+
   // OAuth fields (new)
-  gmailEmail            String?   // Connected Gmail address
-  gmailRefreshToken     String?   @db.Text // Encrypted
-  gmailAccessToken      String?   @db.Text // Encrypted
-  gmailTokenExpiry      DateTime?
-  connectedAt           DateTime?
-  
+  gmailEmail        String? // Connected Gmail address
+  gmailRefreshToken String?   @db.Text // Encrypted
+  gmailAccessToken  String?   @db.Text // Encrypted
+  gmailTokenExpiry  DateTime?
+  connectedAt       DateTime?
+
   // Status
-  isActive              Boolean   @default(false)
-  lastTestedAt          DateTime?
-  lastTestResult        Boolean?
+  isActive       Boolean   @default(false)
+  lastTestedAt   DateTime?
+  lastTestResult Boolean?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

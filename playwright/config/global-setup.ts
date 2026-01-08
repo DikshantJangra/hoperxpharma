@@ -25,7 +25,7 @@ async function globalSetup() {
 
     // Check if backend is running
     try {
-        const response = await fetch(`${env.apiURL}/health`, {
+        const response = await fetch(`${env.apiURL}/api/v1/health`, {
             method: 'GET',
             signal: AbortSignal.timeout(5000),
         });

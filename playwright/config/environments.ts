@@ -30,7 +30,7 @@ const environments: Record<string, Environment> = {
     development: {
         name: 'development',
         baseURL: 'http://localhost:3000',
-        apiURL: 'http://localhost:5000',
+        apiURL: 'http://localhost:8000',
         databaseURL: process.env.TEST_DATABASE_URL,
         auth: {
             testUser: {
