@@ -48,7 +48,7 @@ jobs:
         run: |
           cd backend
           npx prisma generate
-          npx prisma db push --skip-generate
+          npx prisma migrate deploy || npx prisma db push --accept-data-loss --skip-generate
 
       - name: Build application
         run: npm run build
@@ -94,14 +94,8 @@ jobs:
           path: test-results/
           retention-days: 7
 
-      - name: Publish test results
-        uses: dorny/test-reporter@v1
-        if: always()
-        with:
-          name: Playwright Test Results
-          path: playwright-report/results.json
-          reporter: mocha-json
-          fail-on-error: false
+      # Test results are available in the HTML report artifact
+      # No need for additional reporter since Playwright generates comprehensive reports
 
       - name: Comment PR with results
         uses: daun/playwright-report-comment@v3
@@ -110,9 +104,10 @@ jobs:
           report-folder: playwright-report
 
       - name: Slack notification on failure
-        if: failure()
+        if: failure() && github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         uses: slackapi/slack-github-action@v1
         with:
+          webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
           payload: |
             {
               "text": "❌ Playwright tests failed",
@@ -126,5 +121,3 @@ jobs:
                 }
               ]
             }
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
