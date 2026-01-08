@@ -1,25 +1,2569 @@
-// HopeRxPharma - Complete Database Schema
-// 68 Tables - Optimized with API-First Approach
-// Generated: 2025-11-23
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
-
-  // Connection pooling configuration
-  // Uses connection pooler for better performance
-  // Direct URL used for migrations
+  provider     = "postgresql"
+  url          = env("DATABASE_URL")
+  directUrl    = env("DIRECT_URL")
   relationMode = "prisma"
 }
 
-// ============================================================================
-// ENUMS
-// ============================================================================
+model User {
+  id                    String                @id @default(cuid())
+  email                 String                @unique
+  phoneNumber           String                @unique
+  passwordHash          String
+  firstName             String
+  lastName              String
+  role                  UserRole              @default(PHARMACIST)
+  approvalPin           String?
+  isActive              Boolean               @default(true)
+  pinHash               String?
+  pinAttempts           Int                   @default(0)
+  pinLockedUntil        DateTime?
+  lastLoginAt           DateTime?
+  faceDataUrl           String?
+  hourlyRate            Decimal?              @db.Decimal(10, 2)
+  monthlyRate           Decimal?              @db.Decimal(10, 2)
+  shiftId               String?
+  joiningDate           DateTime?
+  emergencyContactName  String?
+  emergencyContactPhone String?
+  employeeId            String?               @unique
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  deletedAt             DateTime?
+  signatureUrl          String?
+  preferences           Json?
+  storeUsers            StoreUser[]
+  auditLogs             AuditLog[]
+  accessLogs            AccessLog[]
+  onboarding            OnboardingProgress?
+  returnsRequested      SupplierReturn[]      @relation("ReturnRequester")
+  returnsApproved       SupplierReturn[]      @relation("ReturnApprover")
+  userRoles             UserRoleAssignment[]
+  adminPin              AdminPin?
+  grns                  GoodsReceivedNote[]
+  savedFilters          SavedFilter[]
+  avatars               UserAvatar[]
+  alertPreferences      AlertPreference[]
+  attendanceLogs        AttendanceLog[]
+  documents             StaffDocument[]
+  performanceMetrics    PerformanceMetric[]
+  shift                 Shift?                @relation(fields: [shiftId], references: [id])
+  ConsolidatedInvoice   ConsolidatedInvoice[]
+
+  @@index([email])
+  @@index([phoneNumber])
+  @@index([deletedAt])
+}
+
+model OnboardingProgress {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  currentStep    Int      @default(1)
+  completedSteps Int[]
+  data           Json
+  isComplete     Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  mode           String?
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model MagicLink {
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  userId    String?
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([email])
+  @@index([token])
+  @@index([expiresAt])
+}
+
+model Role {
+  id          String               @id @default(cuid())
+  name        String               @unique
+  description String?
+  builtIn     Boolean              @default(false)
+  category    String?
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  storeId     String?
+  permissions RolePermission[]
+  userRoles   UserRoleAssignment[]
+  store       Store?               @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([builtIn])
+  @@index([category])
+  @@index([storeId])
+}
+
+model Permission {
+  id          String           @id @default(cuid())
+  code        String           @unique
+  name        String
+  description String?
+  category    String
+  resource    String?
+  createdAt   DateTime         @default(now())
+  roles       RolePermission[]
+
+  @@index([category])
+  @@index([resource])
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model StoreUser {
+  userId     String
+  storeId    String
+  isPrimary  Boolean  @default(false)
+  assignedAt DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  store      Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@id([userId, storeId])
+  @@index([storeId])
+}
+
+model UserRoleAssignment {
+  id         String   @id @default(cuid())
+  userId     String
+  roleId     String
+  storeId    String?
+  assignedAt DateTime @default(now())
+  assignedBy String?
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role       Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  store      Store?   @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId, storeId])
+  @@index([userId])
+  @@index([roleId])
+  @@index([storeId])
+}
+
+model AdminPin {
+  id             String    @id @default(cuid())
+  userId         String    @unique
+  pinHash        String
+  salt           String
+  failedAttempts Int       @default(0)
+  lockedUntil    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  lastUsedAt     DateTime?
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model BusinessTypeConfig {
+  id                 String   @id @default(cuid())
+  businessType       String   @unique
+  featureConfig      Json
+  enabledSections    String[]
+  defaultPermissions String[]
+  description        String?
+  icon               String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([businessType])
+}
+
+model Store {
+  id                  String                @id @default(cuid())
+  name                String
+  displayName         String
+  email               String                @unique
+  phoneNumber         String
+  businessType        String?
+  logoUrl             String?
+  addressLine1        String
+  addressLine2        String?
+  city                String
+  state               String
+  pinCode             String
+  landmark            String?
+  is24x7              Boolean               @default(false)
+  homeDelivery        Boolean               @default(false)
+  latitude            Float?
+  longitude           Float?
+  geofenceRadius      Int?                  @default(50)
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  deletedAt           DateTime?
+  dlNumber            String?
+  gstin               String?
+  whatsapp            String?
+  pan                 String?
+  featureOverrides    Json?
+  bankDetails         Json?
+  jurisdiction        String?
+  signatureUrl        String?
+  termsAndConditions  String?
+  whatsappMode        String?
+  isDemo              Boolean               @default(false)
+  users               StoreUser[]
+  licenses            StoreLicense[]
+  operatingHours      StoreOperatingHours[]
+  devices             HardwareDevice[]
+  subscription        Subscription?
+  userRoles           UserRoleAssignment[]
+  roles               Role[]
+  patients            Patient[]
+  prescribers         Prescriber[]
+  prescriptions       Prescription[]
+  inventory           InventoryBatch[]
+  suppliers           Supplier[]
+  drugs               Drug[]
+  sales               Sale[]
+  saleDrafts          SaleDraft[]
+  saleRefunds         SaleRefund[]
+  purchaseOrders      PurchaseOrder[]
+  expenses            Expense[]
+  campaigns           Campaign[]
+  auditLogs           AuditLog[]
+  alerts              Alert[]
+  alertPreferences    AlertPreference[]
+  returns             SupplierReturn[]
+  whatsappAccount     WhatsAppAccount?
+  attendanceLogs      AttendanceLog[]
+  shifts              Shift[]
+  performanceMetrics  PerformanceMetric[]
+  settings            StoreSettings?
+  ConsolidatedInvoice ConsolidatedInvoice[]
+  ledger              CustomerLedger[]
+  emailAccounts       EmailAccount[]
+  payments            Payment[]
+
+  @@index([email])
+  @@index([deletedAt])
+}
+
+model StoreLicense {
+  id          String   @id @default(cuid())
+  storeId     String
+  type        String
+  number      String
+  validFrom   DateTime
+  validTo     DateTime
+  documentUrl String?
+  status      String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  store       Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, type])
+  @@index([validTo])
+}
+
+model StoreOperatingHours {
+  id         String  @id @default(cuid())
+  storeId    String
+  dayOfWeek  Int
+  openTime   String
+  closeTime  String
+  isClosed   Boolean @default(false)
+  lunchStart String?
+  lunchEnd   String?
+  store      Store   @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, dayOfWeek])
+}
+
+model StoreSettings {
+  id                  String   @id @default(cuid())
+  storeId             String   @unique
+  lowStockThreshold   Int      @default(10)
+  nearExpiryThreshold Int      @default(90)
+  defaultUoM          String   @default("Units")
+  defaultGSTSlab      String   @default("12")
+  batchTracking       Boolean  @default(true)
+  autoGenerateCodes   Boolean  @default(true)
+  purchaseRounding    Boolean  @default(true)
+  allowNegativeStock  Boolean  @default(false)
+  invoiceFormat       String   @default("INV-{YY}{MM}-{SEQ:4}")
+  paymentMethods      String   @default("Cash")
+  billingType         String   @default("MRP-based")
+  printFormat         String   @default("Thermal")
+  footerText          String   @default("Thank you for your business!")
+  autoRounding        Boolean  @default(true)
+  defaultCustomerType String   @default("Walk-in")
+  enableGSTBilling    Boolean  @default(true)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  workbenchMode       String   @default("SIMPLE")
+  upiId               String?
+  store               Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId])
+}
+
+model HardwareDevice {
+  id              String    @id @default(cuid())
+  storeId         String
+  name            String
+  type            String
+  serialNumber    String?
+  ipAddress       String?
+  macAddress      String?
+  status          String
+  lastPingAt      DateTime?
+  firmwareVersion String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  store           Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, status])
+}
+
+model SubscriptionPlan {
+  id                String         @id @default(cuid())
+  name              String         @unique
+  displayName       String
+  description       String?
+  price             Decimal        @db.Decimal(10, 2)
+  currency          String         @default("INR")
+  billingCycle      String
+  patientLimit      Int?
+  prescriptionLimit Int?
+  storageLimit      Int?
+  multiStore        Boolean        @default(false)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  subscriptions     Subscription[]
+}
+
+model Subscription {
+  id                 String             @id @default(cuid())
+  storeId            String             @unique
+  planId             String?
+  status             SubscriptionStatus @default(TRIAL)
+  trialEndsAt        DateTime?
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  autoRenew          Boolean            @default(true)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  activeVerticals    String[]           @default([])
+  billingCycle       String             @default("monthly")
+  comboBundle        String?
+  monthlyAmount      Decimal?           @db.Decimal(10, 2)
+  store              Store              @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  plan               SubscriptionPlan?  @relation(fields: [planId], references: [id])
+  usageQuota         UsageQuota?
+  payments           Payment[]
+
+  @@index([status])
+  @@index([currentPeriodEnd])
+}
+
+model UsageQuota {
+  id                    String       @id @default(cuid())
+  subscriptionId        String       @unique
+  patientCountUsed      Int          @default(0)
+  prescriptionCountUsed Int          @default(0)
+  storageMbUsed         Int          @default(0)
+  resetsAt              DateTime
+  updatedAt             DateTime     @updatedAt
+  subscription          Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+}
+
+model Payment {
+  id                String         @id @default(cuid())
+  storeId           String
+  subscriptionId    String?
+  amount            Decimal        @db.Decimal(10, 2)
+  currency          String         @default("INR")
+  status            String
+  method            String?
+  razorpayOrderId   String         @unique
+  razorpayPaymentId String?        @unique
+  razorpaySignature String?
+  metadata          Json?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  amountPaise       Int
+  userId            String?
+  idempotencyKey    String?
+  completedAt       DateTime?
+  store             Store          @relation(fields: [storeId], references: [id])
+  subscription      Subscription?  @relation(fields: [subscriptionId], references: [id])
+  events            PaymentEvent[]
+
+  @@index([storeId])
+  @@index([razorpayOrderId])
+}
+
+model PaymentEvent {
+  id          String   @id @default(cuid())
+  paymentId   String
+  eventType   String
+  eventSource String
+  oldStatus   String?
+  newStatus   String
+  rawPayload  Json?
+  createdAt   DateTime @default(now())
+  createdBy   String
+  payment     Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+
+  @@unique([paymentId, createdAt])
+  @@index([paymentId])
+  @@index([eventType])
+}
+
+model WebhookEvent {
+  id              String    @id @default(cuid())
+  razorpayEventId String    @unique
+  eventType       String
+  signature       String
+  rawPayload      Json
+  processed       Boolean   @default(false)
+  processingError String?
+  receivedAt      DateTime  @default(now())
+  processedAt     DateTime?
+
+  @@index([eventType, processed])
+}
+
+model PaymentReconciliation {
+  id             String   @id @default(cuid())
+  paymentId      String
+  attemptNumber  Int
+  status         String
+  razorpayStatus String?
+  apiResponse    Json?
+  resolution     String?
+  notes          String?
+  attemptedAt    DateTime @default(now())
+
+  @@index([paymentId])
+}
+
+model IdempotencyCache {
+  id           String   @id @default(cuid())
+  key          String   @unique
+  statusCode   Int
+  responseBody Json
+  createdAt    DateTime @default(now())
+  expiresAt    DateTime
+}
+
+model Patient {
+  id                    String             @id @default(cuid())
+  storeId               String
+  firstName             String
+  middleName            String?
+  lastName              String
+  dateOfBirth           DateTime?
+  gender                String?
+  photoUrl              String?
+  phoneNumber           String
+  email                 String?
+  addressLine1          String?
+  addressLine2          String?
+  city                  String?
+  state                 String?
+  pinCode               String?
+  bloodGroup            String?
+  allergies             String[]
+  chronicConditions     String[]
+  emergencyContactName  String?
+  emergencyContactPhone String?
+  createdAt             DateTime           @default(now())
+  updatedAt             DateTime           @updatedAt
+  deletedAt             DateTime?
+  deletedBy             String?
+  creditLimit           Decimal            @default(0.00) @db.Decimal(10, 2)
+  currentBalance        Decimal            @default(0.00) @db.Decimal(10, 2)
+  relatedTo             PatientRelation[]  @relation("SourcePatient")
+  relatedFrom           PatientRelation[]  @relation("RelatedPatient")
+  store                 Store              @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  prescriptions         Prescription[]
+  sales                 Sale[]
+  dispensedSales        Sale[]             @relation("DispenseFor")
+  consents              PatientConsent[]
+  insurance             PatientInsurance[]
+  adherence             PatientAdherence[]
+  auditLogs             PatientAudit[]
+  ledger                CustomerLedger[]
+  loyaltyProfile        LoyaltyProfile?
+
+  @@index([storeId, phoneNumber])
+  @@index([storeId, email])
+  @@index([storeId, lastName, firstName])
+  @@index([storeId, deletedAt])
+}
+
+model SavedFilter {
+  id           String   @id @default(cuid())
+  name         String
+  userId       String
+  filters      Json
+  type         String   @default("filter")
+  alertEnabled Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
+}
+
+model PatientConsent {
+  id                  String    @id @default(cuid())
+  patientId           String
+  type                String
+  status              String
+  grantedDate         DateTime  @default(now())
+  expiryDate          DateTime?
+  digitalSignatureUrl String?
+  patient             Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId, type])
+}
+
+model PatientInsurance {
+  id           String   @id @default(cuid())
+  patientId    String
+  provider     String
+  policyNumber String
+  groupNumber  String?
+  validUntil   DateTime
+  status       String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  patient      Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+}
+
+model PatientAdherence {
+  id                 String    @id @default(cuid())
+  patientId          String
+  prescriptionId     String
+  expectedRefillDate DateTime
+  actualRefillDate   DateTime?
+  adherenceRate      Float
+  createdAt          DateTime  @default(now())
+  patient            Patient   @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([expectedRefillDate])
+}
+
+model InteractionCheckLog {
+  id              String   @id @default(cuid())
+  storeId         String
+  prescriptionId  String?
+  checkedBy       String
+  drugIds         String[]
+  hasInteractions Boolean
+  severity        String?
+  apiResponse     Json?
+  createdAt       DateTime @default(now())
+
+  @@index([storeId, prescriptionId])
+}
+
+model CustomerLedger {
+  id            String              @id @default(cuid())
+  storeId       String
+  patientId     String
+  type          LedgerType
+  amount        Decimal             @db.Decimal(10, 2)
+  balanceAfter  Decimal             @db.Decimal(10, 2)
+  referenceType LedgerReferenceType
+  referenceId   String?
+  notes         String?
+  createdBy     String?
+  createdAt     DateTime            @default(now())
+  patient       Patient             @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  store         Store               @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  allocations   InvoiceAllocation[]
+
+  @@index([patientId])
+  @@index([storeId])
+  @@index([createdAt])
+}
+
+model Drug {
+  id                       String                    @id @default(cuid())
+  rxcui                    String?
+  name                     String
+  genericName              String?
+  strength                 String?
+  form                     String?
+  manufacturer             String?
+  schedule                 String?
+  hsnCode                  String?
+  gstRate                  Decimal                   @default(0) @db.Decimal(5, 2)
+  requiresPrescription     Boolean                   @default(false)
+  defaultUnit              String?
+  lowStockThreshold        Int?
+  description              String?
+  lastSyncedAt             DateTime?
+  createdAt                DateTime                  @default(now())
+  updatedAt                DateTime                  @updatedAt
+  storeId                  String
+  hsnCodeId                String?
+  hsnCodeRef               HsnCode?                  @relation(fields: [hsnCodeId], references: [id])
+  store                    Store                     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  inventory                InventoryBatch[]
+  prescriptionItems        PrescriptionItem[]
+  poItems                  PurchaseOrderItem[]
+  saleItems                SaleItem[]
+  returnItems              SupplierReturnItem[]
+  grnItems                 GRNItem[]
+  prescriptionItemVersions PrescriptionItemVersion[]
+
+  @@index([name])
+  @@index([hsnCode])
+  @@index([hsnCodeId])
+  @@index([storeId])
+  @@index([storeId, name])
+  @@index([storeId, hsnCode])
+}
+
+model TaxSlab {
+  id        String    @id @default(cuid())
+  storeId   String?
+  name      String
+  rate      Decimal   @db.Decimal(5, 2)
+  taxType   String
+  isActive  Boolean   @default(true)
+  isSplit   Boolean   @default(true)
+  cgstRate  Decimal?  @db.Decimal(5, 2)
+  sgstRate  Decimal?  @db.Decimal(5, 2)
+  igstRate  Decimal?  @db.Decimal(5, 2)
+  cessRate  Decimal?  @db.Decimal(5, 2)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  hsnCodes  HsnCode[]
+
+  @@unique([storeId, name])
+  @@index([storeId, isActive])
+}
+
+model HsnCode {
+  id          String   @id @default(cuid())
+  storeId     String?
+  code        String
+  description String
+  taxSlabId   String
+  category    String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  taxSlab     TaxSlab  @relation(fields: [taxSlabId], references: [id])
+  drugs       Drug[]
+
+  @@unique([storeId, code])
+  @@index([code])
+  @@index([category])
+}
+
+model TaxRate {
+  id          String   @id @default(cuid())
+  hsnCode     String   @unique
+  gstRate     Decimal  @db.Decimal(5, 2)
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model InventoryBatch {
+  id                       String                    @id @default(cuid())
+  storeId                  String
+  drugId                   String
+  batchNumber              String
+  expiryDate               DateTime
+  quantityInStock          Int
+  mrp                      Decimal                   @db.Decimal(10, 2)
+  purchasePrice            Decimal                   @db.Decimal(10, 2)
+  supplierId               String?
+  location                 String?
+  createdAt                DateTime                  @default(now())
+  updatedAt                DateTime                  @updatedAt
+  deletedAt                DateTime?
+  store                    Store                     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  drug                     Drug                      @relation(fields: [drugId], references: [id])
+  movements                StockMovement[]
+  dispenseItems            DispenseItem[]
+  saleItems                SaleItem[]
+  PrescriptionItem         PrescriptionItem[]
+  prescriptionItemVersions PrescriptionItemVersion[]
+
+  @@unique([storeId, batchNumber, drugId])
+  @@index([storeId, drugId])
+  @@index([storeId, expiryDate, quantityInStock])
+  @@index([drugId, expiryDate])
+  @@index([supplierId, createdAt])
+  @@index([batchNumber])
+  @@index([storeId, deletedAt])
+}
+
+model StockMovement {
+  id            String         @id @default(cuid())
+  batchId       String
+  movementType  String
+  quantity      Int
+  reason        String?
+  referenceType String?
+  referenceId   String?
+  userId        String?
+  createdAt     DateTime       @default(now())
+  batch         InventoryBatch @relation(fields: [batchId], references: [id])
+
+  @@index([batchId, createdAt])
+  @@index([referenceType, referenceId])
+  @@index([userId, createdAt])
+}
+
+model StockAdjustment {
+  id               String   @id @default(cuid())
+  storeId          String
+  batchId          String
+  quantityAdjusted Int
+  reason           String
+  userId           String
+  createdAt        DateTime @default(now())
+
+  @@index([storeId, createdAt])
+}
+
+model StockAlert {
+  id           String    @id @default(cuid())
+  storeId      String
+  drugId       String
+  alertType    String
+  threshold    Int?
+  currentValue Int?
+  status       String
+  createdAt    DateTime  @default(now())
+  resolvedAt   DateTime?
+
+  @@index([storeId, status])
+}
+
+model InventoryCount {
+  id            String    @id @default(cuid())
+  storeId       String
+  countDate     DateTime
+  countedBy     String
+  status        String
+  notes         String?
+  discrepancies Json?
+  completedAt   DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([storeId, countDate])
+}
+
+model InventoryForecast {
+  id              String   @id @default(cuid())
+  storeId         String
+  drugId          String
+  forecastDate    DateTime
+  predictedDemand Int
+  confidence      Float
+  algorithm       String
+  createdAt       DateTime @default(now())
+
+  @@unique([storeId, drugId, forecastDate])
+  @@index([storeId, forecastDate])
+}
+
+model Prescription {
+  id                 String                @id @default(cuid())
+  storeId            String
+  patientId          String
+  prescriberId       String?
+  source             String                @default("manual")
+  priority           String                @default("Normal")
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+  deletedAt          DateTime?
+  notes              String?
+  controlledFlag     Boolean               @default(false)
+  eRxId              String?
+  eRxMetadata        Json?
+  nextRefillDue      DateTime?
+  ocrConfidence      Float?
+  ocrText            String?
+  reminderSent       DateTime?
+  uploadedImages     String[]
+  prescriptionNumber String
+  type               PrescriptionType      @default(REGULAR)
+  issueDate          DateTime              @default(now())
+  expiryDate         DateTime
+  totalRefills       Int                   @default(0)
+  status             PrescriptionStatus    @default(DRAFT)
+  store              Store                 @relation(fields: [storeId], references: [id])
+  patient            Patient               @relation(fields: [patientId], references: [id])
+  prescriber         Prescriber?           @relation(fields: [prescriberId], references: [id])
+  versions           PrescriptionVersion[]
+  refills            Refill[]
+  files              PrescriptionFile[]
+  sales              Sale[]
+  prescriptionItems  PrescriptionItem[]
+  dispenseEvents     DispenseEvent[]
+
+  @@unique([storeId, prescriptionNumber])
+  @@index([storeId, status, expiryDate])
+  @@index([patientId, status, createdAt])
+  @@index([prescriberId, createdAt])
+  @@index([storeId])
+  @@index([patientId])
+  @@index([prescriberId])
+  @@index([status])
+  @@index([type])
+  @@index([createdAt])
+  @@index([deletedAt])
+}
+
+model PrescriptionItem {
+  id                 String          @id @default(cuid())
+  prescriptionId     String
+  drugId             String
+  quantityPrescribed Int
+  sig                String?
+  daysSupply         Int?
+  isControlled       Boolean         @default(false)
+  batchId            String?
+  prescription       Prescription    @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  drug               Drug            @relation(fields: [drugId], references: [id])
+  batch              InventoryBatch? @relation(fields: [batchId], references: [id])
+  refillItems        RefillItem[]
+
+  @@index([prescriptionId])
+  @@index([batchId])
+}
+
+model Prescriber {
+  id            String         @id @default(cuid())
+  name          String
+  licenseNumber String
+  clinic        String?
+  phoneNumber   String?
+  email         String?
+  specialty     String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  storeId       String
+  store         Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  prescriptions Prescription[]
+
+  @@unique([storeId, licenseNumber])
+  @@index([storeId])
+  @@index([licenseNumber])
+  @@index([name])
+  @@index([clinic])
+  @@index([storeId, name])
+}
+
+model PrescriptionVersion {
+  id                String                    @id @default(cuid())
+  prescriptionId    String
+  versionNumber     Int
+  instructions      String?
+  substitutionNotes String?
+  attachments       Json?
+  changedReason     String?
+  createdBy         String
+  createdAt         DateTime                  @default(now())
+  prescription      Prescription              @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  items             PrescriptionItemVersion[]
+  dispenses         Dispense[]
+
+  @@unique([prescriptionId, versionNumber])
+  @@index([prescriptionId])
+  @@index([createdAt])
+}
+
+model PrescriptionItemVersion {
+  id                    String              @id @default(cuid())
+  prescriptionVersionId String
+  drugId                String
+  batchId               String?
+  quantityPrescribed    Int
+  sig                   String?
+  daysSupply            Int?
+  substitutionAllowed   Boolean             @default(true)
+  isControlled          Boolean             @default(false)
+  refillsAllowed        Int                 @default(0)
+  prescriptionVersion   PrescriptionVersion @relation(fields: [prescriptionVersionId], references: [id], onDelete: Cascade)
+  drug                  Drug                @relation(fields: [drugId], references: [id])
+  batch                 InventoryBatch?     @relation(fields: [batchId], references: [id])
+
+  @@index([prescriptionVersionId])
+  @@index([drugId])
+  @@index([batchId])
+}
+
+model Refill {
+  id             String       @id @default(cuid())
+  prescriptionId String
+  refillNumber   Int
+  authorizedQty  Int
+  dispensedQty   Int          @default(0)
+  remainingQty   Int
+  status         RefillStatus @default(AVAILABLE)
+  expiresAt      DateTime?
+  notes          String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  dispenses      Dispense[]
+  items          RefillItem[]
+
+  @@unique([prescriptionId, refillNumber])
+  @@index([prescriptionId])
+  @@index([status])
+  @@index([expiresAt])
+}
+
+model RefillItem {
+  id                 String           @id @default(cuid())
+  refillId           String
+  prescriptionItemId String
+  quantityDispensed  Int              @default(0)
+  dispensedAt        DateTime?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  refill             Refill           @relation(fields: [refillId], references: [id], onDelete: Cascade)
+  prescriptionItem   PrescriptionItem @relation(fields: [prescriptionItemId], references: [id])
+
+  @@index([refillId])
+  @@index([prescriptionItemId])
+}
+
+model Dispense {
+  id                    String              @id @default(cuid())
+  refillId              String
+  prescriptionVersionId String
+  status                DispenseStatus      @default(QUEUED)
+  queuedAt              DateTime            @default(now())
+  verifyingAt           DateTime?
+  fillingAt             DateTime?
+  checkingAt            DateTime?
+  readyAt               DateTime?
+  completedAt           DateTime?
+  cancelledAt           DateTime?
+  queuedBy              String?
+  verifiedBy            String?
+  filledBy              String?
+  checkedBy             String?
+  dispensedBy           String?
+  quantityDispensed     Int?
+  notes                 String?
+  cancellationReason    String?
+  createdAt             DateTime            @default(now())
+  updatedAt             DateTime            @updatedAt
+  refill                Refill              @relation(fields: [refillId], references: [id], onDelete: Cascade)
+  prescriptionVersion   PrescriptionVersion @relation(fields: [prescriptionVersionId], references: [id])
+  sale                  Sale?
+
+  @@index([refillId])
+  @@index([prescriptionVersionId])
+  @@index([status])
+  @@index([queuedAt])
+  @@index([completedAt])
+}
+
+model PrescriptionFile {
+  id             String       @id @default(cuid())
+  prescriptionId String
+  fileUrl        String
+  thumbnailUrl   String?
+  ocrData        Json?
+  uploadedBy     String
+  createdAt      DateTime     @default(now())
+  prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+
+  @@index([prescriptionId])
+}
+
+model DispenseEvent {
+  id             String                 @id @default(cuid())
+  prescriptionId String
+  workflowStatus DispenseWorkflowStatus @default(INTAKE)
+  intakeBy       String?
+  intakeAt       DateTime?
+  verifyBy       String?
+  verifyAt       DateTime?
+  fillBy         String?
+  fillAt         DateTime?
+  checkBy        String?
+  checkAt        DateTime?
+  releaseBy      String?
+  releaseAt      DateTime?
+  createdAt      DateTime               @default(now())
+  completedAt    DateTime?
+  prescription   Prescription           @relation(fields: [prescriptionId], references: [id])
+  items          DispenseItem[]
+
+  @@index([prescriptionId])
+}
+
+model DispenseItem {
+  id                String         @id @default(cuid())
+  dispenseEventId   String
+  batchId           String
+  quantityDispensed Int
+  dispenseEvent     DispenseEvent  @relation(fields: [dispenseEventId], references: [id], onDelete: Cascade)
+  batch             InventoryBatch @relation(fields: [batchId], references: [id])
+
+  @@index([dispenseEventId])
+}
+
+model Shift {
+  id         String   @id @default(cuid())
+  storeId    String
+  name       String
+  startTime  String
+  endTime    String
+  daysOfWeek Int[]
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  store      Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  users      User[]
+
+  @@index([storeId])
+  @@index([storeId, isActive])
+}
+
+model AttendanceLog {
+  id                    String    @id @default(cuid())
+  userId                String
+  storeId               String
+  checkInTime           DateTime
+  checkOutTime          DateTime?
+  locationSnapshot      Json?
+  faceVerificationScore Float?
+  status                String
+  notes                 String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  store                 Store     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([userId, checkInTime])
+  @@index([storeId, checkInTime])
+  @@index([userId, storeId, checkInTime])
+}
+
+model StaffDocument {
+  id           String    @id @default(cuid())
+  userId       String
+  documentType String
+  fileUrl      String
+  expiryDate   DateTime?
+  status       String    @default("ACTIVE")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, status])
+}
+
+model PerformanceMetric {
+  id                     String   @id @default(cuid())
+  userId                 String
+  storeId                String
+  date                   DateTime
+  salesAmount            Decimal  @db.Decimal(10, 2)
+  hoursWorked            Float
+  prescriptionsProcessed Int      @default(0)
+  prescriptionsVerified  Int      @default(0)
+  prescriptionsRejected  Int      @default(0)
+  createdAt              DateTime @default(now())
+  user                   User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  store                  Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, storeId, date])
+  @@index([userId, date])
+  @@index([storeId, date])
+}
+
+model DispenseWorkflowStep {
+  id         String   @id @default(cuid())
+  storeId    String
+  stepName   String
+  isRequired Boolean  @default(true)
+  order      Int
+  createdAt  DateTime @default(now())
+
+  @@unique([storeId, stepName])
+}
+
+model Supplier {
+  id                  String                @id @default(cuid())
+  name                String
+  category            String
+  status              String
+  gstin               String?
+  dlNumber            String?
+  pan                 String?
+  contactName         String
+  phoneNumber         String
+  email               String?
+  whatsapp            String?
+  addressLine1        String
+  addressLine2        String?
+  city                String
+  state               String
+  pinCode             String
+  paymentTerms        String?
+  creditLimit         Decimal?              @db.Decimal(12, 2)
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  deletedAt           DateTime?
+  storeId             String
+  store               Store                 @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  licenses            SupplierLicense[]
+  purchaseOrders      PurchaseOrder[]
+  returns             SupplierReturn[]
+  goodsReceivedNotes  GoodsReceivedNote[]
+  ConsolidatedInvoice ConsolidatedInvoice[]
+
+  @@index([gstin])
+  @@index([deletedAt])
+  @@index([storeId])
+  @@index([storeId, status])
+  @@index([storeId, deletedAt])
+}
+
+model SupplierLicense {
+  id          String   @id @default(cuid())
+  supplierId  String
+  type        String
+  number      String
+  validFrom   DateTime
+  validTo     DateTime
+  documentUrl String?
+  supplier    Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@index([supplierId])
+}
+
+model PurchaseOrder {
+  id                   String              @id @default(cuid())
+  storeId              String
+  supplierId           String
+  poNumber             String              @unique
+  status               POStatus            @default(DRAFT)
+  orderDate            DateTime            @default(now())
+  expectedDeliveryDate DateTime?
+  subtotal             Decimal             @db.Decimal(12, 2)
+  taxAmount            Decimal             @db.Decimal(12, 2)
+  total                Decimal             @db.Decimal(12, 2)
+  currency             String              @default("INR")
+  paymentTerms         String?
+  createdBy            String
+  approvedBy           String?
+  approvedAt           DateTime?
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  deletedAt            DateTime?
+  notes                String?
+  store                Store               @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  supplier             Supplier            @relation(fields: [supplierId], references: [id])
+  items                PurchaseOrderItem[]
+  receipts             POReceipt[]
+  grns                 GoodsReceivedNote[]
+  returns              SupplierReturn[]
+  attachments          POAttachment[]
+
+  @@index([storeId, status])
+  @@index([supplierId])
+  @@index([storeId, deletedAt])
+}
+
+model POAttachment {
+  id              String        @id @default(cuid())
+  purchaseOrderId String
+  fileName        String
+  fileType        String
+  mimeType        String
+  originalSize    BigInt
+  compressedSize  BigInt
+  r2Key           String
+  url             String
+  uploadedAt      DateTime      @default(now())
+  uploadedBy      String
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+
+  @@index([purchaseOrderId])
+  @@map("po_attachments")
+}
+
+model PurchaseOrderItem {
+  id              String        @id @default(cuid())
+  poId            String
+  drugId          String
+  quantity        Int
+  receivedQty     Int           @default(0)
+  packSize        Int           @default(1)
+  packUnit        String        @default("Strip")
+  unitPrice       Decimal       @db.Decimal(10, 2)
+  discountPercent Decimal       @default(0) @db.Decimal(5, 2)
+  gstPercent      Decimal       @db.Decimal(5, 2)
+  lineTotal       Decimal       @db.Decimal(12, 2)
+  po              PurchaseOrder @relation(fields: [poId], references: [id], onDelete: Cascade)
+  drug            Drug          @relation(fields: [drugId], references: [id])
+
+  @@index([poId])
+}
+
+model POReceipt {
+  id            String        @id @default(cuid())
+  poId          String
+  receiptDate   DateTime      @default(now())
+  receivedBy    String
+  notes         String?
+  itemsReceived Json
+  createdAt     DateTime      @default(now())
+  po            PurchaseOrder @relation(fields: [poId], references: [id], onDelete: Cascade)
+
+  @@index([poId])
+}
+
+model POTemplate {
+  id           String           @id @default(cuid())
+  storeId      String
+  name         String
+  description  String?
+  supplierId   String?
+  paymentTerms String?
+  notes        String?
+  createdBy    String
+  isActive     Boolean          @default(true)
+  usageCount   Int              @default(0)
+  lastUsedAt   DateTime?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  deletedAt    DateTime?
+  items        POTemplateItem[]
+
+  @@index([storeId, isActive])
+  @@index([storeId, deletedAt])
+}
+
+model POTemplateItem {
+  id              String     @id @default(cuid())
+  templateId      String
+  drugId          String
+  quantity        Int
+  unitPrice       Decimal?   @db.Decimal(10, 2)
+  discountPercent Decimal    @default(0) @db.Decimal(5, 2)
+  template        POTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId])
+}
+
+model GoodsReceivedNote {
+  id                     String                   @id @default(cuid())
+  grnNumber              String                   @unique
+  poId                   String
+  storeId                String
+  supplierId             String
+  status                 GRNStatus                @default(DRAFT)
+  supplierInvoiceNo      String?
+  supplierInvoiceDate    DateTime?
+  receivedBy             String
+  receivedDate           DateTime                 @default(now())
+  subtotal               Decimal                  @db.Decimal(12, 2)
+  taxAmount              Decimal                  @db.Decimal(12, 2)
+  total                  Decimal                  @db.Decimal(12, 2)
+  notes                  String?
+  completedAt            DateTime?
+  createdAt              DateTime                 @default(now())
+  updatedAt              DateTime                 @updatedAt
+  receivedByUser         User                     @relation(fields: [receivedBy], references: [id])
+  supplier               Supplier                 @relation(fields: [supplierId], references: [id])
+  po                     PurchaseOrder            @relation(fields: [poId], references: [id], onDelete: Cascade)
+  items                  GRNItem[]
+  discrepancies          GRNDiscrepancy[]
+  attachments            GRNAttachment[]
+  ConsolidatedInvoiceGRN ConsolidatedInvoiceGRN[]
+
+  @@index([poId])
+  @@index([storeId])
+  @@index([status])
+}
+
+model GRNAttachment {
+  id             String            @id @default(cuid())
+  grnId          String
+  fileName       String
+  fileType       String
+  mimeType       String
+  originalSize   BigInt
+  compressedSize BigInt
+  r2Key          String
+  url            String
+  uploadedAt     DateTime          @default(now())
+  uploadedBy     String
+  grn            GoodsReceivedNote @relation(fields: [grnId], references: [id], onDelete: Cascade)
+
+  @@index([grnId])
+  @@map("grn_attachments")
+}
+
+model GRNItem {
+  id              String            @id @default(cuid())
+  grnId           String
+  poItemId        String
+  drugId          String
+  orderedQty      Int
+  receivedQty     Int
+  freeQty         Int               @default(0)
+  rejectedQty     Int               @default(0)
+  batchNumber     String
+  expiryDate      DateTime?
+  mrp             Decimal           @db.Decimal(10, 2)
+  unitPrice       Decimal           @db.Decimal(10, 2)
+  discountPercent Decimal           @default(0) @db.Decimal(5, 2)
+  gstPercent      Decimal           @db.Decimal(5, 2)
+  lineTotal       Decimal           @db.Decimal(12, 2)
+  discountType    String            @default("BEFORE_GST")
+  location        String?
+  isSplit         Boolean           @default(false)
+  parentItemId    String?
+  grn             GoodsReceivedNote @relation(fields: [grnId], references: [id], onDelete: Cascade)
+  drug            Drug              @relation(fields: [drugId], references: [id])
+  parent          GRNItem?          @relation("GRNItemSplit", fields: [parentItemId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  children        GRNItem[]         @relation("GRNItemSplit")
+
+  @@index([grnId])
+  @@index([poItemId])
+  @@index([parentItemId])
+}
+
+model GRNDiscrepancy {
+  id                 String                 @id @default(cuid())
+  grnId              String
+  grnItemId          String?
+  reason             DiscrepancyReason
+  resolution         DiscrepancyResolution?
+  expectedQty        Int?
+  actualQty          Int?
+  discrepancyQty     Int
+  description        String
+  debitNoteValue     Decimal?               @db.Decimal(10, 2)
+  debitNoteGenerated Boolean                @default(false)
+  createdAt          DateTime               @default(now())
+  resolvedAt         DateTime?
+  grn                GoodsReceivedNote      @relation(fields: [grnId], references: [id], onDelete: Cascade)
+
+  @@index([grnId])
+  @@index([reason])
+  @@map("grn_discrepancies")
+}
+
+model ConsolidatedInvoice {
+  id            String                    @id @default(cuid())
+  invoiceNumber String                    @unique
+  storeId       String
+  supplierId    String?
+  invoiceDate   DateTime                  @default(now())
+  periodStart   DateTime?
+  periodEnd     DateTime?
+  subtotal      Decimal                   @db.Decimal(12, 2)
+  taxAmount     Decimal                   @db.Decimal(12, 2)
+  total         Decimal                   @db.Decimal(12, 2)
+  type          ConsolidatedInvoiceType   @default(SINGLE_SUPPLIER)
+  status        ConsolidatedInvoiceStatus @default(DRAFT)
+  notes         String?
+  createdBy     String
+  createdAt     DateTime                  @default(now())
+  updatedAt     DateTime                  @updatedAt
+  store         Store                     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  supplier      Supplier?                 @relation(fields: [supplierId], references: [id])
+  grns          ConsolidatedInvoiceGRN[]
+  items         ConsolidatedInvoiceItem[]
+  createdByUser User                      @relation(fields: [createdBy], references: [id])
+
+  @@index([storeId, invoiceDate])
+  @@index([supplierId])
+  @@index([status])
+  @@map("consolidated_invoices")
+}
+
+model ConsolidatedInvoiceGRN {
+  id                    String              @id @default(cuid())
+  consolidatedInvoiceId String
+  grnId                 String
+  consolidatedInvoice   ConsolidatedInvoice @relation(fields: [consolidatedInvoiceId], references: [id], onDelete: Cascade)
+  grn                   GoodsReceivedNote   @relation(fields: [grnId], references: [id])
+
+  @@unique([consolidatedInvoiceId, grnId])
+  @@index([grnId])
+  @@map("consolidated_invoice_grns")
+}
+
+model ConsolidatedInvoiceItem {
+  id                    String              @id @default(cuid())
+  consolidatedInvoiceId String
+  drugId                String
+  drugName              String
+  batchNumber           String?
+  totalQuantity         Int
+  unit                  String
+  unitPrice             Decimal             @db.Decimal(10, 2)
+  gstPercent            Decimal             @db.Decimal(5, 2)
+  discountPercent       Decimal             @default(0) @db.Decimal(5, 2)
+  subtotal              Decimal             @db.Decimal(12, 2)
+  taxAmount             Decimal             @db.Decimal(12, 2)
+  lineTotal             Decimal             @db.Decimal(12, 2)
+  consolidatedInvoice   ConsolidatedInvoice @relation(fields: [consolidatedInvoiceId], references: [id], onDelete: Cascade)
+
+  @@index([consolidatedInvoiceId])
+  @@map("consolidated_invoice_items")
+}
+
+model SupplierReturn {
+  id              String               @id @default(cuid())
+  returnNumber    String               @unique
+  poId            String
+  storeId         String
+  supplierId      String
+  status          ReturnStatus         @default(PENDING)
+  reason          String
+  notes           String?
+  subtotal        Decimal              @db.Decimal(10, 2)
+  taxAmount       Decimal              @db.Decimal(10, 2)
+  total           Decimal              @db.Decimal(10, 2)
+  requestedBy     String
+  approvedBy      String?
+  approvedAt      DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  deletedAt       DateTime?
+  po              PurchaseOrder        @relation(fields: [poId], references: [id], onDelete: Cascade)
+  store           Store                @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  supplier        Supplier             @relation(fields: [supplierId], references: [id])
+  items           SupplierReturnItem[]
+  requestedByUser User                 @relation("ReturnRequester", fields: [requestedBy], references: [id])
+  approvedByUser  User?                @relation("ReturnApprover", fields: [approvedBy], references: [id])
+
+  @@index([poId])
+  @@index([storeId])
+  @@index([supplierId])
+  @@index([status])
+  @@index([deletedAt])
+}
+
+model SupplierReturnItem {
+  id          String         @id @default(cuid())
+  returnId    String
+  drugId      String
+  batchNumber String
+  expiryDate  DateTime
+  quantity    Int
+  unitPrice   Decimal        @db.Decimal(10, 2)
+  lineTotal   Decimal        @db.Decimal(10, 2)
+  reason      ReturnReason
+  notes       String?
+  createdAt   DateTime       @default(now())
+  return      SupplierReturn @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  drug        Drug           @relation(fields: [drugId], references: [id])
+
+  @@index([returnId])
+  @@index([drugId])
+}
+
+model Sale {
+  id                   String              @id @default(cuid())
+  storeId              String
+  invoiceNumber        String              @unique
+  invoiceType          InvoiceType         @default(RECEIPT)
+  patientId            String?
+  subtotal             Decimal             @db.Decimal(10, 2)
+  discountAmount       Decimal             @default(0) @db.Decimal(10, 2)
+  taxAmount            Decimal             @db.Decimal(10, 2)
+  roundOff             Decimal             @default(0) @db.Decimal(5, 2)
+  total                Decimal             @db.Decimal(10, 2)
+  originalSaleId       String?
+  creditReason         String?
+  soldBy               String
+  createdAt            DateTime            @default(now())
+  updatedAt            DateTime            @updatedAt
+  deletedAt            DateTime?
+  status               SaleStatus          @default(COMPLETED)
+  prescriptionId       String?
+  attachments          Json?
+  balance              Decimal             @default(0.00) @db.Decimal(10, 2)
+  paymentStatus        PaymentStatus       @default(PAID)
+  dispenseForPatientId String?
+  dispenseId           String?             @unique
+  buyerGstin           String?
+  placeOfSupply        String?
+  cessAmount           Decimal             @default(0) @db.Decimal(10, 2)
+  cgstAmount           Decimal             @default(0) @db.Decimal(10, 2)
+  gstrCategory         String?
+  igstAmount           Decimal             @default(0) @db.Decimal(10, 2)
+  isIgst               Boolean             @default(false)
+  sgstAmount           Decimal             @default(0) @db.Decimal(10, 2)
+  taxableAmount        Decimal             @default(0) @db.Decimal(10, 2)
+  store                Store               @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  prescription         Prescription?       @relation(fields: [prescriptionId], references: [id])
+  dispense             Dispense?           @relation(fields: [dispenseId], references: [id])
+  patient              Patient?            @relation(fields: [patientId], references: [id])
+  dispenseForPatient   Patient?            @relation("DispenseFor", fields: [dispenseForPatientId], references: [id])
+  originalSale         Sale?               @relation("CreditNotes", fields: [originalSaleId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  creditNotes          Sale[]              @relation("CreditNotes")
+  items                SaleItem[]
+  paymentSplits        PaymentSplit[]
+  refunds              SaleRefund[]
+  allocations          InvoiceAllocation[]
+
+  @@index([storeId, createdAt, status])
+  @@index([storeId, patientId, createdAt])
+  @@index([createdAt, status])
+  @@index([soldBy, createdAt])
+  @@index([storeId, createdAt])
+  @@index([storeId, patientId])
+  @@index([storeId, status])
+  @@index([invoiceNumber])
+  @@index([storeId, deletedAt])
+  @@index([paymentStatus])
+  @@index([placeOfSupply])
+  @@index([gstrCategory])
+}
+
+model SaleItem {
+  id            String         @id @default(cuid())
+  saleId        String
+  drugId        String
+  batchId       String
+  quantity      Int
+  mrp           Decimal        @db.Decimal(10, 2)
+  discount      Decimal        @default(0) @db.Decimal(10, 2)
+  gstRate       Decimal        @db.Decimal(5, 2)
+  lineTotal     Decimal        @db.Decimal(10, 2)
+  cessAmount    Decimal        @default(0) @db.Decimal(10, 2)
+  cgstAmount    Decimal        @default(0) @db.Decimal(10, 2)
+  hsnCode       String?
+  igstAmount    Decimal        @default(0) @db.Decimal(10, 2)
+  sgstAmount    Decimal        @default(0) @db.Decimal(10, 2)
+  taxSlabId     String?
+  taxableAmount Decimal        @default(0) @db.Decimal(10, 2)
+  sale          Sale           @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  drug          Drug           @relation(fields: [drugId], references: [id])
+  batch         InventoryBatch @relation(fields: [batchId], references: [id])
+
+  @@index([saleId])
+  @@index([hsnCode])
+}
+
+model PaymentSplit {
+  id               String        @id @default(cuid())
+  saleId           String
+  paymentMethod    PaymentMethod
+  amount           Decimal       @db.Decimal(10, 2)
+  cardLast4        String?
+  cardBrand        String?
+  cardAuthCode     String?
+  upiTransactionId String?
+  upiVpa           String?
+  walletProvider   String?
+  walletTxnId      String?
+  createdAt        DateTime      @default(now())
+  sale             Sale          @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  @@index([saleId])
+}
+
+model InvoiceAllocation {
+  id        String         @id @default(cuid())
+  saleId    String
+  ledgerId  String
+  amount    Decimal        @db.Decimal(10, 2)
+  createdAt DateTime       @default(now())
+  sale      Sale           @relation(fields: [saleId], references: [id])
+  ledger    CustomerLedger @relation(fields: [ledgerId], references: [id], onDelete: Cascade)
+
+  @@index([saleId])
+  @@index([ledgerId])
+}
+
+model SaleDraft {
+  id            String   @id @default(cuid())
+  storeId       String
+  draftNumber   String   @unique
+  customerName  String?
+  customerPhone String?
+  customerId    String?
+  items         Json
+  subtotal      Decimal  @db.Decimal(10, 2)
+  taxAmount     Decimal  @db.Decimal(10, 2)
+  total         Decimal  @db.Decimal(10, 2)
+  createdBy     String
+  expiresAt     DateTime
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  dispenseFor   Json?
+  store         Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, createdAt])
+  @@index([expiresAt])
+  @@index([storeId, expiresAt])
+}
+
+model SaleRefund {
+  id             String           @id @default(cuid())
+  refundNumber   String           @unique
+  originalSaleId String
+  storeId        String
+  refundAmount   Decimal          @db.Decimal(10, 2)
+  refundReason   String
+  status         RefundStatus     @default(PENDING)
+  requestedBy    String
+  approvedBy     String?
+  approvedAt     DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  items          SaleRefundItem[]
+  originalSale   Sale             @relation(fields: [originalSaleId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  store          Store            @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, status])
+  @@index([originalSaleId])
+  @@index([storeId, createdAt])
+}
+
+model SaleRefundItem {
+  id           String     @id @default(cuid())
+  refundId     String
+  saleItemId   String
+  drugId       String
+  batchId      String
+  quantity     Int
+  refundAmount Decimal    @db.Decimal(10, 2)
+  reason       String
+  createdAt    DateTime   @default(now())
+  refund       SaleRefund @relation(fields: [refundId], references: [id], onDelete: Cascade)
+
+  @@index([refundId])
+  @@index([saleItemId])
+}
+
+model Expense {
+  id            String          @id @default(cuid())
+  storeId       String
+  vendorId      String?
+  vendorName    String
+  invoiceNumber String
+  invoiceDate   DateTime
+  dueDate       DateTime?
+  grossAmount   Decimal         @db.Decimal(12, 2)
+  gstAmount     Decimal         @db.Decimal(12, 2)
+  tdsAmount     Decimal         @default(0) @db.Decimal(12, 2)
+  netAmount     Decimal         @db.Decimal(12, 2)
+  categoryId    String
+  status        ExpenseStatus   @default(DRAFT)
+  attachments   Json?
+  createdBy     String
+  approvedBy    String?
+  approvedAt    DateTime?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  deletedAt     DateTime?
+  store         Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  category      ExpenseCategory @relation(fields: [categoryId], references: [id])
+
+  @@index([storeId, status])
+  @@index([storeId, deletedAt])
+}
+
+model ExpenseCategory {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  description String?
+  glAccount   String?
+  createdAt   DateTime  @default(now())
+  expenses    Expense[]
+}
+
+model Claim {
+  id            String    @id @default(cuid())
+  storeId       String
+  type          String
+  relatedSaleId String?
+  relatedPOId   String?
+  reason        String
+  amount        Decimal   @db.Decimal(10, 2)
+  status        String
+  createdBy     String
+  resolvedBy    String?
+  resolvedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([storeId, status])
+}
+
+model Reconciliation {
+  id            String   @id @default(cuid())
+  storeId       String
+  reconcileDate DateTime
+  expectedCash  Decimal  @db.Decimal(10, 2)
+  actualCash    Decimal  @db.Decimal(10, 2)
+  difference    Decimal  @db.Decimal(10, 2)
+  cardAmount    Decimal  @db.Decimal(10, 2)
+  upiAmount     Decimal  @db.Decimal(10, 2)
+  walletAmount  Decimal  @db.Decimal(10, 2)
+  notes         String?
+  reconciledBy  String
+  createdAt     DateTime @default(now())
+
+  @@index([storeId, reconcileDate])
+}
+
+model OCRJob {
+  id               String    @id @default(cuid())
+  storeId          String
+  documentUrl      String
+  documentType     String
+  status           String
+  extractedData    Json?
+  confidence       Float?
+  vendorCandidates Json?
+  processedAt      DateTime?
+  createdAt        DateTime  @default(now())
+
+  @@index([storeId, status])
+}
+
+model BankAccount {
+  id            String            @id @default(cuid())
+  storeId       String
+  accountNumber String
+  bankName      String
+  ifscCode      String
+  accountType   String
+  balance       Decimal           @db.Decimal(12, 2)
+  lastSyncedAt  DateTime?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  transactions  BankTransaction[]
+
+  @@index([storeId])
+}
+
+model BankTransaction {
+  id                  String            @id @default(cuid())
+  accountId           String
+  txnDate             DateTime
+  amount              Decimal           @db.Decimal(10, 2)
+  direction           String
+  description         String
+  bankReference       String
+  extractedInvoiceIds String[]
+  extractedUpiId      String?
+  status              String
+  matchedSaleId       String?
+  matchedExpenseId    String?
+  matchConfidence     Float?
+  createdAt           DateTime          @default(now())
+  account             BankAccount       @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  suggestions         MatchSuggestion[]
+
+  @@index([accountId, txnDate])
+  @@index([status])
+}
+
+model MatchSuggestion {
+  id              String          @id @default(cuid())
+  bankTxnId       String
+  candidateType   String
+  candidateId     String
+  score           Float
+  reason          String
+  bankTransaction BankTransaction @relation(fields: [bankTxnId], references: [id], onDelete: Cascade)
+
+  @@index([bankTxnId])
+}
+
+model PaymentGateway {
+  id            String               @id @default(cuid())
+  storeId       String
+  provider      String
+  status        String
+  merchantId    String?
+  apiKey        String?
+  apiSecret     String?
+  webhookSecret String?
+  qrCodeUrl     String?
+  upiVpa        String?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  transactions  GatewayTransaction[]
+  settlements   Settlement[]
+  webhooks      WebhookLog[]
+
+  @@index([storeId, status])
+}
+
+model GatewayTransaction {
+  id            String         @id @default(cuid())
+  gatewayId     String
+  saleId        String?
+  providerTxnId String         @unique
+  amount        Decimal        @db.Decimal(10, 2)
+  currency      String         @default("INR")
+  status        String
+  paymentMethod String
+  upiVpa        String?
+  upiTxnId      String?
+  cardLast4     String?
+  cardNetwork   String?
+  createdAt     DateTime       @default(now())
+  gateway       PaymentGateway @relation(fields: [gatewayId], references: [id])
+
+  @@index([gatewayId, status])
+  @@index([saleId])
+}
+
+model Settlement {
+  id           String         @id @default(cuid())
+  gatewayId    String
+  settlementId String         @unique
+  amount       Decimal        @db.Decimal(10, 2)
+  fee          Decimal        @db.Decimal(10, 2)
+  tax          Decimal        @db.Decimal(10, 2)
+  netAmount    Decimal        @db.Decimal(10, 2)
+  status       String
+  utr          String?
+  settledAt    DateTime?
+  createdAt    DateTime       @default(now())
+  gateway      PaymentGateway @relation(fields: [gatewayId], references: [id])
+
+  @@index([gatewayId, status])
+}
+
+model WebhookLog {
+  id          String         @id @default(cuid())
+  gatewayId   String
+  event       String
+  payload     Json
+  status      String
+  retryCount  Int            @default(0)
+  processedAt DateTime?
+  createdAt   DateTime       @default(now())
+  gateway     PaymentGateway @relation(fields: [gatewayId], references: [id])
+
+  @@index([gatewayId, createdAt])
+}
+
+model GSTReturn {
+  id         String    @id @default(cuid())
+  storeId    String
+  returnType String
+  period     String
+  status     String
+  filedAt    DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([storeId, period])
+}
+
+model GSTTransaction {
+  id              String   @id @default(cuid())
+  storeId         String
+  transactionType String
+  referenceId     String
+  gstin           String?
+  taxableValue    Decimal  @db.Decimal(12, 2)
+  cgst            Decimal  @db.Decimal(10, 2)
+  sgst            Decimal  @db.Decimal(10, 2)
+  igst            Decimal  @db.Decimal(10, 2)
+  createdAt       DateTime @default(now())
+
+  @@index([storeId, transactionType])
+}
+
+model IRN {
+  id        String   @id @default(cuid())
+  saleId    String   @unique
+  irn       String   @unique
+  ackNo     String
+  ackDate   DateTime
+  qrCode    String?
+  createdAt DateTime @default(now())
+
+  @@index([irn])
+}
+
+model ComplianceCheck {
+  id        String   @id @default(cuid())
+  storeId   String
+  checkType String
+  status    String
+  findings  Json
+  checkedAt DateTime @default(now())
+
+  @@index([storeId, checkType])
+}
+
+model WhatsAppAccount {
+  id                        String             @id @default(cuid())
+  storeId                   String             @unique
+  wabaId                    String?
+  phoneNumberId             String?            @unique
+  phoneNumber               String?
+  accessToken               String?
+  tempToken                 String?
+  tokenExpiresAt            DateTime?
+  webhookSecret             String?
+  status                    WhatsAppStatus     @default(DISCONNECTED)
+  businessVerified          Boolean            @default(false)
+  lastWebhookReceivedAt     DateTime?
+  businessDisplayName       String?
+  businessAbout             String?
+  businessProfilePictureUrl String?
+  createdAt                 DateTime           @default(now())
+  updatedAt                 DateTime           @updatedAt
+  store                     Store              @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  conversations             Conversation[]
+  templates                 WhatsAppTemplate[]
+
+  @@index([phoneNumberId])
+  @@index([storeId, status])
+}
+
+model Conversation {
+  id                    String          @id @default(cuid())
+  storeId               String
+  whatsappAccountId     String
+  phoneNumber           String
+  displayName           String?
+  profilePicUrl         String?
+  status                String          @default("open")
+  assignedAgentId       String?
+  lastMessageAt         DateTime?
+  lastMessageBody       String?
+  unreadCount           Int             @default(0)
+  tags                  String[]        @default([])
+  lastCustomerMessageAt DateTime?
+  sessionActive         Boolean         @default(false)
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  whatsappAccount       WhatsAppAccount @relation(fields: [whatsappAccountId], references: [id], onDelete: Cascade)
+  messages              Message[]
+
+  @@unique([storeId, phoneNumber])
+  @@index([storeId, status])
+  @@index([storeId, lastMessageAt])
+  @@index([assignedAgentId])
+}
+
+model Message {
+  id                String           @id @default(cuid())
+  conversationId    String
+  storeId           String
+  providerMessageId String?          @unique
+  wabaPhoneNumberId String?
+  direction         MessageDirection
+  type              MessageType
+  body              String?
+  caption           String?
+  mediaUrl          String?
+  mediaType         String?
+  mediaSize         Int?
+  mediaFileName     String?
+  from              String?
+  to                String?
+  status            MessageStatus?
+  statusReason      String?
+  templateName      String?
+  templateLanguage  String?
+  templateParams    Json?
+  payload           Json?
+  sentAt            DateTime?
+  deliveredAt       DateTime?
+  readAt            DateTime?
+  createdAt         DateTime         @default(now())
+  conversation      Conversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@index([storeId, direction, createdAt])
+  @@index([providerMessageId])
+  @@index([wabaPhoneNumberId])
+}
+
+model WhatsAppTemplate {
+  id                String           @id @default(cuid())
+  storeId           String
+  whatsappAccountId String?
+  name              String
+  language          String           @default("en")
+  category          String           @default("MARKETING")
+  headerType        String?
+  headerText        String?
+  body              String
+  footer            String?
+  variables         String[]         @default([])
+  buttons           Json?
+  status            String           @default("PENDING")
+  rejectedReason    String?
+  templateId        String?
+  namespace         String?
+  usageCount        Int              @default(0)
+  lastUsedAt        DateTime?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  whatsappAccount   WhatsAppAccount? @relation(fields: [whatsappAccountId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, name, language])
+  @@index([storeId, status])
+}
+
+model WhatsAppOutboundQueue {
+  id             BigInt    @id @default(autoincrement())
+  storeId        String
+  conversationId String?
+  payload        Json
+  attemptCount   Int       @default(0)
+  maxAttempts    Int       @default(3)
+  runAfter       DateTime  @default(now())
+  status         String    @default("pending")
+  errorMessage   String?
+  sentAt         DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@index([storeId, status, runAfter])
+  @@index([status, runAfter])
+}
+
+model WhatsAppFlow {
+  id          String    @id @default(cuid())
+  storeId     String
+  name        String
+  trigger     String
+  nodes       Json
+  active      Boolean   @default(false)
+  lastRunAt   DateTime?
+  successRate Float?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([storeId, active])
+}
+
+model WhatsAppConsent {
+  id        String    @id @default(cuid())
+  patientId String
+  method    String
+  source    String
+  scope     String
+  ipAddress String?
+  expiresAt DateTime?
+  revokedAt DateTime?
+  grantedAt DateTime  @default(now())
+
+  @@index([patientId, revokedAt])
+}
+
+model EmailMessageLog {
+  id            String   @id @default(cuid())
+  storeId       String
+  to            String
+  templateId    String?
+  providerMsgId String
+  sentAt        DateTime @default(now())
+
+  @@index([storeId, sentAt])
+}
+
+model SMSMessageLog {
+  id            String   @id @default(cuid())
+  storeId       String
+  to            String
+  providerMsgId String
+  cost          Decimal? @db.Decimal(6, 4)
+  sentAt        DateTime @default(now())
+
+  @@index([storeId, sentAt])
+}
+
+model Campaign {
+  id             String           @id @default(cuid())
+  storeId        String
+  name           String
+  channel        String
+  status         String
+  targetAudience Json
+  messageContent String
+  scheduledAt    DateTime?
+  completedAt    DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  store          Store            @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  targets        CampaignTarget[]
+
+  @@index([storeId, status])
+}
+
+model CampaignTarget {
+  id         String    @id @default(cuid())
+  campaignId String
+  patientId  String
+  status     String
+  sentAt     DateTime?
+  campaign   Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([campaignId, status])
+}
+
+model Coupon {
+  id         String        @id @default(cuid())
+  storeId    String
+  code       String        @unique
+  type       String
+  value      Decimal       @db.Decimal(10, 2)
+  usageLimit Int?
+  validFrom  DateTime
+  validTo    DateTime
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  usages     CouponUsage[]
+
+  @@index([code])
+  @@index([validFrom, validTo])
+}
+
+model CouponUsage {
+  id             String   @id @default(cuid())
+  couponId       String
+  saleId         String
+  discountAmount Decimal  @db.Decimal(10, 2)
+  usedAt         DateTime @default(now())
+  coupon         Coupon   @relation(fields: [couponId], references: [id])
+
+  @@index([couponId])
+}
+
+model LoyaltyProgram {
+  id             String   @id @default(cuid())
+  storeId        String
+  tierName       String
+  pointsRequired Int
+  benefits       String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([storeId])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  storeId    String
+  userId     String
+  action     String
+  entityType String
+  entityId   String
+  changes    Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+  store      Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id])
+
+  @@index([storeId, userId, createdAt])
+  @@index([storeId, entityType, entityId])
+  @@index([createdAt])
+}
+
+model AccessLog {
+  id          String   @id @default(cuid())
+  userId      String
+  eventType   String
+  ipAddress   String
+  userAgent   String?
+  deviceInfo  String?
+  createdAt   DateTime @default(now())
+  geolocation Json?
+  loginMethod String?
+  user        User     @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+  @@index([eventType, createdAt])
+  @@index([loginMethod, createdAt])
+}
+
+model Alert {
+  id          String         @id @default(cuid())
+  storeId     String
+  type        String
+  severity    AlertSeverity
+  title       String
+  description String
+  source      String
+  status      AlertStatus    @default(NEW)
+  relatedType String?
+  relatedId   String?
+  resolvedBy  String?
+  resolvedAt  DateTime?
+  snoozeUntil DateTime?
+  createdAt   DateTime       @default(now())
+  actionLabel String?
+  actionUrl   String?
+  blockAction Boolean        @default(false)
+  category    AlertCategory  @default(INVENTORY)
+  channels    AlertChannel[] @default([IN_APP])
+  expiresAt   DateTime?
+  metadata    Json?
+  seenAt      DateTime?
+  seenBy      String?
+  priority    AlertPriority  @default(MEDIUM)
+  store       Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, status, priority])
+  @@index([storeId, category])
+  @@index([storeId, status, severity])
+  @@index([snoozeUntil])
+  @@index([seenAt])
+  @@index([expiresAt])
+  @@index([relatedType, relatedId])
+}
+
+model AlertPreference {
+  id              String         @id @default(cuid())
+  userId          String
+  storeId         String
+  category        AlertCategory
+  channels        AlertChannel[] @default([IN_APP])
+  enabled         Boolean        @default(true)
+  quietHoursStart String?
+  quietHoursEnd   String?
+  digestMode      Boolean        @default(false)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  user            User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  store           Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, storeId, category])
+  @@index([userId, storeId])
+}
+
+model APIKey {
+  id          String       @id @default(cuid())
+  storeId     String
+  name        String
+  keyPrefix   String
+  keyHash     String
+  permissions String[]
+  expiresAt   DateTime?
+  lastUsedAt  DateTime?
+  createdAt   DateTime     @default(now())
+  revokedAt   DateTime?
+  requests    APIRequest[]
+
+  @@index([storeId, revokedAt])
+}
+
+model APIRequest {
+  id           String   @id @default(cuid())
+  apiKeyId     String
+  endpoint     String
+  method       String
+  statusCode   Int
+  responseTime Int
+  ipAddress    String
+  userAgent    String?
+  createdAt    DateTime @default(now())
+  apiKey       APIKey   @relation(fields: [apiKeyId], references: [id])
+
+  @@index([apiKeyId, createdAt])
+  @@index([createdAt])
+}
+
+model WebhookEndpoint {
+  id        String   @id @default(cuid())
+  storeId   String
+  url       String
+  events    String[]
+  secret    String
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([storeId, active])
+}
+
+model BackupPlan {
+  id               String           @id @default(cuid())
+  storeId          String
+  name             String
+  frequency        String
+  retentionDays    Int
+  includeDocuments Boolean          @default(true)
+  active           Boolean          @default(true)
+  nextRunAt        DateTime
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  snapshots        BackupSnapshot[]
+
+  @@index([storeId, active])
+}
+
+model BackupSnapshot {
+  id              String     @id @default(cuid())
+  planId          String
+  storeId         String
+  size            BigInt
+  status          String
+  storageLocation String
+  checksum        String?
+  recordCounts    Json?
+  createdAt       DateTime   @default(now())
+  completedAt     DateTime?
+  plan            BackupPlan @relation(fields: [planId], references: [id])
+
+  @@index([storeId, createdAt])
+}
+
+model Document {
+  id         String   @id @default(cuid())
+  storeId    String
+  entityType String
+  entityId   String
+  fileType   String
+  filePath   String
+  fileSize   Int
+  uploadedBy String
+  createdAt  DateTime @default(now())
+
+  @@index([storeId, entityType, entityId])
+}
+
+model PatientAudit {
+  id        String   @id @default(cuid())
+  patientId String
+  userId    String
+  action    String
+  changes   Json
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  patient   Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId, createdAt])
+}
+
+model UserAvatar {
+  id         String   @id @default(cuid())
+  userId     String
+  sha        String
+  key        String
+  version    Int      @default(1)
+  isActive   Boolean  @default(true)
+  uploadedAt DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isActive])
+  @@index([sha])
+}
+
+model AvatarObject {
+  sha          String   @id
+  key          String
+  sizeBytes    BigInt
+  refCount     Int      @default(0)
+  createdAt    DateTime @default(now())
+  lastAccessed DateTime @updatedAt
+
+  @@index([refCount])
+}
+
+model EmailAccount {
+  id                    String          @id @default(cuid())
+  storeId               String
+  email                 String
+  provider              String
+  smtpHost              String?
+  smtpPort              Int?
+  smtpUser              String?
+  smtpPasswordEncrypted String?
+  useTLS                Boolean         @default(true)
+  isVerified            Boolean         @default(false)
+  isActive              Boolean         @default(true)
+  lastTestedAt          DateTime?
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+  isPrimary             Boolean         @default(false)
+  authMethod            String          @default("SMTP")
+  gmailAccessToken      String?
+  gmailRefreshToken     String?
+  gmailTokenExpiry      DateTime?
+  oauthConnectedAt      DateTime?
+  store                 Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  sentEmails            EmailLog[]
+  templates             EmailTemplate[]
+
+  @@unique([storeId, email])
+  @@index([storeId, isPrimary])
+  @@index([email])
+}
+
+model EmailTemplate {
+  id             String       @id @default(cuid())
+  emailAccountId String
+  name           String
+  subject        String
+  bodyHtml       String
+  variables      String[]
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  category       String       @default("general")
+  isBuiltIn      Boolean      @default(false)
+  tags           String[]     @default([])
+  emailAccount   EmailAccount @relation(fields: [emailAccountId], references: [id], onDelete: Cascade)
+
+  @@index([emailAccountId])
+  @@index([emailAccountId, category])
+}
+
+model EmailLog {
+  id             String       @id @default(cuid())
+  emailAccountId String
+  to             String[]
+  cc             String[]     @default([])
+  bcc            String[]     @default([])
+  subject        String
+  bodyHtml       String
+  attachments    Json?
+  status         EmailStatus
+  errorMessage   String?
+  sentBy         String
+  contextType    String?
+  contextId      String?
+  createdAt      DateTime     @default(now())
+  sentAt         DateTime?
+  emailAccount   EmailAccount @relation(fields: [emailAccountId], references: [id], onDelete: Cascade)
+
+  @@index([emailAccountId, createdAt])
+  @@index([status])
+  @@index([contextType, contextId])
+}
+
+model PatientRelation {
+  id               String   @id @default(cuid())
+  patientId        String
+  relatedPatientId String
+  relationType     String
+  createdAt        DateTime @default(now())
+  patient          Patient  @relation("SourcePatient", fields: [patientId], references: [id], onDelete: Cascade)
+  relatedPatient   Patient  @relation("RelatedPatient", fields: [relatedPatientId], references: [id], onDelete: Cascade)
+
+  @@unique([patientId, relatedPatientId])
+  @@index([patientId])
+}
+
+model LoyaltyProfile {
+  id                 String          @id @default(cuid())
+  patientId          String          @unique
+  storeId            String
+  status             LoyaltyStatus   @default(NEW)
+  statusSince        DateTime        @default(now())
+  totalPoints        Int             @default(0)
+  purchaseCount      Int             @default(0)
+  feedbackCount      Int             @default(0)
+  daysSinceFirst     Int             @default(0)
+  consistencyScore   Decimal         @default(0) @db.Decimal(5, 2)
+  engagementScore    Decimal         @default(0) @db.Decimal(5, 2)
+  lastPurchaseAt     DateTime?
+  nextMilestoneAt    DateTime?
+  milestoneProgress  Decimal         @default(0) @db.Decimal(5, 2)
+  recognitionMessage String?
+  recognizedAt       DateTime?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  patient            Patient         @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  events             LoyaltyEvent[]
+  rewards            LoyaltyReward[]
+
+  @@index([patientId])
+  @@index([storeId, status])
+  @@index([storeId, updatedAt])
+}
+
+model LoyaltyEvent {
+  id             String           @id @default(cuid())
+  profileId      String
+  storeId        String
+  eventType      LoyaltyEventType
+  eventSource    String?
+  points         Int              @default(0)
+  frequencyBonus Int              @default(0)
+  timeBonus      Int              @default(0)
+  metadata       Json?
+  description    String?
+  createdAt      DateTime         @default(now())
+  profile        LoyaltyProfile   @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, createdAt])
+  @@index([storeId, eventType, createdAt])
+}
+
+model LoyaltyReward {
+  id           String              @id @default(cuid())
+  profileId    String
+  storeId      String
+  type         LoyaltyRewardType
+  status       LoyaltyRewardStatus @default(LOCKED)
+  title        String
+  description  String?
+  minStatus    LoyaltyStatus?
+  minPoints    Int?
+  creditAmount Decimal?            @db.Decimal(10, 2)
+  unlockedAt   DateTime?
+  redeemedAt   DateTime?
+  expiresAt    DateTime?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  profile      LoyaltyProfile      @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId, status])
+  @@index([storeId, type])
+}
+
+model PlatformEmailConfig {
+  id                String    @id @default("platform_email")
+  isActive          Boolean   @default(false)
+  lastTestedAt      DateTime?
+  lastTestResult    Boolean?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  authMethod        String    @default("OAUTH")
+  connectedAt       DateTime?
+  gmailAccessToken  String?
+  gmailEmail        String?
+  gmailRefreshToken String?
+  gmailTokenExpiry  DateTime?
+}
 
 enum UserRole {
   ADMIN
@@ -38,16 +2582,15 @@ enum SubscriptionStatus {
 
 enum PrescriptionStatus {
   DRAFT
-  VERIFIED // Was missing
-  ACTIVE
-  ON_HOLD
-  EXPIRED
-  COMPLETED
-  CANCELLED
-  // Legacy values - keep for migration compatibility
   IN_PROGRESS
+  ON_HOLD
   AWAITING_AUTH
   PARTIAL_FILLED
+  COMPLETED
+  CANCELLED
+  VERIFIED
+  ACTIVE
+  EXPIRED
 }
 
 enum PrescriptionType {
@@ -119,14 +2662,10 @@ enum PaymentMethod {
 }
 
 enum PaymentStatus {
-  CREATED // Order created in our DB, no Razorpay order yet
-  INITIATED // Razorpay order created, user can pay
-  PROCESSING // Payment signature verified, awaiting webhook
-  SUCCESS // Webhook confirmed, subscription activated
-  FAILED // Payment failed or rejected
-  EXPIRED // User didn't complete payment in time
-  DISPUTED // Chargeback filed
-  REFUNDED // Payment refunded (full or partial)
+  PAID
+  PARTIAL
+  UNPAID
+  OVERDUE
 }
 
 enum InvoiceType {
@@ -138,11 +2677,11 @@ enum InvoiceType {
 
 enum SaleStatus {
   DRAFT
-  QUOTATION
   COMPLETED
   REFUNDED
   PARTIALLY_REFUNDED
   CANCELLED
+  QUOTATION
 }
 
 enum RefundStatus {
@@ -221,7 +2760,6 @@ enum DiscrepancyResolution {
   ACCEPTED
 }
 
-// Loyalty System Enums
 enum LoyaltyStatus {
   NEW
   REGULAR
@@ -256,757 +2794,9 @@ enum LoyaltyRewardStatus {
   EXPIRED
 }
 
-// ============================================================================
-// CATEGORY 1: CORE INFRASTRUCTURE (12 tables)
-// ============================================================================
-// USERS  
-// ============================================================================
-model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  phoneNumber  String   @unique
-  passwordHash String
-  firstName    String
-  lastName     String
-  role         UserRole @default(PHARMACIST)
-  approvalPin  String? // DEPRECATED - will migrate to AdminPin
-  isActive     Boolean  @default(true)
-
-  // POS PIN fields (for quick authorization at point-of-sale)
-  pinHash        String? // Bcrypt hashed PIN for POS operations
-  pinAttempts    Int       @default(0) // Failed PIN attempt counter
-  pinLockedUntil DateTime? // PIN lockout timestamp
-  lastLoginAt    DateTime? // Last login timestamp for activity tracking
-  signatureUrl   String? // Digital signature for verifying prescriptions/invoices
-
-  // HR fields
-  faceDataUrl           String? // S3 URL for reference face photos (JSON array)
-  hourlyRate            Decimal?  @db.Decimal(10, 2) // For hourly employees
-  monthlyRate           Decimal?  @db.Decimal(10, 2) // For salaried employees
-  shiftId               String? // Default shift assignment
-  joiningDate           DateTime? // Employment start date
-  emergencyContactName  String?
-  emergencyContactPhone String?
-  employeeId            String?   @unique // Internal employee ID
-
-  storeUsers       StoreUser[]
-  auditLogs        AuditLog[]
-  accessLogs       AccessLog[]
-  onboarding       OnboardingProgress?
-  returnsRequested SupplierReturn[]     @relation("ReturnRequester")
-  returnsApproved  SupplierReturn[]     @relation("ReturnApprover")
-  userRoles        UserRoleAssignment[]
-  adminPin         AdminPin?
-  grns             GoodsReceivedNote[]
-  savedFilters     SavedFilter[]
-  avatars          UserAvatar[]
-  preferences      Json? // User-specific UI preferences (e.g., keyboard shortcuts)
-  alertPreferences AlertPreference[]
-
-  // HR Relations
-  attendanceLogs     AttendanceLog[]
-  documents          StaffDocument[]
-  performanceMetrics PerformanceMetric[]
-  shift              Shift?              @relation(fields: [shiftId], references: [id])
-
-  createdAt           DateTime              @default(now())
-  updatedAt           DateTime              @updatedAt
-  deletedAt           DateTime?
-  ConsolidatedInvoice ConsolidatedInvoice[]
-
-  @@index([email])
-  @@index([phoneNumber])
-  @@index([deletedAt])
-}
-
-model OnboardingProgress {
-  id             String  @id @default(cuid())
-  userId         String  @unique
-  currentStep    Int     @default(1)
-  completedSteps Int[]
-  data           Json // Store the partial form data here
-  isComplete     Boolean @default(false)
-  mode           String? // "REAL" or "DEMO" - Null initially
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-// Magic Link Authentication
-model MagicLink {
-  id        String   @id @default(cuid())
-  email     String
-  token     String   @unique
-  userId    String? // Optional - for existing users
-  expiresAt DateTime
-  used      Boolean  @default(false)
-
-  createdAt DateTime @default(now())
-
-  @@index([email])
-  @@index([token])
-  @@index([expiresAt])
-}
-
-model Role {
-  id          String  @id @default(cuid())
-  name        String  @unique
-  description String?
-  builtIn     Boolean @default(false)
-  category    String? // e.g., "clinical", "administrative", "system"
-  storeId     String? // NULL for built-in/global roles, set for store-specific custom roles
-
-  permissions RolePermission[]
-  userRoles   UserRoleAssignment[]
-  store       Store?               @relation(fields: [storeId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([builtIn])
-  @@index([category])
-  @@index([storeId])
-}
-
-model Permission {
-  id          String  @id @default(cuid())
-  code        String  @unique // e.g., "patient.create"
-  name        String // Human-readable name
-  description String?
-  category    String // e.g., "patient", "prescription", "inventory"
-  resource    String? // e.g., "patient", "prescription"
-
-  roles RolePermission[]
-
-  createdAt DateTime @default(now())
-
-  @@index([category])
-  @@index([resource])
-}
-
-model RolePermission {
-  roleId       String
-  permissionId String
-
-  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
-
-  @@id([roleId, permissionId])
-}
-
-model StoreUser {
-  userId    String
-  storeId   String
-  isPrimary Boolean @default(false)
-
-  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
-
-  assignedAt DateTime @default(now())
-
-  @@id([userId, storeId])
-  @@index([storeId])
-}
-
-model UserRoleAssignment {
-  id      String  @id @default(cuid())
-  userId  String
-  roleId  String
-  storeId String? // NULL = global role, else store-specific
-
-  user  User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role  Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  store Store? @relation(fields: [storeId], references: [id], onDelete: Cascade)
-
-  assignedAt DateTime @default(now())
-  assignedBy String? // User ID who assigned this role
-
-  @@unique([userId, roleId, storeId])
-  @@index([userId])
-  @@index([roleId])
-  @@index([storeId])
-}
-
-model AdminPin {
-  id             String    @id @default(cuid())
-  userId         String    @unique
-  pinHash        String
-  salt           String
-  failedAttempts Int       @default(0)
-  lockedUntil    DateTime?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
-  lastUsedAt DateTime?
-
-  @@index([userId])
-}
-
-model BusinessTypeConfig {
-  id           String @id @default(cuid())
-  businessType String @unique // "Retail Pharmacy", "Wholesale Pharmacy", "Hospital-based Pharmacy", "Multi-store Chain"
-
-  // Feature visibility configuration (JSON)
-  // Example: { "prescriptions": "essential", "pos": "essential", "engage": "optional" }
-  featureConfig Json
-
-  // Sidebar sections to show/hide
-  enabledSections String[] // ["Operations", "Inventory & Supply", ...]
-
-  // Default permissions for this business type
-  defaultPermissions String[] // Permission codes
-
-  // Description and metadata
-  description String?
-  icon        String? // Icon identifier for UI
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([businessType])
-}
-
-model Store {
-  id           String  @id @default(cuid())
-  name         String
-  displayName  String
-  email        String  @unique
-  phoneNumber  String
-  whatsapp     String? // WhatsApp number for business communication
-  businessType String?
-  logoUrl      String?
-  isDemo       Boolean @default(false)
-
-  // Store-specific feature overrides (optional)
-  // Allows customization beyond business type defaults
-  // Example: { "engage": "hidden" } to hide loyalty features even for retail
-  featureOverrides Json?
-
-  // Regulatory/License Information
-  gstin    String? // GST Identification Number
-  dlNumber String? // Drug License Number
-  pan      String? // PAN Card Number
-
-  // Address
-  addressLine1 String
-  addressLine2 String?
-  landmark     String?
-  city         String
-  state        String
-  pinCode      String
-
-  // Professional Invoice Data
-  signatureUrl       String? // Authorized Signatory Image
-  bankDetails        Json? // { bankName, accNo, ifsc, branch, upiId }
-  termsAndConditions String? // Default Invoice Terms
-  jurisdiction       String? // Legal Jurisdiction (e.g., "Subject to Mumbai Jurisdiction")
-
-  // Operations
-  is24x7       Boolean @default(false)
-  homeDelivery Boolean @default(false)
-
-  // WhatsApp Integration
-  whatsappMode String? // "platform" or "byo" (Bring Your Own)
-
-  // HR & Geofencing
-  latitude       Float? // Store GPS latitude for geofencing
-  longitude      Float? // Store GPS longitude for geofencing
-  geofenceRadius Int?   @default(50) // Radius in meters for attendance check
-
-  users          StoreUser[]
-  licenses       StoreLicense[]
-  operatingHours StoreOperatingHours[]
-  devices        HardwareDevice[]
-  subscription   Subscription?
-  userRoles      UserRoleAssignment[]
-  roles          Role[] // Custom roles created by this store
-
-  // Relations to other tables
-  patients         Patient[]
-  prescribers      Prescriber[]
-  prescriptions    Prescription[]
-  inventory        InventoryBatch[]
-  suppliers        Supplier[]
-  drugs            Drug[]
-  sales            Sale[]
-  saleDrafts       SaleDraft[]
-  saleRefunds      SaleRefund[]
-  purchaseOrders   PurchaseOrder[]
-  expenses         Expense[]
-  campaigns        Campaign[]
-  auditLogs        AuditLog[]
-  alerts           Alert[]
-  alertPreferences AlertPreference[]
-  returns          SupplierReturn[]
-  whatsappAccount  WhatsAppAccount?
-
-  // HR Relations
-  attendanceLogs     AttendanceLog[]
-  shifts             Shift[]
-  performanceMetrics PerformanceMetric[]
-
-  // Store Settings
-  settings StoreSettings?
-
-  createdAt           DateTime              @default(now())
-  updatedAt           DateTime              @updatedAt
-  deletedAt           DateTime?
-  ConsolidatedInvoice ConsolidatedInvoice[]
-  ledger              CustomerLedger[]
-
-  // Email System
-  emailAccounts EmailAccount[]
-  payments      Payment[]
-
-  @@index([email])
-  @@index([deletedAt])
-}
-
-model StoreLicense {
-  id          String   @id @default(cuid())
-  storeId     String
-  type        String // Drug License, GSTIN, PAN, FSSAI
-  number      String
-  validFrom   DateTime
-  validTo     DateTime
-  documentUrl String?
-  status      String // Active, Expired, Expiring Soon
-
-  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([storeId, type])
-  @@index([validTo])
-}
-
-model StoreOperatingHours {
-  id         String  @id @default(cuid())
-  storeId    String
-  dayOfWeek  Int // 0 = Sunday, 6 = Saturday
-  openTime   String // HH:MM format
-  closeTime  String
-  isClosed   Boolean @default(false)
-  lunchStart String?
-  lunchEnd   String?
-
-  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
-
-  @@unique([storeId, dayOfWeek])
-}
-
-model StoreSettings {
-  id      String @id @default(cuid())
-  storeId String @unique
-  store   Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
-
-  // Inventory Thresholds
-  lowStockThreshold   Int @default(10)
-  nearExpiryThreshold Int @default(90)
-
-  // Inventory Defaults
-  defaultUoM     String @default("Units")
-  defaultGSTSlab String @default("12")
-
-  // Inventory Features
-  batchTracking      Boolean @default(true)
-  autoGenerateCodes  Boolean @default(true)
-  purchaseRounding   Boolean @default(true)
-  allowNegativeStock Boolean @default(false)
-
-  // POS & Billing Settings
-  invoiceFormat       String  @default("INV-{YY}{MM}-{SEQ:4}")
-  paymentMethods      String  @default("Cash") // Comma-separated values
-  upiId               String? // For UPI payments
-  billingType         String  @default("MRP-based")
-  printFormat         String  @default("Thermal")
-  footerText          String  @default("Thank you for your business!")
-  autoRounding        Boolean @default(true)
-  defaultCustomerType String  @default("Walk-in")
-  enableGSTBilling    Boolean @default(true)
-
-  // Prescription Workflow Settings
-  workbenchMode String @default("SIMPLE") // "SIMPLE" or "ADVANCED"
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([storeId])
-}
-
-model HardwareDevice {
-  id              String    @id @default(cuid())
-  storeId         String
-  name            String
-  type            String // Printer, Barcode Scanner, Card Reader
-  serialNumber    String?
-  ipAddress       String?
-  macAddress      String?
-  status          String // Online, Offline, Error
-  lastPingAt      DateTime?
-  firmwareVersion String?
-
-  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([storeId, status])
-}
-
-model SubscriptionPlan {
-  id           String  @id @default(cuid())
-  name         String  @unique
-  displayName  String
-  description  String?
-  price        Decimal @db.Decimal(10, 2)
-  currency     String  @default("INR")
-  billingCycle String // monthly, yearly
-
-  // Limits
-  patientLimit      Int? // null = unlimited
-  prescriptionLimit Int?
-  storageLimit      Int? // MB
-  multiStore        Boolean @default(false)
-
-  subscriptions Subscription[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model Subscription {
-  id      String             @id @default(cuid())
-  storeId String             @unique
-  planId  String? // Deprecated: kept for backward compatibility
-  status  SubscriptionStatus @default(TRIAL)
-
-  // NEW: Vertical-based subscription fields
-  activeVerticals String[] @default([]) // ["retail", "wholesale", "hospital"]
-  comboBundle     String? // "retail-wholesale", "complete-suite", etc.
-  monthlyAmount   Decimal? @db.Decimal(10, 2) // Current billing amount
-  billingCycle    String   @default("monthly") // "monthly" | "yearly"
-
-  trialEndsAt        DateTime?
-  currentPeriodStart DateTime
-  currentPeriodEnd   DateTime
-  autoRenew          Boolean   @default(true)
-
-  store      Store             @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  plan       SubscriptionPlan? @relation(fields: [planId], references: [id])
-  usageQuota UsageQuota?
-  payments   Payment[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([status])
-  @@index([currentPeriodEnd])
-}
-
-model UsageQuota {
-  id             String @id @default(cuid())
-  subscriptionId String @unique
-
-  patientCountUsed      Int @default(0)
-  prescriptionCountUsed Int @default(0)
-  storageMbUsed         Int @default(0)
-
-  resetsAt DateTime
-
-  subscription Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
-
-  updatedAt DateTime @updatedAt
-}
-
-model Payment {
-  id             String  @id @default(cuid())
-  storeId        String
-  userId         String? // User who initiated payment
-  subscriptionId String?
-
-  // Financial data (immutable after creation)
-  amountPaise Int // Amount in paise (₹1 = 100 paise) for precision
-  currency    String @default("INR")
-
-  // State management
-  status PaymentStatus @default(CREATED)
-
-  // Payment method (updated after completion)
-  method String? // UPI, Card, NetBanking, Wallet
-
-  // Razorpay identifiers
-  razorpayOrderId   String? @unique // Created after INITIATED
-  razorpayPaymentId String? @unique // Received after payment attempt
-  razorpaySignature String? // Signature for verification
-
-  // Idempotency & retry protection
-  idempotencyKey String? @unique // Prevent duplicate processing
-
-  // Metadata (plan details, notes)
-  metadata Json? // { planId, planName, billingCycle, etc }
-
-  // Audit timestamps
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  completedAt DateTime? // When payment reached SUCCESS/FAILED
-
-  // Relations
-  store        Store          @relation(fields: [storeId], references: [id])
-  subscription Subscription?  @relation(fields: [subscriptionId], references: [id])
-  events       PaymentEvent[]
-
-  @@index([storeId])
-  @@index([userId])
-  @@index([status])
-  @@index([razorpayOrderId])
-  @@index([razorpayPaymentId])
-  @@index([createdAt])
-}
-
-// Immutable audit log of all payment state transitions
-model PaymentEvent {
-  id        String @id @default(cuid())
-  paymentId String
-
-  eventType   String // order_created, signature_verified, payment_captured, etc.
-  eventSource String // system, razorpay_webhook, manual, reconciliation
-
-  oldStatus PaymentStatus?
-  newStatus PaymentStatus?
-
-  // Store complete event payload for debugging
-  rawPayload Json?
-
-  // Audit trail
-  createdAt DateTime @default(now())
-  createdBy String? // User ID or 'system'
-
-  payment Payment @relation(fields: [paymentId], references: [id], onDelete: Cascade)
-
-  @@index([paymentId])
-  @@index([eventType])
-  @@index([createdAt])
-}
-
-// Store raw webhook events for idempotency and debugging
-model WebhookEvent {
-  id String @id @default(cuid())
-
-  // Razorpay event identifiers
-  razorpayEventId String @unique // From payload (payment.id or order.id)
-  eventType       String // payment.captured, payment.failed, etc.
-
-  // Webhook data
-  signature  String // x-razorpay-signature header
-  rawPayload Json // Complete webhook body
-
-  // Processing status
-  processed       Boolean   @default(false)
-  processedAt     DateTime?
-  processingError String? // Error message if processing failed
-
-  // Audit
-  receivedAt DateTime @default(now())
-
-  @@index([razorpayEventId])
-  @@index([eventType])
-  @@index([processed])
-  @@index([receivedAt])
-}
-
-// Track payment reconciliation attempts for stuck payments
-model PaymentReconciliation {
-  id        String @id @default(cuid())
-  paymentId String
-
-  attemptNumber Int // 1, 2, 3...
-  status        String // checking, resolved, failed
-
-  // Razorpay API response
-  razorpayStatus String? // From Razorpay.payments.fetch()
-  apiResponse    Json?
-
-  resolution String? // marked_success, marked_failed, still_pending
-  notes      String? // Manual notes from admin
-
-  createdAt  DateTime  @default(now())
-  resolvedAt DateTime?
-
-  @@index([paymentId])
-  @@index([status])
-  @@index([createdAt])
-}
-
-// Idempotency cache for API endpoints
-model IdempotencyCache {
-  id String @id @default(cuid())
-
-  key          String @unique // Idempotency-Key header value
-  statusCode   Int // HTTP status code of cached response
-  responseBody Json // Cached response
-
-  createdAt DateTime @default(now())
-  expiresAt DateTime // Cache for 24 hours
-
-  @@index([key])
-  @@index([expiresAt])
-}
-
-// ============================================================================
-// CATEGORY 2: PATIENT & CLINICAL (5 tables)
-// ============================================================================
-
-model Patient {
-  id      String @id @default(cuid())
-  storeId String
-
-  firstName   String
-  middleName  String?
-  lastName    String
-  dateOfBirth DateTime?
-  gender      String?
-  photoUrl    String?
-
-  // Connections
-  relatedTo   PatientRelation[] @relation("SourcePatient")
-  relatedFrom PatientRelation[] @relation("RelatedPatient")
-
-  phoneNumber String
-  email       String?
-
-  // Address
-  addressLine1 String?
-  addressLine2 String?
-  city         String?
-  state        String?
-  pinCode      String?
-
-  // Medical
-  bloodGroup        String?
-  allergies         String[] // Array of allergy strings
-  chronicConditions String[]
-
-  // Emergency contact
-  emergencyContactName  String?
-  emergencyContactPhone String?
-
-  store          Store              @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  prescriptions  Prescription[]
-  sales          Sale[]
-  dispensedSales Sale[]             @relation("DispenseFor")
-  consents       PatientConsent[]
-  insurance      PatientInsurance[]
-  adherence      PatientAdherence[]
-  auditLogs      PatientAudit[]
-  ledger         CustomerLedger[]
-  loyaltyProfile LoyaltyProfile?
-
-  // Financials
-  currentBalance Decimal @default(0.00) @db.Decimal(10, 2) // Positive = Due from customer
-  creditLimit    Decimal @default(0.00) @db.Decimal(10, 2) // 0 = No limit or not set
-
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
-  deletedBy String?
-
-  @@index([storeId, phoneNumber])
-  @@index([storeId, email])
-  @@index([storeId, lastName, firstName])
-  @@index([storeId, deletedAt])
-}
-
-model SavedFilter {
-  id           String  @id @default(cuid())
-  name         String
-  userId       String
-  filters      Json
-  type         String  @default("filter") // "filter" or "watchlist"
-  alertEnabled Boolean @default(false)
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([userId, type])
-}
-
-model PatientConsent {
-  id                  String    @id @default(cuid())
-  patientId           String
-  type                String // Data Processing, Marketing, WhatsApp
-  status              String // Active, Withdrawn
-  grantedDate         DateTime  @default(now())
-  expiryDate          DateTime?
-  digitalSignatureUrl String?
-
-  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
-
-  @@index([patientId, type])
-}
-
-model PatientInsurance {
-  id           String   @id @default(cuid())
-  patientId    String
-  provider     String
-  policyNumber String
-  groupNumber  String?
-  validUntil   DateTime
-  status       String // active, inactive
-
-  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([patientId])
-}
-
-model PatientAdherence {
-  id                 String    @id @default(cuid())
-  patientId          String
-  prescriptionId     String
-  expectedRefillDate DateTime
-  actualRefillDate   DateTime?
-  adherenceRate      Float // 0.0 to 1.0
-
-  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-
-  @@index([patientId])
-  @@index([expectedRefillDate])
-}
-
-model InteractionCheckLog {
-  id              String   @id @default(cuid())
-  storeId         String
-  prescriptionId  String?
-  checkedBy       String
-  drugIds         String[] // Array of drug IDs checked
-  hasInteractions Boolean
-  severity        String? // critical, major, moderate
-  apiResponse     Json? // Cached API response
-
-  createdAt DateTime @default(now())
-
-  @@index([storeId, prescriptionId])
-}
-
-// ============================================================================
-// CUSTOMER FINANCIALS
-// ============================================================================
-
 enum LedgerType {
-  DEBIT // Increase in debt (Buy on Credit)
-  CREDIT // Decrease in debt (Payment)
+  DEBIT
+  CREDIT
 }
 
 enum LedgerReferenceType {
@@ -1017,1674 +2807,26 @@ enum LedgerReferenceType {
   ADJUSTMENT
 }
 
-model CustomerLedger {
-  id           String     @id @default(cuid())
-  storeId      String
-  patientId    String
-  type         LedgerType
-  amount       Decimal    @db.Decimal(10, 2)
-  balanceAfter Decimal    @db.Decimal(10, 2)
-
-  referenceType LedgerReferenceType
-  referenceId   String? // Sale ID, Return ID, or Payment ID
-  notes         String?
-
-  createdBy String? // User ID
-  createdAt DateTime @default(now())
-
-  patient     Patient             @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  store       Store               @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  allocations InvoiceAllocation[]
-
-  @@index([patientId])
-  @@index([storeId])
-  @@index([createdAt])
-}
-
-// ============================================================================
-// CATEGORY 3: DRUG CATALOG (2 tables)
-// ============================================================================
-
-model Drug {
-  id           String  @id @default(cuid())
-  storeId      String
-  rxcui        String? // RxNorm ID (removed @unique for multi-store)
-  name         String
-  genericName  String? // Generic/scientific name
-  strength     String?
-  form         String? // Tablet, Capsule, Syrup
-  manufacturer String?
-  schedule     String? // H, H1, X, etc. for controlled substances
-
-  // GST Fields
-  hsnCodeId  String? // FK to HsnCode (NEW)
-  hsnCodeRef HsnCode? @relation(fields: [hsnCodeId], references: [id])
-
-  // DEPRECATED: keeping for migration compatibility
-  hsnCode String?
-  gstRate Decimal @default(0) @db.Decimal(5, 2)
-
-  requiresPrescription Boolean @default(false)
-  defaultUnit          String? // Strips, Units
-  lowStockThreshold    Int?
-
-  // Cached from API
-  description  String?   @db.Text
-  lastSyncedAt DateTime?
-
-  store             Store                @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  inventory         InventoryBatch[]
-  prescriptionItems PrescriptionItem[]
-  poItems           PurchaseOrderItem[]
-  saleItems         SaleItem[]
-  returnItems       SupplierReturnItem[]
-  grnItems          GRNItem[]
-
-  createdAt                DateTime                  @default(now())
-  updatedAt                DateTime                  @updatedAt
-  prescriptionItemVersions PrescriptionItemVersion[]
-
-  @@index([name])
-  @@index([hsnCode])
-  @@index([hsnCodeId])
-  @@index([storeId])
-  @@index([storeId, name])
-  @@index([storeId, hsnCode])
-}
-
-// GST Tax Slab Configuration
-model TaxSlab {
-  id       String  @id @default(cuid())
-  storeId  String?
-  name     String // "GST 12%", "GST 18%", "Exempt"
-  rate     Decimal @db.Decimal(5, 2)
-  taxType  String // "GST", "CESS", "EXEMPT"
-  isActive Boolean @default(true)
-
-  // For CGST+SGST split
-  isSplit  Boolean  @default(true)
-  cgstRate Decimal? @db.Decimal(5, 2)
-  sgstRate Decimal? @db.Decimal(5, 2)
-  igstRate Decimal? @db.Decimal(5, 2)
-
-  cessRate Decimal? @db.Decimal(5, 2)
-
-  hsnCodes HsnCode[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([storeId, name])
-  @@index([storeId, isActive])
-}
-
-// HSN Code Master
-model HsnCode {
-  id          String  @id @default(cuid())
-  storeId     String?
-  code        String
-  description String
-  taxSlabId   String
-  category    String?
-  isActive    Boolean @default(true)
-
-  taxSlab TaxSlab @relation(fields: [taxSlabId], references: [id])
-  drugs   Drug[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([storeId, code])
-  @@index([code])
-  @@index([category])
-}
-
-// DEPRECATED: Keeping for backward compatibility
-model TaxRate {
-  id          String  @id @default(cuid())
-  hsnCode     String  @unique
-  gstRate     Decimal @db.Decimal(5, 2)
-  description String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-// ============================================================================
-// CATEGORY 4: INVENTORY (6 tables)
-// ============================================================================
-
-model InventoryBatch {
-  id              String   @id @default(cuid())
-  storeId         String
-  drugId          String
-  batchNumber     String
-  expiryDate      DateTime
-  quantityInStock Int
-  mrp             Decimal  @db.Decimal(10, 2)
-  purchasePrice   Decimal  @db.Decimal(10, 2)
-  supplierId      String?
-  location        String? // Shelf location
-
-  store         Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  drug          Drug            @relation(fields: [drugId], references: [id])
-  movements     StockMovement[]
-  dispenseItems DispenseItem[]
-  saleItems     SaleItem[]
-
-  createdAt                DateTime                  @default(now())
-  updatedAt                DateTime                  @updatedAt
-  deletedAt                DateTime?
-  PrescriptionItem         PrescriptionItem[]
-  prescriptionItemVersions PrescriptionItemVersion[]
-
-  @@unique([storeId, batchNumber, drugId])
-  // Performance indexes
-  @@index([storeId, drugId])
-  @@index([storeId, expiryDate, quantityInStock]) // Expiry reports with stock check
-  @@index([drugId, expiryDate]) // Drug-specific expiry tracking
-  @@index([supplierId, createdAt]) // Supplier analysis
-  @@index([batchNumber])
-  @@index([storeId, deletedAt])
-}
-
-model StockMovement {
-  id            String  @id @default(cuid())
-  batchId       String
-  movementType  String // IN, OUT, ADJUSTMENT, RETURN
-  quantity      Int
-  reason        String?
-  referenceType String? // sale, purchase, adjustment
-  referenceId   String?
-  userId        String?
-
-  batch InventoryBatch @relation(fields: [batchId], references: [id])
-
-  createdAt DateTime @default(now())
-
-  // Performance indexes
-  @@index([batchId, createdAt]) // Batch movement history
-  @@index([referenceType, referenceId]) // Track by sale/purchase
-  @@index([userId, createdAt]) // Staff activity tracking
-}
-
-model StockAdjustment {
-  id               String @id @default(cuid())
-  storeId          String
-  batchId          String
-  quantityAdjusted Int // Can be negative
-  reason           String
-  userId           String
-
-  createdAt DateTime @default(now())
-
-  @@index([storeId, createdAt])
-}
-
-model StockAlert {
-  id           String @id @default(cuid())
-  storeId      String
-  drugId       String
-  alertType    String // LOW_STOCK, EXPIRY_SOON, EXPIRED
-  threshold    Int?
-  currentValue Int?
-  status       String // active, resolved
-
-  createdAt  DateTime  @default(now())
-  resolvedAt DateTime?
-
-  @@index([storeId, status])
-}
-
-model InventoryCount {
-  id            String   @id @default(cuid())
-  storeId       String
-  countDate     DateTime
-  countedBy     String
-  status        String // in_progress, completed
-  notes         String?
-  discrepancies Json? // { drugId: { expected, actual, diff } }
-
-  completedAt DateTime?
-  createdAt   DateTime  @default(now())
-
-  @@index([storeId, countDate])
-}
-
-model InventoryForecast {
-  id              String   @id @default(cuid())
-  storeId         String
-  drugId          String
-  forecastDate    DateTime
-  predictedDemand Int
-  confidence      Float
-  algorithm       String // moving_average, ml
-
-  createdAt DateTime @default(now())
-
-  @@unique([storeId, drugId, forecastDate])
-  @@index([storeId, forecastDate])
-}
-
-// ============================================================================
-// CATEGORY 5: PRESCRIPTION & DISPENSING (7 tables)
-// ============================================================================
-
-model Prescription {
-  id                 String             @id @default(cuid())
-  storeId            String
-  prescriptionNumber String
-  patientId          String
-  prescriberId       String? // Made optional
-  issueDate          DateTime           @default(now())
-  expiryDate         DateTime
-  totalRefills       Int                @default(0)
-  status             PrescriptionStatus @default(DRAFT)
-  type               PrescriptionType   @default(REGULAR)
-
-  // Source tracking
-  source   String @default("manual") // manual, e-rx, fax, phone
-  priority String @default("Normal") // Normal, Urgent
-
-  // Controlled Substance
-  controlledFlag Boolean @default(false)
-
-  // E-Rx Integration
-  eRxId       String? // External e-Rx system ID
-  eRxMetadata Json? // e-Rx provider data
-
-  // OCR & Digital
-  uploadedImages String[] // OCR image URLs
-  ocrText        String? // Extracted text
-  ocrConfidence  Float? // OCR accuracy score
-
-  // Reminders
-  reminderSent  DateTime?
-  nextRefillDue DateTime?
-
-  notes     String?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
-
-  store      Store       @relation(fields: [storeId], references: [id])
-  patient    Patient     @relation(fields: [patientId], references: [id])
-  prescriber Prescriber? @relation(fields: [prescriberId], references: [id])
-
-  versions PrescriptionVersion[]
-  refills  Refill[]
-  files    PrescriptionFile[]
-
-  // Sales (one-to-many for refills support)
-  sales             Sale[]
-  prescriptionItems PrescriptionItem[]
-  dispenseEvents    DispenseEvent[]
-
-  @@unique([storeId, prescriptionNumber])
-  // Performance indexes
-  @@index([storeId, status, expiryDate]) // Active prescriptions
-  @@index([patientId, status, createdAt]) // Patient prescription history
-  @@index([prescriberId, createdAt]) // Prescriber reports
-  @@index([storeId])
-  @@index([patientId])
-  @@index([prescriberId])
-  @@index([status])
-  @@index([type])
-  @@index([createdAt])
-  @@index([deletedAt])
-}
-
-model PrescriptionItem {
-  id                 String  @id @default(cuid())
-  prescriptionId     String
-  drugId             String
-  batchId            String? // Optional: specific batch if prescribed
-  quantityPrescribed Int
-  sig                String? // Dosage instructions
-  daysSupply         Int?
-  isControlled       Boolean @default(false)
-
-  prescription Prescription    @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
-  drug         Drug            @relation(fields: [drugId], references: [id])
-  batch        InventoryBatch? @relation(fields: [batchId], references: [id])
-  refillItems  RefillItem[] // Track which refills dispensed this item
-
-  @@index([prescriptionId])
-  @@index([batchId])
-}
-
-model Prescriber {
-  id            String  @id @default(cuid())
-  storeId       String
-  name          String
-  licenseNumber String
-  clinic        String?
-  phoneNumber   String?
-  email         String?
-  specialty     String?
-
-  store         Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  prescriptions Prescription[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([storeId, licenseNumber])
-  @@index([storeId])
-  @@index([licenseNumber])
-  @@index([name]) // For fast name-based search
-  @@index([clinic]) // For fast clinic-based search
-  @@index([storeId, name]) // Composite index for filtered searches
-}
-
-model PrescriptionVersion {
-  id                String   @id @default(cuid())
-  prescriptionId    String
-  versionNumber     Int
-  instructions      String?  @db.Text
-  substitutionNotes String?  @db.Text
-  attachments       Json? // URLs to scans/documents
-  changedReason     String? // Why this version was created
-  createdBy         String // User ID who created this version
-  createdAt         DateTime @default(now())
-
-  prescription Prescription              @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
-  items        PrescriptionItemVersion[]
-  dispenses    Dispense[]
-
-  @@unique([prescriptionId, versionNumber])
-  @@index([prescriptionId])
-  @@index([createdAt])
-}
-
-model PrescriptionItemVersion {
-  id                    String  @id @default(cuid())
-  prescriptionVersionId String
-  drugId                String
-  batchId               String? // Optional: specific batch if prescribed
-  quantityPrescribed    Int
-  sig                   String? // Dosage instructions
-  daysSupply            Int?
-  substitutionAllowed   Boolean @default(true)
-  isControlled          Boolean @default(false)
-  refillsAllowed        Int     @default(0) // Number of refills allowed for this medication
-
-  prescriptionVersion PrescriptionVersion @relation(fields: [prescriptionVersionId], references: [id], onDelete: Cascade)
-  drug                Drug                @relation(fields: [drugId], references: [id])
-  batch               InventoryBatch?     @relation(fields: [batchId], references: [id])
-
-  @@index([prescriptionVersionId])
-  @@index([drugId])
-  @@index([batchId])
-}
-
-model Refill {
-  id             String       @id @default(cuid())
-  prescriptionId String
-  refillNumber   Int
-  authorizedQty  Int // How much can be dispensed for this refill
-  dispensedQty   Int          @default(0)
-  remainingQty   Int
-  status         RefillStatus @default(AVAILABLE)
-  expiresAt      DateTime?
-  notes          String?
-
-  prescription Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
-  dispenses    Dispense[]
-  items        RefillItem[] // Per-medication refill tracking
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([prescriptionId, refillNumber])
-  @@index([prescriptionId])
-  @@index([status])
-  @@index([expiresAt])
-}
-
-model RefillItem {
-  id                 String    @id @default(cuid())
-  refillId           String
-  prescriptionItemId String
-  quantityDispensed  Int       @default(0)
-  dispensedAt        DateTime?
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
-
-  refill           Refill           @relation(fields: [refillId], references: [id], onDelete: Cascade)
-  prescriptionItem PrescriptionItem @relation(fields: [prescriptionItemId], references: [id])
-
-  @@index([refillId])
-  @@index([prescriptionItemId])
-}
-
-model Dispense {
-  id                    String         @id @default(cuid())
-  refillId              String
-  prescriptionVersionId String
-  status                DispenseStatus @default(QUEUED)
-
-  // Workflow tracking
-  queuedAt    DateTime  @default(now())
-  verifyingAt DateTime?
-  fillingAt   DateTime?
-  checkingAt  DateTime?
-  readyAt     DateTime?
-  completedAt DateTime?
-  cancelledAt DateTime?
-
-  // Staff assignments
-  queuedBy    String? // User ID
-  verifiedBy  String?
-  filledBy    String?
-  checkedBy   String?
-  dispensedBy String?
-
-  // Quantities
-  quantityDispensed Int?
-
-  notes              String? @db.Text
-  cancellationReason String?
-
-  refill              Refill              @relation(fields: [refillId], references: [id], onDelete: Cascade)
-  prescriptionVersion PrescriptionVersion @relation(fields: [prescriptionVersionId], references: [id])
-  sale                Sale?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([refillId])
-  @@index([prescriptionVersionId])
-  @@index([status])
-  @@index([queuedAt])
-  @@index([completedAt])
-}
-
-model PrescriptionFile {
-  id             String       @id @default(cuid())
-  prescriptionId String
-  fileUrl        String
-  thumbnailUrl   String?
-  ocrData        Json?
-  uploadedBy     String
-  createdAt      DateTime     @default(now())
-  prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
-
-  @@index([prescriptionId])
-}
-
-model DispenseEvent {
-  id             String                 @id @default(cuid())
-  prescriptionId String
-  workflowStatus DispenseWorkflowStatus @default(INTAKE)
-
-  intakeBy  String?
-  intakeAt  DateTime?
-  verifyBy  String?
-  verifyAt  DateTime?
-  fillBy    String?
-  fillAt    DateTime?
-  checkBy   String?
-  checkAt   DateTime?
-  releaseBy String?
-  releaseAt DateTime?
-
-  prescription Prescription   @relation(fields: [prescriptionId], references: [id])
-  items        DispenseItem[]
-
-  createdAt   DateTime  @default(now())
-  completedAt DateTime?
-
-  @@index([prescriptionId])
-}
-
-model DispenseItem {
-  id                String @id @default(cuid())
-  dispenseEventId   String
-  batchId           String
-  quantityDispensed Int
-
-  dispenseEvent DispenseEvent  @relation(fields: [dispenseEventId], references: [id], onDelete: Cascade)
-  batch         InventoryBatch @relation(fields: [batchId], references: [id])
-
-  @@index([dispenseEventId])
-}
-
-// ============================================================================
-// CATEGORY 11: HR & TEAM MANAGEMENT
-// ============================================================================
-
-model Shift {
-  id         String  @id @default(cuid())
-  storeId    String
-  name       String // "Morning Shift", "Evening Shift"
-  startTime  String // "08:00" HH:MM format
-  endTime    String // "16:00"
-  daysOfWeek Int[] // [1,2,3,4,5] = Mon-Fri (0=Sunday, 6=Saturday)
-  isActive   Boolean @default(true)
-
-  store Store  @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  users User[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([storeId])
-  @@index([storeId, isActive])
-}
-
-model AttendanceLog {
-  id                    String    @id @default(cuid())
-  userId                String
-  storeId               String
-  checkInTime           DateTime
-  checkOutTime          DateTime?
-  locationSnapshot      Json? // {lat, lng, accuracy}
-  faceVerificationScore Float? // 0-100 confidence score
-  status                String // PRESENT, LATE, ABSENT, HALF_DAY
-  notes                 String?
-
-  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([userId, checkInTime])
-  @@index([storeId, checkInTime])
-  @@index([userId, storeId, checkInTime])
-}
-
-model StaffDocument {
-  id           String    @id @default(cuid())
-  userId       String
-  documentType String // AADHAAR, LICENSE, REGISTRATION, CERTIFICATE
-  fileUrl      String // S3 URL
-  expiryDate   DateTime?
-  status       String    @default("ACTIVE") // ACTIVE, EXPIRED, EXPIRING_SOON
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([userId])
-  @@index([userId, status])
-}
-
-model PerformanceMetric {
-  id                     String   @id @default(cuid())
-  userId                 String
-  storeId                String
-  date                   DateTime
-  salesAmount            Decimal  @db.Decimal(10, 2)
-  hoursWorked            Float
-  prescriptionsProcessed Int      @default(0)
-  prescriptionsVerified  Int      @default(0)
-  prescriptionsRejected  Int      @default(0)
-
-  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-
-  @@unique([userId, storeId, date])
-  @@index([userId, date])
-  @@index([storeId, date])
-}
-
-model DispenseWorkflowStep {
-  id         String  @id @default(cuid())
-  storeId    String
-  stepName   String // INTAKE, VERIFY, FILL, CHECK, RELEASE
-  isRequired Boolean @default(true)
-  order      Int
-
-  createdAt DateTime @default(now())
-
-  @@unique([storeId, stepName])
-}
-
-// ============================================================================
-// CATEGORY 6: PURCHASE ORDERS (5 tables)
-// ============================================================================
-
-model Supplier {
-  id       String  @id @default(cuid())
-  storeId  String
-  name     String
-  category String // Distributor, Manufacturer, Wholesaler
-  status   String // Active, Inactive
-  gstin    String?
-  dlNumber String?
-  pan      String?
-
-  // Contact
-  contactName String
-  phoneNumber String
-  email       String?
-  whatsapp    String?
-
-  // Address
-  addressLine1 String
-  addressLine2 String?
-  city         String
-  state        String
-  pinCode      String
-
-  // Payment
-  paymentTerms String? // Net 30, Net 60
-  creditLimit  Decimal? @db.Decimal(12, 2)
-
-  store              Store               @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  licenses           SupplierLicense[]
-  purchaseOrders     PurchaseOrder[]
-  returns            SupplierReturn[]
-  goodsReceivedNotes GoodsReceivedNote[]
-
-  createdAt           DateTime              @default(now())
-  updatedAt           DateTime              @updatedAt
-  deletedAt           DateTime?
-  ConsolidatedInvoice ConsolidatedInvoice[]
-
-  @@index([gstin])
-  @@index([deletedAt])
-  @@index([storeId])
-  @@index([storeId, status])
-  @@index([storeId, deletedAt])
-}
-
-model SupplierLicense {
-  id          String   @id @default(cuid())
-  supplierId  String
-  type        String
-  number      String
-  validFrom   DateTime
-  validTo     DateTime
-  documentUrl String?
-
-  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
-
-  @@index([supplierId])
-}
-
-model PurchaseOrder {
-  id         String   @id @default(cuid())
-  storeId    String
-  supplierId String
-  poNumber   String   @unique
-  status     POStatus @default(DRAFT)
-
-  orderDate            DateTime  @default(now())
-  expectedDeliveryDate DateTime?
-
-  subtotal  Decimal @db.Decimal(12, 2)
-  taxAmount Decimal @db.Decimal(12, 2)
-  total     Decimal @db.Decimal(12, 2)
-
-  currency     String  @default("INR")
-  paymentTerms String?
-  notes        String? // Additional notes or instructions
-
-  createdBy  String
-  approvedBy String?
-  approvedAt DateTime?
-
-  store       Store               @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  supplier    Supplier            @relation(fields: [supplierId], references: [id])
-  items       PurchaseOrderItem[]
-  receipts    POReceipt[]
-  grns        GoodsReceivedNote[]
-  returns     SupplierReturn[]
-  attachments POAttachment[]
-
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
-
-  @@index([storeId, status])
-  @@index([supplierId])
-  @@index([storeId, deletedAt])
-}
-
-model POAttachment {
-  id              String        @id @default(cuid())
-  purchaseOrderId String
-  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
-
-  fileName       String
-  fileType       String // pdf, image, document
-  mimeType       String
-  originalSize   BigInt // Original file size in bytes
-  compressedSize BigInt // Compressed file size in bytes
-  r2Key          String // R2 storage key
-  url            String // Public URL
-
-  uploadedAt DateTime @default(now())
-  uploadedBy String
-
-  @@index([purchaseOrderId])
-  @@map("po_attachments")
-}
-
-model PurchaseOrderItem {
-  id          String @id @default(cuid())
-  poId        String
-  drugId      String
-  quantity    Int
-  receivedQty Int    @default(0)
-
-  // Pack size for conversion
-  packSize Int    @default(1)
-  packUnit String @default("Strip")
-
-  unitPrice       Decimal @db.Decimal(10, 2)
-  discountPercent Decimal @default(0) @db.Decimal(5, 2)
-  gstPercent      Decimal @db.Decimal(5, 2)
-  lineTotal       Decimal @db.Decimal(12, 2)
-
-  po   PurchaseOrder @relation(fields: [poId], references: [id], onDelete: Cascade)
-  drug Drug          @relation(fields: [drugId], references: [id])
-
-  @@index([poId])
-}
-
-model POReceipt {
-  id            String   @id @default(cuid())
-  poId          String
-  receiptDate   DateTime @default(now())
-  receivedBy    String
-  notes         String?
-  itemsReceived Json // { drugId, quantityReceived, batchNumber }
-
-  po PurchaseOrder @relation(fields: [poId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-
-  @@index([poId])
-}
-
-model POTemplate {
-  id          String  @id @default(cuid())
-  storeId     String
-  name        String
-  description String?
-  supplierId  String?
-
-  paymentTerms String?
-  notes        String?
-
-  items POTemplateItem[]
-
-  createdBy  String
-  isActive   Boolean   @default(true)
-  usageCount Int       @default(0)
-  lastUsedAt DateTime?
-
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
-
-  @@index([storeId, isActive])
-  @@index([storeId, deletedAt])
-}
-
-model POTemplateItem {
-  id              String   @id @default(cuid())
-  templateId      String
-  drugId          String
-  quantity        Int
-  unitPrice       Decimal? @db.Decimal(10, 2)
-  discountPercent Decimal  @default(0) @db.Decimal(5, 2)
-
-  template POTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
-
-  @@index([templateId])
-}
-
-model GoodsReceivedNote {
-  id         String @id @default(cuid())
-  grnNumber  String @unique
-  poId       String
-  storeId    String
-  supplierId String
-
-  status GRNStatus @default(DRAFT)
-
-  // Invoice Details
-  supplierInvoiceNo   String?
-  supplierInvoiceDate DateTime?
-
-  // Receipt Details
-  receivedBy     String
-  receivedByUser User     @relation(fields: [receivedBy], references: [id])
-  receivedDate   DateTime @default(now())
-
-  // Totals (actual billed amounts)
-  subtotal  Decimal @db.Decimal(12, 2)
-  taxAmount Decimal @db.Decimal(12, 2)
-  total     Decimal @db.Decimal(12, 2)
-
-  notes String? @db.Text
-
-  supplier      Supplier         @relation(fields: [supplierId], references: [id])
-  po            PurchaseOrder    @relation(fields: [poId], references: [id], onDelete: Cascade)
-  items         GRNItem[]
-  discrepancies GRNDiscrepancy[]
-  attachments   GRNAttachment[]
-
-  completedAt            DateTime?
-  createdAt              DateTime                 @default(now())
-  updatedAt              DateTime                 @updatedAt
-  ConsolidatedInvoiceGRN ConsolidatedInvoiceGRN[]
-
-  @@index([poId])
-  @@index([storeId])
-  @@index([status])
-}
-
-model GRNAttachment {
-  id    String            @id @default(cuid())
-  grnId String
-  grn   GoodsReceivedNote @relation(fields: [grnId], references: [id], onDelete: Cascade)
-
-  fileName       String
-  fileType       String // pdf, image, document
-  mimeType       String
-  originalSize   BigInt
-  compressedSize BigInt
-  r2Key          String
-  url            String
-
-  uploadedAt DateTime @default(now())
-  uploadedBy String
-
-  @@index([grnId])
-  @@map("grn_attachments")
-}
-
-model GRNItem {
-  id       String @id @default(cuid())
-  grnId    String
-  poItemId String
-  drugId   String
-
-  // Ordered vs Received
-  orderedQty  Int
-  receivedQty Int
-  freeQty     Int @default(0)
-  rejectedQty Int @default(0)
-
-  // Batch Details (critical for pharma)
-  batchNumber String
-  expiryDate  DateTime?
-
-  // Pricing (actual from invoice)
-  mrp             Decimal @db.Decimal(10, 2)
-  unitPrice       Decimal @db.Decimal(10, 2)
-  discountPercent Decimal @default(0) @db.Decimal(5, 2)
-  discountType    String  @default("BEFORE_GST") // BEFORE_GST or AFTER_GST
-  gstPercent      Decimal @db.Decimal(5, 2)
-
-  // Calculated
-  lineTotal Decimal @db.Decimal(12, 2)
-
-  // Storage location for this batch
-  location String?
-
-  // Batch split tracking
-  parentItemId String? // Points to parent if this is a split
-  isSplit      Boolean @default(false) // True if this item has been split into children
-
-  // Relations
-  grn      GoodsReceivedNote @relation(fields: [grnId], references: [id], onDelete: Cascade)
-  drug     Drug              @relation(fields: [drugId], references: [id])
-  parent   GRNItem?          @relation("GRNItemSplit", fields: [parentItemId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  children GRNItem[]         @relation("GRNItemSplit")
-
-  @@index([grnId])
-  @@index([poItemId])
-  @@index([parentItemId])
-}
-
-model GRNDiscrepancy {
-  id        String  @id @default(cuid())
-  grnId     String
-  grnItemId String?
-
-  reason     DiscrepancyReason
-  resolution DiscrepancyResolution?
-
-  expectedQty    Int?
-  actualQty      Int?
-  discrepancyQty Int
-
-  description String @db.Text
-
-  // Financial impact
-  debitNoteValue     Decimal? @db.Decimal(10, 2)
-  debitNoteGenerated Boolean  @default(false)
-
-  grn        GoodsReceivedNote @relation(fields: [grnId], references: [id], onDelete: Cascade)
-  createdAt  DateTime          @default(now())
-  resolvedAt DateTime?
-
-  @@index([grnId])
-  @@index([reason])
-  @@map("grn_discrepancies")
-}
-
-// ============================================================================
-// CONSOLIDATED INVOICES (Supplier Invoice Management)
-// ============================================================================
-
 enum ConsolidatedInvoiceType {
-  SINGLE_SUPPLIER // All GRNs from one supplier
-  MULTI_SUPPLIER // GRNs from multiple suppliers
-  PERIOD // Period-based (daily/monthly/yearly)
+  SINGLE_SUPPLIER
+  MULTI_SUPPLIER
+  PERIOD
 }
 
 enum ConsolidatedInvoiceStatus {
-  DRAFT // Being created
-  FINALIZED // Ready to send
-  SENT // Sent to supplier
-  ARCHIVED // Archived for record-keeping
+  DRAFT
+  FINALIZED
+  SENT
+  ARCHIVED
 }
-
-model ConsolidatedInvoice {
-  id            String  @id @default(cuid())
-  invoiceNumber String  @unique // CI-2024-001
-  storeId       String
-  supplierId    String? // Optional - can be multi-supplier
-
-  // Invoice Details
-  invoiceDate DateTime  @default(now())
-  periodStart DateTime? // For period-based invoices
-  periodEnd   DateTime?
-
-  // Financials
-  subtotal  Decimal @db.Decimal(12, 2)
-  taxAmount Decimal @db.Decimal(12, 2)
-  total     Decimal @db.Decimal(12, 2)
-
-  // Metadata
-  type   ConsolidatedInvoiceType   @default(SINGLE_SUPPLIER)
-  status ConsolidatedInvoiceStatus @default(DRAFT)
-  notes  String?                   @db.Text
-
-  // Relations
-  store    Store                     @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  supplier Supplier?                 @relation(fields: [supplierId], references: [id])
-  grns     ConsolidatedInvoiceGRN[]
-  items    ConsolidatedInvoiceItem[]
-
-  createdBy     String
-  createdByUser User     @relation(fields: [createdBy], references: [id])
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  @@index([storeId, invoiceDate])
-  @@index([supplierId])
-  @@index([status])
-  @@map("consolidated_invoices")
-}
-
-model ConsolidatedInvoiceGRN {
-  id                    String @id @default(cuid())
-  consolidatedInvoiceId String
-  grnId                 String
-
-  consolidatedInvoice ConsolidatedInvoice @relation(fields: [consolidatedInvoiceId], references: [id], onDelete: Cascade)
-  grn                 GoodsReceivedNote   @relation(fields: [grnId], references: [id])
-
-  @@unique([consolidatedInvoiceId, grnId])
-  @@index([grnId])
-  @@map("consolidated_invoice_grns")
-}
-
-model ConsolidatedInvoiceItem {
-  id                    String  @id @default(cuid())
-  consolidatedInvoiceId String
-  drugId                String
-  drugName              String
-  batchNumber           String?
-
-  // Quantities from all GRNs
-  totalQuantity Int
-  unit          String
-
-  // Pricing
-  unitPrice       Decimal @db.Decimal(10, 2)
-  gstPercent      Decimal @db.Decimal(5, 2)
-  discountPercent Decimal @default(0) @db.Decimal(5, 2)
-
-  // Calculated
-  subtotal  Decimal @db.Decimal(12, 2)
-  taxAmount Decimal @db.Decimal(12, 2)
-  lineTotal Decimal @db.Decimal(12, 2)
-
-  consolidatedInvoice ConsolidatedInvoice @relation(fields: [consolidatedInvoiceId], references: [id], onDelete: Cascade)
-
-  @@index([consolidatedInvoiceId])
-  @@map("consolidated_invoice_items")
-}
-
-// ============================================================================
-// SUPPLIER RETURNS
-// ============================================================================
-
-model SupplierReturn {
-  id           String        @id @default(cuid())
-  returnNumber String        @unique
-  poId         String
-  po           PurchaseOrder @relation(fields: [poId], references: [id], onDelete: Cascade)
-  storeId      String
-  store        Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  supplierId   String
-  supplier     Supplier      @relation(fields: [supplierId], references: [id])
-
-  status ReturnStatus @default(PENDING)
-  reason String
-  notes  String?
-
-  items SupplierReturnItem[]
-
-  subtotal  Decimal @db.Decimal(10, 2)
-  taxAmount Decimal @db.Decimal(10, 2)
-  total     Decimal @db.Decimal(10, 2)
-
-  requestedBy     String
-  requestedByUser User      @relation("ReturnRequester", fields: [requestedBy], references: [id])
-  approvedBy      String?
-  approvedByUser  User?     @relation("ReturnApprover", fields: [approvedBy], references: [id])
-  approvedAt      DateTime?
-  completedAt     DateTime?
-
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
-
-  @@index([poId])
-  @@index([storeId])
-  @@index([supplierId])
-  @@index([status])
-  @@index([deletedAt])
-}
-
-model SupplierReturnItem {
-  id       String         @id @default(cuid())
-  returnId String
-  return   SupplierReturn @relation(fields: [returnId], references: [id], onDelete: Cascade)
-
-  drugId      String
-  drug        Drug     @relation(fields: [drugId], references: [id])
-  batchNumber String
-  expiryDate  DateTime
-
-  quantity  Int
-  unitPrice Decimal @db.Decimal(10, 2)
-  lineTotal Decimal @db.Decimal(10, 2)
-
-  reason ReturnReason
-  notes  String?
-
-  createdAt DateTime @default(now())
-
-  @@index([returnId])
-  @@index([drugId])
-}
-
-// ============================================================================
-// CATEGORY 7: SALES & PAYMENTS (9 tables)
-// ============================================================================
-
-model Sale {
-  id                   String      @id @default(cuid())
-  storeId              String
-  invoiceNumber        String      @unique
-  invoiceType          InvoiceType @default(RECEIPT)
-  status               SaleStatus  @default(COMPLETED)
-  patientId            String?
-  dispenseForPatientId String?
-
-  subtotal       Decimal @db.Decimal(10, 2)
-  discountAmount Decimal @default(0) @db.Decimal(10, 2)
-  taxAmount      Decimal @db.Decimal(10, 2)
-  roundOff       Decimal @default(0) @db.Decimal(5, 2)
-  total          Decimal @db.Decimal(10, 2)
-
-  // GST Invoice Fields
-  buyerGstin    String? // Customer GSTIN (for B2B)
-  placeOfSupply String? // State code
-  isIgst        Boolean @default(false)
-
-  // Tax Breakup
-  cgstAmount    Decimal @default(0) @db.Decimal(10, 2)
-  sgstAmount    Decimal @default(0) @db.Decimal(10, 2)
-  igstAmount    Decimal @default(0) @db.Decimal(10, 2)
-  cessAmount    Decimal @default(0) @db.Decimal(10, 2)
-  taxableAmount Decimal @default(0) @db.Decimal(10, 2)
-
-  gstrCategory String?
-
-  // For credit notes
-  originalSaleId String?
-  creditReason   String?
-
-  soldBy String
-
-  attachments Json?
-
-  store              Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  prescription       Prescription?  @relation(fields: [prescriptionId], references: [id])
-  prescriptionId     String?
-  dispense           Dispense?      @relation(fields: [dispenseId], references: [id])
-  dispenseId         String?        @unique
-  patient            Patient?       @relation(fields: [patientId], references: [id])
-  dispenseForPatient Patient?       @relation("DispenseFor", fields: [dispenseForPatientId], references: [id])
-  originalSale       Sale?          @relation("CreditNotes", fields: [originalSaleId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  creditNotes        Sale[]         @relation("CreditNotes")
-  items              SaleItem[]
-  paymentSplits      PaymentSplit[]
-  refunds            SaleRefund[]
-
-  balance       Decimal              @default(0.00) @db.Decimal(10, 2)
-  paymentStatus InvoicePaymentStatus @default(PAID)
-  allocations   InvoiceAllocation[]
-
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
-
-  // Performance indexes for frequently accessed queries
-  @@index([storeId, createdAt, status]) // Dashboard queries
-  @@index([storeId, patientId, createdAt]) // Customer purchase history
-  @@index([createdAt, status]) // Time-based reports
-  @@index([soldBy, createdAt]) // Staff performance reports
-  @@index([storeId, createdAt])
-  @@index([storeId, patientId])
-  @@index([storeId, status])
-  @@index([invoiceNumber])
-  @@index([storeId, deletedAt])
-  @@index([paymentStatus])
-  @@index([placeOfSupply])
-  @@index([gstrCategory])
-}
-
-enum InvoicePaymentStatus {
-  PAID
-  PARTIAL
-  UNPAID
-  OVERDUE
-}
-
-model SaleItem {
-  id        String  @id @default(cuid())
-  saleId    String
-  drugId    String
-  batchId   String
-  quantity  Int
-  mrp       Decimal @db.Decimal(10, 2)
-  discount  Decimal @default(0) @db.Decimal(10, 2)
-  gstRate   Decimal @db.Decimal(5, 2)
-  lineTotal Decimal @db.Decimal(10, 2)
-
-  // GST Item Fields
-  hsnCode   String? // Snapshot from drug
-  taxSlabId String? // FK for audit
-
-  // Item-level tax
-  taxableAmount Decimal @default(0) @db.Decimal(10, 2)
-  cgstAmount    Decimal @default(0) @db.Decimal(10, 2)
-  sgstAmount    Decimal @default(0) @db.Decimal(10, 2)
-  igstAmount    Decimal @default(0) @db.Decimal(10, 2)
-  cessAmount    Decimal @default(0) @db.Decimal(10, 2)
-
-  sale  Sale           @relation(fields: [saleId], references: [id], onDelete: Cascade)
-  drug  Drug           @relation(fields: [drugId], references: [id])
-  batch InventoryBatch @relation(fields: [batchId], references: [id])
-
-  @@index([saleId])
-  @@index([hsnCode])
-}
-
-model PaymentSplit {
-  id            String        @id @default(cuid())
-  saleId        String
-  paymentMethod PaymentMethod
-  amount        Decimal       @db.Decimal(10, 2)
-
-  // Card-specific
-  cardLast4    String?
-  cardBrand    String?
-  cardAuthCode String?
-
-  // UPI-specific
-  upiTransactionId String?
-  upiVpa           String?
-
-  // Wallet-specific
-  walletProvider String?
-  walletTxnId    String?
-
-  sale Sale @relation(fields: [saleId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-
-  @@index([saleId])
-}
-
-model InvoiceAllocation {
-  id       String  @id @default(cuid())
-  saleId   String
-  ledgerId String
-  amount   Decimal @db.Decimal(10, 2)
-
-  sale   Sale           @relation(fields: [saleId], references: [id])
-  ledger CustomerLedger @relation(fields: [ledgerId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-
-  @@index([saleId])
-  @@index([ledgerId])
-}
-
-model SaleDraft {
-  id            String  @id @default(cuid())
-  storeId       String
-  draftNumber   String  @unique
-  customerName  String?
-  customerPhone String?
-  customerId    String? // Patient ID if selected
-
-  // Serialized basket data
-  items       Json // Array of {drugId, batchId, quantity, mrp, discount, gstRate}
-  dispenseFor Json? // { id, firstName, lastName, relationType }
-  subtotal    Decimal @db.Decimal(10, 2)
-  taxAmount   Decimal @db.Decimal(10, 2)
-  total       Decimal @db.Decimal(10, 2)
-
-  createdBy String
-  expiresAt DateTime // Auto-delete after 7 days
-
-  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([storeId, createdAt])
-  @@index([expiresAt])
-  @@index([storeId, expiresAt])
-}
-
-model SaleRefund {
-  id             String       @id @default(cuid())
-  refundNumber   String       @unique
-  originalSaleId String
-  storeId        String
-  refundAmount   Decimal      @db.Decimal(10, 2)
-  refundReason   String       @db.Text
-  status         RefundStatus @default(PENDING)
-
-  items SaleRefundItem[]
-
-  originalSale Sale  @relation(fields: [originalSaleId], references: [id], onDelete: Restrict, onUpdate: Restrict)
-  store        Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
-
-  requestedBy String
-  approvedBy  String?
-  approvedAt  DateTime?
-  completedAt DateTime?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([storeId, status])
-  @@index([originalSaleId])
-  @@index([storeId, createdAt])
-}
-
-model SaleRefundItem {
-  id           String  @id @default(cuid())
-  refundId     String
-  saleItemId   String
-  drugId       String
-  batchId      String
-  quantity     Int
-  refundAmount Decimal @db.Decimal(10, 2)
-  reason       String
-
-  refund SaleRefund @relation(fields: [refundId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-
-  @@index([refundId])
-  @@index([saleItemId])
-}
-
-model Expense {
-  id            String    @id @default(cuid())
-  storeId       String
-  vendorId      String?
-  vendorName    String
-  invoiceNumber String
-  invoiceDate   DateTime
-  dueDate       DateTime?
-
-  grossAmount Decimal @db.Decimal(12, 2)
-  gstAmount   Decimal @db.Decimal(12, 2)
-  tdsAmount   Decimal @default(0) @db.Decimal(12, 2)
-  netAmount   Decimal @db.Decimal(12, 2)
-
-  categoryId String
-  status     ExpenseStatus @default(DRAFT)
-
-  attachments Json? // [{ id, name, url }]
-
-  createdBy  String
-  approvedBy String?
-  approvedAt DateTime?
-
-  store    Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  category ExpenseCategory @relation(fields: [categoryId], references: [id])
-
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  deletedAt DateTime?
-
-  @@index([storeId, status])
-  @@index([storeId, deletedAt])
-}
-
-model ExpenseCategory {
-  id          String  @id @default(cuid())
-  name        String  @unique
-  description String?
-  glAccount   String?
-
-  expenses Expense[]
-
-  createdAt DateTime @default(now())
-}
-
-model Claim {
-  id            String  @id @default(cuid())
-  storeId       String
-  type          String // Customer, Supplier, Insurance
-  relatedSaleId String?
-  relatedPOId   String?
-  reason        String
-  amount        Decimal @db.Decimal(10, 2)
-  status        String // Pending, Approved, Rejected
-
-  createdBy  String
-  resolvedBy String?
-  resolvedAt DateTime?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([storeId, status])
-}
-
-model Reconciliation {
-  id            String   @id @default(cuid())
-  storeId       String
-  reconcileDate DateTime
-
-  expectedCash Decimal @db.Decimal(10, 2)
-  actualCash   Decimal @db.Decimal(10, 2)
-  difference   Decimal @db.Decimal(10, 2)
-
-  cardAmount   Decimal @db.Decimal(10, 2)
-  upiAmount    Decimal @db.Decimal(10, 2)
-  walletAmount Decimal @db.Decimal(10, 2)
-
-  notes        String?
-  reconciledBy String
-
-  createdAt DateTime @default(now())
-
-  @@index([storeId, reconcileDate])
-}
-
-model OCRJob {
-  id           String @id @default(cuid())
-  storeId      String
-  documentUrl  String
-  documentType String // expense_invoice, prescription, license
-  status       String // queued, processing, completed, failed
-
-  extractedData    Json?
-  confidence       Float?
-  vendorCandidates Json?
-
-  processedAt DateTime?
-  createdAt   DateTime  @default(now())
-
-  @@index([storeId, status])
-}
-
-// ============================================================================
-// CATEGORY 8: BANK RECONCILIATION (3 tables)
-// ============================================================================
-
-model BankAccount {
-  id            String    @id @default(cuid())
-  storeId       String
-  accountNumber String
-  bankName      String
-  ifscCode      String
-  accountType   String // Current, Savings
-  balance       Decimal   @db.Decimal(12, 2)
-  lastSyncedAt  DateTime?
-
-  transactions BankTransaction[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([storeId])
-}
-
-model BankTransaction {
-  id            String   @id @default(cuid())
-  accountId     String
-  txnDate       DateTime
-  amount        Decimal  @db.Decimal(10, 2)
-  direction     String // CR, DR
-  description   String
-  bankReference String
-
-  // Extracted data
-  extractedInvoiceIds String[]
-  extractedUpiId      String?
-
-  // Matching
-  status           String // UNMATCHED, SUGGESTED, MATCHED, SUSPICIOUS
-  matchedSaleId    String?
-  matchedExpenseId String?
-  matchConfidence  Float?
-
-  account     BankAccount       @relation(fields: [accountId], references: [id], onDelete: Cascade)
-  suggestions MatchSuggestion[]
-
-  createdAt DateTime @default(now())
-
-  @@index([accountId, txnDate])
-  @@index([status])
-}
-
-model MatchSuggestion {
-  id            String @id @default(cuid())
-  bankTxnId     String
-  candidateType String // INVOICE, EXPENSE, ADJUSTMENT
-  candidateId   String
-  score         Float
-  reason        String
-
-  bankTransaction BankTransaction @relation(fields: [bankTxnId], references: [id], onDelete: Cascade)
-
-  @@index([bankTxnId])
-}
-
-// ============================================================================
-// CATEGORY 9: PAYMENT GATEWAY (4 tables)
-// ============================================================================
-
-model PaymentGateway {
-  id       String @id @default(cuid())
-  storeId  String
-  provider String // Razorpay, Paytm, PhonePe
-  status   String // active, inactive
-
-  merchantId    String?
-  apiKey        String? @db.Text
-  apiSecret     String? @db.Text
-  webhookSecret String?
-
-  qrCodeUrl String?
-  upiVpa    String?
-
-  transactions GatewayTransaction[]
-  settlements  Settlement[]
-  webhooks     WebhookLog[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([storeId, status])
-}
-
-model GatewayTransaction {
-  id        String  @id @default(cuid())
-  gatewayId String
-  saleId    String?
-
-  providerTxnId String  @unique
-  amount        Decimal @db.Decimal(10, 2)
-  currency      String  @default("INR")
-  status        String // success, pending, failed, refunded
-  paymentMethod String
-
-  upiVpa      String?
-  upiTxnId    String?
-  cardLast4   String?
-  cardNetwork String?
-
-  gateway PaymentGateway @relation(fields: [gatewayId], references: [id])
-
-  createdAt DateTime @default(now())
-
-  @@index([gatewayId, status])
-  @@index([saleId])
-}
-
-model Settlement {
-  id           String  @id @default(cuid())
-  gatewayId    String
-  settlementId String  @unique
-  amount       Decimal @db.Decimal(10, 2)
-  fee          Decimal @db.Decimal(10, 2)
-  tax          Decimal @db.Decimal(10, 2)
-  netAmount    Decimal @db.Decimal(10, 2)
-  status       String // pending, settled, failed
-  utr          String?
-
-  gateway PaymentGateway @relation(fields: [gatewayId], references: [id])
-
-  settledAt DateTime?
-  createdAt DateTime  @default(now())
-
-  @@index([gatewayId, status])
-}
-
-model WebhookLog {
-  id         String @id @default(cuid())
-  gatewayId  String
-  event      String
-  payload    Json
-  status     String // received, processed, failed
-  retryCount Int    @default(0)
-
-  gateway PaymentGateway @relation(fields: [gatewayId], references: [id])
-
-  processedAt DateTime?
-  createdAt   DateTime  @default(now())
-
-  @@index([gatewayId, createdAt])
-}
-
-// ============================================================================
-// CATEGORY 10: GST & COMPLIANCE (4 tables)
-// ============================================================================
-
-model GSTReturn {
-  id         String    @id @default(cuid())
-  storeId    String
-  returnType String // GSTR1, GSTR3B
-  period     String // MMYYYY
-  status     String // draft, filed, accepted
-  filedAt    DateTime?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([storeId, period])
-}
-
-model GSTTransaction {
-  id              String  @id @default(cuid())
-  storeId         String
-  transactionType String // sale, purchase
-  referenceId     String
-  gstin           String?
-  taxableValue    Decimal @db.Decimal(12, 2)
-  cgst            Decimal @db.Decimal(10, 2)
-  sgst            Decimal @db.Decimal(10, 2)
-  igst            Decimal @db.Decimal(10, 2)
-
-  createdAt DateTime @default(now())
-
-  @@index([storeId, transactionType])
-}
-
-model IRN {
-  id      String   @id @default(cuid())
-  saleId  String   @unique
-  irn     String   @unique
-  ackNo   String
-  ackDate DateTime
-  qrCode  String?  @db.Text
-
-  createdAt DateTime @default(now())
-
-  @@index([irn])
-}
-
-model ComplianceCheck {
-  id        String @id @default(cuid())
-  storeId   String
-  checkType String // dpdpa, erx, hipaa
-  status    String // compliant, non_compliant, warning
-  findings  Json
-
-  checkedAt DateTime @default(now())
-
-  @@index([storeId, checkType])
-}
-
-// ============================================================================
-// CATEGORY 11: WHATSAPP BUSINESS INTEGRATION (8 tables)
-// ============================================================================
 
 enum WhatsAppStatus {
   DISCONNECTED
-  TEMP_STORED // Temporary token received, pending finalization
-  ACTIVE // Fully connected and operational
-  NO_PHONE // WABA exists but no phone number registered
-  NEEDS_VERIFICATION // Phone OTP or business verification required
-  ERROR // Connection error, needs reconnection
+  TEMP_STORED
+  ACTIVE
+  NO_PHONE
+  NEEDS_VERIFICATION
+  ERROR
 }
 
 enum MessageDirection {
@@ -2711,845 +2853,9 @@ enum MessageStatus {
   failed
 }
 
-model WhatsAppAccount {
-  id      String @id @default(cuid())
-  storeId String @unique // One WhatsApp account per store
-
-  // Meta identifiers
-  wabaId        String? // WhatsApp Business Account ID
-  phoneNumberId String? @unique // Phone number ID in Meta system
-  phoneNumber   String? // E.164 format phone number
-
-  // Credentials (encrypt access_token at application layer)
-  accessToken    String?   @db.Text // Encrypted long-lived token
-  tempToken      String?   @db.Text // Temporary token during signup
-  tokenExpiresAt DateTime?
-  webhookSecret  String? // Optional additional verification
-
-  // Status tracking
-  status                WhatsAppStatus @default(DISCONNECTED)
-  businessVerified      Boolean        @default(false)
-  lastWebhookReceivedAt DateTime?
-
-  // Business info
-  businessDisplayName       String?
-  businessAbout             String?
-  businessProfilePictureUrl String?
-
-  store         Store              @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  conversations Conversation[]
-  templates     WhatsAppTemplate[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([phoneNumberId]) // Fast webhook routing
-  @@index([storeId, status])
-}
-
-model Conversation {
-  id                String @id @default(cuid())
-  storeId           String
-  whatsappAccountId String
-
-  // Customer info
-  phoneNumber   String // E.164 format
-  displayName   String?
-  profilePicUrl String?
-
-  // Status
-  status          String  @default("open") // open, pending, resolved, archived
-  assignedAgentId String? // User ID of assigned staff member
-
-  // Metadata
-  lastMessageAt   DateTime?
-  lastMessageBody String?   @db.Text
-  unreadCount     Int       @default(0)
-  tags            String[]  @default([])
-
-  // Session tracking (for 24-hour window enforcement)
-  lastCustomerMessageAt DateTime?
-  sessionActive         Boolean   @default(false)
-
-  whatsappAccount WhatsAppAccount @relation(fields: [whatsappAccountId], references: [id], onDelete: Cascade)
-  messages        Message[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([storeId, phoneNumber]) // One conversation per phone per store
-  @@index([storeId, status])
-  @@index([storeId, lastMessageAt])
-  @@index([assignedAgentId])
-}
-
-model Message {
-  id             String @id @default(cuid())
-  conversationId String
-  storeId        String // Denormalized for faster queries
-
-  // Provider info
-  providerMessageId String? @unique // Meta's message ID
-  wabaPhoneNumberId String? // Which phone_number_id this came through
-
-  // Message content
-  direction MessageDirection
-  type      MessageType
-  body      String?          @db.Text
-  caption   String?          @db.Text
-
-  // Media
-  mediaUrl      String? // Local or S3 URL after fetching from Meta
-  mediaType     String? // image/jpeg, application/pdf, etc.
-  mediaSize     Int? // bytes
-  mediaFileName String?
-
-  // Sender info
-  from String? // Phone number or user ID
-  to   String?
-
-  // Status (for outbound messages)
-  status       MessageStatus?
-  statusReason String? // Error reason if failed
-
-  // Template info (if type = template)
-  templateName     String?
-  templateLanguage String?
-  templateParams   Json? // Variable values
-
-  // Raw data
-  payload Json? // Full webhook payload for debugging
-
-  // Timestamps
-  sentAt      DateTime? // When we sent it
-  deliveredAt DateTime?
-  readAt      DateTime?
-
-  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-
-  @@index([conversationId, createdAt])
-  @@index([storeId, direction, createdAt])
-  @@index([providerMessageId])
-  @@index([wabaPhoneNumberId]) // For webhook mapping
-}
-
-model WhatsAppTemplate {
-  id                String  @id @default(cuid())
-  storeId           String
-  whatsappAccountId String?
-
-  // Template info
-  name     String
-  language String @default("en")
-  category String @default("MARKETING") // MARKETING, UTILITY, AUTHENTICATION, transactional, reminder
-
-  // Content
-  headerType String? // text, image, document, video
-  headerText String?
-  body       String   @db.Text // Can contain {{1}}, {{2}} placeholders
-  footer     String?
-  variables  String[] @default([]) // Variable names for compatibility
-
-  // Buttons (optional)
-  buttons Json? // Array of button objects
-
-  // Status from Meta
-  status         String  @default("PENDING") // PENDING, APPROVED, REJECTED
-  rejectedReason String?
-
-  // Meta identifiers
-  templateId String? // Meta's template ID after approval
-  namespace  String? // Meta namespace
-
-  // Usage tracking
-  usageCount Int       @default(0)
-  lastUsedAt DateTime?
-
-  whatsappAccount WhatsAppAccount? @relation(fields: [whatsappAccountId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([storeId, name, language])
-  @@index([storeId, status])
-}
-
-model WhatsAppOutboundQueue {
-  id             BigInt  @id @default(autoincrement())
-  storeId        String
-  conversationId String?
-
-  // Message to send
-  payload Json // Full message payload for Meta API
-
-  // Retry logic
-  attemptCount Int      @default(0)
-  maxAttempts  Int      @default(3)
-  runAfter     DateTime @default(now())
-
-  // Status
-  status       String    @default("pending") // pending, in_progress, sent, failed
-  errorMessage String?   @db.Text
-  sentAt       DateTime?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([storeId, status, runAfter])
-  @@index([status, runAfter]) // For queue worker
-}
-
-model WhatsAppFlow {
-  id          String    @id @default(cuid())
-  storeId     String
-  name        String
-  trigger     String // prescription_ready, expiry_alert
-  nodes       Json // Flow definition
-  active      Boolean   @default(false)
-  lastRunAt   DateTime?
-  successRate Float?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([storeId, active])
-}
-
-model WhatsAppConsent {
-  id        String    @id @default(cuid())
-  patientId String
-  method    String // webform, phone, in-person
-  source    String
-  scope     String // transactional, marketing, both
-  ipAddress String?
-  expiresAt DateTime?
-  revokedAt DateTime?
-
-  grantedAt DateTime @default(now())
-
-  @@index([patientId, revokedAt])
-}
-
-// ============================================================================
-// CATEGORY 12: MULTI-CHANNEL MESSAGING (2 tables)
-// ============================================================================
-
-model EmailMessageLog {
-  id            String  @id @default(cuid())
-  storeId       String
-  to            String
-  templateId    String?
-  providerMsgId String
-
-  sentAt DateTime @default(now())
-
-  @@index([storeId, sentAt])
-}
-
-model SMSMessageLog {
-  id            String   @id @default(cuid())
-  storeId       String
-  to            String
-  providerMsgId String
-  cost          Decimal? @db.Decimal(6, 4)
-
-  sentAt DateTime @default(now())
-
-  @@index([storeId, sentAt])
-}
-
-// ============================================================================
-// CATEGORY 13: ENGAGEMENT (5 tables)
-// ============================================================================
-
-model Campaign {
-  id             String @id @default(cuid())
-  storeId        String
-  name           String
-  channel        String // whatsapp, sms, email
-  status         String // scheduled, running, completed
-  targetAudience Json
-  messageContent String @db.Text
-
-  scheduledAt DateTime?
-  completedAt DateTime?
-
-  store   Store            @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  targets CampaignTarget[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([storeId, status])
-}
-
-model CampaignTarget {
-  id         String @id @default(cuid())
-  campaignId String
-  patientId  String
-  status     String // pending, sent, delivered, failed
-
-  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-
-  sentAt DateTime?
-
-  @@index([campaignId, status])
-}
-
-model Coupon {
-  id         String   @id @default(cuid())
-  storeId    String
-  code       String   @unique
-  type       String // percentage, fixed_amount
-  value      Decimal  @db.Decimal(10, 2)
-  usageLimit Int?
-  validFrom  DateTime
-  validTo    DateTime
-
-  usages CouponUsage[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([code])
-  @@index([validFrom, validTo])
-}
-
-model CouponUsage {
-  id             String  @id @default(cuid())
-  couponId       String
-  saleId         String
-  discountAmount Decimal @db.Decimal(10, 2)
-
-  coupon Coupon @relation(fields: [couponId], references: [id])
-
-  usedAt DateTime @default(now())
-
-  @@index([couponId])
-}
-
-model LoyaltyProgram {
-  id             String @id @default(cuid())
-  storeId        String
-  tierName       String
-  pointsRequired Int
-  benefits       String @db.Text
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([storeId])
-}
-
-// ============================================================================
-// CATEGORY 14: AUDIT & COMPLIANCE (3 tables)
-// ============================================================================
-
-model AuditLog {
-  id         String  @id @default(cuid())
-  storeId    String
-  userId     String
-  action     String // PATIENT_CREATED, PRESCRIPTION_DELETED
-  entityType String // patient, prescription, sale
-  entityId   String
-  changes    Json? // { before, after }
-  ipAddress  String?
-
-  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  user  User  @relation(fields: [userId], references: [id])
-
-  createdAt DateTime @default(now())
-
-  @@index([storeId, userId, createdAt])
-  @@index([storeId, entityType, entityId])
-  @@index([createdAt])
-}
-
-model AccessLog {
-  id          String  @id @default(cuid())
-  userId      String
-  eventType   String // login_success, login_failure, logout
-  loginMethod String? // password, magic_link, google_oauth
-  ipAddress   String
-  userAgent   String?
-  deviceInfo  String?
-  geolocation Json? // Stores: countryCode, countryName, cityName, latitude, longitude, timezone, asn, isp
-
-  user User @relation(fields: [userId], references: [id])
-
-  createdAt DateTime @default(now())
-
-  @@index([userId, createdAt])
-  @@index([eventType, createdAt])
-  @@index([loginMethod, createdAt])
-}
-
-model Alert {
-  id      String @id @default(cuid())
-  storeId String
-
-  // Classification
-  type     String // inventory, compliance, workflow, system (DEPRECATED - use category)
-  category AlertCategory @default(INVENTORY)
-  severity AlertSeverity
-  priority AlertPriority @default(MEDIUM)
-
-  // Content
-  title       String
-  description String @db.Text
-  source      String
-
-  // Status tracking
-  status AlertStatus @default(NEW)
-
-  // Entity reference (what triggered this alert)
-  relatedType String?
-  relatedId   String?
-
-  // Actions
-  actionUrl   String? // Deep link to resolve (e.g., /inventory/batches/:id)
-  actionLabel String? // Button text (e.g., "View Batch")
-  blockAction Boolean @default(false) // If true, blocks operation until resolved
-
-  // Metadata
-  metadata Json? // Event-specific data (batch details, stock levels, etc.)
-  channels AlertChannel[] @default([IN_APP]) // Delivery channels
-
-  // User interaction tracking
-  seenAt DateTime?
-  seenBy String? // User ID who viewed it
-
-  resolvedBy  String?
-  resolvedAt  DateTime?
-  snoozeUntil DateTime?
-  expiresAt   DateTime? // Auto-dismiss after this time
-
-  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-
-  @@index([storeId, status, priority])
-  @@index([storeId, category])
-  @@index([storeId, status, severity])
-  @@index([snoozeUntil])
-  @@index([seenAt])
-  @@index([expiresAt])
-  @@index([relatedType, relatedId])
-}
-
-model AlertPreference {
-  id       String         @id @default(cuid())
-  userId   String
-  storeId  String
-  category AlertCategory
-  channels AlertChannel[] @default([IN_APP])
-  enabled  Boolean        @default(true)
-
-  // Quiet hours (HH:MM format in 24h, e.g., "22:00" to "08:00")
-  quietHoursStart String?
-  quietHoursEnd   String?
-
-  // Digest mode: batch low-priority alerts into daily summary
-  digestMode Boolean @default(false)
-
-  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  store Store @relation(fields: [storeId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([userId, storeId, category])
-  @@index([userId, storeId])
-}
-
-// ============================================================================
-// CATEGORY 15: API INTEGRATION (3 tables)
-// ============================================================================
-
-model APIKey {
-  id          String    @id @default(cuid())
-  storeId     String
-  name        String
-  keyPrefix   String // First 8 chars
-  keyHash     String // Hashed full key
-  permissions String[]
-  expiresAt   DateTime?
-  lastUsedAt  DateTime?
-
-  requests APIRequest[]
-
-  createdAt DateTime  @default(now())
-  revokedAt DateTime?
-
-  @@index([storeId, revokedAt])
-}
-
-model APIRequest {
-  id           String  @id @default(cuid())
-  apiKeyId     String
-  endpoint     String
-  method       String
-  statusCode   Int
-  responseTime Int // milliseconds
-  ipAddress    String
-  userAgent    String?
-
-  apiKey APIKey @relation(fields: [apiKeyId], references: [id])
-
-  createdAt DateTime @default(now())
-
-  @@index([apiKeyId, createdAt])
-  @@index([createdAt])
-}
-
-model WebhookEndpoint {
-  id      String   @id @default(cuid())
-  storeId String
-  url     String
-  events  String[] // sale.created, prescription.dispensed
-  secret  String
-  active  Boolean  @default(true)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([storeId, active])
-}
-
-// ============================================================================
-// CATEGORY 16: BACKUP & DOCUMENTS (3 tables)
-// ============================================================================
-
-model BackupPlan {
-  id               String   @id @default(cuid())
-  storeId          String
-  name             String
-  frequency        String // daily, weekly, monthly
-  retentionDays    Int
-  includeDocuments Boolean  @default(true)
-  active           Boolean  @default(true)
-  nextRunAt        DateTime
-
-  snapshots BackupSnapshot[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([storeId, active])
-}
-
-model BackupSnapshot {
-  id              String  @id @default(cuid())
-  planId          String
-  storeId         String
-  size            BigInt // bytes
-  status          String // in_progress, completed, failed
-  storageLocation String
-  checksum        String?
-  recordCounts    Json?
-
-  plan BackupPlan @relation(fields: [planId], references: [id])
-
-  createdAt   DateTime  @default(now())
-  completedAt DateTime?
-
-  @@index([storeId, createdAt])
-}
-
-model Document {
-  id         String @id @default(cuid())
-  storeId    String
-  entityType String // patient, prescription, license, expense
-  entityId   String
-  fileType   String // pdf, jpg, png
-  filePath   String
-  fileSize   Int
-  uploadedBy String
-
-  createdAt DateTime @default(now())
-
-  @@index([storeId, entityType, entityId])
-}
-
-// ============================================================================
-// CATEGORY 10: PATIENT AUDIT & FILES
-// ============================================================================
-
-model PatientAudit {
-  id        String   @id @default(cuid())
-  patientId String
-  userId    String
-  action    String // CREATED, UPDATED, MERGED, DELETED
-  changes   Json // { field: { old, new } }
-  ipAddress String?
-  userAgent String?
-  createdAt DateTime @default(now())
-
-  patient Patient @relation(fields: [patientId], references: [id], onDelete: Cascade)
-
-  @@index([patientId, createdAt])
-}
-
-// ============================================================================
-// CATEGORY 11: AVATAR STORAGE (R2)
-// ============================================================================
-
-model UserAvatar {
-  id         String   @id @default(cuid())
-  userId     String
-  sha        String // Content hash for deduplication
-  key        String // R2 object key: objects/avatars/<sha>.webp
-  version    Int      @default(1)
-  isActive   Boolean  @default(true)
-  uploadedAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId, isActive])
-  @@index([sha])
-}
-
-model AvatarObject {
-  sha          String   @id // SHA256 hash as primary key
-  key          String // R2 object key: objects/avatars/<sha>.webp
-  sizeBytes    BigInt
-  refCount     Int      @default(0)
-  createdAt    DateTime @default(now())
-  lastAccessed DateTime @updatedAt
-
-  @@index([refCount])
-}
-
-// ============================================================================
-// Email System Models
-// ============================================================================
-
-model EmailAccount {
-  id         String @id @default(cuid())
-  storeId    String
-  email      String
-  provider   String
-  authMethod String @default("SMTP") // "SMTP" or "OAUTH"
-
-  // SMTP fields (optional - only for SMTP auth)
-  smtpHost              String?
-  smtpPort              Int?
-  smtpUser              String?
-  smtpPasswordEncrypted String? @db.Text
-  useTLS                Boolean @default(true)
-
-  // OAuth fields (for Gmail OAuth)
-  gmailRefreshToken String?   @db.Text // Encrypted
-  gmailAccessToken  String?   @db.Text // Encrypted
-  gmailTokenExpiry  DateTime?
-  oauthConnectedAt  DateTime?
-
-  isPrimary    Boolean   @default(false)
-  isVerified   Boolean   @default(false)
-  isActive     Boolean   @default(true)
-  lastTestedAt DateTime?
-
-  store      Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  sentEmails EmailLog[]
-  templates  EmailTemplate[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@unique([storeId, email])
-  @@index([storeId, isPrimary])
-  @@index([email])
-}
-
-model EmailTemplate {
-  id             String   @id @default(cuid())
-  emailAccountId String
-  name           String
-  subject        String
-  bodyHtml       String   @db.Text
-  variables      String[]
-  category       String   @default("general")
-  tags           String[] @default([])
-  isBuiltIn      Boolean  @default(false)
-
-  emailAccount EmailAccount @relation(fields: [emailAccountId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([emailAccountId])
-  @@index([emailAccountId, category])
-}
-
-model EmailLog {
-  id             String      @id @default(cuid())
-  emailAccountId String
-  to             String[]
-  cc             String[]    @default([])
-  bcc            String[]    @default([])
-  subject        String
-  bodyHtml       String      @db.Text
-  attachments    Json?
-  status         EmailStatus
-  errorMessage   String?     @db.Text
-  sentBy         String
-  contextType    String?
-  contextId      String?
-
-  emailAccount EmailAccount @relation(fields: [emailAccountId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime  @default(now())
-  sentAt    DateTime?
-
-  @@index([emailAccountId, createdAt])
-  @@index([status])
-  @@index([contextType, contextId])
-}
-
 enum EmailStatus {
-  PENDING
   SENT
   FAILED
+  PENDING
   BOUNCED
-}
-
-model PatientRelation {
-  id               String   @id @default(cuid())
-  patientId        String
-  relatedPatientId String
-  relationType     String // e.g. "FAMILY", "PARENT", "CHILD", "SIBLING"
-  createdAt        DateTime @default(now())
-
-  patient        Patient @relation("SourcePatient", fields: [patientId], references: [id], onDelete: Cascade)
-  relatedPatient Patient @relation("RelatedPatient", fields: [relatedPatientId], references: [id], onDelete: Cascade)
-
-  @@unique([patientId, relatedPatientId])
-  @@index([patientId])
-}
-
-// ============================================================================
-// LOYALTY SYSTEM (ENGAGE MODULE)
-// ============================================================================
-
-model LoyaltyProfile {
-  id        String @id @default(cuid())
-  patientId String @unique
-  storeId   String
-
-  // Current Status
-  status      LoyaltyStatus @default(NEW)
-  statusSince DateTime      @default(now())
-
-  // Progress Metrics (computed from events)
-  totalPoints      Int     @default(0)
-  purchaseCount    Int     @default(0)
-  feedbackCount    Int     @default(0)
-  daysSinceFirst   Int     @default(0)
-  consistencyScore Decimal @default(0) @db.Decimal(5, 2) // 0-100
-  engagementScore  Decimal @default(0) @db.Decimal(5, 2) // 0-100
-
-  // Milestones
-  lastPurchaseAt    DateTime?
-  nextMilestoneAt   DateTime?
-  milestoneProgress Decimal   @default(0) @db.Decimal(5, 2) // 0-100 percentage
-
-  // Recognition
-  recognitionMessage String?   @db.Text
-  recognizedAt       DateTime?
-
-  patient Patient         @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  events  LoyaltyEvent[]
-  rewards LoyaltyReward[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([patientId])
-  @@index([storeId, status])
-  @@index([storeId, updatedAt])
-}
-
-model LoyaltyEvent {
-  id        String @id @default(cuid())
-  profileId String
-  storeId   String
-
-  eventType   LoyaltyEventType
-  eventSource String? // sale_id, feedback_id, etc.
-
-  // Signal weights (computed at event creation)
-  points         Int @default(0)
-  frequencyBonus Int @default(0)
-  timeBonus      Int @default(0)
-
-  // Context
-  metadata    Json? // Event-specific data
-  description String?
-
-  profile LoyaltyProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-
-  @@index([profileId, createdAt])
-  @@index([storeId, eventType, createdAt])
-}
-
-model LoyaltyReward {
-  id        String @id @default(cuid())
-  profileId String
-  storeId   String
-
-  type   LoyaltyRewardType
-  status LoyaltyRewardStatus @default(LOCKED)
-
-  title       String
-  description String? @db.Text
-
-  // Unlock criteria (optional, can be null for automatic)
-  minStatus LoyaltyStatus?
-  minPoints Int?
-
-  // Monetary value (optional)
-  creditAmount Decimal? @db.Decimal(10, 2)
-
-  // Lifecycle
-  unlockedAt DateTime?
-  redeemedAt DateTime?
-  expiresAt  DateTime?
-
-  profile LoyaltyProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([profileId, status])
-  @@index([storeId, type])
-}
-
-// ============================================================================
-// PLATFORM CONFIGURATION (Singleton tables for platform-wide settings)
-// ============================================================================
-
-model PlatformEmailConfig {
-  id String @id @default("platform_email")
-
-  // Auth method: "OAUTH" only
-  authMethod String @default("OAUTH")
-
-  // OAuth fields (new)
-  gmailEmail        String? // Connected Gmail address
-  gmailRefreshToken String?   @db.Text // Encrypted
-  gmailAccessToken  String?   @db.Text // Encrypted
-  gmailTokenExpiry  DateTime?
-  connectedAt       DateTime?
-
-  // Status
-  isActive       Boolean   @default(false)
-  lastTestedAt   DateTime?
-  lastTestResult Boolean?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 }
