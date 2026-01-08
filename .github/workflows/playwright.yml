@@ -47,8 +47,9 @@ jobs:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/hoperx_test
         run: |
           cd backend
+          npm install
           npx prisma generate
-          npx prisma migrate deploy || npx prisma db push --accept-data-loss --skip-generate
+          npx prisma db push --accept-data-loss --skip-generate
 
       - name: Build application
         run: npm run build
@@ -104,10 +105,11 @@ jobs:
           report-folder: playwright-report
 
       - name: Slack notification on failure
-        if: failure() && github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        if: failure() && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
         uses: slackapi/slack-github-action@v1
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         with:
-          webhook-url: ${{ secrets.SLACK_WEBHOOK_URL }}
           payload: |
             {
               "text": "❌ Playwright tests failed",
