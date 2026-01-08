@@ -20,20 +20,25 @@ import { ComboBundleSection } from "@/components/pricing/ComboBundle";
 export default function PlanAndBilling() {
     const { user } = useAuthStore();
     const [store, setStore] = useState<any>(null);
+    const [plans, setPlans] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        const fetchStore = async () => {
+        const fetchData = async () => {
             try {
-                const data = await userApi.getPrimaryStore();
-                setStore(data);
+                const [storeData, plansData] = await Promise.all([
+                    userApi.getPrimaryStore(),
+                    fetch('/api/v1/subscriptions/plans').then(r => r.json()).then(d => d.data).catch(() => [])
+                ]);
+                setStore(storeData);
+                setPlans(plansData);
             } catch (err) {
-                console.error("Failed to load store", err);
+                console.error("Failed to load data", err);
             } finally {
                 setLoading(false);
             }
         };
-        fetchStore();
+        fetchData();
     }, []);
 
     // Get subscription data
@@ -210,34 +215,50 @@ export default function PlanAndBilling() {
                                     </div>
 
                                     {/* Only show payment button for trial users */}
-                                    {!isPaid && (
-                                        <>
-                                            <PaymentButton
-                                                amount={getVerticalPrice(vertical, false, true)}
-                                                planName={`HopeRx ${vertical.displayName} - ${billingCycle === 'yearly' ? 'Annual' : 'Monthly'}`}
-                                                user={{
-                                                    firstName: user?.firstName,
-                                                    lastName: user?.lastName,
-                                                    email: user?.email,
-                                                    phoneNumber: user?.phoneNumber,
-                                                    storeId: store?.id || user?.storeUsers?.[0]?.storeId
-                                                }}
-                                                onSuccess={(paymentData) => {
-                                                    console.log('Payment successful:', paymentData);
-                                                    // Reload store data to reflect subscription change
-                                                    window.location.reload();
-                                                }}
-                                                onError={(error) => {
-                                                    console.error('Payment error:', error);
-                                                }}
-                                                className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2"
-                                            />
-                                            <p className="text-xs text-gray-400 mt-2 flex items-center gap-1.5">
-                                                <FiShield className="w-3.5 h-3.5" />
-                                                Secured by Razorpay • Annual billing saves ₹1,200
-                                            </p>
-                                        </>
-                                    )}
+                                    {!isPaid && (() => {
+                                        // Find matching plan from backend
+                                        const matchingPlan = plans.find(p => 
+                                            p.name?.toLowerCase().includes(vertical.id) && 
+                                            p.billingCycle === billingCycle
+                                        );
+
+                                        if (!matchingPlan) {
+                                            return (
+                                                <p className="text-sm text-gray-500 italic">
+                                                    Payment option coming soon
+                                                </p>
+                                            );
+                                        }
+
+                                        return (
+                                            <>
+                                                <PaymentButton
+                                                    planId={matchingPlan.id}
+                                                    storeId={store?.id || user?.storeUsers?.[0]?.storeId || ''}
+                                                    amount={getVerticalPrice(vertical, false, true)}
+                                                    planName={matchingPlan.displayName || `HopeRx ${vertical.displayName}`}
+                                                    user={{
+                                                        firstName: user?.firstName,
+                                                        lastName: user?.lastName,
+                                                        email: user?.email,
+                                                        phoneNumber: user?.phoneNumber,
+                                                    }}
+                                                    onSuccess={(paymentData) => {
+                                                        console.log('Payment successful:', paymentData);
+                                                        window.location.reload();
+                                                    }}
+                                                    onError={(error) => {
+                                                        console.error('Payment error:', error);
+                                                    }}
+                                                    className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2"
+                                                />
+                                                <p className="text-xs text-gray-400 mt-2 flex items-center gap-1.5">
+                                                    <FiShield className="w-3.5 h-3.5" />
+                                                    Secured by Razorpay • Annual billing saves ₹1,200
+                                                </p>
+                                            </>
+                                        );
+                                    })()}
                                 </div>
                             </div>
                         </div>

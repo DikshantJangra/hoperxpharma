@@ -9,7 +9,9 @@ import { PaymentVerificationFlow } from '@/components/payments/verification';
 import type { VerificationResult } from '@/lib/types/payment-verification.types';
 
 interface PaymentButtonProps {
-    amount: number;
+    planId: string; // Required: Subscription plan ID
+    storeId: string; // Required: Store ID
+    amount: number; // Display only - server calculates actual amount
     currency?: string;
     description?: string;
     planName?: string;
@@ -18,7 +20,6 @@ interface PaymentButtonProps {
         lastName?: string;
         email?: string;
         phoneNumber?: string;
-        storeId?: string;
     };
     onSuccess?: (payment: any) => void;
     onError?: (error: any) => void;
@@ -26,6 +27,8 @@ interface PaymentButtonProps {
 }
 
 export function PaymentButton({
+    planId,
+    storeId,
     amount,
     currency = 'INR',
     description = "Subscription",
@@ -54,19 +57,16 @@ export function PaymentButton({
         }
 
         try {
-            // 1. Create Order
-            const orderPayload: any = {
-                amount: amount,
-                currency: currency,
-                receipt: `receipt_${Date.now()}`
+            // 1. Create Order (Server calculates amount from planId)
+            const orderPayload = {
+                planId: planId,
+                storeId: storeId
             };
 
-            if (user?.storeId) {
-                orderPayload.storeId = user.storeId;
-            }
-
+            console.log('[Payment] Creating order with payload:', orderPayload);
             const orderResponse = await apiClient.post('/payments/create-order', orderPayload);
             const orderData = orderResponse.data.data;
+            console.log('[Payment] Order created:', orderData);
 
             // 2. Open Checkout
             const options = createRazorpayOptions(orderData, user, async (response: any) => {

@@ -64,7 +64,9 @@ const errorHandler = (err, req, res, next) => {
         response.correlationId = req.correlationId;
     }
 
-    res.status(error.statusCode).json(response);
+    // Ensure statusCode is valid before sending response
+    const statusCode = error.statusCode || 500;
+    res.status(statusCode).json(response);
 };
 
 /**
