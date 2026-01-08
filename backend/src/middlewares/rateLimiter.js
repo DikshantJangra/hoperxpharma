@@ -117,10 +117,10 @@ const authLimiter = rateLimit({
 const userLimiter = rateLimit({
     windowMs: 60 * 1000, // 1 minute
     max: 200, // 200 requests per minute per user (increased for development)
-    validate: { trustProxy: false, xForwardedForHeader: false, keyGeneratorIpFallback: false },
+    validate: { trustProxy: false },
     keyGenerator: (req) => {
         // Use user ID if authenticated, else IP address
-        return req.user?.id || req.ip;
+        return req.user?.id || 'anonymous';
     },
     message: {
         success: false,
@@ -152,8 +152,8 @@ const userLimiter = rateLimit({
 const posLimiter = rateLimit({
     windowMs: 60 * 1000, // 1 minute
     max: 120, // 120 requests per minute (2 per second)
-    validate: { trustProxy: false, xForwardedForHeader: false, keyGeneratorIpFallback: false },
-    keyGenerator: (req) => req.user?.id || req.ip,
+    validate: { trustProxy: false },
+    keyGenerator: (req) => req.user?.id || 'anonymous',
     message: {
         success: false,
         message: 'POS request limit exceeded',
@@ -172,8 +172,8 @@ const posLimiter = rateLimit({
 const searchLimiter = rateLimit({
     windowMs: 60 * 1000, // 1 minute
     max: 30, // 30 searches per minute
-    validate: { trustProxy: false, xForwardedForHeader: false, keyGeneratorIpFallback: false },
-    keyGenerator: (req) => req.user?.id || req.ip,
+    validate: { trustProxy: false },
+    keyGenerator: (req) => req.user?.id || 'anonymous',
     message: {
         success: false,
         message: 'Too many search requests',
@@ -192,8 +192,8 @@ const searchLimiter = rateLimit({
 const reportLimiter = rateLimit({
     windowMs: 60 * 1000, // 1 minute
     max: 5, // 5 reports per minute
-    validate: { trustProxy: false, xForwardedForHeader: false, keyGeneratorIpFallback: false },
-    keyGenerator: (req) => req.user?.id || req.ip,
+    validate: { trustProxy: false },
+    keyGenerator: (req) => req.user?.id || 'anonymous',
     message: {
         success: false,
         message: 'Report generation limit exceeded. Please wait before generating another report.',
@@ -224,8 +224,8 @@ const reportLimiter = rateLimit({
 const uploadLimiter = rateLimit({
     windowMs: 60 * 1000, // 1 minute
     max: 10, // 10 uploads per minute
-    validate: { trustProxy: false, xForwardedForHeader: false, keyGeneratorIpFallback: false },
-    keyGenerator: (req) => req.user?.id || req.ip,
+    validate: { trustProxy: false },
+    keyGenerator: (req) => req.user?.id || 'anonymous',
     message: {
         success: false,
         message: 'Upload limit exceeded',

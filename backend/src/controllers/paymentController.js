@@ -125,7 +125,7 @@ const handleWebhook = asyncHandler(async (req, res) => {
  */
 const getPaymentHistory = asyncHandler(async (req, res) => {
     const userId = req.user.id;
-    const { storeId } = req.query;
+    const { storeId, limit = 50, offset = 0 } = req.query;
 
     if (!storeId) {
         throw new ApiError(400, 'storeId is required');
@@ -143,27 +143,46 @@ const getPaymentHistory = asyncHandler(async (req, res) => {
         throw new ApiError(403, 'Access denied to this store');
     }
 
-    // Fetch payment history
-    const payments = await prisma.payment.findMany({
-        where: { storeId },
-        orderBy: { createdAt: 'desc' },
-        take: 50, // Limit to last 50 payments
-        select: {
-            id: true,
-            amountPaise: true,
-            currency: true,
-            status: true,
-            method: true,
-            createdAt: true,
-            completedAt: true,
-            metadata: true
-        }
-    });
+    // Fetch payment history with pagination
+    const [payments, total] = await Promise.all([
+        prisma.payment.findMany({
+            where: { storeId },
+            orderBy: { createdAt: 'desc' },
+            take: parseInt(limit),
+            skip: parseInt(offset),
+            select: {
+                id: true,
+                amount: true,
+                amountPaise: true,
+                currency: true,
+                status: true,
+                method: true,
+                razorpayOrderId: true,
+                razorpayPaymentId: true,
+                createdAt: true,
+                completedAt: true,
+                metadata: true
+            }
+        }),
+        prisma.payment.count({ where: { storeId } })
+    ]);
 
     res.status(200).json(
         new ApiResponse(
             200,
-            { payments },
+            { 
+                payments: payments.map(p => ({
+                    ...p,
+                    planName: p.metadata?.planName || 'Unknown Plan',
+                    planDisplayName: p.metadata?.planDisplayName || 'Subscription'
+                })),
+                pagination: {
+                    total,
+                    limit: parseInt(limit),
+                    offset: parseInt(offset),
+                    hasMore: parseInt(offset) + parseInt(limit) < total
+                }
+            },
             'Payment history retrieved'
         )
     );

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useAuthStore } from "@/lib/store/auth-store";
 import { userApi } from "@/lib/api/user";
 import { PaymentButton } from "@/components/payments/PaymentButton";
+import { PaymentHistory } from "@/components/payments/PaymentHistory";
 import {
     FiCheck, FiShield, FiClock, FiPlus, FiLock,
     FiTrendingUp, FiUsers, FiZap
@@ -26,12 +27,19 @@ export default function PlanAndBilling() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [storeData, plansData] = await Promise.all([
-                    userApi.getPrimaryStore(),
-                    fetch('/api/v1/subscriptions/plans').then(r => r.json()).then(d => d.data).catch(() => [])
-                ]);
+                const storeData = await userApi.getPrimaryStore();
                 setStore(storeData);
-                setPlans(plansData);
+                
+                // Fetch plans from backend API
+                try {
+                    const plansResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'}/subscriptions/plans`);
+                    if (plansResponse.ok) {
+                        const plansJson = await plansResponse.json();
+                        setPlans(plansJson.data || []);
+                    }
+                } catch (planError) {
+                    console.error('[PlanAndBilling] Failed to fetch plans:', planError);
+                }
             } catch (err) {
                 console.error("Failed to load data", err);
             } finally {
@@ -75,7 +83,7 @@ export default function PlanAndBilling() {
         .filter(v => !activeVerticalIds.includes(v.id.toLowerCase()));
 
     // Billing info
-    const billingCycle = subscription?.billingCycle || 'monthly';
+    const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
     const monthlyAmount = subscription?.monthlyAmount || 0;
 
     if (loading) {
@@ -157,11 +165,42 @@ export default function PlanAndBilling() {
             {/* 2. Active Business Modules */}
             <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                    <div>
-                        <h3 className="font-bold text-gray-900">Your Active Business Modules</h3>
-                        <p className="text-xs text-gray-500">Modules currently running your operations</p>
+                    <div className="flex items-center gap-3">
+                        <div>
+                            <h3 className="font-bold text-gray-900">Your Active Business Modules</h3>
+                            <p className="text-xs text-gray-500">Modules currently running your operations</p>
+                        </div>
+                        {!isPaid && billingCycle === 'yearly' && (
+                            <span className="text-xs font-semibold bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full">
+                                Save up to 40%
+                            </span>
+                        )}
                     </div>
-                    <span className="text-xs text-gray-400">{activeVerticals.length} active</span>
+                    {!isPaid && (
+                        <div className="flex items-center gap-3">
+                            <span className="text-xs text-gray-500">Billing:</span>
+                            <button
+                                onClick={() => setBillingCycle(billingCycle === 'monthly' ? 'yearly' : 'monthly')}
+                                className={`relative w-14 h-7 rounded-full transition-colors ${
+                                    billingCycle === 'yearly' ? 'bg-emerald-600' : 'bg-gray-300'
+                                }`}
+                            >
+                                <span
+                                    className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-full transition-transform ${
+                                        billingCycle === 'yearly' ? 'translate-x-7' : ''
+                                    }`}
+                                />
+                            </button>
+                            <div className="flex flex-col items-start">
+                                <span className={`text-xs font-medium ${
+                                    billingCycle === 'monthly' ? 'text-gray-900' : 'text-gray-500'
+                                }`}>Monthly</span>
+                                <span className={`text-xs font-medium ${
+                                    billingCycle === 'yearly' ? 'text-gray-900' : 'text-gray-500'
+                                }`}>Yearly</span>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* Active Modules */}
@@ -173,6 +212,17 @@ export default function PlanAndBilling() {
                         orange: { bg: 'bg-orange-50', text: 'text-orange-600', badge: 'bg-orange-100 text-orange-700' },
                     };
                     const colors = colorClasses[vertical.color] || colorClasses.emerald;
+
+                    // Get retail plans for this billing cycle - remove duplicates by ID
+                    const seenIds = new Set();
+                    const retailPlans = plans
+                        .filter(p => {
+                            if (!p.name?.toLowerCase().includes('retail') || p.billingCycle !== billingCycle) return false;
+                            if (seenIds.has(p.id)) return false;
+                            seenIds.add(p.id);
+                            return true;
+                        })
+                        .sort((a, b) => parseFloat(a.price) - parseFloat(b.price));
 
                     return (
                         <div key={vertical.id} className={`bg-white rounded-2xl shadow-sm border-2 ${isPaid ? 'border-emerald-200' : 'border-amber-200'} p-6 relative overflow-hidden`}>
@@ -191,82 +241,71 @@ export default function PlanAndBilling() {
                                     <h4 className="text-lg font-bold text-gray-900 mb-1">{vertical.displayName}</h4>
                                     <p className="text-sm text-gray-500 mb-4">{vertical.description}</p>
 
-                                    <div className="grid sm:grid-cols-2 gap-4 mb-6">
-                                        <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
-                                            <span className="text-xs text-gray-500 block mb-1">
-                                                {isPaid ? 'Your Plan' : 'Standalone Price'}
-                                            </span>
-                                            <span className="text-lg font-bold text-gray-900">
-                                                {isPaid && monthlyAmount > 0
-                                                    ? formatPrice(monthlyAmount)
-                                                    : formatPrice(getVerticalPrice(vertical, false, false))
-                                                }
-                                                <span className="text-sm font-normal text-gray-400">
-                                                    /{billingCycle === 'yearly' ? 'yr' : 'mo'}
+                                    {/* Show plan options for trial users */}
+                                    {!isPaid && retailPlans.length > 0 ? (
+                                        <div className="space-y-3">
+                                            <p className="text-sm font-medium text-gray-700 mb-1">Choose your plan:</p>
+                                            <div className="grid gap-3">
+                                                {retailPlans.map((plan) => (
+                                                    <div key={plan.id} className="border-2 border-gray-200 rounded-xl p-4 hover:border-emerald-300 transition-all">
+                                                        <div className="flex items-start justify-between mb-3">
+                                                            <div className="flex-1">
+                                                                <h5 className="font-bold text-gray-900">{plan.displayName}</h5>
+                                                                <p className="text-xs text-gray-500 mt-0.5">{plan.description}</p>
+                                                            </div>
+                                                            <div className="text-right ml-4">
+                                                                <div className="text-2xl font-bold text-gray-900">
+                                                                    {formatPrice(parseFloat(plan.price))}
+                                                                </div>
+                                                                <div className="text-xs text-gray-400">/{billingCycle === 'yearly' ? 'year' : 'month'}</div>
+                                                            </div>
+                                                        </div>
+                                                        <PaymentButton
+                                                            planId={plan.id}
+                                                            storeId={store?.id || user?.storeUsers?.[0]?.storeId || ''}
+                                                            amount={parseFloat(plan.price)}
+                                                            planName={plan.displayName}
+                                                            user={{
+                                                                firstName: user?.firstName,
+                                                                lastName: user?.lastName,
+                                                                email: user?.email,
+                                                                phoneNumber: user?.phoneNumber,
+                                                            }}
+                                                            onSuccess={() => window.location.reload()}
+                                                            onError={(error) => alert(`Payment failed: ${error.message}`)}
+                                                            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-lg transition-all flex items-center justify-center gap-2 text-sm"
+                                                        />
+                                                    </div>
+                                                ))}
+                                            </div>
+                                            <p className="text-xs text-gray-400 flex items-center gap-1.5 mt-3">
+                                                <FiShield className="w-3.5 h-3.5" />
+                                                Secured by Razorpay • {billingCycle === 'yearly' ? 'Save with annual billing' : 'Flexible monthly billing'}
+                                            </p>
+                                        </div>
+                                    ) : isPaid ? (
+                                        <div className="grid sm:grid-cols-2 gap-4">
+                                            <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                                                <span className="text-xs text-gray-500 block mb-1">Your Plan</span>
+                                                <span className="text-lg font-bold text-gray-900">
+                                                    {formatPrice(monthlyAmount)}
+                                                    <span className="text-sm font-normal text-gray-400">/{billingCycle === 'yearly' ? 'yr' : 'mo'}</span>
                                                 </span>
-                                            </span>
+                                            </div>
+                                            <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
+                                                <span className="text-xs text-gray-500 block mb-1">Renews In</span>
+                                                <span className="text-lg font-bold text-gray-900">{daysLeft} days</span>
+                                            </div>
                                         </div>
-                                        <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
-                                            <span className="text-xs text-gray-500 block mb-1">
-                                                {isPaid ? 'Renews In' : 'Trial Ends'}
-                                            </span>
-                                            <span className="text-lg font-bold text-gray-900">{daysLeft} days</span>
-                                        </div>
-                                    </div>
-
-                                    {/* Only show payment button for trial users */}
-                                    {!isPaid && (() => {
-                                        // Find matching plan from backend
-                                        const matchingPlan = plans.find(p => 
-                                            p.name?.toLowerCase().includes(vertical.id) && 
-                                            p.billingCycle === billingCycle
-                                        );
-
-                                        if (!matchingPlan) {
-                                            return (
-                                                <p className="text-sm text-gray-500 italic">
-                                                    Payment option coming soon
-                                                </p>
-                                            );
-                                        }
-
-                                        return (
-                                            <>
-                                                <PaymentButton
-                                                    planId={matchingPlan.id}
-                                                    storeId={store?.id || user?.storeUsers?.[0]?.storeId || ''}
-                                                    amount={getVerticalPrice(vertical, false, true)}
-                                                    planName={matchingPlan.displayName || `HopeRx ${vertical.displayName}`}
-                                                    user={{
-                                                        firstName: user?.firstName,
-                                                        lastName: user?.lastName,
-                                                        email: user?.email,
-                                                        phoneNumber: user?.phoneNumber,
-                                                    }}
-                                                    onSuccess={(paymentData) => {
-                                                        console.log('Payment successful:', paymentData);
-                                                        window.location.reload();
-                                                    }}
-                                                    onError={(error) => {
-                                                        console.error('Payment error:', error);
-                                                    }}
-                                                    className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg shadow-emerald-500/20 transition-all flex items-center justify-center gap-2"
-                                                />
-                                                <p className="text-xs text-gray-400 mt-2 flex items-center gap-1.5">
-                                                    <FiShield className="w-3.5 h-3.5" />
-                                                    Secured by Razorpay • Annual billing saves ₹1,200
-                                                </p>
-                                            </>
-                                        );
-                                    })()}
+                                    ) : (
+                                        <div className="text-sm text-gray-500 italic">No plans available</div>
+                                    )}
                                 </div>
                             </div>
                         </div>
                     );
                 })}
             </div>
-
-            {/* 3. Available Business Modules */}
             <div className="space-y-4">
                 <div className="flex items-center justify-between">
                     <div>
@@ -398,9 +437,7 @@ export default function PlanAndBilling() {
                 <div className="flex items-center justify-between mb-4">
                     <h3 className="font-bold text-gray-900">Billing History</h3>
                 </div>
-                <div className="bg-gray-50 rounded-2xl border border-dashed border-gray-200 p-8 text-center">
-                    <p className="text-gray-400 text-sm">No payment history available yet.</p>
-                </div>
+                {store?.id && <PaymentHistory storeId={store.id} />}
             </div>
 
         </div>

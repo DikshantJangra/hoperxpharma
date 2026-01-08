@@ -64,9 +64,30 @@ export function PaymentButton({
             };
 
             console.log('[Payment] Creating order with payload:', orderPayload);
-            const orderResponse = await apiClient.post('/payments/create-order', orderPayload);
-            const orderData = orderResponse.data.data;
+            
+            let orderResponse;
+            try {
+                orderResponse = await apiClient.post('/payments/create-order', orderPayload);
+            } catch (apiError: any) {
+                console.error('[Payment] API Error:', apiError);
+                const errorMsg = apiError.response?.data?.message || apiError.message || 'Failed to create payment order';
+                throw new Error(errorMsg);
+            }
+            
+            console.log('[Payment] Full response:', orderResponse);
+            
+            // Handle both response structures
+            const orderData = orderResponse.data?.data || orderResponse.data;
             console.log('[Payment] Order created:', orderData);
+            
+            if (!orderData) {
+                throw new Error('No order data received from server');
+            }
+            
+            if (!orderData.keyId || !orderData.razorpayOrderId || !orderData.amountPaise) {
+                console.error('[Payment] Invalid order data:', orderData);
+                throw new Error('Invalid order response: missing required fields');
+            }
 
             // 2. Open Checkout
             const options = createRazorpayOptions(orderData, user, async (response: any) => {

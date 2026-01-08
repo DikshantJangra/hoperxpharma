@@ -24,5 +24,12 @@ router.get('/plans', subscriptionController.getPlans);
  */
 router.get('/usage', authenticate, subscriptionController.getUsage);
 
+/**
+ * @route GET /api/v1/subscriptions/payments
+ * @desc Get subscription payment history
+ * @access Private
+ */
+router.get('/payments', authenticate, subscriptionController.getSubscriptionPayments);
+
 module.exports = router;
 

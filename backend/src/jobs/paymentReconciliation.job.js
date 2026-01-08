@@ -26,6 +26,9 @@ const reconcileStuckPayments = async () => {
                 status: PAYMENT_STATUS.PROCESSING,
                 updatedAt: {
                     lt: cutoffTime
+                },
+                razorpayPaymentId: {
+                    not: null
                 }
             },
             select: {

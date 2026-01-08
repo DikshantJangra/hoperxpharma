@@ -88,8 +88,84 @@ const getUsage = asyncHandler(async (req, res) => {
     );
 });
 
+/**
+ * Get subscription payment history
+ * @route GET /api/v1/subscriptions/payments
+ */
+const getSubscriptionPayments = asyncHandler(async (req, res) => {
+    const userId = req.user.id;
+    const { storeId, limit = 20, offset = 0 } = req.query;
+
+    if (!storeId) {
+        throw ApiError.badRequest('Store ID is required');
+    }
+
+    const prisma = require('../../db/prisma');
+    
+    // Verify access
+    const storeUser = await prisma.storeUser.findUnique({
+        where: { userId_storeId: { userId, storeId } }
+    });
+
+    if (!storeUser) {
+        throw new ApiError(403, 'Access denied');
+    }
+
+    const [payments, total] = await Promise.all([
+        prisma.payment.findMany({
+            where: { storeId, status: { in: ['SUCCESS', 'PROCESSING', 'FAILED'] } },
+            orderBy: { createdAt: 'desc' },
+            take: parseInt(limit),
+            skip: parseInt(offset),
+            select: {
+                id: true,
+                amount: true,
+                amountPaise: true,
+                currency: true,
+                status: true,
+                method: true,
+                razorpayOrderId: true,
+                razorpayPaymentId: true,
+                createdAt: true,
+                completedAt: true,
+                metadata: true
+            }
+        }),
+        prisma.payment.count({ 
+            where: { storeId, status: { in: ['SUCCESS', 'PROCESSING', 'FAILED'] } } 
+        })
+    ]);
+
+    res.status(200).json(
+        new ApiResponse(200, {
+            payments: payments.map(p => ({
+                id: p.id,
+                amount: parseFloat(p.amount),
+                amountPaise: p.amountPaise,
+                currency: p.currency,
+                status: p.status,
+                method: p.method,
+                razorpayOrderId: p.razorpayOrderId,
+                razorpayPaymentId: p.razorpayPaymentId,
+                planName: p.metadata?.planName || 'Unknown',
+                planDisplayName: p.metadata?.planDisplayName || 'Subscription',
+                billingCycle: p.metadata?.billingCycle || 'monthly',
+                createdAt: p.createdAt,
+                completedAt: p.completedAt
+            })),
+            pagination: {
+                total,
+                limit: parseInt(limit),
+                offset: parseInt(offset),
+                hasMore: parseInt(offset) + parseInt(limit) < total
+            }
+        }, 'Payment history retrieved')
+    );
+});
+
 module.exports = {
     getSubscriptionStatus,
     getPlans,
     getUsage,
+    getSubscriptionPayments,
 };

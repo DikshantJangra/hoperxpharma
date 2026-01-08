@@ -19,7 +19,6 @@ export const createRazorpayOptions = (order: any, user: any, handler: any) => {
         currency: order.currency,
         name: "HopeRxPharma",
         description: "Subscription Transaction",
-        image: "https://hoperxpharma.com/logo.png",
         order_id: order.razorpayOrderId,
         handler: handler,
         prefill: {
