@@ -57,6 +57,8 @@ jobs:
       - name: Build application
         env:
           NEXT_PUBLIC_API_URL: http://localhost:5000
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/hoperx_test
+          DIRECT_URL: postgresql://postgres:postgres@localhost:5432/hoperx_test
         run: |
           npm run build
           cd backend && npm run build
@@ -68,17 +70,21 @@ jobs:
           NODE_ENV: test
           JWT_SECRET: test-secret-key-for-ci
           JWT_REFRESH_SECRET: test-refresh-secret-for-ci
+          DISABLE_SCHEDULER: true
+          DISABLE_GMAIL_INIT: true
         run: |
           cd backend
           npm start &
-          sleep 10
+          sleep 15
+          curl -f http://localhost:5000/health || exit 1
 
       - name: Start frontend server
         env:
           NEXT_PUBLIC_API_URL: http://localhost:5000
         run: |
           npm run dev &
-          sleep 10
+          sleep 15
+          curl -f http://localhost:3000 || exit 1
 
       - name: Run Playwright tests
         env:
