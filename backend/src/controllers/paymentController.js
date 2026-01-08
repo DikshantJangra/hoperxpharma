@@ -18,9 +18,9 @@ const ApiResponse = require('../utils/ApiResponse');
 const getRazorpayKey = asyncHandler(async (req, res) => {
     const keyId = getPublicKey();
 
-    res.status(httpStatus.OK).json(
+    res.status(200).json(
         new ApiResponse(
-            httpStatus.OK,
+            200,
             { keyId },
             'Razorpay key retrieved'
         )
@@ -37,7 +37,7 @@ const createOrder = asyncHandler(async (req, res) => {
     const userId = req.user.id;
 
     if (!planId || !storeId) {
-        throw new ApiError(httpStatus.BAD_REQUEST, 'planId and storeId are required');
+        throw new ApiError(400, 'planId and storeId are required');
     }
 
     const orderData = await paymentService.createPaymentOrder(userId, storeId, planId);
@@ -61,7 +61,7 @@ const verifyPayment = asyncHandler(async (req, res) => {
     const userId = req.user.id;
 
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
-        throw new ApiError(httpStatus.BAD_REQUEST, 'Missing required payment verification fields');
+        throw new ApiError(400, 'Missing required payment verification fields');
     }
 
     const verificationResult = await paymentService.verifyPaymentSignature(
@@ -71,9 +71,9 @@ const verifyPayment = asyncHandler(async (req, res) => {
         razorpay_signature
     );
 
-    res.status(httpStatus.OK).json(
+    res.status(200).json(
         new ApiResponse(
-            httpStatus.OK,
+            200,
             verificationResult,
             'Payment signature verified - awaiting final confirmation'
         )
@@ -90,8 +90,8 @@ const getPaymentStatus = asyncHandler(async (req, res) => {
 
     const paymentStatus = await paymentService.getPaymentStatus(paymentId, userId);
 
-    res.status(httpStatus.OK).json(
-        new ApiResponse(httpStatus.OK, paymentStatus, 'Payment status retrieved')
+    res.status(200).json(
+        new ApiResponse(200, paymentStatus, 'Payment status retrieved')
     );
 });
 
@@ -108,7 +108,7 @@ const handleWebhook = asyncHandler(async (req, res) => {
 
     if (!isValid) {
         console.error('[Webhook] Invalid signature received');
-        throw new ApiError(httpStatus.BAD_REQUEST, 'Invalid webhook signature');
+        throw new ApiError(400, 'Invalid webhook signature');
     }
 
     // Process webhook event with idempotency
@@ -116,7 +116,7 @@ const handleWebhook = asyncHandler(async (req, res) => {
 
     // ALWAYS acknowledge webhook (even if processing failed)
     // Razorpay will retry if we return error
-    res.status(httpStatus.OK).json({ status: 'ok', result });
+    res.status(200).json({ status: 'ok', result });
 });
 
 /**
@@ -128,7 +128,7 @@ const getPaymentHistory = asyncHandler(async (req, res) => {
     const { storeId } = req.query;
 
     if (!storeId) {
-        throw new ApiError(httpStatus.BAD_REQUEST, 'storeId is required');
+        throw new ApiError(400, 'storeId is required');
     }
 
     // Verify user has access to store
@@ -140,7 +140,7 @@ const getPaymentHistory = asyncHandler(async (req, res) => {
     });
 
     if (!storeUser) {
-        throw new ApiError(httpStatus.FORBIDDEN, 'Access denied to this store');
+        throw new ApiError(403, 'Access denied to this store');
     }
 
     // Fetch payment history
@@ -160,9 +160,9 @@ const getPaymentHistory = asyncHandler(async (req, res) => {
         }
     });
 
-    res.status(httpStatus.OK).json(
+    res.status(200).json(
         new ApiResponse(
-            httpStatus.OK,
+            200,
             { payments },
             'Payment history retrieved'
         )
@@ -179,14 +179,14 @@ const reconcilePayment = asyncHandler(async (req, res) => {
 
     // TODO: Add admin role check
     // if (req.user.role !== 'ADMIN') {
-    //   throw new ApiError(httpStatus.FORBIDDEN, 'Admin access required');
+    //   throw new ApiError(403, 'Admin access required');
     // }
 
     const reconciliationResult = await paymentService.reconcilePayment(paymentId);
 
-    res.status(httpStatus.OK).json(
+    res.status(200).json(
         new ApiResponse(
-            httpStatus.OK,
+            200,
             reconciliationResult,
             'Payment reconciliation completed'
         )

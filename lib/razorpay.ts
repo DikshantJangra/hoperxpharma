@@ -14,13 +14,13 @@ export const loadRazorpayScript = () => {
 
 export const createRazorpayOptions = (order: any, user: any, handler: any) => {
     return {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-        amount: order.amount, // Amount is in currency subunits. Default currency is INR. Hence, 50000 refers to 50000 paise
+        key: order.keyId || process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        amount: order.amountPaise,
         currency: order.currency,
         name: "HopeRxPharma",
         description: "Subscription Transaction",
-        image: "https://hoperxpharma.com/logo.png", // Replace with valid logo URL or local path often requires full URL
-        order_id: order.id,
+        image: "https://hoperxpharma.com/logo.png",
+        order_id: order.razorpayOrderId,
         handler: handler,
         prefill: {
             name: user ? `${user.firstName || ''} ${user.lastName || ''}`.trim() : 'Guest',
