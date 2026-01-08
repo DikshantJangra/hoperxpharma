@@ -358,8 +358,12 @@ function UserMenu({ show, setShow, isPremium, tokens }: any) {
                 if (response.success && response.avatarUrl) {
                     setAvatarUrl(response.avatarUrl);
                 }
-            } catch (error) {
-                // Silently fail - will show initials
+            } catch (error: any) {
+                // Silently fail - avatar is optional, will show initials
+                // Don't log 404 errors to avoid console noise
+                if (error?.status !== 404) {
+                    console.debug('Avatar fetch failed:', error.message);
+                }
             }
         };
 

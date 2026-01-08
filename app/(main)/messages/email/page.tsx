@@ -69,9 +69,15 @@ export default function EmailPage() {
         if (primaryAccount) {
           setSelectedAccountId(primaryAccount.id);
         }
+      } else if (response.status === 401) {
+        // Auth not ready yet, silently fail
+        console.debug('Email accounts: Auth not ready');
       }
-    } catch (error) {
-      console.error('Failed to fetch email accounts:', error);
+    } catch (error: any) {
+      // Silently handle errors - email is optional feature
+      if (error?.status !== 401) {
+        console.error('Failed to fetch email accounts:', error);
+      }
     } finally {
       setIsLoading(false);
     }

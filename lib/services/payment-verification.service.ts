@@ -76,8 +76,8 @@ export class PaymentVerificationService {
             // Step 1: Submit signature verification to backend
             await this.submitSignature(params);
 
-            // Step 2: Wait a moment for immediate reconciliation to complete
-            await this.sleep(1500);
+            // Step 2: Wait for immediate reconciliation to complete
+            await this.sleep(3000);
 
             // Step 3: Poll for final status
             const result = await this.pollPaymentStatus(params.paymentId);
