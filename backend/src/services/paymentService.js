@@ -66,6 +66,7 @@ const createPaymentOrder = async (userId, storeId, planId) => {
         data: {
             storeId,
             userId,
+            amount: parseFloat(plan.price),
             amountPaise,
             currency: plan.currency,
             status: PAYMENT_STATUS.CREATED,
