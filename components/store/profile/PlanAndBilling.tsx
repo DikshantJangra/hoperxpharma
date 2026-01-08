@@ -271,7 +271,11 @@ export default function PlanAndBilling() {
                                                                 email: user?.email,
                                                                 phoneNumber: user?.phoneNumber,
                                                             }}
-                                                            onSuccess={() => window.location.reload()}
+                                                            onSuccess={async () => {
+                                                                // Refresh user data to get updated subscription without page reload
+                                                                const { refreshUserData } = await import('@/lib/store/auth-store').then(m => m.useAuthStore.getState());
+                                                                await refreshUserData();
+                                                            }}
                                                             onError={(error) => alert(`Payment failed: ${error.message}`)}
                                                             className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-4 rounded-lg transition-all flex items-center justify-center gap-2 text-sm"
                                                         />

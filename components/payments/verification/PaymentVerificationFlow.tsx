@@ -111,7 +111,7 @@ export function PaymentVerificationFlow({
         startVerification();
     };
 
-    const handleContinue = () => {
+    const handleContinue = async () => {
         if (state.paymentData) {
             onComplete({
                 success: true,

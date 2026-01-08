@@ -71,6 +71,17 @@ const verifyPayment = asyncHandler(async (req, res) => {
         razorpay_signature
     );
 
+    // Trigger immediate reconciliation check (don't wait for webhook)
+    // This runs in background and won't delay response
+    setImmediate(async () => {
+        try {
+            await paymentService.reconcilePayment(verificationResult.paymentId);
+        } catch (error) {
+            console.error('[Payment] Immediate reconciliation failed:', error.message);
+            // Webhook will handle it eventually
+        }
+    });
+
     res.status(200).json(
         new ApiResponse(
             200,

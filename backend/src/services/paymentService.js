@@ -418,16 +418,35 @@ const reconcilePayment = async (paymentId) => {
 
         // Update payment based on Razorpay status
         if (razorpayPayment.status === 'captured') {
-            await transitionPaymentState({
-                paymentId,
-                newStatus: PAYMENT_STATUS.SUCCESS,
-                eventType: PAYMENT_EVENT_TYPE.RECONCILIATION_ATTEMPTED,
-                eventSource: EVENT_SOURCE.RECONCILIATION,
-                rawPayload: razorpayPayment,
-                createdBy: 'system'
+            // Use transaction to update payment AND activate subscription atomically
+            const result = await prisma.$transaction(async (tx) => {
+                await transitionPaymentState({
+                    paymentId,
+                    newStatus: PAYMENT_STATUS.SUCCESS,
+                    eventType: PAYMENT_EVENT_TYPE.RECONCILIATION_ATTEMPTED,
+                    eventSource: EVENT_SOURCE.RECONCILIATION,
+                    rawPayload: razorpayPayment,
+                    createdBy: 'system'
+                });
+
+                // Activate subscription immediately
+                const subscriptionActivationService = require('./subscriptionActivationService');
+                const subscriptionResult = await subscriptionActivationService.activateSubscription(
+                    payment.storeId,
+                    payment.metadata,
+                    payment.amountPaise,
+                    tx
+                );
+
+                return { 
+                    resolved: true, 
+                    newStatus: PAYMENT_STATUS.SUCCESS,
+                    subscriptionId: subscriptionResult.subscriptionId
+                };
             });
 
-            return { resolved: true, newStatus: PAYMENT_STATUS.SUCCESS };
+            console.log(`[Reconciliation] Payment ${paymentId} confirmed and subscription activated`);
+            return result;
         } else if (razorpayPayment.status === 'failed') {
             await transitionPaymentState({
                 paymentId,
