@@ -65,7 +65,7 @@ export function PaymentButton({
                 orderPayload.storeId = user.storeId;
             }
 
-            const orderResponse = await apiClient.post('/payments/orders', orderPayload);
+            const orderResponse = await apiClient.post('/payments/create-order', orderPayload);
             const orderData = orderResponse.data.data;
 
             // 2. Open Checkout
