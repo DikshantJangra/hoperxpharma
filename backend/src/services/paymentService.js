@@ -111,16 +111,21 @@ const createPaymentOrder = async (userId, storeId, planId) => {
         }
     });
 
-    // 6. Log payment creation event
-    await logPaymentEvent({
-        paymentId: payment.id,
-        eventType: PAYMENT_EVENT_TYPE.RAZORPAY_ORDER_CREATED,
-        eventSource: EVENT_SOURCE.SYSTEM,
-        oldStatus: null,
-        newStatus: PAYMENT_STATUS.INITIATED,
-        rawPayload: razorpayOrder,
-        createdBy: userId
-    });
+    // 6. Log payment creation event (after payment exists)
+    try {
+        await logPaymentEvent({
+            paymentId: payment.id,
+            eventType: PAYMENT_EVENT_TYPE.RAZORPAY_ORDER_CREATED,
+            eventSource: EVENT_SOURCE.SYSTEM,
+            oldStatus: null,
+            newStatus: PAYMENT_STATUS.INITIATED,
+            rawPayload: razorpayOrder,
+            createdBy: userId
+        });
+    } catch (logError) {
+        console.error('[Payment] Failed to log event:', logError.message);
+        // Don't fail the payment creation if logging fails
+    }
 
     // 7. Return data for frontend
     return {
@@ -398,7 +403,7 @@ const reconcilePayment = async (paymentId) => {
 
     try {
         // Fetch latest status from Razorpay
-        const razorpayPayment = await razorpayInstance.payments.fetch(payment.razorpayPaymentId);
+        const razorpayPayment = await getRazorpayInstance().payments.fetch(payment.razorpayPaymentId);
 
         // Log reconciliation attempt
         await prisma.paymentReconciliation.create({
