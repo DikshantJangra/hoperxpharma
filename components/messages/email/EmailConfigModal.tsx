@@ -3,12 +3,8 @@
 import { useState, useEffect } from 'react';
 import { FiCheckCircle, FiAlertCircle, FiArrowLeft } from 'react-icons/fi';
 import { FcGoogle } from 'react-icons/fc';
+import { apiClient } from '@/lib/api/client';
 import ProviderSelection from './ProviderSelection';
-
-// Helper to get headers for requests (credentials: include handles auth)
-const getAuthHeaders = () => ({
-    'Content-Type': 'application/json',
-});
 
 interface EmailConfigModalProps {
     isOpen: boolean;
@@ -69,24 +65,13 @@ export default function EmailConfigModal({ isOpen, onClose, onSuccess }: EmailCo
             setIsLoading(true);
 
             try {
-                const response = await fetch('/api/v1/email/gmail/auth-url', {
-                    method: 'GET',
-                    headers: getAuthHeaders(),
-                    credentials: 'include',
-                });
+                const response = await apiClient.get('/email/gmail/auth-url');
 
-                if (!response.ok) {
-                    const data = await response.json();
-                    throw new Error(data.message || 'Failed to start OAuth');
-                }
-
-                const data = await response.json();
-
-                if (data.authUrl) {
+                if (response.success && response.authUrl) {
                     // Redirect to Google OAuth
-                    window.location.href = data.authUrl;
+                    window.location.href = response.authUrl;
                 } else {
-                    throw new Error('No auth URL received');
+                    throw new Error(response.message || 'No auth URL received');
                 }
             } catch (err: any) {
                 setError(err.message || 'Failed to connect Gmail');

@@ -71,14 +71,16 @@ router.get('/gmail/auth-url', asyncHandler(async (req, res) => {
         logger.warn('Gmail OAuth: No store context found for user', { userId: req.user?.id });
         return res.status(400).json({
             success: false,
-            message: 'No store found. Please complete onboarding first.'
+            message: 'No store found. Please complete onboarding first.',
+            code: 'NO_STORE_CONTEXT'
         });
     }
 
     if (!storeGmailOAuthService.isConfigured()) {
         return res.status(400).json({
             success: false,
-            message: 'Gmail OAuth not configured on this platform'
+            message: 'Gmail OAuth not configured on this platform',
+            code: 'OAUTH_NOT_CONFIGURED'
         });
     }
 

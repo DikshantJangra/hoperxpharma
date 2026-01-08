@@ -18,8 +18,8 @@ import type {
 } from '@/lib/types/payment-verification.types';
 
 const DEFAULT_VERIFICATION_CONFIG: Required<VerificationConfig> = {
-    maxAttempts: 20,
-    intervalMs: 2000,
+    maxAttempts: 30,
+    intervalMs: 1000,
     delayedThreshold: 30000,
     debug: false,
 };
@@ -76,7 +76,10 @@ export class PaymentVerificationService {
             // Step 1: Submit signature verification to backend
             await this.submitSignature(params);
 
-            // Step 2: Poll for final status
+            // Step 2: Wait a moment for immediate reconciliation to complete
+            await this.sleep(1500);
+
+            // Step 3: Poll for final status
             const result = await this.pollPaymentStatus(params.paymentId);
 
             this.emit({
@@ -190,10 +193,11 @@ export class PaymentVerificationService {
                     };
                 }
 
-                // Continue polling for non-terminal states
+                // Continue polling for non-terminal states (PROCESSING, INITIATED)
             } catch (error) {
                 this.log('Polling error:', error);
                 // Continue polling on error (network issues, etc.)
+                // Don't break the loop - keep trying
             }
         }
 
