@@ -42,9 +42,9 @@ const createOrder = asyncHandler(async (req, res) => {
 
     const orderData = await paymentService.createPaymentOrder(userId, storeId, planId);
 
-    res.status(httpStatus.CREATED).json(
+    res.status(201).json(
         new ApiResponse(
-            httpStatus.CREATED,
+            201,
             orderData,
             'Payment order created successfully'
         )
