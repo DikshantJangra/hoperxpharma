@@ -64,16 +64,16 @@ export function PaymentVerificationFlow({
 
             // Handle completion
             handleVerificationComplete(result);
-        } catch (error) {
+        } catch (error: any) {
             console.error('[PaymentVerificationFlow] Verification error:', error);
             setState({
                 status: 'FAILED',
                 paymentData: null,
                 elapsed: 0,
                 error: {
-                    code: 'UNKNOWN_ERROR',
-                    message: 'Verification failed',
-                    userMessage: 'Payment couldn\'t be confirmed',
+                    code: error?.code || 'UNKNOWN_ERROR',
+                    message: error?.message || error?.toString() || 'Verification failed',
+                    userMessage: error?.userMessage || 'Payment couldn\'t be confirmed',
                     canRetry: true,
                 },
             });
