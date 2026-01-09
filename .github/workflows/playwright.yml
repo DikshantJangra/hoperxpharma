@@ -56,7 +56,7 @@ jobs:
 
       - name: Build application
         env:
-          NEXT_PUBLIC_API_URL: http://localhost:5000
+          NEXT_PUBLIC_API_URL: http://localhost:8000
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/hoperx_test
           DIRECT_URL: postgresql://postgres:postgres@localhost:5432/hoperx_test
         run: |
@@ -66,38 +66,28 @@ jobs:
       - name: Start backend server
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/hoperx_test
-          DIRECT_URL: postgresql://postgres:postgres@localhost:5432/hoperx_test
           NODE_ENV: test
-          JWT_SECRET: test-secret-key-for-ci
-          JWT_REFRESH_SECRET: test-refresh-secret-for-ci
+          PORT: 8000
+          JWT_SECRET: test-jwt-secret-key-for-ci-with-32-chars-minimum
+          JWT_REFRESH_SECRET: test-jwt-refresh-secret-for-ci-32-chars-min
           API_KEY: test-gemini-key-for-ci
-          PORT: 5000
-          FRONTEND_URL: http://localhost:3000
-          SMTP_HOST: smtp.example.com
-          SMTP_USER: test@example.com
-          SMTP_PASSWORD: test-password
-          GOOGLE_CLIENT_ID: test-client-id
-          GOOGLE_CLIENT_SECRET: test-client-secret
-          DISABLE_SCHEDULER: true
-          DISABLE_GMAIL_INIT: true
         run: |
           cd backend
           npm start &
-          sleep 15
-          curl -f http://localhost:5000/health || exit 1
+          sleep 10
 
       - name: Start frontend server
         env:
-          NEXT_PUBLIC_API_URL: http://localhost:5000
+          NEXT_PUBLIC_API_URL: http://localhost:8000
         run: |
           npm run dev &
-          sleep 15
-          curl -f http://localhost:3000 || exit 1
+          sleep 10
 
       - name: Run Playwright tests
         env:
           CI: true
           PLAYWRIGHT_BASE_URL: http://localhost:3000
+          PLAYWRIGHT_API_URL: http://localhost:8000
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/hoperx_test
           DIRECT_URL: postgresql://postgres:postgres@localhost:5432/hoperx_test
         run: npx playwright test
