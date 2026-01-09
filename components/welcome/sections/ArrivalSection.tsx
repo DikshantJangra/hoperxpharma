@@ -14,7 +14,7 @@ export function ArrivalSection({ isActive, onComplete }: WelcomeSectionProps) {
         if (isActive) {
             const timer = setTimeout(() => {
                 onComplete();
-            }, 3000);
+            }, 4500); // Increased duration for memory check
 
             return () => clearTimeout(timer);
         }
@@ -23,34 +23,50 @@ export function ArrivalSection({ isActive, onComplete }: WelcomeSectionProps) {
     if (!isActive) return null;
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen p-8 bg-neutral-950">
-            {/* System Status Indicators */}
-            <div className="font-mono text-sm md:text-base space-y-2 text-neutral-400 mb-8 items-start flex flex-col">
-                <div className={`${getAnimationClass(animationClasses.fadeIn)} flex items-center gap-2`} style={{ animationDelay: '100ms' }}>
-                    <span className="text-emerald-500">➜</span> SYSTEM_INIT... <span className="text-emerald-500">OK</span>
+        <div className="flex flex-col items-center justify-center min-h-screen p-8 bg-neutral-950 font-mono selection:bg-emerald-500/30 relative">
+
+
+            {/* Main Heading */}
+            <h1
+                className={`text-3xl md:text-6xl font-bold text-emerald-500 uppercase tracking-tighter mb-12 mt-10 text-center ${getAnimationClass(animationClasses.fadeInUp)}`}
+                style={{ animationDelay: '200ms' }}
+            >
+                HOPE_RX<span className="animate-pulse text-white">_</span>
+            </h1>
+
+            {/* System Status Indicators - Centered Below */}
+            <div className="text-sm md:text-base space-y-4 text-neutral-400 mb-8 items-center flex flex-col w-full max-w-lg">
+                <div className={`${getAnimationClass(animationClasses.fadeIn)} flex justify-between w-full border-b border-neutral-800 pb-2`} style={{ animationDelay: '500ms' }}>
+                    <span className="flex items-center gap-2"><span className="text-emerald-500">➜</span> SECURING_YOUR_WORKSPACE</span>
+                    <span className="text-emerald-500 font-bold">LOCKED</span>
                 </div>
-                <div className={`${getAnimationClass(animationClasses.fadeIn)} flex items-center gap-2`} style={{ animationDelay: '600ms' }}>
-                    <span className="text-emerald-500">➜</span> VERIFYING_PAYMENT... <span className="text-emerald-500">OK</span>
+                <div className={`${getAnimationClass(animationClasses.fadeIn)} flex justify-between w-full border-b border-neutral-800 pb-2`} style={{ animationDelay: '1200ms' }}>
+                    <span className="flex items-center gap-2"><span className="text-emerald-500">➜</span> LINKING_YOUR_PRIVATE_CLOUD</span>
+                    <span className="text-emerald-500 font-bold">CONNECTED</span>
                 </div>
-                <div className={`${getAnimationClass(animationClasses.fadeIn)} flex items-center gap-2`} style={{ animationDelay: '1200ms' }}>
-                    <span className="text-emerald-500">➜</span> ESTABLISHING_SECURE_CONNECTION... <span className="text-emerald-500">OK</span>
+                <div className={`${getAnimationClass(animationClasses.fadeIn)} flex justify-between w-full border-b border-neutral-800 pb-2`} style={{ animationDelay: '2000ms' }}>
+                    <span className="flex items-center gap-2"><span className="text-emerald-500">➜</span> VERIFYING_LICENSE_KEY</span>
+                    <span className="text-emerald-500 font-bold">VALID</span>
+                </div>
+                <div className={`${getAnimationClass(animationClasses.fadeIn)} flex justify-between w-full pt-2 opacity-50`} style={{ animationDelay: '2800ms' }}>
+                    <span className="flex items-center gap-2 text-white">➜ INITIALIZING_DASHBOARD...</span>
+                    <span className="animate-spin text-white">/</span>
                 </div>
             </div>
 
-            {/* Primary Message */}
-            <h1
-                className={`text-3xl md:text-5xl font-bold text-white tracking-tight mb-2 ${getAnimationClass(animationClasses.fadeInUp)}`}
-                style={{ animationDelay: '1800ms' }}
+            {/* Privacy Reassurance */}
+            <div
+                className={`absolute bottom-8 text-neutral-600 text-[10px] md:text-xs tracking-wider uppercase ${getAnimationClass(animationClasses.fadeIn)}`}
+                style={{ animationDelay: '3500ms' }}
             >
-                Welcome to <span className="text-emerald-500">HopeRx</span>
-            </h1>
+                Your data is isolated. Your operations are private.
+            </div>
 
             <div
-                className={`flex items-center gap-2 text-neutral-500 text-sm font-mono mt-4 ${getAnimationClass(animationClasses.fadeIn)}`}
-                style={{ animationDelay: '2200ms' }}
+                className={`absolute bottom-12 flex items-center gap-2 text-neutral-600 text-[10px] tracking-widest ${getAnimationClass(animationClasses.fadeIn)}`}
+                style={{ animationDelay: '3500ms' }}
             >
-                <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-                SYSTEM_READY
+                KERNEL_VERSION: v2.4.0-stable
             </div>
         </div>
     );

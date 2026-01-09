@@ -24,26 +24,35 @@ async function globalSetup() {
     }
 
     // Check if backend is running
-    try {
-        const response = await fetch(`${env.apiURL}/api/v1/health`, {
-            method: 'GET',
-            signal: AbortSignal.timeout(5000),
-        });
+    const maxRetries = 5;
+    const retryInterval = 2000;
 
-        if (!response.ok) {
-            throw new Error(`Backend health check failed: ${response.status}`);
+    console.log(`🔍 Checking backend health at ${env.apiURL}/api/v1/health...`);
+
+    for (let i = 0; i < maxRetries; i++) {
+        try {
+            const response = await fetch(`${env.apiURL}/api/v1/health`, {
+                method: 'GET',
+                signal: AbortSignal.timeout(5000),
+            });
+
+            if (response.ok) {
+                console.log('✅ Backend is running and healthy\n');
+                console.log('✅ Global setup completed successfully\n');
+                return;
+            } else {
+                console.warn(`⚠️ Backend health check returned status: ${response.status}. Retrying in ${retryInterval}ms...`);
+            }
+        } catch (error: any) {
+            console.warn(`⚠️ Attempt ${i + 1}/${maxRetries}: Backend not reachable (${error.message}). Retrying in ${retryInterval}ms...`);
         }
-
-        console.log('✅ Backend is running and healthy\n');
-    } catch (error) {
-        console.error('❌ Backend health check failed:', error.message);
-        throw new Error(
-            `Cannot connect to backend at ${env.apiURL}. ` +
-            'Please ensure the backend server is running with: cd backend && npm run dev'
-        );
+        await new Promise(resolve => setTimeout(resolve, retryInterval));
     }
 
-    console.log('✅ Global setup completed successfully\n');
+    throw new Error(
+        `Cannot connect to backend at ${env.apiURL} after ${maxRetries} attempts. ` +
+        'Please ensure the backend server is running with: cd backend && npm run dev'
+    );
 }
 
 export default globalSetup;

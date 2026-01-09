@@ -134,4 +134,22 @@ export const alertsApi = {
             method: 'DELETE',
         });
     },
+
+    /**
+     * Get alert preferences
+     */
+    async getPreferences(): Promise<any> {
+        const response: any = await baseFetch('/alerts/preferences');
+        return response.data;
+    },
+
+    /**
+     * Update alert preferences
+     */
+    async updatePreferences(preferences: any[]): Promise<any> {
+        return baseFetch('/alerts/preferences', {
+            method: 'PUT',
+            body: JSON.stringify({ preferences }),
+        });
+    },
 };

@@ -1,7 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { usePremiumTheme } from '@/lib/hooks/usePremiumTheme';
+import { useWelcomeExperience } from '@/lib/hooks/useWelcomeExperience';
 import type { PremiumWelcomeProps, WelcomeSection } from '@/lib/types/welcome.types';
 import { injectWelcomeAnimations } from '@/lib/animations/welcomeAnimations';
 
@@ -32,7 +34,11 @@ export function PremiumWelcome({
     }, []);
 
     // Section progression
-    const handleSectionComplete = useCallback(() => {
+    const router = useRouter();
+    const { markAsShown } = useWelcomeExperience();
+
+    // Section progression
+    const handleSectionComplete = useCallback(async () => {
         switch (currentSection) {
             case 'arrival':
                 setCurrentSection('confirmation');
@@ -45,10 +51,18 @@ export function PremiumWelcome({
                 break;
             case 'direction':
                 // Final section - complete welcome
-                onComplete();
+                try {
+                    await markAsShown();
+                    router.push('/dashboard/overview');
+                    if (onComplete) onComplete();
+                } catch (error) {
+                    console.error('Failed to complete welcome flow:', error);
+                    // Force complete anyway
+                    if (onComplete) onComplete();
+                }
                 break;
         }
-    }, [currentSection, onComplete]);
+    }, [currentSection, onComplete, markAsShown, router]);
 
     // Allow clicking background to skip (in direction section only)
     const handleBackgroundClick = useCallback(() => {
@@ -63,7 +77,18 @@ export function PremiumWelcome({
             onClick={handleBackgroundClick}
         >
             {/* Minimal noise texture for authenticity */}
-            <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
+            <div className="absolute inset-0 opacity-[0.05] pointer-events-none bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
+
+            {/* Global System Header */}
+            <div className="absolute top-0 left-0 w-full p-6 flex justify-between items-center z-10 font-mono text-xs md:text-sm tracking-widest uppercase text-neutral-500">
+                <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-emerald-500 box-shadow-glow" />
+                    <span className="text-emerald-500 font-bold">HOPE_RX</span>
+                </div>
+                <div>
+                    SECURE_MODE
+                </div>
+            </div>
 
             {/* Content */}
             <div onClick={(e) => e.stopPropagation()}>
@@ -72,7 +97,8 @@ export function PremiumWelcome({
                     onComplete={handleSectionComplete}
                 />
 
-                <ConfirmationSection isActive={currentSection === 'confirmation'}
+                <ConfirmationSection
+                    isActive={currentSection === 'confirmation'}
                     onComplete={handleSectionComplete}
                     subscriptionData={subscriptionData}
                 />

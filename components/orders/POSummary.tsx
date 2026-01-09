@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { getApiBaseUrl } from '@/lib/config/env';
-import { tokenManager } from '@/lib/api/client';
+import { apiClient } from '@/lib/api/client';
 import { PurchaseOrder } from '@/types/po';
 import { HiOutlineDocumentText, HiOutlinePrinter, HiOutlinePaperAirplane, HiOutlineChatBubbleLeftRight } from 'react-icons/hi2';
 import toast from 'react-hot-toast';
@@ -19,7 +18,6 @@ export default function POSummary({ po }: POSummaryProps) {
 
   const handlePreviewPdf = async () => {
     try {
-      const apiBaseUrl = getApiBaseUrl();
       // Use poId or fallback to casting for 'id' if it exists at runtime
       const poId = po.poId || (po as any).id;
       if (!poId) {
@@ -27,16 +25,12 @@ export default function POSummary({ po }: POSummaryProps) {
         return;
       }
 
-      const response = await fetch(`${apiBaseUrl}/purchase-orders/${poId}/preview.pdf`, {
-        headers: {
-          'Authorization': `Bearer ${tokenManager.getAccessToken()}`
-        }
+      // Download directly as blob
+      const blob = await apiClient.get(`/purchase-orders/${poId}/preview.pdf`, {
+        responseType: 'blob'
       });
 
-      if (!response.ok) throw new Error('Failed to generate PDF');
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
+      const url = window.URL.createObjectURL(blob as Blob);
       window.open(url, '_blank');
     } catch (error) {
       console.error('PDF generation failed:', error);

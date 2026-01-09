@@ -249,20 +249,13 @@ export const salesApi = {
      * Download invoice PDF
      */
     async downloadInvoicePDF(saleId: string): Promise<Blob> {
-        // Use direct fetch for blob response  
-        const token = tokenManager.getAccessToken();
-        const response = await fetch(`${getApiBaseUrl()}/sales/${saleId}/invoice/pdf`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
-            },
-            credentials: 'include', // Send cookies for httpOnly token
+        // Use apiClient with blob response type
+        // apiClient automatically handles token refresh and headers
+        const blob = await apiClient.get(`/sales/${saleId}/invoice/pdf`, {
+            responseType: 'blob'
         });
 
-        if (!response.ok) {
-            throw new Error('Failed to download PDF');
-        }
-
-        return await response.blob();
+        return blob;
     },
 
     /**

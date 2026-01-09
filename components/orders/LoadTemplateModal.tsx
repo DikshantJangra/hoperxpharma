@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getApiBaseUrl } from '@/lib/config/env';
-import { tokenManager } from '@/lib/api/client';
+import { apiClient } from '@/lib/api/client';
 import { FiX, FiCopy, FiTrash2, FiClock } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 
@@ -36,17 +35,8 @@ export default function LoadTemplateModal({ isOpen, onClose, onLoad, storeId }: 
     const loadTemplates = async () => {
         setLoading(true);
         try {
-            // Using validated API URL
-            const response = await fetch(`${apiBaseUrl}/purchase-orders/templates`, {
-                headers: {
-                    'Authorization': `Bearer ${tokenManager.getAccessToken()}`
-                }
-            });
-
-            if (response.ok) {
-                const result = await response.json();
-                setTemplates(result.data || result || []);
-            }
+            const result = await apiClient.get('/purchase-orders/templates');
+            setTemplates(result.data || result || []);
         } catch (error) {
             console.error('Failed to load templates:', error);
             toast.error('Failed to load templates');
@@ -68,18 +58,9 @@ export default function LoadTemplateModal({ isOpen, onClose, onLoad, storeId }: 
 
     const handleDuplicate = async (templateId: string) => {
         try {
-            // Using validated API URL
-            const response = await fetch(`${apiBaseUrl}/purchase-orders/templates/${templateId}/duplicate`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${tokenManager.getAccessToken()}`
-                }
-            });
-
-            if (response.ok) {
-                toast.success('Template duplicated');
-                loadTemplates();
-            }
+            await apiClient.post(`/purchase-orders/templates/${templateId}/duplicate`);
+            toast.success('Template duplicated');
+            loadTemplates();
         } catch (error) {
             console.error('Failed to duplicate template:', error);
             toast.error('Failed to duplicate template');
@@ -90,18 +71,9 @@ export default function LoadTemplateModal({ isOpen, onClose, onLoad, storeId }: 
         if (!confirm('Are you sure you want to delete this template?')) return;
 
         try {
-            // Using validated API URL
-            const response = await fetch(`${apiBaseUrl}/purchase-orders/templates/${templateId}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${tokenManager.getAccessToken()}`
-                }
-            });
-
-            if (response.ok) {
-                toast.success('Template deleted');
-                loadTemplates();
-            }
+            await apiClient.delete(`/purchase-orders/templates/${templateId}`);
+            toast.success('Template deleted');
+            loadTemplates();
         } catch (error) {
             console.error('Failed to delete template:', error);
             toast.error('Failed to delete template');

@@ -93,10 +93,12 @@ async function cleanupTestSubscription() {
                         currentPeriodStart: new Date(),
                         currentPeriodEnd: trialEnd,
                         autoRenew: false,
-                        planId: null
+                        planId: null,
+                        welcomeShown: false
                     }
                 });
                 console.log(`    ✓ Reset subscription to TRIAL (expires: ${trialEnd.toLocaleDateString()})`);
+                console.log(`    ✓ Reset welcomeShown to false`);
             }
         }
 

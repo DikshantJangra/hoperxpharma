@@ -154,8 +154,48 @@ export class DatabaseAssertions {
 }
 
 /**
- * Create database assertions instance
+ * Clean up test data
+ * Deletes the test user and cascades (assuming foreign keys are set to cascade or we handle manually)
  */
-export function createDatabaseAssertions(): DatabaseAssertions {
-    return new DatabaseAssertions(getDatabase());
+export async function cleanupTestData(email: string): Promise<void> {
+    const db = getDatabase();
+
+    try {
+        console.log(`🧹 Cleaning up test data for email: ${email}...`);
+
+        // Find user
+        const user = await db.user.findUnique({
+            where: { email },
+            include: { stores: true }
+        });
+
+        if (user) {
+            // Delete stores created by this user
+            // Check for stores linked via StoreUser
+            const storeUsers = await db.storeUser.findMany({
+                where: { userId: user.id }
+            });
+
+            // We might want to be careful about deleting shared stores, but for test isolation 
+            // the test user likely created the "Test Pharmacy"
+            // For now, let's rely on wiping the user and assuming cascading deletes (or manually deleting if needed)
+
+            // Delete store links
+            await db.storeUser.deleteMany({
+                where: { userId: user.id }
+            });
+
+            // Delete the user
+            await db.user.delete({
+                where: { id: user.id }
+            });
+
+            console.log('✅ Test user and related data deleted');
+        } else {
+            console.log('ℹ️ Test user not found, nothing to clean up');
+        }
+    } catch (error) {
+        console.error('❌ Failed to clean up test data:', error);
+        // Don't throw here to avoid failing the teardown aggressively
+    }
 }

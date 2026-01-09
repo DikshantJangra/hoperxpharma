@@ -1,6 +1,5 @@
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
-import { getApiBaseUrl } from '@/lib/config/env';
-import { tokenManager } from '@/lib/api/client';
+import { apiClient, baseFetch } from '@/lib/api/client';
 
 interface Mutation {
     id: string;
@@ -111,35 +110,12 @@ class SyncManager {
      * Execute the mutation against the API
      */
     private async processMutation(mutation: Mutation) {
-        const token = tokenManager.getAccessToken();
-
-        const headers: HeadersInit = {
-            'Content-Type': 'application/json',
-        };
-
-        if (token) {
-            headers['Authorization'] = `Bearer ${token}`;
-        }
-
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000);
-
         try {
-            const response = await fetch(`${getApiBaseUrl()}${mutation.url}`, {
+            await baseFetch(mutation.url, {
                 method: mutation.method,
-                headers,
-                body: JSON.stringify(mutation.body),
-                signal: controller.signal,
-                credentials: 'include', // Send cookies for httpOnly token
+                body: mutation.body ? JSON.stringify(mutation.body) : undefined,
             });
-
-            clearTimeout(timeoutId);
-
-            if (!response.ok) {
-                throw new Error(`API error: ${response.status} ${response.statusText}`);
-            }
         } catch (error) {
-            clearTimeout(timeoutId);
             throw error;
         }
     }

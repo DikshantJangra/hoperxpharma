@@ -96,7 +96,7 @@ export function PaymentHistory({ storeId }: PaymentHistoryProps) {
             });
 
             // Create blob link to download
-            const url = window.URL.createObjectURL(response.data);
+            const url = window.URL.createObjectURL(response);
             const link = document.createElement('a');
             link.href = url;
             link.setAttribute('download', `INV-${paymentId.slice(0, 8).toUpperCase()}.pdf`);

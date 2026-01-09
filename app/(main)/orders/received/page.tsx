@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import OrderList, { Order } from '@/components/orders/OrderList';
 import OrderFilters, { FilterState } from '@/components/orders/OrderFilters';
 import { HiOutlineCheckCircle, HiOutlineCurrencyRupee, HiOutlineClock } from 'react-icons/hi2';
-import { tokenManager } from '@/lib/api/client';
+import { grnApi } from '@/lib/api/grn';
 
 const StatCardSkeleton = () => (
     <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 animate-pulse">
@@ -29,18 +29,10 @@ export default function ReceivedOrdersPage() {
     const fetchReceivedOrders = async () => {
         setIsLoading(true);
         try {
-            const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
-            const token = tokenManager.getAccessToken();
-
             // Fetch completed GRNs instead of POs to get actual received amounts
-            const response = await fetch(`${apiBaseUrl}/grn?status=COMPLETED&limit=100`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
+            const result = await grnApi.getGRNs({ status: 'COMPLETED', limit: 100 });
 
-            if (response.ok) {
-                const result = await response.json();
+            if (result) {
                 const fetchedGRNs = Array.isArray(result.data) ? result.data : [];
 
                 // Transform GRNs to Order format

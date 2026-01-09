@@ -8,10 +8,7 @@ import CreateTemplateModal from '@/components/messages/email/CreateTemplateModal
 import EditTemplateModal from '@/components/messages/email/EditTemplateModal';
 import TemplatePreviewModal from '@/components/messages/email/TemplatePreviewModal';
 
-// Helper to get headers for requests (credentials: include handles auth)
-const getAuthHeaders = () => ({
-    'Content-Type': 'application/json',
-});
+import { templatesApi } from '@/lib/api/templates';
 
 // Shimmer loading component
 function TemplateShimmer() {
@@ -88,13 +85,15 @@ export default function MessageTemplatesPage() {
     const fetchTemplates = async () => {
         setLoading(true);
         try {
-            const response = await fetch('/api/v1/email/templates', {
-                headers: getAuthHeaders(),
-                credentials: 'include',
-            });
-            const data = await response.json();
+            const data = await templatesApi.getTemplates();
             if (data.success) {
                 setTemplates(data.data.templates || []);
+            } else if (data.templates) {
+                // Handle case where data is directly returned or structure is different
+                setTemplates(data.templates || []);
+            } else {
+                // Fallback if structure is just the array or data object
+                setTemplates(data.data || []);
             }
         } catch (error) {
             console.error('Failed to fetch templates:', error);
@@ -140,20 +139,12 @@ export default function MessageTemplatesPage() {
 
         setActionLoading(true);
         try {
-            const response = await fetch(`/api/v1/email/templates/${selectedTemplate.id}`, {
-                method: 'DELETE',
-                headers: getAuthHeaders(),
-                credentials: 'include',
-            });
+            await templatesApi.deleteTemplate(selectedTemplate.id);
 
-            if (response.ok) {
-                showMessage('success', 'Template deleted successfully');
-                setShowDeleteConfirm(false);
-                setSelectedTemplate(null);
-                await fetchTemplates();
-            } else {
-                throw new Error('Failed to delete template');
-            }
+            showMessage('success', 'Template deleted successfully');
+            setShowDeleteConfirm(false);
+            setSelectedTemplate(null);
+            await fetchTemplates();
         } catch (error) {
             showMessage('error', 'Failed to delete template');
         } finally {
@@ -164,25 +155,17 @@ export default function MessageTemplatesPage() {
     const handleDuplicate = async (template: any) => {
         setActionLoading(true);
         try {
-            const response = await fetch('/api/v1/email/templates', {
-                method: 'POST',
-                headers: getAuthHeaders(),
-                credentials: 'include',
-                body: JSON.stringify({
-                    name: `${template.name} (Copy)`,
-                    subject: template.subject,
-                    bodyHtml: template.bodyHtml,
-                    category: template.category,
-                    variables: template.variables || [],
-                }),
+            await templatesApi.createTemplate({
+                name: `${template.name} (Copy)`,
+                subject: template.subject,
+                bodyHtml: template.bodyHtml,
+                category: template.category,
+                variables: template.variables || [],
+                channel: template.channel // Ensure channel is copied
             });
 
-            if (response.ok) {
-                showMessage('success', 'Template duplicated successfully');
-                await fetchTemplates();
-            } else {
-                throw new Error('Failed to duplicate template');
-            }
+            showMessage('success', 'Template duplicated successfully');
+            await fetchTemplates();
         } catch (error) {
             showMessage('error', 'Failed to duplicate template');
         } finally {

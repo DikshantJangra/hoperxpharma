@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useAuthStore } from "@/lib/store/auth-store";
 import { userApi } from "@/lib/api/user";
+import { apiClient } from "@/lib/api/client";
 import { PaymentButton } from "@/components/payments/PaymentButton";
 import { PaymentHistory } from "@/components/payments/PaymentHistory";
 import {
@@ -28,14 +29,11 @@ export default function PlanAndBilling() {
         try {
             const storeData = await userApi.getPrimaryStore();
             setStore(storeData);
-            
+
             // Fetch plans from backend API
             try {
-                const plansResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'}/subscriptions/plans`);
-                if (plansResponse.ok) {
-                    const plansJson = await plansResponse.json();
-                    setPlans(plansJson.data || []);
-                }
+                const plansResponse = await apiClient.get('/subscriptions/plans');
+                setPlans(plansResponse.data || []);
             } catch (planError) {
                 console.error('[PlanAndBilling] Failed to fetch plans:', planError);
             }
@@ -189,23 +187,19 @@ export default function PlanAndBilling() {
                             <span className="text-xs text-gray-500">Billing:</span>
                             <button
                                 onClick={() => setBillingCycle(billingCycle === 'monthly' ? 'yearly' : 'monthly')}
-                                className={`relative w-14 h-7 rounded-full transition-colors ${
-                                    billingCycle === 'yearly' ? 'bg-emerald-600' : 'bg-gray-300'
-                                }`}
+                                className={`relative w-14 h-7 rounded-full transition-colors ${billingCycle === 'yearly' ? 'bg-emerald-600' : 'bg-gray-300'
+                                    }`}
                             >
                                 <span
-                                    className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-full transition-transform ${
-                                        billingCycle === 'yearly' ? 'translate-x-7' : ''
-                                    }`}
+                                    className={`absolute top-1 left-1 w-5 h-5 bg-white rounded-full transition-transform ${billingCycle === 'yearly' ? 'translate-x-7' : ''
+                                        }`}
                                 />
                             </button>
                             <div className="flex flex-col items-start">
-                                <span className={`text-xs font-medium ${
-                                    billingCycle === 'monthly' ? 'text-gray-900' : 'text-gray-500'
-                                }`}>Monthly</span>
-                                <span className={`text-xs font-medium ${
-                                    billingCycle === 'yearly' ? 'text-gray-900' : 'text-gray-500'
-                                }`}>Yearly</span>
+                                <span className={`text-xs font-medium ${billingCycle === 'monthly' ? 'text-gray-900' : 'text-gray-500'
+                                    }`}>Monthly</span>
+                                <span className={`text-xs font-medium ${billingCycle === 'yearly' ? 'text-gray-900' : 'text-gray-500'
+                                    }`}>Yearly</span>
                             </div>
                         </div>
                     )}

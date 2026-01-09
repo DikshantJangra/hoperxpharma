@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { FiSave, FiBell } from 'react-icons/fi';
+import { alertsApi } from '@/lib/api/alerts';
 
 interface AlertPreferencesPageProps { }
 
@@ -31,12 +32,9 @@ export default function AlertPreferencesPage() {
 
     const fetchPreferences = async () => {
         try {
-            const response = await fetch('/api/v1/alerts/preferences', {
-                credentials: 'include',
-            });
-            if (response.ok) {
-                const data = await response.json();
-                setPreferences(data.data);
+            const data = await alertsApi.getPreferences();
+            if (data) {
+                setPreferences(data);
             }
         } catch (error) {
             console.error('Error fetching preferences:', error);
@@ -74,18 +72,8 @@ export default function AlertPreferencesPage() {
     const handleSave = async () => {
         setSaving(true);
         try {
-            const response = await fetch('/api/v1/alerts/preferences', {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                credentials: 'include',
-                body: JSON.stringify({ preferences }),
-            });
-
-            if (response.ok) {
-                alert('Preferences saved successfully!');
-            }
+            await alertsApi.updatePreferences(preferences);
+            alert('Preferences saved successfully!');
         } catch (error) {
             console.error('Error saving preferences:', error);
             alert('Failed to save preferences');

@@ -1,5 +1,7 @@
 "use client"
 import { useState, useEffect } from 'react';
+import { purchaseOrderApi } from '@/lib/api/purchaseOrders';
+import { grnApi } from '@/lib/api/grn';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { usePremiumTheme } from '@/lib/hooks/usePremiumTheme';
@@ -50,25 +52,17 @@ export default function OrderDetailsPage() {
     const [error, setError] = useState('');
 
     useEffect(() => {
-        if (params.id) {
+        if (params && params.id) {
             fetchOrderDetails(params.id as string);
         }
-    }, [params.id]);
+    }, [params]);
 
     const fetchOrderDetails = async (id: string) => {
         try {
-            const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
-
             // Fetch PO details
-            const response = await fetch(`${apiBaseUrl}/purchase-orders/${id}`, {
-                credentials: 'include'
-            });
+            const data = await purchaseOrderApi.getPOById(id);
 
-            if (!response.ok) {
-                throw new Error('Failed to fetch order details');
-            }
-
-            const data = await response.json();
+            // Transform supplier data to match frontend expectations
 
             // Transform supplier data to match frontend expectations
             if (data.data && data.data.supplier) {
@@ -86,14 +80,8 @@ export default function OrderDetailsPage() {
 
             // Fetch GRN data if order is received or partially received
             if (data.data.status === 'RECEIVED' || data.data.status === 'PARTIALLY_RECEIVED') {
-                const grnResponse = await fetch(`${apiBaseUrl}/grn/po/${id}`, {
-                    credentials: 'include'
-                });
-
-                if (grnResponse.ok) {
-                    const grnData = await grnResponse.json();
-                    setGrns(grnData.data || []);
-                }
+                const grnData = await grnApi.getGRNsByPOId(id);
+                setGrns(grnData.data || []);
             }
         } catch (err: any) {
             setError(err.message || 'Failed to load order');

@@ -4,8 +4,7 @@ import { HiOutlineMagnifyingGlass, HiOutlineXMark, HiOutlinePlus } from 'react-i
 import { FiUpload } from 'react-icons/fi';
 import BulkAddModal from './BulkAddModal';
 import AddCustomItemInline from './AddCustomItemInline';
-import { getApiBaseUrl } from '@/lib/config/env';
-import { tokenManager } from '@/lib/api/client';
+import { apiClient } from '@/lib/api/client';
 
 interface Product {
     id: string;
@@ -77,36 +76,27 @@ const ProductSearchBar = forwardRef(({ onSelect, supplier }: ProductSearchBarPro
 
         setLoading(true);
         try {
-            const response = await fetch(`${getApiBaseUrl()}/drugs/search?q=${searchQuery}&limit=10`, {
-                headers: {
-                    'Authorization': `Bearer ${tokenManager.getAccessToken()}`
-                },
-                credentials: 'include'
-            });
+            const data = await apiClient.get(`/drugs/search?q=${searchQuery}&limit=10`);
+            const drugs = data.data || data || [];
 
-            if (response.ok) {
-                const data = await response.json();
-                const drugs = data.data || data || [];
+            const mappedProducts: Product[] = drugs.map((drug: any) => ({
+                id: drug.id,
+                name: `${drug.name}${drug.strength ? ` ${drug.strength}` : ''}${drug.form ? ` ${drug.form}` : ''}`,
+                gstPercent: 5, // Default to 5% for all catalog items (editable)
+                lastPrice: undefined,
+                currentStock: 0
+            }));
 
-                const mappedProducts: Product[] = drugs.map((drug: any) => ({
-                    id: drug.id,
-                    name: `${drug.name}${drug.strength ? ` ${drug.strength}` : ''}${drug.form ? ` ${drug.form}` : ''}`,
-                    gstPercent: 5, // Default to 5% for all catalog items (editable)
-                    lastPrice: undefined,
-                    currentStock: 0
-                }));
-
-                // Update cache
-                if (searchCache.size >= MAX_CACHE_SIZE) {
-                    // Remove oldest entry
-                    const firstKey = searchCache.keys().next().value;
-                    if (firstKey) searchCache.delete(firstKey);
-                }
-                searchCache.set(searchQuery, mappedProducts);
-
-                setProducts(mappedProducts);
-                setSelectedIndex(0);
+            // Update cache
+            if (searchCache.size >= MAX_CACHE_SIZE) {
+                // Remove oldest entry
+                const firstKey = searchCache.keys().next().value;
+                if (firstKey) searchCache.delete(firstKey);
             }
+            searchCache.set(searchQuery, mappedProducts);
+
+            setProducts(mappedProducts);
+            setSelectedIndex(0);
         } catch (error) {
             console.error('Search failed:', error);
             setProducts([]);

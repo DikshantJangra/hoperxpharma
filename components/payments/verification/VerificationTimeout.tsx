@@ -44,8 +44,8 @@ export function VerificationTimeout({
                 <button
                     onClick={() => window.location.reload()}
                     className={`flex-1 px-6 py-3 rounded-xl font-medium transition-colors ${isPremium
-                            ? 'bg-blue-600 hover:bg-blue-700 text-white'
-                            : 'bg-blue-600 hover:bg-blue-700 text-white'
+                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                        : 'bg-blue-600 hover:bg-blue-700 text-white'
                         }`}
                 >
                     Check Status Later
@@ -56,7 +56,7 @@ export function VerificationTimeout({
                         className="flex items-center justify-center gap-2 px-6 py-3 bg-white border border-gray-200 hover:border-gray-300 rounded-xl font-medium text-gray-700 transition-colors"
                     >
                         <FiList className="w-4 h-4" />
-                        View Payment History
+                        Check Billing History
                     </button>
                 )}
             </div>

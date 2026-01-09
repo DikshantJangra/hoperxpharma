@@ -1,11 +1,12 @@
 'use client';
 
-import { Toaster } from 'react-hot-toast';
+import { Toaster } from 'sonner';
 
 export function ToastProvider() {
     return (
         <Toaster
             position="top-right"
+            closeButton
             toastOptions={{
                 duration: 4000,
                 style: {
@@ -15,19 +16,13 @@ export function ToastProvider() {
                     borderRadius: '8px',
                     padding: '12px 16px',
                 },
-                success: {
-                    iconTheme: {
-                        primary: '#10b981',
-                        secondary: '#fff',
-                    },
-                },
-                error: {
-                    iconTheme: {
-                        primary: '#ef4444',
-                        secondary: '#fff',
-                    },
+                classNames: {
+                    error: 'bg-red-50 text-red-900 border-red-200',
+                    success: 'bg-green-50 text-green-900 border-green-200',
+                    info: 'bg-blue-50 text-blue-900 border-blue-200',
                 },
             }}
+            style={{ zIndex: 99999 }}
         />
     );
 }

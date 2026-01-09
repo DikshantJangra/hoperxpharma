@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useAuthStore } from '@/lib/store/auth-store';
 import { getApiBaseUrl } from '@/lib/config/env';
+import { tokenManager } from '@/lib/api/client';
 
 interface Alert {
     id: string;
@@ -77,10 +78,15 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
         if (!apiBaseUrl) return;
         try {
             setIsLoading(true);
+            const token = tokenManager.getAccessToken();
+            const headers: Record<string, string> = {
+                'Content-Type': 'application/json',
+            };
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
             const response = await fetch(`${apiBaseUrl}/alerts?limit=50`, {
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers,
                 credentials: 'include',
             });
 
@@ -98,10 +104,15 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
     const fetchCounts = useCallback(async () => {
         if (!apiBaseUrl) return;
         try {
+            const token = tokenManager.getAccessToken();
+            const headers: Record<string, string> = {
+                'Content-Type': 'application/json',
+            };
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
             const response = await fetch(`${apiBaseUrl}/alerts/counts`, {
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers,
                 credentials: 'include',
             });
 
@@ -121,11 +132,16 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
     const markAsSeen = useCallback(async (id: string) => {
         if (!apiBaseUrl) return;
         try {
+            const token = tokenManager.getAccessToken();
+            const headers: Record<string, string> = {
+                'Content-Type': 'application/json',
+            };
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
             const response = await fetch(`${apiBaseUrl}/alerts/${id}/seen`, {
                 method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers,
                 credentials: 'include',
             });
 
@@ -152,10 +168,15 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
             )
         );
         try {
+            const token = tokenManager.getAccessToken();
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
             await Promise.all(newAlerts.map(a =>
                 fetch(`${apiBaseUrl}/alerts/${a.id}/seen`, {
                     method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers,
                     credentials: 'include',
                 })
             ));
@@ -169,9 +190,14 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
         // Optimistic update - remove immediately
         setAlerts((prev) => prev.filter((alert) => alert.id !== id));
         try {
+            const token = tokenManager.getAccessToken();
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
             await fetch(`${apiBaseUrl}/alerts/${id}/dismiss`, {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json' },
+                headers,
                 credentials: 'include',
             });
         } catch (error) {
@@ -183,11 +209,16 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
     const resolveAlert = useCallback(async (id: string) => {
         if (!apiBaseUrl) return;
         try {
+            const token = tokenManager.getAccessToken();
+            const headers: Record<string, string> = {
+                'Content-Type': 'application/json',
+            };
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
             const response = await fetch(`${apiBaseUrl}/alerts/${id}/resolve`, {
                 method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers,
                 credentials: 'include',
             });
 
@@ -204,11 +235,16 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
     const snoozeAlert = useCallback(async (id: string, until: Date) => {
         if (!apiBaseUrl) return;
         try {
+            const token = tokenManager.getAccessToken();
+            const headers: Record<string, string> = {
+                'Content-Type': 'application/json',
+            };
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
             const response = await fetch(`${apiBaseUrl}/alerts/${id}/snooze`, {
                 method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers,
                 credentials: 'include',
                 body: JSON.stringify({ snoozeUntil: until.toISOString() }),
             });
@@ -226,11 +262,16 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
     const bulkDismiss = useCallback(async (ids: string[]) => {
         if (!apiBaseUrl) return;
         try {
+            const token = tokenManager.getAccessToken();
+            const headers: Record<string, string> = {
+                'Content-Type': 'application/json',
+            };
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
             const response = await fetch(`${apiBaseUrl}/alerts/bulk/dismiss`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
+                headers,
                 credentials: 'include',
                 body: JSON.stringify({ alertIds: ids }),
             });

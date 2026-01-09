@@ -2,8 +2,7 @@ import React, { useState } from 'react';
 import { FiX, FiDownload, FiUpload } from 'react-icons/fi';
 import { HiOutlineInformationCircle } from 'react-icons/hi2';
 import { parseCSVForBulkAdd, generateExampleCSV, type BulkAddItem } from '@/lib/parsers/csvParser';
-import { getApiBaseUrl } from '@/lib/config/env';
-import { tokenManager } from '@/lib/api/client';
+import { apiClient } from '@/lib/api/client';
 
 interface BulkAddModalProps {
     isOpen: boolean;
@@ -31,27 +30,13 @@ export default function BulkAddModal({ isOpen, onClose, onAdd, supplier }: BulkA
 
         setLoading(true);
         try {
-            const response = await fetch(`${getApiBaseUrl()}/purchase-orders/bulk-add`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${tokenManager.getAccessToken()}`
-                },
-                credentials: 'include',
-                body: JSON.stringify({
-                    items: preview,
-                    supplierId: supplier?.id
-                })
+            const response = await apiClient.post('/purchase-orders/bulk-add', {
+                items: preview,
+                supplierId: supplier?.id
             });
 
-            if (response.ok) {
-                const result = await response.json();
-                onAdd(result.data.lines || result.lines || []);
-                handleClose();
-            } else {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Failed to bulk add items');
-            }
+            onAdd(response.data.lines || response.lines || []);
+            handleClose();
         } catch (error: any) {
             console.error('Bulk add failed:', error);
             setErrors([...errors, error.message || 'Failed to add items. Please try again.']);

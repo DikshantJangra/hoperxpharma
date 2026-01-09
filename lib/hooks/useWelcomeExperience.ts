@@ -33,12 +33,22 @@ export function useWelcomeExperience() {
             const response = await apiClient.get('/subscriptions/status');
             const subscription = response.data;
 
+            console.log('[Welcome] API Response:', subscription);
+
             // Check eligibility
             const isActive = subscription?.status === 'ACTIVE';
             const wasShown = subscription?.welcomeShown === true;
             const isVerified = subscription?.paymentVerified !== false;
 
             const eligible = isActive && !wasShown && isVerified && !!subscription.id;
+
+            console.log('[Welcome] Eligibility:', {
+                isActive,
+                wasShown,
+                isVerified,
+                hasId: !!subscription?.id,
+                eligible
+            });
 
             if (eligible) {
                 // Transform subscription data for display
@@ -56,6 +66,8 @@ export function useWelcomeExperience() {
                     currentSection: null,
                     subscriptionData,
                 });
+            } else {
+                console.log('[Welcome] User not eligible for welcome experience');
             }
         } catch (error) {
             console.error('[Welcome] Eligibility check failed:', error);

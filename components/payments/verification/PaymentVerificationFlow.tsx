@@ -132,6 +132,12 @@ export function PaymentVerificationFlow({
             success: false,
             status: 'PROCESSING',
             paymentData: null,
+            error: {
+                code: 'VERIFICATION_TIMEOUT',
+                message: 'Verification timed out',
+                userMessage: 'Verification took too long, please check history',
+                canRetry: false
+            }
         });
     };
 

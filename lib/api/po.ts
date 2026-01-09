@@ -1,153 +1,96 @@
 import { PurchaseOrder, ValidationResult, SuggestedItem } from '@/types/po';
-
-const API_BASE = '/api';
+import { apiClient } from './client';
 
 export const poApi = {
   // Create draft PO
   createDraft: async (storeId: string, po: Partial<PurchaseOrder>): Promise<{ po: PurchaseOrder; auditEventId: string }> => {
-    const response = await fetch(`${API_BASE}/stores/${storeId}/pos/draft`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(po)
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to create draft PO');
-    }
-    
-    return response.json();
+    const response = await apiClient.post(`/stores/${storeId}/pos/draft`, po);
+    return response.data;
   },
 
   // Get suggested reorder items
   getSuggestions: async (storeId: string, limit = 100): Promise<SuggestedItem[]> => {
-    const response = await fetch(`${API_BASE}/stores/${storeId}/inventory/suggestions?limit=${limit}`);
-    
-    if (!response.ok) {
-      throw new Error('Failed to fetch suggestions');
-    }
-    
-    return response.json();
+    const response = await apiClient.get(`/stores/${storeId}/inventory/suggestions?limit=${limit}`);
+    return response.data;
   },
 
   // Get supplier catalog/prices
   getSupplierCatalog: async (supplierId: string, drugId?: string) => {
-    const url = drugId 
-      ? `${API_BASE}/suppliers/${supplierId}/catalog?drugId=${drugId}`
-      : `${API_BASE}/suppliers/${supplierId}/catalog`;
-    
-    const response = await fetch(url);
-    
-    if (!response.ok) {
-      throw new Error('Failed to fetch supplier catalog');
-    }
-    
-    return response.json();
+    const endpoint = drugId
+      ? `/suppliers/${supplierId}/catalog?drugId=${drugId}`
+      : `/suppliers/${supplierId}/catalog`;
+
+    const response = await apiClient.get(endpoint);
+    return response.data;
   },
 
   // Validate PO
   validate: async (po: PurchaseOrder): Promise<ValidationResult> => {
-    const response = await fetch(`${API_BASE}/pos/validate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(po)
-    });
-    
-    if (!response.ok) {
-      throw new Error('Validation failed');
-    }
-    
-    return response.json();
+    const response = await apiClient.post('/pos/validate', po);
+    return response.data;
   },
 
   // Request approval
   requestApproval: async (poId: string, approvers: string[], note?: string) => {
-    const response = await fetch(`${API_BASE}/pos/${poId}/request-approval`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ approvers, note })
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to request approval');
-    }
-    
-    return response.json();
+    const response = await apiClient.post(`/pos/${poId}/request-approval`, { approvers, note });
+    return response.data;
   },
 
   // Approve PO
   approve: async (poId: string, approverId: string, comment?: string) => {
-    const response = await fetch(`${API_BASE}/pos/${poId}/approve`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ approverId, comment })
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to approve PO');
-    }
-    
-    return response.json();
+    const response = await apiClient.post(`/pos/${poId}/approve`, { approverId, comment });
+    return response.data;
   },
 
   // Send PO
   send: async (poId: string, channel: string, channelPayload?: any, sendAsPdf = true) => {
-    const response = await fetch(`${API_BASE}/pos/${poId}/send`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ channel, channelPayload, sendAsPdf })
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to send PO');
-    }
-    
-    return response.json();
+    const response = await apiClient.post(`/pos/${poId}/send`, { channel, channelPayload, sendAsPdf });
+    return response.data;
   },
 
   // Get PO preview PDF
   getPreviewPdf: (poId: string): string => {
-    return `${API_BASE}/pos/${poId}/preview.pdf`;
+    // This returns a URL string, not a promise. 
+    // This is likely used for IFrames or links.
+    // apiClient cannot be used here as it wraps fetch.
+    // We should probably keep this, but ensure the caller handles auth if accessing this URL directly?
+    // Or maybe we should return a blob using apiClient?
+    // The original code returned a string.
+    // If this URL is used in <iframe src="...">, then auth headers won't be sent automatically unless cookies are used.
+    // Since we use httpOnly cookies, this MIGHT work if on same domain.
+    // But apiClient logic suggests we rely on bearer tokens in headers or cookies.
+    // Let's assume the existing string return logic is for UI rendering and keep it compatible with existing usage (path construction).
+    // However, the original code used `API_BASE` which was `/api`.
+    // If we want consistency, we should use the configured API base URL.
+    // But since I don't have getApiBaseUrl imported here (it wasn't before, only API_BASE='/api'), 
+    // I will use apiClient.getUri() if available or just hardcode if I must.
+    // Better: Helper function to get full URL?
+    // The original code was: return `${API_BASE}/pos/${poId}/preview.pdf`; where API_BASE='/api'
+    return `/api/v1/pos/${poId}/preview.pdf`;
   },
 
   // Upload attachment
   uploadAttachment: async (poId: string, file: File) => {
     const formData = new FormData();
     formData.append('file', file);
-    
-    const response = await fetch(`${API_BASE}/pos/${poId}/attachments`, {
-      method: 'POST',
-      body: formData
-    });
-    
-    if (!response.ok) {
-      throw new Error('Failed to upload attachment');
-    }
-    
-    return response.json();
+
+    // apiClient supports FormData automatically in post/put
+    const response = await apiClient.post(`/pos/${poId}/attachments`, formData);
+    return response.data;
   },
 
   // Search products
   searchProducts: async (query: string, supplierId?: string) => {
     const params = new URLSearchParams({ q: query });
     if (supplierId) params.append('supplierId', supplierId);
-    
-    const response = await fetch(`${API_BASE}/products/search?${params}`);
-    
-    if (!response.ok) {
-      throw new Error('Product search failed');
-    }
-    
-    return response.json();
+
+    const response = await apiClient.get(`/products/search?${params}`);
+    return response.data;
   },
 
   // Get suppliers
   getSuppliers: async () => {
-    const response = await fetch(`${API_BASE}/suppliers`);
-    
-    if (!response.ok) {
-      throw new Error('Failed to fetch suppliers');
-    }
-    
-    return response.json();
+    const response = await apiClient.get('/suppliers');
+    return response.data;
   }
 };

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FiChevronDown, FiX } from 'react-icons/fi';
-import { getApiBaseUrl } from '@/lib/config/env';
-import { tokenManager } from '@/lib/api/client';
+import { apiClient } from '@/lib/api/client';
 
 interface Supplier {
     id: string;
@@ -31,17 +30,8 @@ export default function SupplierChip({ value, onChange }: SupplierChipProps) {
     const loadSuppliers = async () => {
         setLoading(true);
         try {
-            const response = await fetch(`${getApiBaseUrl()}/purchase-orders/suppliers?limit=50`, {
-                headers: {
-                    'Authorization': `Bearer ${tokenManager.getAccessToken()}`
-                },
-                credentials: 'include'
-            });
-
-            if (response.ok) {
-                const result = await response.json();
-                setSuppliers(result.data || result.results || []);
-            }
+            const result = await apiClient.get('/purchase-orders/suppliers?limit=50');
+            setSuppliers(result.data || result.results || []);
         } catch (error) {
             console.error('Failed to load suppliers:', error);
         } finally {

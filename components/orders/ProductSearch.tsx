@@ -1,6 +1,5 @@
 'use client';
-import { getApiBaseUrl } from '@/lib/config/env';
-import { tokenManager } from '@/lib/api/client';
+import { apiClient } from '@/lib/api/client';
 
 import React, { useState, useEffect, useRef } from 'react';
 import { normalizeGSTRate } from '@/utils/gst-utils';
@@ -53,19 +52,8 @@ export default function ProductSearch({ onSelect, onCancel, supplier }: ProductS
         params.append('supplierId', supplier.id);
       }
 
-      const apiBaseUrl = getApiBaseUrl();
-      const response = await fetch(`${apiBaseUrl}/drugs/search?${params}`, {
-        headers: {
-          'Authorization': `Bearer ${tokenManager.getAccessToken()}`
-        }
-      });
-
-      if (!response.ok) {
-        throw new Error('Search failed');
-      }
-
-      const data = await response.json();
-      const drugs = data.data || data || [];
+      const result = await apiClient.get(`/drugs/search?${params}`);
+      const drugs = result.data || result || [];
 
       // Map drug data to Product format
       const mappedProducts: Product[] = drugs.map((drug: any) => ({

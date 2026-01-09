@@ -10,6 +10,8 @@ import ValidationModal from '@/components/grn/ValidationModal';
 import StatusConfirmationModal from '@/components/grn/StatusConfirmationModal';
 import { HiOutlineArrowLeft, HiOutlineCheck, HiOutlineXMark } from 'react-icons/hi2';
 import { toast } from 'sonner';
+import { grnApi } from '@/lib/api/grn';
+import { purchaseOrderApi } from '@/lib/api/purchaseOrders';
 
 export default function ReceiveShipmentPage() {
     const params = useParams();
@@ -109,35 +111,22 @@ export default function ReceiveShipmentPage() {
     const initializeGRN = async () => {
         setLoading(true);
         try {
-            const token = tokenManager.getAccessToken();
-
             // Create GRN from PO
-            const response = await fetch(`${apiBaseUrl}/grn`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ poId })
-            });
+            const grnData = await grnApi.createGRN(poId);
 
-            if (response.ok) {
-                const result = await response.json();
-                setGrn(result.data);
-                grnRef.current = result.data; // Sync ref immediately
+            if (grnData) {
+                setGrn(grnData);
+                grnRef.current = grnData; // Sync ref immediately
 
                 // Set PO from GRN response if available, otherwise fetch it
-                if (result.data.po && result.data.po.items) {
-                    setPO(result.data.po);
+                if (grnData.po && grnData.po.items) {
+                    setPO(grnData.po);
                 } else {
                     // Fallback: fetch PO details separately
                     try {
-                        const poResponse = await fetch(`${apiBaseUrl}/purchase-orders/${poId}`, {
-                            headers: { 'Authorization': `Bearer ${token}` }
-                        });
-                        if (poResponse.ok) {
-                            const poResult = await poResponse.json();
-                            setPO(poResult.data);
+                        const poData = await purchaseOrderApi.getPOById(poId);
+                        if (poData) {
+                            setPO(poData);
                         } else {
                             console.error('Failed to fetch PO details');
                         }
@@ -148,10 +137,7 @@ export default function ReceiveShipmentPage() {
 
                 setLastSaved(new Date());
             } else {
-                const errorData = await response.json();
-                console.error('Failed to initialize GRN:', errorData);
-                alert(`Failed to initialize GRN: ${errorData.message || errorData.error || 'Unknown error'}`);
-                router.push('/orders/pending');
+                throw new Error('Failed to create GRN');
             }
         } catch (error) {
             console.error('Error initializing GRN:', error);
@@ -172,32 +158,16 @@ export default function ReceiveShipmentPage() {
         const currentGrn = grnRef.current || grn;
 
         try {
-            const token = tokenManager.getAccessToken();
-
             const payload: any = { status: 'IN_PROGRESS' };
             if (invoiceNo) payload.supplierInvoiceNo = invoiceNo;
             if (invoiceDate) payload.supplierInvoiceDate = new Date(invoiceDate).toISOString();
             if (notes) payload.notes = notes;
 
-            const response = await fetch(`${apiBaseUrl}/grn/${currentGrn.id}`, {
-                method: 'PATCH',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(payload)
-            });
+            await grnApi.updateGRN(currentGrn.id, payload);
 
-            if (response.ok) {
-                setLastSaved(new Date());
-                if (!isAutoSave) {
-                    toast.success('Draft saved successfully!');
-                }
-            } else {
-                const error = await response.json();
-                if (!isAutoSave) {
-                    toast.error(error.error || error.message || 'Failed to save');
-                }
+            setLastSaved(new Date());
+            if (!isAutoSave) {
+                toast.success('Draft saved successfully!');
             }
         } catch (error) {
             console.error('Error saving draft:', error);
@@ -331,18 +301,7 @@ export default function ReceiveShipmentPage() {
                         }
                     }
 
-                    const response = await fetch(`${apiBaseUrl}/grn/${currentGrn.id}/items/${id}`, {
-                        method: 'PATCH',
-                        headers: {
-                            'Authorization': `Bearer ${token}`,
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(sanitizedUpdates)
-                    });
-
-                    if (!response.ok) {
-                        throw new Error('Failed to update');
-                    }
+                    await grnApi.updateItem(currentGrn.id, id, sanitizedUpdates);
 
                     // We don't need to consume the response data here because we already did optimistic updates.
                     // The only risk is if server transforms data differently, but we'll fetch fresh on save/complete.
@@ -353,6 +312,8 @@ export default function ReceiveShipmentPage() {
                     pendingUpdatesRef.current.delete(id);
                     return false;
                 }
+
+
             };
 
             // 1. Update the parent item first
@@ -520,31 +481,14 @@ export default function ReceiveShipmentPage() {
 
     const handleBatchSplit = async (itemId: string, splitData: any[]) => {
         try {
-            const token = tokenManager.getAccessToken();
+            await grnApi.splitBatch(grn.id, itemId, splitData);
 
-            const response = await fetch(`${apiBaseUrl}/grn/${grn.id}/items/${itemId}/split`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ splitData })
-            });
+            toast.success(`Batch split into ${splitData.length} batches successfully!`);
 
-            if (response.ok) {
-                toast.success(`Batch split into ${splitData.length} batches successfully!`);
-
-                // Refresh GRN data
-                const grnResponse = await fetch(`${apiBaseUrl}/grn/${grn.id}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                const grnData = await grnResponse.json();
-                setGrn(grnData.data);
-                grnRef.current = grnData.data; // Sync ref
-            } else {
-                const error = await response.json();
-                toast.error(error.error || error.message || 'Failed to split batch');
-            }
+            // Refresh GRN data
+            const grnData = await grnApi.getGRN(grn.id);
+            setGrn(grnData);
+            grnRef.current = grnData; // Sync ref
         } catch (error) {
             console.error('Error splitting batch:', error);
             toast.error('Failed to split batch');
@@ -553,26 +497,12 @@ export default function ReceiveShipmentPage() {
 
     const handleDiscrepancy = async (itemId: string, discrepancyData: any) => {
         try {
-            const token = tokenManager.getAccessToken();
+            await grnApi.addDiscrepancy(grn.id, discrepancyData);
 
-            const response = await fetch(`${apiBaseUrl}/grn/${grn.id}/discrepancies`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(discrepancyData)
-            });
-
-            if (response.ok) {
-                // Refresh GRN data
-                const grnResponse = await fetch(`${apiBaseUrl}/grn/${grn.id}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                const grnData = await grnResponse.json();
-                setGrn(grnData.data);
-                grnRef.current = grnData.data; // Sync ref
-            }
+            // Refresh GRN data
+            const grnData = await grnApi.getGRN(grn.id);
+            setGrn(grnData);
+            grnRef.current = grnData; // Sync ref
         } catch (error) {
             console.error('Error recording discrepancy:', error);
         }
@@ -580,28 +510,13 @@ export default function ReceiveShipmentPage() {
 
     const handleDeleteBatch = async (itemId: string) => {
         try {
-            const token = tokenManager.getAccessToken();
+            await grnApi.deleteBatch(grn.id, itemId);
 
-            const response = await fetch(`${apiBaseUrl}/grn/${grn.id}/items/${itemId}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
-            });
-
-            if (response.ok) {
-                toast.success('Batch deleted successfully');
-                // Refresh GRN data
-                const grnResponse = await fetch(`${apiBaseUrl}/grn/${grn.id}`, {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                const grnData = await grnResponse.json();
-                setGrn(grnData.data);
-                grnRef.current = grnData.data; // Sync ref
-            } else {
-                const error = await response.json();
-                toast.error(error.error || error.message || 'Failed to delete batch');
-            }
+            toast.success('Batch deleted successfully');
+            // Refresh GRN data
+            const grnData = await grnApi.getGRN(grn.id);
+            setGrn(grnData);
+            grnRef.current = grnData; // Sync ref
         } catch (error) {
             console.error('Error deleting batch:', error);
             toast.error('Failed to delete batch');
@@ -767,37 +682,15 @@ export default function ReceiveShipmentPage() {
         setCompleting(true);
         setShowStatusModal(false);
         try {
-            const token = tokenManager.getAccessToken();
-
-            const response = await fetch(`${apiBaseUrl}/grn/${grn.id}/complete`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    supplierInvoiceNo: invoiceNo,
-                    supplierInvoiceDate: invoiceDate || null,
-                    targetStatus,
-                    ...(notes.trim() ? { notes: notes.trim() } : {})  // Only include if not empty
-                })
+            await grnApi.completeGRN(grn.id, {
+                supplierInvoiceNo: invoiceNo,
+                supplierInvoiceDate: invoiceDate || null,
+                targetStatus,
+                ...(notes.trim() ? { notes: notes.trim() } : {})
             });
 
-            if (response.ok) {
-                toast.success('Order received successfully!');
-                setTimeout(() => router.push('/orders/received'), 1000);
-            } else {
-                const error = await response.json();
-                const errorMessage = error.error || error.message || 'Failed to complete GRN';
-
-                if (errorMessage.toLowerCase().includes('already completed')) {
-                    toast.success('GRN is already completed. Redirecting...');
-                    setTimeout(() => router.push('/orders/received'), 1000);
-                } else {
-                    toast.error(errorMessage);
-                    setCompleting(false);
-                }
-            }
+            toast.success('Order received successfully!');
+            setTimeout(() => router.push('/orders/received'), 1000);
         } catch (error) {
             console.error('Error completing GRN:', error);
             toast.error('Failed to complete GRN');
@@ -821,23 +714,10 @@ export default function ReceiveShipmentPage() {
             if (invoiceDate) payload.supplierInvoiceDate = new Date(invoiceDate).toISOString();
             if (notes) payload.notes = notes;
 
-            const response = await fetch(`${apiBaseUrl}/grn/${grn.id}`, {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(payload)
-            });
+            await grnApi.discardDraft(grn.id, payload);
 
-            if (response.ok) {
-                toast.success('Draft discarded successfully');
-                router.push('/orders/pending');
-            } else {
-                const error = await response.json();
-                console.error('Failed to discard draft:', error);
-                toast.error(error.message || 'Failed to discard draft');
-            }
+            toast.success('Draft discarded successfully');
+            router.push('/orders/pending');
         } catch (error) {
             console.error('Error cancelling GRN:', error);
             toast.error('Failed to discard draft');

@@ -2,8 +2,7 @@ import React, { useState } from 'react';
 import { HiOutlineXMark } from 'react-icons/hi2';
 import toast from 'react-hot-toast';
 import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation';
-import { getApiBaseUrl } from '@/lib/config/env';
-import { tokenManager } from '@/lib/api/client';
+import { apiClient } from '@/lib/api/client';
 
 interface AddCustomItemModalProps {
     isOpen: boolean;
@@ -34,30 +33,17 @@ export default function AddCustomItemModal({ isOpen, onClose, onAdd, initialName
         setIsSubmitting(true);
 
         try {
-            const response = await fetch(`${getApiBaseUrl()}/drugs`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${tokenManager.getAccessToken()}`
-                },
-                credentials: 'include',
-                body: JSON.stringify({
-                    name: formData.name,
-                    manufacturer: formData.manufacturer || 'Custom',
-                    defaultUnit: formData.packUnit,
-                    gstRate: Number(formData.gstPercent),
-                    hsnCode: formData.hsn,
-                    requiresPrescription: false, // Default for custom items
-                    description: 'Custom item added via PO'
-                })
+            const result = await apiClient.post('/drugs', {
+                name: formData.name,
+                manufacturer: formData.manufacturer || 'Custom',
+                defaultUnit: formData.packUnit,
+                gstRate: Number(formData.gstPercent),
+                hsnCode: formData.hsn,
+                requiresPrescription: false, // Default for custom items
+                description: 'Custom item added via PO'
             });
 
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Failed to create drug');
-            }
-
-            const result = await response.json();
+            // result is the body directly now
             const newDrug = result.data || result;
 
             // 2. Add to PO with the REAL backend ID

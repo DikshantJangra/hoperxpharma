@@ -33,6 +33,7 @@ const getSaleById = asyncHandler(async (req, res) => {
 
 /**
  * Create sale
+ * @deprecated Use createQuickSale endpoint instead for better prescription workflow
  */
 const createSale = asyncHandler(async (req, res) => {
     const saleData = {
@@ -41,7 +42,8 @@ const createSale = asyncHandler(async (req, res) => {
         soldBy: req.user.id,
     };
 
-    const sale = await saleService.createSale(saleData);
+    // Use modern flow instead of legacy
+    const sale = await saleService.createQuickSale(saleData, req.user.id);
 
     const response = ApiResponse.created(sale, 'Sale created successfully');
     res.status(response.statusCode).json(response);

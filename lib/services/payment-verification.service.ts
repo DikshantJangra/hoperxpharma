@@ -143,8 +143,10 @@ export class PaymentVerificationService {
             try {
                 // Fetch current status from backend
                 const response = await apiClient.get(`/payments/${paymentId}/status`);
-                const paymentData = response.data.data as PaymentData;
-                const status = paymentData.status;
+
+                // response is the body, response.data is the payload
+                const paymentData = response.data as PaymentData;
+                const status = paymentData?.status;
 
                 this.log(`Poll attempt ${attempt + 1}: Status=${status}, Elapsed=${elapsed}ms`);
 

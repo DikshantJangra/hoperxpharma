@@ -1,6 +1,5 @@
 'use client';
-import { getApiBaseUrl } from '@/lib/config/env';
-import { tokenManager } from '@/lib/api/client';
+import { apiClient } from '@/lib/api/client';
 
 import React, { useEffect, useState } from 'react';
 import { usePOComposer } from '@/hooks/usePOComposer';
@@ -66,60 +65,49 @@ export default function NewPOPage({ storeId, poId }: NewPOPageProps) {
   const loadExistingPO = async (id: string) => {
     setIsLoadingPO(true);
     try {
-      const apiBaseUrl = getApiBaseUrl();
-      const response = await fetch(`${apiBaseUrl}/purchase-orders/${id}`, {
-        headers: {
-          'Authorization': `Bearer ${tokenManager.getAccessToken()}`
-        }
+      const result = await apiClient.get(`/purchase-orders/${id}`);
+      const existingPO = result.data || result;
+
+      // Transform backend data to frontend format
+      setPO({
+        poId: existingPO.id,
+        status: existingPO.status,
+        storeId: existingPO.storeId,
+        supplier: existingPO.supplier ? {
+          id: existingPO.supplier.id,
+          name: existingPO.supplier.name,
+          gstin: existingPO.supplier.gstin,
+          defaultLeadTimeDays: 0, // Default if missing
+          contact: {
+            email: existingPO.supplier.email,
+            phone: existingPO.supplier.phoneNumber,
+            whatsapp: existingPO.supplier.whatsapp
+          },
+          paymentTerms: existingPO.supplier.paymentTerms
+        } : undefined,
+        deliveryAddress: { line1: '', city: '', pin: '' },
+        currency: existingPO.currency || 'INR',
+        lines: (existingPO.items || []).map((item: any) => ({
+          lineId: item.id,
+          drugId: item.drugId,
+          description: item.drug?.name || item.drugId,
+          packUnit: 'Strip',
+          packSize: 10,
+          qty: item.quantity,
+          unit: 'strip',
+          pricePerUnit: Number(item.unitPrice),
+          discountPercent: Number(item.discountPercent || 0),
+          gstPercent: Number(item.gstPercent),
+          lineNet: Number(item.lineTotal),
+        })),
+        subtotal: Number(existingPO.subtotal),
+        taxBreakdown: [],
+        total: Number(existingPO.total),
+        expectedDeliveryDate: existingPO.expectedDeliveryDate,
+        paymentTerms: existingPO.paymentTerms,
+        notes: existingPO.notes,
       });
-
-      if (response.ok) {
-        const result = await response.json();
-        const existingPO = result.data || result;
-
-        // Transform backend data to frontend format
-        setPO({
-          poId: existingPO.id,
-          status: existingPO.status,
-          storeId: existingPO.storeId,
-          supplier: existingPO.supplier ? {
-            id: existingPO.supplier.id,
-            name: existingPO.supplier.name,
-            gstin: existingPO.supplier.gstin,
-            defaultLeadTimeDays: 0, // Default if missing
-            contact: {
-              email: existingPO.supplier.email,
-              phone: existingPO.supplier.phoneNumber,
-              whatsapp: existingPO.supplier.whatsapp
-            },
-            paymentTerms: existingPO.supplier.paymentTerms
-          } : undefined,
-          deliveryAddress: { line1: '', city: '', pin: '' },
-          currency: existingPO.currency || 'INR',
-          lines: (existingPO.items || []).map((item: any) => ({
-            lineId: item.id,
-            drugId: item.drugId,
-            description: item.drug?.name || item.drugId,
-            packUnit: 'Strip',
-            packSize: 10,
-            qty: item.quantity,
-            unit: 'strip',
-            pricePerUnit: Number(item.unitPrice),
-            discountPercent: Number(item.discountPercent || 0),
-            gstPercent: Number(item.gstPercent),
-            lineNet: Number(item.lineTotal),
-          })),
-          subtotal: Number(existingPO.subtotal),
-          taxBreakdown: [],
-          total: Number(existingPO.total),
-          expectedDeliveryDate: existingPO.expectedDeliveryDate,
-          paymentTerms: existingPO.paymentTerms,
-          notes: existingPO.notes,
-        });
-        toast.success('Draft loaded successfully');
-      } else {
-        toast.error('Failed to load draft');
-      }
+      toast.success('Draft loaded successfully');
     } catch (error) {
       console.error('Failed to load PO:', error);
       toast.error('Failed to load draft');

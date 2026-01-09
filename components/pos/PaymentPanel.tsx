@@ -52,10 +52,20 @@ export default function PaymentPanel({
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isSearchingLoading, setIsSearchingLoading] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(0);
 
   const [showAddCustomer, setShowAddCustomer] = useState(false);
   const [newCustomerData, setNewCustomerData] = useState({ firstName: '', lastName: '', phoneNumber: '' });
   const [isCreatingCustomer, setIsCreatingCustomer] = useState(false);
+
+  const [showAddRelation, setShowAddRelation] = useState(false);
+  const [newRelationData, setNewRelationData] = useState({ firstName: '', lastName: '', phoneNumber: '', relationType: 'CHILD' });
+  const [isCreatingRelation, setIsCreatingRelation] = useState(false);
+  
+  const [relationSearchQuery, setRelationSearchQuery] = useState('');
+  const [relationSearchResults, setRelationSearchResults] = useState<any[]>([]);
+  const [isSearchingRelation, setIsSearchingRelation] = useState(false);
+  const [showRelationSearch, setShowRelationSearch] = useState(false);
 
   const [enableSearch, setEnableSearch] = useState(false);
 
@@ -88,6 +98,10 @@ export default function PaymentPanel({
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
+  useEffect(() => {
+    setSelectedIndex(0);
+  }, [searchResults]);
+
   const safeTotals = totals || {
     totalMrp: 0,
     totalDiscount: 0,
@@ -108,13 +122,9 @@ export default function PaymentPanel({
   const fetchRelations = async (customerId: string) => {
     setIsLoadingRelations(true);
     try {
-      const response = await fetch(`/api/v1/patients/${customerId}/relations`, {
-        credentials: 'include'
-      });
-      if (response.ok) {
-        const data = await response.json();
-        if (data.success) setRelations(data.data);
-      }
+      const { apiClient } = await import('@/lib/api/client');
+      const response = await apiClient.get(`/patients/${customerId}/relations`);
+      if (response.success) setRelations(response.data);
     } catch (err) {
       console.error("Failed to fetch relations", err);
     } finally {
@@ -123,36 +133,177 @@ export default function PaymentPanel({
   };
 
   const handleCreateCustomer = async () => {
-    if (!newCustomerData.firstName || !newCustomerData.phoneNumber) {
-      toast.error("First Name and Phone are required");
+    // Validation
+    if (!newCustomerData.firstName.trim()) {
+      toast.error("First Name is required");
+      return;
+    }
+    
+    if (!newCustomerData.phoneNumber.trim()) {
+      toast.error("Phone Number is required");
+      return;
+    }
+    
+    // Phone validation: must be 10 digits
+    const phoneRegex = /^[0-9]{10}$/;
+    if (!phoneRegex.test(newCustomerData.phoneNumber)) {
+      toast.error("Phone Number must be exactly 10 digits");
       return;
     }
 
     setIsCreatingCustomer(true);
     try {
       const { patientsApi } = await import('@/lib/api/patients');
-      const response = await patientsApi.createPatient({
-        ...newCustomerData,
-        gender: 'Male',
-        dateOfBirth: new Date().toISOString()
-      });
+      
+      try {
+        const response = await patientsApi.createPatient({
+          ...newCustomerData,
+          gender: 'Male',
+          dateOfBirth: new Date().toISOString()
+        });
 
-      const responseData = response.data || response;
-      const createdCustomer = responseData.data || responseData;
+        const responseData = response.data || response;
+        const createdCustomer = responseData.data || responseData;
 
-      if (createdCustomer && createdCustomer.id) {
-        toast.success("Customer created!");
-        onCustomerChange(createdCustomer);
-        setShowAddCustomer(false);
-        setNewCustomerData({ firstName: '', lastName: '', phoneNumber: '' });
-      } else {
-        toast.error("Failed to create customer");
+        if (createdCustomer && createdCustomer.id) {
+          toast.success("Customer created successfully!");
+          onCustomerChange(createdCustomer);
+          setShowAddCustomer(false);
+          setNewCustomerData({ firstName: '', lastName: '', phoneNumber: '' });
+          setEnableSearch(false);
+        } else {
+          toast.error("Failed to create customer");
+        }
+      } catch (createError: any) {
+        // Handle patient creation error specifically
+        const errorMessage = createError?.message || String(createError);
+        
+        if (errorMessage.includes('already exists') || errorMessage.includes('409')) {
+          toast.error("Customer with this phone number already exists! Try searching instead.");
+        } else {
+          toast.error(errorMessage || "Failed to create customer");
+        }
+        // Don't re-throw - error is already handled
       }
-    } catch (err) {
-      console.error("Create customer error", err);
-      toast.error("Failed to create customer");
+    } catch (err: any) {
+      // Outer catch for unexpected errors only
+      console.error("Unexpected error in handleCreateCustomer", err);
     } finally {
       setIsCreatingCustomer(false);
+    }
+  };
+
+  const searchRelations = async (query: string) => {
+    if (query.length < 2) return;
+    
+    setIsSearchingRelation(true);
+    try {
+      const { patientsApi } = await import('@/lib/api/patients');
+      const response = await patientsApi.getPatients({
+        search: query,
+        limit: 5
+      });
+      if (response.success) {
+        setRelationSearchResults(response.data || []);
+      }
+    } catch (err) {
+      console.error("Error searching relations:", err);
+    } finally {
+      setIsSearchingRelation(false);
+    }
+  };
+
+  const handleLinkExistingRelation = async (patient: any) => {
+    if (!customer) return;
+    
+    try {
+      const { apiClient } = await import('@/lib/api/client');
+      await apiClient.post(`/patients/${customer.id}/relations`, {
+        relatedPatientId: patient.id,
+        relationType: newRelationData.relationType
+      });
+
+      toast.success(`${newRelationData.relationType.toLowerCase()} linked successfully!`);
+      await fetchRelations(customer.id);
+      onDispenseForChange(patient);
+      setShowAddRelation(false);
+      setShowRelationSearch(false);
+      setRelationSearchQuery('');
+      setNewRelationData({ firstName: '', lastName: '', phoneNumber: '', relationType: 'CHILD' });
+    } catch (err) {
+      toast.error("Failed to link family member");
+    }
+  };
+
+  const handleCreateRelation = async () => {
+    if (!customer) return;
+    
+    if (!newRelationData.firstName.trim()) {
+      toast.error("First Name is required");
+      return;
+    }
+    
+    if (!newRelationData.phoneNumber.trim()) {
+      toast.error("Phone Number is required");
+      return;
+    }
+    
+    const phoneRegex = /^[0-9]{10}$/;
+    if (!phoneRegex.test(newRelationData.phoneNumber)) {
+      toast.error("Phone Number must be exactly 10 digits");
+      return;
+    }
+
+    setIsCreatingRelation(true);
+    try {
+      const { patientsApi } = await import('@/lib/api/patients');
+      
+      try {
+        const response = await patientsApi.createPatient({
+          ...newRelationData,
+          gender: 'Male',
+          dateOfBirth: new Date().toISOString()
+        });
+
+        const responseData = response.data || response;
+        const createdRelation = responseData.data || responseData;
+
+        if (createdRelation && createdRelation.id) {
+          // Link as relation
+          const { apiClient } = await import('@/lib/api/client');
+          await apiClient.post(`/patients/${customer.id}/relations`, {
+            relatedPatientId: createdRelation.id,
+            relationType: newRelationData.relationType
+          });
+
+          toast.success(`${newRelationData.relationType.toLowerCase()} added successfully!`);
+          await fetchRelations(customer.id);
+          onDispenseForChange(createdRelation);
+          setShowAddRelation(false);
+          setNewRelationData({ firstName: '', lastName: '', phoneNumber: '', relationType: 'CHILD' });
+        } else {
+          toast.error("Failed to create family member");
+        }
+      } catch (createError: any) {
+        // Handle patient creation error specifically
+        console.log('🔴 Caught error in handleCreateRelation:', createError);
+        const errorMessage = createError?.message || String(createError);
+        console.log('🔴 Error message:', errorMessage);
+        
+        if (errorMessage.includes('already exists') || errorMessage.includes('409')) {
+          console.log('🔴 Showing duplicate error toast');
+          toast.error("Patient with this phone number already exists! Try searching instead.", { duration: 5000 });
+        } else {
+          console.log('🔴 Showing generic error toast');
+          toast.error(errorMessage || "Failed to create family member", { duration: 5000 });
+        }
+        // Don't re-throw - error is already handled
+      }
+    } catch (err: any) {
+      // Outer catch for unexpected errors only
+      console.error("Unexpected error in handleCreateRelation", err);
+    } finally {
+      setIsCreatingRelation(false);
     }
   };
 
@@ -244,14 +395,127 @@ export default function PaymentPanel({
                   </div>
 
                   <div className="mt-2 pt-2 border-t border-indigo-50" onClick={e => e.stopPropagation()}>
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex items-center justify-between mb-1">
                       <span className="text-[10px] font-bold text-gray-400 uppercase">Dispensing For</span>
                       <span className="text-xs font-semibold text-gray-800 bg-gray-100 px-1.5 py-0.5 rounded">
                         {dispenseFor ? (dispenseFor.id === customer.id ? 'Self' : dispenseFor.firstName) : 'Self'}
                       </span>
                     </div>
 
-                    {relations.length > 0 && (
+                    {showAddRelation ? (
+                      <div className="bg-gray-50 rounded-lg p-2 border border-indigo-100 mb-2">
+                        <div className="flex justify-between items-center mb-2">
+                          <span className="text-xs font-semibold text-indigo-700">Add Family Member</span>
+                          <button onClick={() => { setShowAddRelation(false); setShowRelationSearch(false); }} className="text-xs text-gray-500 hover:text-gray-700">Cancel</button>
+                        </div>
+                        
+                        {showRelationSearch ? (
+                          <div className="space-y-2">
+                            <input
+                              type="text"
+                              placeholder="Search by name or phone..."
+                              className="w-full text-xs p-1.5 border border-gray-300 rounded focus:border-indigo-500 outline-none"
+                              value={relationSearchQuery}
+                              onChange={e => {
+                                setRelationSearchQuery(e.target.value);
+                                if (e.target.value.length >= 2) searchRelations(e.target.value);
+                              }}
+                              autoFocus
+                            />
+                            {isSearchingRelation ? (
+                              <div className="text-xs text-gray-500 text-center py-2">Searching...</div>
+                            ) : relationSearchResults.length > 0 ? (
+                              <div className="max-h-32 overflow-y-auto space-y-1">
+                                {relationSearchResults.map(p => (
+                                  <div
+                                    key={p.id}
+                                    onClick={() => handleLinkExistingRelation(p)}
+                                    className="flex items-center gap-2 p-1.5 hover:bg-indigo-50 rounded cursor-pointer border border-gray-200"
+                                  >
+                                    <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold">
+                                      {p.firstName[0]}
+                                    </div>
+                                    <div className="flex-1">
+                                      <div className="text-xs font-medium">{p.firstName} {p.lastName}</div>
+                                      <div className="text-[10px] text-gray-500">{p.phoneNumber}</div>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            ) : relationSearchQuery.length >= 2 ? (
+                              <div className="text-xs text-gray-500 text-center py-2">No results</div>
+                            ) : null}
+                            <button
+                              onClick={() => setShowRelationSearch(false)}
+                              className="w-full text-xs text-indigo-600 hover:text-indigo-800 py-1"
+                            >
+                              Or create new
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                          <select
+                            className="w-full text-xs p-1.5 border border-gray-300 rounded focus:border-indigo-500 outline-none"
+                            value={newRelationData.relationType}
+                            onChange={e => setNewRelationData({ ...newRelationData, relationType: e.target.value })}
+                          >
+                            <option value="FAMILY">Family Member</option>
+                            <option value="PARENT">Parent</option>
+                            <option value="CHILD">Child</option>
+                            <option value="SPOUSE">Spouse</option>
+                            <option value="BROTHER">Brother</option>
+                            <option value="SISTER">Sister</option>
+                            <option value="SIBLING">Sibling</option>
+                            <option value="GRANDPARENT">Grandparent</option>
+                            <option value="GRANDCHILD">Grandchild</option>
+                            <option value="FRIEND">Friend</option>
+                            <option value="CAREGIVER">Caregiver</option>
+                            <option value="OTHER">Other</option>
+                          </select>
+                          <div className="grid grid-cols-2 gap-1">
+                            <input
+                              type="text"
+                              placeholder="First Name"
+                              className="w-full text-xs p-1.5 border border-gray-300 rounded focus:border-indigo-500 outline-none"
+                              value={newRelationData.firstName}
+                              onChange={e => setNewRelationData({ ...newRelationData, firstName: e.target.value })}
+                            />
+                            <input
+                              type="text"
+                              placeholder="Last Name"
+                              className="w-full text-xs p-1.5 border border-gray-300 rounded focus:border-indigo-500 outline-none"
+                              value={newRelationData.lastName}
+                              onChange={e => setNewRelationData({ ...newRelationData, lastName: e.target.value })}
+                            />
+                          </div>
+                          <input
+                            type="tel"
+                            placeholder="Phone (10 digits)"
+                            className="w-full text-xs p-1.5 border border-gray-300 rounded focus:border-indigo-500 outline-none"
+                            value={newRelationData.phoneNumber}
+                            onChange={e => {
+                              const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+                              setNewRelationData({ ...newRelationData, phoneNumber: value });
+                            }}
+                            maxLength={10}
+                          />
+                          <button
+                            onClick={handleCreateRelation}
+                            disabled={isCreatingRelation}
+                            className="w-full bg-indigo-600 text-white text-xs font-bold py-1 rounded hover:bg-indigo-700 disabled:opacity-50"
+                          >
+                            {isCreatingRelation ? 'Adding...' : 'Add & Select'}
+                          </button>
+                          <button
+                            onClick={() => setShowRelationSearch(true)}
+                            className="w-full text-xs text-indigo-600 hover:text-indigo-800 py-1 border-t border-gray-200 mt-1 pt-1"
+                          >
+                            Search existing patient
+                          </button>
+                        </div>
+                        )}
+                      </div>
+                    ) : (
                       <div className="flex gap-1 flex-wrap">
                         <button
                           onClick={() => onDispenseForChange(customer)}
@@ -268,6 +532,12 @@ export default function PaymentPanel({
                             {rel.firstName} ({rel.relationType})
                           </button>
                         ))}
+                        <button
+                          onClick={() => setShowAddRelation(true)}
+                          className="text-[10px] px-2 py-1 rounded border border-dashed border-indigo-300 text-indigo-600 hover:bg-indigo-50"
+                        >
+                          + Add
+                        </button>
                       </div>
                     )}
                   </div>
@@ -324,10 +594,15 @@ export default function PaymentPanel({
                           </div>
                           <input
                             type="tel"
-                            placeholder="Phone Number"
+                            placeholder="Phone Number (10 digits)"
                             className="w-full text-xs p-2 border border-gray-300 rounded focus:border-indigo-500 outline-none"
                             value={newCustomerData.phoneNumber}
-                            onChange={e => setNewCustomerData({ ...newCustomerData, phoneNumber: e.target.value })}
+                            onChange={e => {
+                              const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+                              setNewCustomerData({ ...newCustomerData, phoneNumber: value });
+                            }}
+                            maxLength={10}
+                            pattern="[0-9]{10}"
                           />
                           <button
                             onClick={handleCreateCustomer}
@@ -354,6 +629,25 @@ export default function PaymentPanel({
                             if (searchQuery.length >= 2) searchCustomers(searchQuery);
                           }}
                           onBlur={() => setTimeout(() => setIsSearching(false), 200)}
+                          onKeyDown={(e) => {
+                            if (!isSearching || searchResults.length === 0) return;
+                            
+                            if (e.key === 'ArrowDown') {
+                              e.preventDefault();
+                              setSelectedIndex(prev => Math.min(prev + 1, searchResults.length - 1));
+                            } else if (e.key === 'ArrowUp') {
+                              e.preventDefault();
+                              setSelectedIndex(prev => Math.max(prev - 1, 0));
+                            } else if (e.key === 'Enter') {
+                              e.preventDefault();
+                              if (searchResults[selectedIndex]) {
+                                onCustomerChange(searchResults[selectedIndex]);
+                                setSearchQuery('');
+                                setIsSearching(false);
+                                setEnableSearch(false);
+                              }
+                            }
+                          }}
                           autoFocus
                         />
                         <button
@@ -368,15 +662,19 @@ export default function PaymentPanel({
                             {isSearchingLoading ? (
                               <div className="p-3 text-center text-xs text-gray-500">Searching...</div>
                             ) : searchResults.length > 0 ? (
-                              searchResults.map((c: any) => (
+                              searchResults.map((c: any, idx: number) => (
                                 <div
                                   key={c.id}
-                                  className="p-2 hover:bg-indigo-50 cursor-pointer flex items-center gap-3 border-b border-gray-50 last:border-0"
+                                  className={`p-2 cursor-pointer flex items-center gap-3 border-b border-gray-50 last:border-0 transition-colors ${
+                                    idx === selectedIndex ? 'bg-indigo-100' : 'hover:bg-indigo-50'
+                                  }`}
                                   onClick={() => {
                                     onCustomerChange(c);
                                     setSearchQuery('');
                                     setIsSearching(false);
+                                    setEnableSearch(false);
                                   }}
+                                  onMouseEnter={() => setSelectedIndex(idx)}
                                 >
                                   <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-xs font-bold text-gray-600">
                                     {c.firstName[0]}
@@ -394,6 +692,15 @@ export default function PaymentPanel({
                                   className="text-xs font-bold text-indigo-600 hover:text-indigo-800"
                                   onClick={(e) => {
                                     e.stopPropagation();
+                                    // Pre-fill name from search query if it looks like a name
+                                    const nameParts = searchQuery.trim().split(' ');
+                                    if (nameParts.length > 0 && !/^[0-9]+$/.test(searchQuery)) {
+                                      setNewCustomerData({
+                                        firstName: nameParts[0] || '',
+                                        lastName: nameParts.slice(1).join(' ') || '',
+                                        phoneNumber: ''
+                                      });
+                                    }
                                     setShowAddCustomer(true);
                                     setIsSearching(false);
                                   }}
@@ -426,8 +733,8 @@ export default function PaymentPanel({
 
             <div className="mt-1.5 text-[10px] leading-tight text-gray-500 px-1">
               {invoiceType === 'RECEIPT' && "Standard sale. Deducts stock & records revenue."}
-              {invoiceType === 'GST_INVOICE' && <span className="text-orange-600">⚠ Requires Customer. Deducts stock.</span>}
-              {invoiceType === 'ESTIMATE' && <span className="text-blue-600">ℹ Quotation only. Does NOT deduct stock.</span>}
+              {invoiceType === 'GST_INVOICE' && <span className="text-orange-600">Requires Customer. Deducts stock.</span>}
+              {invoiceType === 'ESTIMATE' && <span className="text-blue-600">Quotation only. Does NOT deduct stock.</span>}
             </div>
           </div>
         </div>
@@ -584,10 +891,24 @@ export default function PaymentPanel({
         </div>
         <div className="grid grid-cols-2 gap-3">
           <button
-            onClick={onSplitPayment}
-            className="py-2.5 text-sm font-medium text-gray-700 bg-gray-50 border border-gray-200 rounded-lg hover:bg-gray-100 transition-colors"
+            onClick={() => {
+              if (basketItems.length === 0) {
+                toast.error('Cannot split payment with empty basket!');
+                return;
+              }
+              triggerAction('split', async () => {
+                onSplitPayment();
+              });
+            }}
+            disabled={basketItems.length === 0 || actionState.status !== 'idle'}
+            className={`py-2.5 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2 ${
+              actionState.name === 'split' && actionState.status === 'loading'
+                ? 'bg-gray-100 text-gray-700 border border-gray-300'
+                : 'text-gray-700 bg-gray-50 border border-gray-200 hover:bg-gray-100'
+            }`}
           >
-            Split (F9)
+            {actionState.name === 'split' && actionState.status === 'loading' && <ProcessingLoader size="sm" color="gray" />}
+            <span>Split (F9)</span>
           </button>
           <button
             onClick={() => {

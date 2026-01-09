@@ -42,16 +42,12 @@ export default function PendingOrdersPage() {
     const fetchPendingOrders = async () => {
         setIsLoading(true);
         try {
-            const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
-            const token = tokenManager.getAccessToken();
-            const response = await fetch(`${apiBaseUrl}/purchase-orders?status=DRAFT,SENT,PARTIALLY_RECEIVED&limit=100`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                }
+            const result = await purchaseOrderApi.getPurchaseOrders({
+                status: 'DRAFT,SENT,PARTIALLY_RECEIVED',
+                limit: 100
             });
 
-            if (response.ok) {
-                const result = await response.json();
+            if (result && result.data) {
                 const fetchedOrders = Array.isArray(result.data) ? result.data : [];
 
                 // Transform to Order format

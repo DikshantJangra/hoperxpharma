@@ -193,64 +193,109 @@ const downloadInvoice = asyncHandler(async (req, res) => {
     if (!payment) throw ApiError.notFound('Payment not found');
 
     // Verify access
+    // Fallback: If subscription is missing (unlikely but possible), check if payment has storeId directly
+    // or if we can infer it.
+    let storeId = payment.subscription?.storeId;
+    let storeName = payment.subscription?.store?.name;
+
+    // If no subscription linked, check if payment has storeId directly (assuming schema supports it)
+    if (!storeId && payment.storeId) {
+        storeId = payment.storeId;
+        // We might need to fetch store name if not included
+        if (!storeName) {
+            const store = await prisma.store.findUnique({
+                where: { id: storeId },
+                select: { name: true }
+            });
+            storeName = store?.name;
+        }
+    }
+
+    if (!storeId) {
+        // Last resort: If context has storeId (from auth middleware if applicable)
+        // But for safety, if we can't link payment to a store, we shouldn't allow access easily.
+        // However, if the user IS the owner of the store associated with params...
+        // Let's rely on what we have.
+        console.error('[Invoice] Payment missing store association:', paymentId);
+        throw ApiError.badRequest('Could not verify store ownership for this payment');
+    }
+
     const hasAccess = await prisma.storeUser.findFirst({
-        where: { storeId: payment.subscription.storeId, userId }
+        where: { storeId, userId }
     });
 
     if (!hasAccess) throw ApiError.forbidden('Access denied');
     if (payment.status !== 'SUCCESS') throw ApiError.badRequest('Invoice only for successful payments');
 
     // Generate PDF
-    const doc = new PDFDocument({ size: 'A4', margins: { top: 50, bottom: 50, left: 50, right: 50 } });
+    // improved "Concise" Design
+    const doc = new PDFDocument({ size: 'A4', margins: { top: 0, bottom: 0, left: 0, right: 0 } });
     const invoiceNumber = `INV-${payment.id.slice(0, 8).toUpperCase()}`;
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${invoiceNumber}.pdf"`);
     doc.pipe(res);
 
-    const primaryColor = '#047857', pageWidth = doc.page.width, amount = payment.amount || (payment.amountPaise / 100);
+    const pageWidth = doc.page.width;
+    const pageHeight = doc.page.height;
+    const primaryColor = '#065F46'; // Emerald 800
+    const accentColor = '#D1FAE5'; // Emerald 100
 
-    // Header
-    doc.fontSize(24).fillColor(primaryColor).font('Helvetica-Bold').text('HopeRx', 50, 50);
-    doc.fontSize(10).fillColor('#6B7280').font('Helvetica').text('Subscription Invoice', 50, 80);
-    doc.fontSize(10).fillColor('#111827').font('Helvetica-Bold').text(`Invoice #${invoiceNumber}`, pageWidth - 200, 50, { width: 150, align: 'right' });
-    doc.fontSize(9).fillColor('#6B7280').font('Helvetica').text(`Date: ${new Date(payment.createdAt).toLocaleDateString('en-IN')}`, pageWidth - 200, 65, { width: 150, align: 'right' });
-    doc.fontSize(8).fillColor('#10B981').font('Helvetica-Bold').text('PAID', pageWidth - 200, 85, { width: 150, align: 'right' });
-    doc.moveTo(50, 120).lineTo(pageWidth - 50, 120).strokeColor('#E5E7EB').lineWidth(1).stroke();
+    // 1. Header Block (Full Width)
+    doc.rect(0, 0, pageWidth, 160).fillColor(primaryColor).fill();
 
-    // Business & Customer
-    let y = 145;
-    doc.fontSize(10).fillColor('#6B7280').font('Helvetica').text('From:', 50, y);
-    doc.fontSize(11).fillColor('#111827').font('Helvetica-Bold').text('HopeRx Pharma', 50, y + 18);
-    doc.fontSize(10).fillColor('#6B7280').font('Helvetica').text('Billed To:', pageWidth - 250, y);
-    doc.fontSize(11).fillColor('#111827').font('Helvetica-Bold').text(payment.subscription.store.name, pageWidth - 250, y + 18);
+    // Logo / Brand
+    doc.fontSize(32).fillColor('white').font('Helvetica-Bold').text('HopeRx', 50, 40);
+    doc.fontSize(10).font('Helvetica').text('Pharma OS', 50, 75);
 
-    // Table
-    y = 270;
-    doc.moveTo(50, y).lineTo(pageWidth - 50, y).stroke();
-    doc.fontSize(12).fillColor('#111827').font('Helvetica-Bold').text('Subscription Details', 50, y + 20);
-    y += 45;
-    doc.rect(50, y, pageWidth - 100, 25).fillColor('#F9FAFB').fill();
-    doc.fontSize(9).fillColor('#6B7280').font('Helvetica-Bold').text('Description', 60, y + 8);
-    doc.text('Amount', pageWidth - 150, y + 8, { width: 100, align: 'right' });
-    y += 25;
-    doc.fontSize(10).fillColor('#111827').font('Helvetica').text(payment.metadata?.planDisplayName || 'Subscription', 60, y + 8);
-    doc.text(`${payment.currency} ${amount.toFixed(2)}`, pageWidth - 150, y + 8, { width: 100, align: 'right' });
-    y += 40;
-    doc.rect(pageWidth - 250, y, 200, 25).fillColor('#F0FDF4').fill();
-    doc.fontSize(11).fillColor(primaryColor).font('Helvetica-Bold').text('Total', pageWidth - 250, y + 5);
-    doc.text(`${payment.currency} ${amount.toFixed(2)}`, pageWidth - 150, y + 5, { width: 100, align: 'right' });
+    // Invoice Label & Number
+    doc.fontSize(40).fillColor(accentColor).opacity(0.1).text('INVOICE', pageWidth - 250, 20); // Background watermark style
+    doc.opacity(1).fontSize(12).fillColor('white').text('INVOICE NO', pageWidth - 200, 50, { align: 'right' });
+    doc.fontSize(16).font('Helvetica-Bold').text(invoiceNumber, pageWidth - 200, 65, { align: 'right' });
 
-    // Payment info
-    y += 50;
-    doc.moveTo(50, y).lineTo(pageWidth - 50, y).stroke();
-    doc.fontSize(9).fillColor('#6B7280').font('Helvetica').text('Transaction ID:', 50, y + 20);
-    doc.fillColor('#111827').text(payment.razorpayPaymentId || payment.razorpayOrderId, 160, y + 20);
+    doc.fontSize(10).font('Helvetica').fillColor('#A7F3D0').text('DATE', pageWidth - 200, 95, { align: 'right' });
+    doc.fontSize(12).fillColor('white').text(new Date(payment.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }), pageWidth - 200, 110, { align: 'right' });
 
-    // Footer
-    const footerY = doc.page.height - 80;
-    doc.moveTo(50, footerY).lineTo(pageWidth - 50, footerY).stroke();
-    doc.fontSize(8).fillColor('#6B7280').text('Thank you for your business', 50, footerY + 15, { width: pageWidth - 100, align: 'center' });
+    // 2. Body Content (White Background)
+    const bodyStart = 200;
+
+    // Billing Columns
+    // Left: Billed To
+    doc.fontSize(9).fillColor('#6B7280').font('Helvetica-Bold').text('BILLED TO', 50, bodyStart);
+    doc.fontSize(14).fillColor('#111827').text(storeName || 'Valued Customer', 50, bodyStart + 15);
+    // doc.fontSize(10).fillColor('#4B5563').font('Helvetica').text('Store ID: ' + storeId.slice(0,8), 50, bodyStart + 35);
+
+    // Right: Payment Method
+    doc.fontSize(9).fillColor('#6B7280').font('Helvetica-Bold').text('PAYMENT METHOD', pageWidth - 250, bodyStart);
+    doc.fontSize(12).fillColor('#111827').text('Online Payment', pageWidth - 250, bodyStart + 15);
+    doc.fontSize(10).fillColor('#4B5563').text(`TxID: ${payment.razorpayPaymentId || payment.razorpayOrderId}`, pageWidth - 250, bodyStart + 35);
+
+    // 3. The "Main Event" - Subscription Item (Centered Box)
+    const boxTop = 320;
+    const boxHeight = 150;
+
+    // Light background box
+    doc.roundedRect(50, boxTop, pageWidth - 100, boxHeight, 8).fillColor('#F9FAFB').fill();
+    doc.strokeColor('#E5E7EB').lineWidth(1).roundedRect(50, boxTop, pageWidth - 100, boxHeight, 8).stroke();
+
+    // Plan Name (Big Center)
+    const planName = payment.metadata?.planDisplayName || 'HopeRx Premium Subscription';
+    const amount = payment.amount || (payment.amountPaise / 100);
+
+    doc.fillColor('#111827').fontSize(24).font('Helvetica-Bold').text(planName, 0, boxTop + 40, { align: 'center', width: pageWidth });
+
+    // Subtext (Billing Cycle)
+    doc.fillColor('#6B7280').fontSize(12).font('Helvetica').text('Premium Access License', 0, boxTop + 75, { align: 'center', width: pageWidth });
+
+    // Price (Big Center)
+    doc.fillColor(primaryColor).fontSize(32).font('Helvetica-Bold').text(`${payment.currency} ${amount.toFixed(2)}`, 0, boxTop + 100, { align: 'center', width: pageWidth });
+
+    // 4. Footer / Terms
+    const footerY = 600;
+    doc.moveTo(50, footerY).lineTo(pageWidth - 50, footerY).strokeColor('#E5E7EB').stroke();
+
+    doc.fontSize(9).fillColor('#9CA3AF').text('Thank you for choosing HopeRx.', 50, footerY + 20, { align: 'center', width: pageWidth - 100 });
+    doc.text('This is a computer generated invoice.', 50, footerY + 35, { align: 'center', width: pageWidth - 100 });
 
     doc.end();
 });

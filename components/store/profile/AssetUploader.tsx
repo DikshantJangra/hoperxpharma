@@ -2,8 +2,7 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { FiUpload, FiX, FiImage, FiCheck, FiAlertCircle } from 'react-icons/fi';
 import { toast } from 'sonner';
-import { getApiBaseUrl } from '@/lib/config/env';
-import { tokenManager } from '@/lib/api/client';
+import { apiClient } from '@/lib/api/client';
 
 interface AssetUploaderProps {
     type: 'logo' | 'signature';
@@ -87,21 +86,8 @@ export default function AssetUploader({ type, currentUrl, onUploadComplete, stor
                 requestEndpoint = `/onboarding/logo/upload-request`;
             }
 
-            const requestResponse = await fetch(`${getApiBaseUrl()}${requestEndpoint}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${tokenManager.getAccessToken()}`
-                },
-                credentials: 'include',
-                body: JSON.stringify({ fileName: file.name })
-            });
-
-            if (!requestResponse.ok) {
-                throw new Error('Failed to request upload URL');
-            }
-
-            const { data: { uploadUrl, tempKey } } = await requestResponse.json();
+            const requestResponse = await apiClient.post(requestEndpoint, { fileName: file.name });
+            const { data: { uploadUrl, tempKey } } = requestResponse;
 
             // Step 2: Upload file to R2
             const uploadResponse = await fetch(uploadUrl, {
@@ -124,22 +110,8 @@ export default function AssetUploader({ type, currentUrl, onUploadComplete, stor
                 processEndpoint = `/onboarding/logo/process`;
             }
 
-            const processResponse = await fetch(`${getApiBaseUrl()}${processEndpoint}`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${tokenManager.getAccessToken()}`
-                },
-                credentials: 'include',
-                body: JSON.stringify({ tempKey, fileName: file.name })
-            });
-
-            if (!processResponse.ok) {
-                const errorData = await processResponse.json();
-                throw new Error(errorData.message || 'Failed to process upload');
-            }
-
-            const { data: { url } } = await processResponse.json();
+            const processResponse = await apiClient.post(processEndpoint, { tempKey, fileName: file.name });
+            const { data: { url } } = processResponse;
 
             // Update preview and notify parent
             setPreview(url);

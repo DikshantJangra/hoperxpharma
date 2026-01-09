@@ -6,6 +6,7 @@ import { HiOutlineShoppingBag } from "react-icons/hi";
 
 import { useAuthStore } from "@/lib/store/auth-store";
 import { userApi, getUserInitials, getStoreGSTIN } from "@/lib/api/user";
+import { apiClient } from "@/lib/api/client";
 import { useRouter } from "next/navigation";
 
 import { usePremiumTheme } from "@/lib/hooks/usePremiumTheme";
@@ -135,15 +136,11 @@ export default function ProfilePage() {
         setIsSaving(true);
         try {
             // Call store update API
-            const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
-            const response = await fetch(`${apiBaseUrl}/stores/${primaryStore?.id}`, {
-                method: 'PATCH',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                credentials: 'include',
-                body: JSON.stringify(editedStoreData)
-            });
+            const response = await apiClient.patch(`/stores/${primaryStore?.id}`, editedStoreData);
+
+            if (!response) {
+                throw new Error('Failed to update store');
+            }
 
             if (!response.ok) {
                 throw new Error('Failed to update store');
@@ -195,17 +192,13 @@ export default function ProfilePage() {
             if (!user) return;
 
             try {
-                const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
                 console.log('[Avatar] Fetching avatar for user:', user.id);
 
-                const response = await fetch(`${apiBaseUrl}/avatar/me`, {
-                    credentials: 'include'
-                });
+                const response = await apiClient.get('/avatar/me');
 
-                console.log('[Avatar] Fetch response status:', response.status);
-
-                if (response.ok) {
-                    const data = await response.json();
+                if (response) {
+                    // apiClient returns the response body directly
+                    const data = response;
                     console.log('[Avatar] Fetch response data:', data);
 
                     if (data.success && data.avatarUrl) {
@@ -214,10 +207,8 @@ export default function ProfilePage() {
                     } else {
                         console.log('[Avatar] No avatar found for user');
                     }
-                } else if (response.status === 404) {
-                    console.log('[Avatar] No avatar found (404)');
                 } else {
-                    console.error('[Avatar] Failed to fetch avatar:', response.status);
+                    console.log('[Avatar] No avatar found (null response)');
                 }
             } catch (error) {
                 console.error('[Avatar] Failed to fetch avatar:', error);
@@ -251,29 +242,22 @@ export default function ProfilePage() {
         setIsUploadingAvatar(true);
 
         try {
-            const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
-
             console.log('[Avatar Upload] Step 1: Requesting presigned URL...');
 
             // Step 1: Request presigned URL
-            const requestResponse = await fetch(`${apiBaseUrl}/avatar/request-upload`, {
-                method: 'POST',
-                credentials: 'include',
-                headers: {
-                    'Content-Type': 'application/json'
-                }
-            });
+            const requestResponse = await apiClient.post('/avatar/request-upload');
 
-            if (!requestResponse.ok) {
+            if (!requestResponse || !requestResponse.data) {
                 throw new Error('Failed to request upload URL');
             }
 
-            const { data } = await requestResponse.json();
-            const { uploadUrl, tempKey } = data;
+            const { uploadUrl, tempKey } = requestResponse.data;
 
             console.log('[Avatar Upload] Step 2: Uploading to R2...', tempKey);
 
             // Step 2: Upload file directly to R2
+            // NOTE: Using native fetch here because this is an external URL (S3/R2)
+            // and we don't want to attach our API headers
             const uploadResponse = await fetch(uploadUrl, {
                 method: 'PUT',
                 body: file,
@@ -290,22 +274,13 @@ export default function ProfilePage() {
             console.log('[Avatar Upload] Step 3: Processing upload...');
 
             // Step 3: Complete upload processing
-            const completeResponse = await fetch(`${apiBaseUrl}/avatar/complete-upload`, {
-                method: 'POST',
-                credentials: 'include',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ tempKey })
-            });
+            const completeResponse = await apiClient.post('/avatar/complete-upload', { tempKey });
 
-            if (!completeResponse.ok) {
-                const errorData = await completeResponse.json();
-                console.error('[Avatar Upload] Processing failed:', errorData);
-                throw new Error(errorData.error || 'Failed to process avatar');
+            if (!completeResponse) {
+                throw new Error('Failed to process avatar');
             }
 
-            const result = await completeResponse.json();
+            const result = completeResponse;
             console.log('[Avatar Upload] Upload complete! Result:', result);
 
             if (result.success && result.avatarUrl) {

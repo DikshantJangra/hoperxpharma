@@ -1,5 +1,5 @@
 import { apiClient, tokenManager } from './client';
-import { getApiBaseUrl } from '@/lib/config/env';
+
 
 export interface AuditLog {
     id: string;
@@ -174,22 +174,10 @@ export const auditApi = {
 
     async downloadExport(id: string): Promise<Blob> {
         // Use direct fetch for blob response
-        const token = tokenManager.getAccessToken();
-        const response = await fetch(
-            `${getApiBaseUrl()}/audit/exports/${id}/download`,
-            {
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
-                credentials: 'include', // Send cookies for httpOnly token
-            }
-        );
-
-        if (!response.ok) {
-            throw new Error('Failed to download export');
-        }
-
-        return await response.blob();
+        const response = await apiClient.get(`/audit/exports/${id}/download`, {
+            responseType: 'blob',
+        });
+        return response;
     },
 
     async deleteExport(id: string) {

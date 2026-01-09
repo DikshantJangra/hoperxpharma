@@ -2,14 +2,27 @@
  * Global Teardown - Runs once after all tests
  * 
  * Responsibilities:
- * - Clean up global test data
+ * - Clean up test data (delete test user, etc.)
  * - Close database connections
- * - Generate summary reports
  */
 
+import { getEnvironment } from './environments';
+import { cleanupTestData, closeDatabase } from '../utils/database.util';
+
 async function globalTeardown() {
-    console.log('\n🏁 Test suite completed');
-    console.log('📊 Reports generated in: playwright-report/\n');
+    console.log('\n🧹 Starting Global Teardown...');
+
+    const env = getEnvironment();
+
+    // Clean up test data if configured
+    if (env.auth.testUser.email) {
+        await cleanupTestData(env.auth.testUser.email);
+    }
+
+    // Close global DB connection
+    await closeDatabase();
+
+    console.log('✅ Global teardown completed successfully');
 }
 
 export default globalTeardown;

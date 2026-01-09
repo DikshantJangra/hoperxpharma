@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { FiX } from 'react-icons/fi';
 import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation';
+import ProcessingLoader from './animations/ProcessingLoader';
 
 export default function SplitPaymentModal({ total = 0, onConfirm, onClose }: any) {
   // Use strings for inputs to allow decimals (e.g. "10.") without forcing parse
@@ -11,6 +12,7 @@ export default function SplitPaymentModal({ total = 0, onConfirm, onClose }: any
   const [upi, setUpi] = useState('');
   const [wallet, setWallet] = useState('');
   const [credit, setCredit] = useState('');
+  const [isProcessing, setIsProcessing] = useState(false);
 
   // Helper to safely parse string to float
   const safeParse = (val: string) => {
@@ -56,14 +58,19 @@ export default function SplitPaymentModal({ total = 0, onConfirm, onClose }: any
   const totalAllocated = collected + valCredit;
   const isBalanced = Math.abs(total - totalAllocated) < 0.01;
 
-  const handleConfirm = () => {
-    onConfirm({
-      cash: valCash,
-      card: valCard,
-      upi: valUpi,
-      wallet: valWallet,
-      credit: valCredit
-    });
+  const handleConfirm = async () => {
+    setIsProcessing(true);
+    try {
+      await onConfirm({
+        cash: valCash,
+        card: valCard,
+        upi: valUpi,
+        wallet: valWallet,
+        credit: valCredit
+      });
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return (
@@ -169,16 +176,24 @@ export default function SplitPaymentModal({ total = 0, onConfirm, onClose }: any
         <div className="p-4 border-t border-[#e2e8f0] flex gap-3">
           <button
             onClick={onClose}
-            className="flex-1 py-2 border border-[#cbd5e1] rounded-lg hover:bg-[#f8fafc]"
+            disabled={isProcessing}
+            className="flex-1 py-2 border border-[#cbd5e1] rounded-lg hover:bg-[#f8fafc] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Cancel
           </button>
           <button
             onClick={handleConfirm}
-            disabled={!isBalanced}
-            className="flex-1 py-2 bg-[#0ea5a3] text-white rounded-lg hover:bg-[#0d9391] disabled:bg-[#cbd5e1] disabled:cursor-not-allowed"
+            disabled={!isBalanced || isProcessing}
+            className="flex-1 py-2 bg-[#0ea5a3] text-white rounded-lg hover:bg-[#0d9391] disabled:bg-[#cbd5e1] disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            Confirm
+            {isProcessing ? (
+              <>
+                <ProcessingLoader size="sm" color="white" />
+                <span>Processing...</span>
+              </>
+            ) : (
+              'Confirm'
+            )}
           </button>
         </div>
       </div>

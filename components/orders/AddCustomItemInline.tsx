@@ -2,8 +2,7 @@ import React, { useState } from 'react';
 import { HiOutlineCheck, HiOutlineXMark } from 'react-icons/hi2';
 import toast from 'react-hot-toast';
 import { normalizeGSTRate } from '@/utils/gst-utils';
-import { getApiBaseUrl } from '@/lib/config/env';
-import { tokenManager } from '@/lib/api/client';
+import { apiClient } from '@/lib/api/client';
 
 interface AddCustomItemInlineProps {
     onAdd: (item: any) => void;
@@ -44,41 +43,33 @@ export default function AddCustomItemInline({ onAdd, onCancel, initialName = '',
         setIsSubmitting(true);
 
         try {
-            const method = editMode ? 'PUT' : 'POST';
-            const url = editMode
-                ? `${getApiBaseUrl()}/drugs/${drugId}`
-                : `${getApiBaseUrl()}/drugs`;
+            const endpoint = editMode
+                ? `/drugs/${drugId}`
+                : `/drugs`;
 
-            const response = await fetch(url, {
-                method,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${tokenManager.getAccessToken()}`
-                },
-                credentials: 'include',
-                body: JSON.stringify({
-                    name: formData.name,
-                    genericName: formData.genericName || null,
-                    manufacturer: formData.manufacturer || null,
-                    form: formData.form || null,
-                    strength: formData.strength || null,
-                    schedule: formData.schedule || null,
-                    hsnCode: formData.hsnCode || null,
-                    gstRate: Number(formData.gstRate),
-                    requiresPrescription: formData.requiresPrescription,
-                    defaultUnit: formData.defaultUnit,
-                    lowStockThreshold: formData.lowStockThreshold,
-                    description: 'Custom item added via PO'
-                })
-            });
+            let response;
+            const payload = {
+                name: formData.name,
+                genericName: formData.genericName || null,
+                manufacturer: formData.manufacturer || null,
+                form: formData.form || null,
+                strength: formData.strength || null,
+                schedule: formData.schedule || null,
+                hsnCode: formData.hsnCode || null,
+                gstRate: Number(formData.gstRate),
+                requiresPrescription: formData.requiresPrescription,
+                defaultUnit: formData.defaultUnit,
+                lowStockThreshold: formData.lowStockThreshold,
+                description: 'Custom item added via PO'
+            };
 
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.message || 'Failed to create drug');
+            if (editMode) {
+                response = await apiClient.put(endpoint, payload);
+            } else {
+                response = await apiClient.post(endpoint, payload);
             }
 
-            const result = await response.json();
-            const newDrug = result.data || result;
+            const newDrug = response.data || response;
 
             // Add to PO
             onAdd({

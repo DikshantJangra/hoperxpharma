@@ -2,8 +2,7 @@
 
 import React, { useRef, useState, useEffect } from 'react';
 import { MdAttachFile, MdDescription, MdClose, MdImage, MdPictureAsPdf } from 'react-icons/md';
-import { tokenManager } from '@/lib/api/client';
-import { getApiBaseUrl } from '@/lib/config/env';
+import { apiClient } from '@/lib/api/client';
 
 interface Attachment {
   id: string;
@@ -35,7 +34,6 @@ export default function AttachmentUploader({
   const [uploadProgress, setUploadProgress] = useState<Record<string, number>>({});
   const [loadedAttachments, setLoadedAttachments] = useState<Attachment[]>(attachments || []);
   const [loading, setLoading] = useState(false);
-  const apiBaseUrl = getApiBaseUrl();
 
   // Fetch attachments when poId changes
   useEffect(() => {
@@ -44,20 +42,10 @@ export default function AttachmentUploader({
 
       setLoading(true);
       try {
-        // Using validated API URL
-        const token = tokenManager.getAccessToken();
+        const result = await apiClient.get(`/${apiEndpoint}/${poId}`);
 
-        const response = await fetch(`${apiBaseUrl}/${apiEndpoint}/${poId}`, {
-          headers: {
-            'Authorization': `Bearer ${token}`
-          }
-        });
-
-        if (response.ok) {
-          const result = await response.json();
-          if (result.success && result.data) {
-            setLoadedAttachments(result.data);
-          }
+        if (result.success && result.data) {
+          setLoadedAttachments(result.data);
         }
       } catch (error) {
         console.error('[Attachment] Failed to fetch attachments:', error);
@@ -83,37 +71,25 @@ export default function AttachmentUploader({
     }
 
     try {
-      // Using validated API URL
-      const token = tokenManager.getAccessToken();
+      await apiClient.delete(`/${apiEndpoint}/${attachmentId}`);
 
-      const response = await fetch(`${apiBaseUrl}/${apiEndpoint}/${attachmentId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      // Remove from local state
+      setLoadedAttachments(prev => prev.filter(att => att.id !== attachmentId));
 
-      if (response.ok) {
-        // Remove from local state
-        setLoadedAttachments(prev => prev.filter(att => att.id !== attachmentId));
-
-        // Call parent onRemove if provided
-        if (onRemove) {
-          onRemove(attachmentId);
-        }
-
-        // Show success message
-        const successDiv = document.createElement('div');
-        successDiv.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 animate-in slide-in-from-top';
-        successDiv.textContent = '✓ Attachment deleted';
-        document.body.appendChild(successDiv);
-
-        setTimeout(() => {
-          successDiv.remove();
-        }, 3000);
-      } else {
-        throw new Error('Failed to delete attachment');
+      // Call parent onRemove if provided
+      if (onRemove) {
+        onRemove(attachmentId);
       }
+
+      // Show success message
+      const successDiv = document.createElement('div');
+      successDiv.className = 'fixed top-4 right-4 bg-green-500 text-white px-4 py-2 rounded-lg shadow-lg z-50 animate-in slide-in-from-top';
+      successDiv.textContent = '✓ Attachment deleted';
+      document.body.appendChild(successDiv);
+
+      setTimeout(() => {
+        successDiv.remove();
+      }, 3000);
     } catch (error) {
       console.error('[Attachment] Delete failed:', error);
 
@@ -175,33 +151,22 @@ export default function AttachmentUploader({
       try {
         setUploadProgress(prev => ({ ...prev, [fileId]: 0 }));
 
-        // Using validated API URL
-        const token = tokenManager.getAccessToken();
-
         console.log(`[Attachment] Starting upload for: ${file.name}`);
 
         // Step 1: Request presigned URL
         const idParam = apiEndpoint === 'grn-attachments' ? 'grnId' : 'poId';
-        const requestResponse = await fetch(`${apiBaseUrl}/${apiEndpoint}/request-upload`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ [idParam]: poId, fileName: file.name })
+        const requestResponse = await apiClient.post(`/${apiEndpoint}/request-upload`, {
+          [idParam]: poId,
+          fileName: file.name
         });
 
-        if (!requestResponse.ok) {
-          throw new Error('Failed to request upload URL');
-        }
-
-        const { data } = await requestResponse.json();
-        const { uploadUrl, tempKey } = data;
+        const { data: requestData } = requestResponse;
+        const { uploadUrl, tempKey } = requestData;
 
         setUploadProgress(prev => ({ ...prev, [fileId]: 30 }));
         console.log(`[Attachment] Uploading to R2...`);
 
-        // Step 2: Upload file directly to R2
+        // Step 2: Upload file directly to R2 (Keep fetch here)
         const uploadResponse = await fetch(uploadUrl, {
           method: 'PUT',
           body: file,
@@ -218,21 +183,11 @@ export default function AttachmentUploader({
         console.log(`[Attachment] Processing file...`);
 
         // Step 3: Complete upload processing
-        const completeResponse = await fetch(`${apiBaseUrl}/${apiEndpoint}/complete-upload`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({ [idParam]: poId, tempKey, fileName: file.name })
+        const result = await apiClient.post(`/${apiEndpoint}/complete-upload`, {
+          [idParam]: poId,
+          tempKey,
+          fileName: file.name
         });
-
-        if (!completeResponse.ok) {
-          const errorData = await completeResponse.json();
-          throw new Error(errorData.error || 'Failed to process attachment');
-        }
-
-        const result = await completeResponse.json();
 
         setUploadProgress(prev => ({ ...prev, [fileId]: 100 }));
         console.log(`[Attachment] Upload complete!`, result);

@@ -43,35 +43,17 @@ export async function verifySetupPassword(secret: string, password: string): Pro
     success: boolean;
     message: string;
 }> {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
-
     try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1'}/platform/setup/${secret}/verify-password`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ password }),
-            signal: controller.signal
+        const response = await apiClient.post(`/platform/setup/${secret}/verify-password`, { password }, {
+            timeout: 10000
         });
-
-        clearTimeout(timeoutId);
-
-        const data = await response.json();
-
-        if (!response.ok) {
-            const error: any = new Error(data.message || 'Invalid password');
-            error.remainingAttempts = data.remainingAttempts;
-            error.retryAfter = data.retryAfter;
-            throw error;
-        }
-
-        return data;
+        return response.data;
     } catch (error: any) {
-        clearTimeout(timeoutId);
-        if (error.name === 'AbortError') {
-            throw new Error('Request timed out. Please check if the backend is running.');
+        if (error?.data?.remainingAttempts !== undefined) {
+            const customError: any = new Error(error.message || 'Invalid password');
+            customError.remainingAttempts = error.data.remainingAttempts;
+            customError.retryAfter = error.data.retryAfter;
+            throw customError;
         }
         throw error;
     }
@@ -88,34 +70,14 @@ export async function getEmailConfig(secret: string): Promise<{
     active: boolean;
     oauthAvailable: boolean;
 }> {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
-
     try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1'}/platform/setup/${secret}/email`, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            signal: controller.signal
-        });
-
-        clearTimeout(timeoutId);
-
-        if (!response.ok) {
-            if (response.status === 404) {
-                throw new Error('Invalid setup URL');
-            }
-            throw new Error('Failed to get email configuration');
-        }
-
-        return response.json();
+        const response = await apiClient.get(`/platform/setup/${secret}/email`, { timeout: 10000 });
+        return response.data;
     } catch (error: any) {
-        clearTimeout(timeoutId);
-        if (error.name === 'AbortError') {
-            throw new Error('Request timed out. Please check if the backend is running.');
+        if (error.status === 404) {
+            throw new Error('Invalid setup URL');
         }
-        throw error;
+        throw new Error('Failed to get email configuration');
     }
 }
 
@@ -127,23 +89,15 @@ export async function saveEmailConfig(secret: string, config: EmailConfigInput):
     message: string;
     data: EmailConfig;
 }> {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1'}/platform/setup/${secret}/email`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(config)
-    });
-
-    if (!response.ok) {
-        if (response.status === 404) {
+    try {
+        const response = await apiClient.post(`/platform/setup/${secret}/email`, config);
+        return response.data;
+    } catch (error: any) {
+        if (error.status === 404) {
             throw new Error('Invalid setup URL');
         }
-        const error = await response.json();
         throw new Error(error.message || 'Failed to save configuration');
     }
-
-    return response.json();
 }
 
 /**
@@ -154,21 +108,15 @@ export async function testEmailConnection(secret: string): Promise<{
     message: string;
     method?: 'oauth' | 'smtp';
 }> {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1'}/platform/setup/${secret}/email/test`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        }
-    });
-
-    if (!response.ok) {
-        if (response.status === 404) {
+    try {
+        const response = await apiClient.post(`/platform/setup/${secret}/email/test`);
+        return response.data;
+    } catch (error: any) {
+        if (error.status === 404) {
             throw new Error('Invalid setup URL');
         }
         throw new Error('Failed to test connection');
     }
-
-    return response.json();
 }
 
 /**
@@ -178,19 +126,8 @@ export async function getGmailAuthUrl(secret: string): Promise<{
     success: boolean;
     authUrl: string;
 }> {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1'}/platform/setup/${secret}/gmail/auth`, {
-        method: 'GET',
-        headers: {
-            'Content-Type': 'application/json'
-        }
-    });
-
-    if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to get OAuth URL');
-    }
-
-    return response.json();
+    const response = await apiClient.get(`/platform/setup/${secret}/gmail/auth`);
+    return response.data;
 }
 
 /**
@@ -200,19 +137,8 @@ export async function disconnectGmail(secret: string): Promise<{
     success: boolean;
     message: string;
 }> {
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1'}/platform/setup/${secret}/gmail/disconnect`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        }
-    });
-
-    if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to disconnect Gmail');
-    }
-
-    return response.json();
+    const response = await apiClient.post(`/platform/setup/${secret}/gmail/disconnect`);
+    return response.data;
 }
 
 /**
@@ -224,18 +150,8 @@ export async function checkEmailStatus(): Promise<{
     method?: 'oauth' | 'smtp' | null;
 }> {
     try {
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api/v1'}/platform/email-status`, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-
-        if (!response.ok) {
-            return { success: true, configured: false };
-        }
-
-        return response.json();
+        const response = await apiClient.get('/platform/email-status');
+        return response.data;
     } catch {
         return { success: true, configured: false };
     }

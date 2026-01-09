@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { usePremiumTheme } from '@/lib/hooks/usePremiumTheme';
+import { apiClient } from '@/lib/api/client';
 import { HiOutlinePlus, HiOutlineDocumentText, HiOutlineClock, HiOutlineCheckCircle, HiOutlinePencil } from 'react-icons/hi2';
 
 interface PurchaseOrder {
@@ -85,13 +86,9 @@ export default function OrdersPage() {
     const fetchOrders = async () => {
         setIsLoading(true);
         try {
-            const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
-            const response = await fetch(`${apiBaseUrl}/purchase-orders?limit=50`, {
-                credentials: 'include'
-            });
+            const result = await apiClient.get('/purchase-orders?limit=50');
 
-            if (response.ok) {
-                const result = await response.json();
+            if (result) {
                 const fetchedOrders = Array.isArray(result.data) ? result.data : (result.data?.orders || []);
 
                 // Fetch GRNs for received orders to get actual totals
@@ -99,12 +96,9 @@ export default function OrdersPage() {
                     fetchedOrders.map(async (order: PurchaseOrder) => {
                         if (order.status === 'RECEIVED' || order.status === 'PARTIALLY_RECEIVED') {
                             try {
-                                const grnResponse = await fetch(`${apiBaseUrl}/grn/po/${order.id}`, {
-                                    credentials: 'include'
-                                });
+                                const grnData = await apiClient.get(`/grn/po/${order.id}`);
 
-                                if (grnResponse.ok) {
-                                    const grnData = await grnResponse.json();
+                                if (grnData) {
                                     const grns = grnData.data || [];
                                     const grnTotal = grns.reduce((sum: number, grn: any) => sum + Number(grn.total || 0), 0);
                                     return { ...order, total: grnTotal };

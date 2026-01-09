@@ -4,8 +4,7 @@ import { useState } from 'react';
 import { FiDownload, FiTrash2, FiShield, FiCheckCircle } from 'react-icons/fi';
 import { HiOutlineExclamationTriangle } from 'react-icons/hi2';
 import toast from 'react-hot-toast';
-import { getApiBaseUrl } from '@/lib/config/env';
-import { tokenManager } from '@/lib/api/client';
+import { tokenManager, apiClient } from '@/lib/api/client';
 
 export default function PrivacySettingsPage() {
     const [exporting, setExporting] = useState(false);
@@ -15,19 +14,11 @@ export default function PrivacySettingsPage() {
     const handleExportData = async () => {
         setExporting(true);
         try {
-            const response = await fetch(`${getApiBaseUrl()}/gdpr/export?format=${exportFormat}`, {
-                headers: {
-                    'Authorization': `Bearer ${tokenManager.getAccessToken()}`,
-                },
-                credentials: 'include',
+            const blob = await apiClient.get(`/gdpr/export?format=${exportFormat}`, {
+                responseType: 'blob'
             });
 
-            if (!response.ok) {
-                throw new Error('Export failed');
-            }
-
             // Download the file
-            const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
@@ -48,19 +39,7 @@ export default function PrivacySettingsPage() {
 
     const handleDeleteAccount = async () => {
         try {
-            const response = await fetch(`${getApiBaseUrl()}/gdpr/delete-account`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${tokenManager.getAccessToken()}`,
-                },
-                credentials: 'include',
-                body: JSON.stringify({ reason: 'User requested deletion' }),
-            });
-
-            if (!response.ok) throw new Error('Deletion request failed');
-
-            const data = await response.json();
+            const data = await apiClient.post('/gdpr/delete-account', { reason: 'User requested deletion' });
             toast.success(data.message || 'Account deletion requested');
             setShowDeleteConfirm(false);
         } catch (error) {
@@ -100,8 +79,8 @@ export default function PrivacySettingsPage() {
                                         <button
                                             onClick={() => setExportFormat('json')}
                                             className={`px-4 py-2 rounded-lg border transition-colors ${exportFormat === 'json'
-                                                    ? 'bg-blue-50 border-blue-500 text-blue-700'
-                                                    : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                                                ? 'bg-blue-50 border-blue-500 text-blue-700'
+                                                : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
                                                 }`}
                                         >
                                             JSON
@@ -109,8 +88,8 @@ export default function PrivacySettingsPage() {
                                         <button
                                             onClick={() => setExportFormat('csv')}
                                             className={`px-4 py-2 rounded-lg border transition-colors ${exportFormat === 'csv'
-                                                    ? 'bg-blue-50 border-blue-500 text-blue-700'
-                                                    : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                                                ? 'bg-blue-50 border-blue-500 text-blue-700'
+                                                : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
                                                 }`}
                                         >
                                             CSV

@@ -385,7 +385,17 @@ class PrescriptionService {
             newStatus = 'EXPIRED';
             statusReason = 'Prescription expired';
         }
-        // Check if all refills exhausted
+        // For ONE_TIME prescriptions, mark as COMPLETED after first dispense
+        else if (prescription.type === 'ONE_TIME') {
+            const hasAnyDispense = prescription.refills?.some(r => Number(r.dispensedQty) > 0);
+            console.log('🔴 [PrescriptionService] ONE_TIME prescription - hasAnyDispense:', hasAnyDispense);
+            
+            if (hasAnyDispense && prescription.status !== 'COMPLETED') {
+                newStatus = 'COMPLETED';
+                statusReason = 'ONE_TIME prescription dispensed';
+            }
+        }
+        // Check if all refills exhausted (for REGULAR prescriptions)
         else {
             const exhausted = await refillService.areAllRefillsExhausted(prescriptionId);
             console.log('🔴 [PrescriptionService] areAllRefillsExhausted:', exhausted);
@@ -563,7 +573,10 @@ class PrescriptionService {
                     }
                 }
             }
-        });
+        }).then(logs => logs.map(log => ({
+            ...log,
+            user: log.user || { id: log.userId || 'system', firstName: 'System', lastName: '', email: null }
+        })));
 
         // Flatten latest version items for easier access
         const latestVersion = prescription.versions[0];

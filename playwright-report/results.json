@@ -10,9 +10,7 @@
     "grep": {},
     "grepInvert": null,
     "maxFailures": 0,
-    "metadata": {
-      "actualWorkers": 4
-    },
+    "metadata": {},
     "preserveOutput": "always",
     "reporter": [
       [
@@ -43,9 +41,7 @@
         "outputDir": "/Users/dikshantjangra/Desktop/hoperxpharma/test-results",
         "repeatEach": 1,
         "retries": 0,
-        "metadata": {
-          "actualWorkers": 4
-        },
+        "metadata": {},
         "id": "setup",
         "name": "setup",
         "testDir": "/Users/dikshantjangra/Desktop/hoperxpharma/playwright/tests",
@@ -59,9 +55,7 @@
         "outputDir": "/Users/dikshantjangra/Desktop/hoperxpharma/test-results",
         "repeatEach": 1,
         "retries": 0,
-        "metadata": {
-          "actualWorkers": 4
-        },
+        "metadata": {},
         "id": "chromium",
         "name": "chromium",
         "testDir": "/Users/dikshantjangra/Desktop/hoperxpharma/playwright/tests",
@@ -75,9 +69,7 @@
         "outputDir": "/Users/dikshantjangra/Desktop/hoperxpharma/test-results",
         "repeatEach": 1,
         "retries": 0,
-        "metadata": {
-          "actualWorkers": 4
-        },
+        "metadata": {},
         "id": "firefox",
         "name": "firefox",
         "testDir": "/Users/dikshantjangra/Desktop/hoperxpharma/playwright/tests",
@@ -91,9 +83,7 @@
         "outputDir": "/Users/dikshantjangra/Desktop/hoperxpharma/test-results",
         "repeatEach": 1,
         "retries": 0,
-        "metadata": {
-          "actualWorkers": 4
-        },
+        "metadata": {},
         "id": "webkit",
         "name": "webkit",
         "testDir": "/Users/dikshantjangra/Desktop/hoperxpharma/playwright/tests",
@@ -107,9 +97,7 @@
         "outputDir": "/Users/dikshantjangra/Desktop/hoperxpharma/test-results",
         "repeatEach": 1,
         "retries": 0,
-        "metadata": {
-          "actualWorkers": 4
-        },
+        "metadata": {},
         "id": "mobile-chrome",
         "name": "mobile-chrome",
         "testDir": "/Users/dikshantjangra/Desktop/hoperxpharma/playwright/tests",
@@ -123,9 +111,7 @@
         "outputDir": "/Users/dikshantjangra/Desktop/hoperxpharma/test-results",
         "repeatEach": 1,
         "retries": 0,
-        "metadata": {
-          "actualWorkers": 4
-        },
+        "metadata": {},
         "id": "mobile-safari",
         "name": "mobile-safari",
         "testDir": "/Users/dikshantjangra/Desktop/hoperxpharma/playwright/tests",
@@ -158,7 +144,7 @@
       "specs": [
         {
           "title": "authenticate as test user",
-          "ok": false,
+          "ok": true,
           "tags": [],
           "tests": [
             {
@@ -167,36 +153,747 @@
               "expectedStatus": "passed",
               "projectId": "setup",
               "projectName": "setup",
-              "results": [
-                {
-                  "workerIndex": 0,
-                  "parallelIndex": 0,
-                  "status": "failed",
-                  "duration": 1,
-                  "error": {
-                    "message": "Error: browserType.launch: Executable doesn't exist at /Users/dikshantjangra/Library/Caches/ms-playwright/chromium_headless_shell-1200/chrome-headless-shell-mac-arm64/chrome-headless-shell\n╔═════════════════════════════════════════════════════════════════════════╗\n║ Looks like Playwright Test or Playwright was just installed or updated. ║\n║ Please run the following command to download new browsers:              ║\n║                                                                         ║\n║     npx playwright install                                              ║\n║                                                                         ║\n║ <3 Playwright Team                                                      ║\n╚═════════════════════════════════════════════════════════════════════════╝",
-                    "stack": "Error: browserType.launch: Executable doesn't exist at /Users/dikshantjangra/Library/Caches/ms-playwright/chromium_headless_shell-1200/chrome-headless-shell-mac-arm64/chrome-headless-shell\n╔═════════════════════════════════════════════════════════════════════════╗\n║ Looks like Playwright Test or Playwright was just installed or updated. ║\n║ Please run the following command to download new browsers:              ║\n║                                                                         ║\n║     npx playwright install                                              ║\n║                                                                         ║\n║ <3 Playwright Team                                                      ║\n╚═════════════════════════════════════════════════════════════════════════╝"
-                  },
-                  "errors": [
-                    {
-                      "message": "Error: browserType.launch: Executable doesn't exist at /Users/dikshantjangra/Library/Caches/ms-playwright/chromium_headless_shell-1200/chrome-headless-shell-mac-arm64/chrome-headless-shell\n╔═════════════════════════════════════════════════════════════════════════╗\n║ Looks like Playwright Test or Playwright was just installed or updated. ║\n║ Please run the following command to download new browsers:              ║\n║                                                                         ║\n║     npx playwright install                                              ║\n║                                                                         ║\n║ <3 Playwright Team                                                      ║\n╚═════════════════════════════════════════════════════════════════════════╝"
-                    }
-                  ],
-                  "stdout": [],
-                  "stderr": [],
-                  "retry": 0,
-                  "startTime": "2026-01-09T08:20:03.308Z",
-                  "annotations": [],
-                  "attachments": []
-                }
-              ],
-              "status": "unexpected"
+              "results": [],
+              "status": "skipped"
             }
           ],
           "id": "17e3fe6f4d9d8bd79c6b-7ae616255f2fad00d7ee",
           "file": "auth.setup.ts",
           "line": 17,
           "column": 6
+        }
+      ]
+    },
+    {
+      "title": "alerts.spec.ts",
+      "file": "alerts.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Alerts - Generation and Display",
+          "file": "alerts.spec.ts",
+          "line": 14,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should display alerts on dashboard",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "ace1c4120cace0e80d20-d8c067d826ea3bf5fb6e",
+              "file": "alerts.spec.ts",
+              "line": 15,
+              "column": 9
+            },
+            {
+              "title": "should generate low stock alert",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "ace1c4120cace0e80d20-2ca43f47e0e5c9c4a611",
+              "file": "alerts.spec.ts",
+              "line": 52,
+              "column": 9
+            },
+            {
+              "title": "should generate expiry alert",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "ace1c4120cace0e80d20-86d38d9ed4a97d12e159",
+              "file": "alerts.spec.ts",
+              "line": 97,
+              "column": 9
+            },
+            {
+              "title": "should display alerts on dashboard",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "ace1c4120cace0e80d20-2c60968dfca82107a04a",
+              "file": "alerts.spec.ts",
+              "line": 15,
+              "column": 9
+            },
+            {
+              "title": "should generate low stock alert",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "ace1c4120cace0e80d20-9aaf2b2b7129bd659832",
+              "file": "alerts.spec.ts",
+              "line": 52,
+              "column": 9
+            },
+            {
+              "title": "should generate expiry alert",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "ace1c4120cace0e80d20-9481a3dea7f23c0cdb2c",
+              "file": "alerts.spec.ts",
+              "line": 97,
+              "column": 9
+            },
+            {
+              "title": "should display alerts on dashboard",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "ace1c4120cace0e80d20-dc09f7fb86879238b456",
+              "file": "alerts.spec.ts",
+              "line": 15,
+              "column": 9
+            },
+            {
+              "title": "should generate low stock alert",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "ace1c4120cace0e80d20-0a7a600b974a63c55e38",
+              "file": "alerts.spec.ts",
+              "line": 52,
+              "column": 9
+            },
+            {
+              "title": "should generate expiry alert",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "ace1c4120cace0e80d20-beedafa8ac6896dc27c3",
+              "file": "alerts.spec.ts",
+              "line": 97,
+              "column": 9
+            },
+            {
+              "title": "should display alerts on dashboard",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-chrome",
+                  "projectName": "mobile-chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "ace1c4120cace0e80d20-46dd69f97c1a86a3dc17",
+              "file": "alerts.spec.ts",
+              "line": 15,
+              "column": 9
+            },
+            {
+              "title": "should generate low stock alert",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-chrome",
+                  "projectName": "mobile-chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "ace1c4120cace0e80d20-35aaee3dcc97c1227caa",
+              "file": "alerts.spec.ts",
+              "line": 52,
+              "column": 9
+            },
+            {
+              "title": "should generate expiry alert",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-chrome",
+                  "projectName": "mobile-chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "ace1c4120cace0e80d20-eb954b766d387586900a",
+              "file": "alerts.spec.ts",
+              "line": 97,
+              "column": 9
+            },
+            {
+              "title": "should display alerts on dashboard",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-safari",
+                  "projectName": "mobile-safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "ace1c4120cace0e80d20-130e56a9a3c4b9e52fb0",
+              "file": "alerts.spec.ts",
+              "line": 15,
+              "column": 9
+            },
+            {
+              "title": "should generate low stock alert",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-safari",
+                  "projectName": "mobile-safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "ace1c4120cace0e80d20-be815529160eb8c96ea7",
+              "file": "alerts.spec.ts",
+              "line": 52,
+              "column": 9
+            },
+            {
+              "title": "should generate expiry alert",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-safari",
+                  "projectName": "mobile-safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "ace1c4120cace0e80d20-b16639c3dc56e4f69d47",
+              "file": "alerts.spec.ts",
+              "line": 97,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "title": "Alerts - Interaction",
+          "file": "alerts.spec.ts",
+          "line": 146,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should mark alert as read",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "ace1c4120cace0e80d20-bc620bc5c4599b3171f6",
+              "file": "alerts.spec.ts",
+              "line": 147,
+              "column": 9
+            },
+            {
+              "title": "should dismiss alert",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "ace1c4120cace0e80d20-99b8dd137c93b8aafe1e",
+              "file": "alerts.spec.ts",
+              "line": 205,
+              "column": 9
+            },
+            {
+              "title": "should mark alert as read",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "ace1c4120cace0e80d20-36d5561531f5511ec632",
+              "file": "alerts.spec.ts",
+              "line": 147,
+              "column": 9
+            },
+            {
+              "title": "should dismiss alert",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "ace1c4120cace0e80d20-6be14d841faff2922c92",
+              "file": "alerts.spec.ts",
+              "line": 205,
+              "column": 9
+            },
+            {
+              "title": "should mark alert as read",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "ace1c4120cace0e80d20-5b756e84236f8d0d3198",
+              "file": "alerts.spec.ts",
+              "line": 147,
+              "column": 9
+            },
+            {
+              "title": "should dismiss alert",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "ace1c4120cace0e80d20-a659a98b4f7853f38171",
+              "file": "alerts.spec.ts",
+              "line": 205,
+              "column": 9
+            },
+            {
+              "title": "should mark alert as read",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-chrome",
+                  "projectName": "mobile-chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "ace1c4120cace0e80d20-d0a8d0d08cf9ba02666e",
+              "file": "alerts.spec.ts",
+              "line": 147,
+              "column": 9
+            },
+            {
+              "title": "should dismiss alert",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-chrome",
+                  "projectName": "mobile-chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "ace1c4120cace0e80d20-67bd3acb871285fac0a2",
+              "file": "alerts.spec.ts",
+              "line": 205,
+              "column": 9
+            },
+            {
+              "title": "should mark alert as read",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-safari",
+                  "projectName": "mobile-safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "ace1c4120cace0e80d20-20f97f2b2f6da5e6fe3a",
+              "file": "alerts.spec.ts",
+              "line": 147,
+              "column": 9
+            },
+            {
+              "title": "should dismiss alert",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-safari",
+                  "projectName": "mobile-safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "ace1c4120cace0e80d20-fe84d51b0da0f55f696e",
+              "file": "alerts.spec.ts",
+              "line": 205,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "title": "Alerts - Preferences",
+          "file": "alerts.spec.ts",
+          "line": 256,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should configure alert preferences",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "ace1c4120cace0e80d20-eab5a41fe8d5d5487c4f",
+              "file": "alerts.spec.ts",
+              "line": 257,
+              "column": 9
+            },
+            {
+              "title": "should filter alerts by category",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "ace1c4120cace0e80d20-f6e4c359a26a9057dbd6",
+              "file": "alerts.spec.ts",
+              "line": 303,
+              "column": 9
+            },
+            {
+              "title": "should configure alert preferences",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "ace1c4120cace0e80d20-6b32fd62c5d881b7d991",
+              "file": "alerts.spec.ts",
+              "line": 257,
+              "column": 9
+            },
+            {
+              "title": "should filter alerts by category",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "ace1c4120cace0e80d20-0b7401b6160954b9b41c",
+              "file": "alerts.spec.ts",
+              "line": 303,
+              "column": 9
+            },
+            {
+              "title": "should configure alert preferences",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "ace1c4120cace0e80d20-9ac0487734f332737ef0",
+              "file": "alerts.spec.ts",
+              "line": 257,
+              "column": 9
+            },
+            {
+              "title": "should filter alerts by category",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "ace1c4120cace0e80d20-6698c86223cb0c7e90f0",
+              "file": "alerts.spec.ts",
+              "line": 303,
+              "column": 9
+            },
+            {
+              "title": "should configure alert preferences",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-chrome",
+                  "projectName": "mobile-chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "ace1c4120cace0e80d20-786f6845f2e744a672ee",
+              "file": "alerts.spec.ts",
+              "line": 257,
+              "column": 9
+            },
+            {
+              "title": "should filter alerts by category",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-chrome",
+                  "projectName": "mobile-chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "ace1c4120cace0e80d20-92a1e0ec3df875ca6e2f",
+              "file": "alerts.spec.ts",
+              "line": 303,
+              "column": 9
+            },
+            {
+              "title": "should configure alert preferences",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-safari",
+                  "projectName": "mobile-safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "ace1c4120cace0e80d20-9edceee3759b5627735f",
+              "file": "alerts.spec.ts",
+              "line": 257,
+              "column": 9
+            },
+            {
+              "title": "should filter alerts by category",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-safari",
+                  "projectName": "mobile-safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "ace1c4120cace0e80d20-7eb40f42ffa93bf1f6af",
+              "file": "alerts.spec.ts",
+              "line": 303,
+              "column": 9
+            }
+          ]
         }
       ]
     },
@@ -292,6 +989,2900 @@
               "file": "auth.spec.ts",
               "line": 135,
               "column": 9
+            },
+            {
+              "title": "should login with password and persist session",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-a7ea35b713c44a67fcbe",
+              "file": "auth.spec.ts",
+              "line": 21,
+              "column": 9
+            },
+            {
+              "title": "should maintain session across page reloads",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-ae0f7635cbdd8f707aed",
+              "file": "auth.spec.ts",
+              "line": 71,
+              "column": 9
+            },
+            {
+              "title": "should logout and clear session",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-d5e93e4fa92a9740fcf2",
+              "file": "auth.spec.ts",
+              "line": 91,
+              "column": 9
+            },
+            {
+              "title": "should show error on invalid credentials",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-8f60171dad21217afdc5",
+              "file": "auth.spec.ts",
+              "line": 135,
+              "column": 9
+            },
+            {
+              "title": "should login with password and persist session",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-e068624177accbe0de9b",
+              "file": "auth.spec.ts",
+              "line": 21,
+              "column": 9
+            },
+            {
+              "title": "should maintain session across page reloads",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-79fa49d699455a8a23d7",
+              "file": "auth.spec.ts",
+              "line": 71,
+              "column": 9
+            },
+            {
+              "title": "should logout and clear session",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-90337c2c3276164bf97e",
+              "file": "auth.spec.ts",
+              "line": 91,
+              "column": 9
+            },
+            {
+              "title": "should show error on invalid credentials",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-b0dd1046d118b889b59d",
+              "file": "auth.spec.ts",
+              "line": 135,
+              "column": 9
+            },
+            {
+              "title": "should login with password and persist session",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-chrome",
+                  "projectName": "mobile-chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-832dcdb424bc926c4cb1",
+              "file": "auth.spec.ts",
+              "line": 21,
+              "column": 9
+            },
+            {
+              "title": "should maintain session across page reloads",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-chrome",
+                  "projectName": "mobile-chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-059d4bb22f22f299f042",
+              "file": "auth.spec.ts",
+              "line": 71,
+              "column": 9
+            },
+            {
+              "title": "should logout and clear session",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-chrome",
+                  "projectName": "mobile-chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-18b5bf9c53e6145cee3f",
+              "file": "auth.spec.ts",
+              "line": 91,
+              "column": 9
+            },
+            {
+              "title": "should show error on invalid credentials",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-chrome",
+                  "projectName": "mobile-chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-bb87e54916c8262781c4",
+              "file": "auth.spec.ts",
+              "line": 135,
+              "column": 9
+            },
+            {
+              "title": "should login with password and persist session",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-safari",
+                  "projectName": "mobile-safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-8da89dd3b419b23c9d0c",
+              "file": "auth.spec.ts",
+              "line": 21,
+              "column": 9
+            },
+            {
+              "title": "should maintain session across page reloads",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-safari",
+                  "projectName": "mobile-safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-0d8403806691b4d014a1",
+              "file": "auth.spec.ts",
+              "line": 71,
+              "column": 9
+            },
+            {
+              "title": "should logout and clear session",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-safari",
+                  "projectName": "mobile-safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-545ada85c05631908072",
+              "file": "auth.spec.ts",
+              "line": 91,
+              "column": 9
+            },
+            {
+              "title": "should show error on invalid credentials",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-safari",
+                  "projectName": "mobile-safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d748ac400d08b85935ef-991104c6e14e863bb8b1",
+              "file": "auth.spec.ts",
+              "line": 135,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "billing.spec.ts",
+      "file": "billing.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Billing - Subscription Management",
+          "file": "billing.spec.ts",
+          "line": 13,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should verify trial subscription status",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d4578388efe8f23c8f70-0040988e18b3aa252ca7",
+              "file": "billing.spec.ts",
+              "line": 14,
+              "column": 9
+            },
+            {
+              "title": "should display available subscription plans",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d4578388efe8f23c8f70-386639a0bd718cbc0a5c",
+              "file": "billing.spec.ts",
+              "line": 48,
+              "column": 9
+            },
+            {
+              "title": "should restrict features based on subscription",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d4578388efe8f23c8f70-0a1051ac52deb3cbdacd",
+              "file": "billing.spec.ts",
+              "line": 78,
+              "column": 9
+            },
+            {
+              "title": "should verify trial subscription status",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d4578388efe8f23c8f70-b10eac0673d9da6784cf",
+              "file": "billing.spec.ts",
+              "line": 14,
+              "column": 9
+            },
+            {
+              "title": "should display available subscription plans",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d4578388efe8f23c8f70-1105d7b8c7ac590706af",
+              "file": "billing.spec.ts",
+              "line": 48,
+              "column": 9
+            },
+            {
+              "title": "should restrict features based on subscription",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d4578388efe8f23c8f70-eeb7509545b5702dec24",
+              "file": "billing.spec.ts",
+              "line": 78,
+              "column": 9
+            },
+            {
+              "title": "should verify trial subscription status",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d4578388efe8f23c8f70-653e7b7c92023bfcea0c",
+              "file": "billing.spec.ts",
+              "line": 14,
+              "column": 9
+            },
+            {
+              "title": "should display available subscription plans",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d4578388efe8f23c8f70-cbbeb02cc8ed17b95fe5",
+              "file": "billing.spec.ts",
+              "line": 48,
+              "column": 9
+            },
+            {
+              "title": "should restrict features based on subscription",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d4578388efe8f23c8f70-5a408033f9d5db954140",
+              "file": "billing.spec.ts",
+              "line": 78,
+              "column": 9
+            },
+            {
+              "title": "should verify trial subscription status",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-chrome",
+                  "projectName": "mobile-chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d4578388efe8f23c8f70-f72d964b1937faa557dc",
+              "file": "billing.spec.ts",
+              "line": 14,
+              "column": 9
+            },
+            {
+              "title": "should display available subscription plans",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-chrome",
+                  "projectName": "mobile-chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d4578388efe8f23c8f70-801eab43a47423926935",
+              "file": "billing.spec.ts",
+              "line": 48,
+              "column": 9
+            },
+            {
+              "title": "should restrict features based on subscription",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-chrome",
+                  "projectName": "mobile-chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d4578388efe8f23c8f70-bad0c127b702b511e8de",
+              "file": "billing.spec.ts",
+              "line": 78,
+              "column": 9
+            },
+            {
+              "title": "should verify trial subscription status",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-safari",
+                  "projectName": "mobile-safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d4578388efe8f23c8f70-510b2309665626c1ddeb",
+              "file": "billing.spec.ts",
+              "line": 14,
+              "column": 9
+            },
+            {
+              "title": "should display available subscription plans",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-safari",
+                  "projectName": "mobile-safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d4578388efe8f23c8f70-1aba050c0ffb8ad2a30c",
+              "file": "billing.spec.ts",
+              "line": 48,
+              "column": 9
+            },
+            {
+              "title": "should restrict features based on subscription",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-safari",
+                  "projectName": "mobile-safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d4578388efe8f23c8f70-cee6c026baa321f08186",
+              "file": "billing.spec.ts",
+              "line": 78,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "title": "Billing - Payment Management",
+          "file": "billing.spec.ts",
+          "line": 108,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should navigate to payment settings",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d4578388efe8f23c8f70-ae200d5b82ad53cd8724",
+              "file": "billing.spec.ts",
+              "line": 109,
+              "column": 9
+            },
+            {
+              "title": "should display billing history",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d4578388efe8f23c8f70-61963ef95da2eec428b2",
+              "file": "billing.spec.ts",
+              "line": 138,
+              "column": 9
+            },
+            {
+              "title": "should navigate to payment settings",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d4578388efe8f23c8f70-9aa67b2359482fd3a622",
+              "file": "billing.spec.ts",
+              "line": 109,
+              "column": 9
+            },
+            {
+              "title": "should display billing history",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d4578388efe8f23c8f70-5ba2b7a5073ffb2d7b51",
+              "file": "billing.spec.ts",
+              "line": 138,
+              "column": 9
+            },
+            {
+              "title": "should navigate to payment settings",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d4578388efe8f23c8f70-2684b2b749ff9658ab1c",
+              "file": "billing.spec.ts",
+              "line": 109,
+              "column": 9
+            },
+            {
+              "title": "should display billing history",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d4578388efe8f23c8f70-ddbeedb52885e2b72703",
+              "file": "billing.spec.ts",
+              "line": 138,
+              "column": 9
+            },
+            {
+              "title": "should navigate to payment settings",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-chrome",
+                  "projectName": "mobile-chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d4578388efe8f23c8f70-0ae32f8ab5e44b55325e",
+              "file": "billing.spec.ts",
+              "line": 109,
+              "column": 9
+            },
+            {
+              "title": "should display billing history",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-chrome",
+                  "projectName": "mobile-chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d4578388efe8f23c8f70-762d03336a7cc40f4738",
+              "file": "billing.spec.ts",
+              "line": 138,
+              "column": 9
+            },
+            {
+              "title": "should navigate to payment settings",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-safari",
+                  "projectName": "mobile-safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d4578388efe8f23c8f70-d673d514d05aa12c8f3e",
+              "file": "billing.spec.ts",
+              "line": 109,
+              "column": 9
+            },
+            {
+              "title": "should display billing history",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-safari",
+                  "projectName": "mobile-safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "d4578388efe8f23c8f70-ef6e87a07a8f35eed2c1",
+              "file": "billing.spec.ts",
+              "line": 138,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "inventory.spec.ts",
+      "file": "inventory.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Inventory - FIFO/FEFO",
+          "file": "inventory.spec.ts",
+          "line": 15,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should sell from earliest expiry batch first (FEFO)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "491382254a121adeeb47-9d649f7378ef08be7c8f",
+              "file": "inventory.spec.ts",
+              "line": 16,
+              "column": 9
+            },
+            {
+              "title": "should sell from earliest expiry batch first (FEFO)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "491382254a121adeeb47-b1686d3c8a1f9c264975",
+              "file": "inventory.spec.ts",
+              "line": 16,
+              "column": 9
+            },
+            {
+              "title": "should sell from earliest expiry batch first (FEFO)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "491382254a121adeeb47-b7e4682bec1946dfc47a",
+              "file": "inventory.spec.ts",
+              "line": 16,
+              "column": 9
+            },
+            {
+              "title": "should sell from earliest expiry batch first (FEFO)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-chrome",
+                  "projectName": "mobile-chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "491382254a121adeeb47-5a1aa2b3c1f45790d63a",
+              "file": "inventory.spec.ts",
+              "line": 16,
+              "column": 9
+            },
+            {
+              "title": "should sell from earliest expiry batch first (FEFO)",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-safari",
+                  "projectName": "mobile-safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "491382254a121adeeb47-d3879848882d950766a0",
+              "file": "inventory.spec.ts",
+              "line": 16,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "title": "Inventory - Stock Alerts",
+          "file": "inventory.spec.ts",
+          "line": 96,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should generate low stock alert when threshold reached",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "491382254a121adeeb47-b9f81086eeeeb9eb702d",
+              "file": "inventory.spec.ts",
+              "line": 97,
+              "column": 9
+            },
+            {
+              "title": "should show expiry warning for near-expiry batches",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "491382254a121adeeb47-9d122f0714489cd3f4ce",
+              "file": "inventory.spec.ts",
+              "line": 148,
+              "column": 9
+            },
+            {
+              "title": "should generate low stock alert when threshold reached",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "491382254a121adeeb47-ba271b6ce93c450703bd",
+              "file": "inventory.spec.ts",
+              "line": 97,
+              "column": 9
+            },
+            {
+              "title": "should show expiry warning for near-expiry batches",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "491382254a121adeeb47-39879304d20ae58f6227",
+              "file": "inventory.spec.ts",
+              "line": 148,
+              "column": 9
+            },
+            {
+              "title": "should generate low stock alert when threshold reached",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "491382254a121adeeb47-a4ae4848da91f76f73ec",
+              "file": "inventory.spec.ts",
+              "line": 97,
+              "column": 9
+            },
+            {
+              "title": "should show expiry warning for near-expiry batches",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "491382254a121adeeb47-e6dc4f42e284a64ca6ff",
+              "file": "inventory.spec.ts",
+              "line": 148,
+              "column": 9
+            },
+            {
+              "title": "should generate low stock alert when threshold reached",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-chrome",
+                  "projectName": "mobile-chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "491382254a121adeeb47-71b6506ea4c3a9777a1d",
+              "file": "inventory.spec.ts",
+              "line": 97,
+              "column": 9
+            },
+            {
+              "title": "should show expiry warning for near-expiry batches",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-chrome",
+                  "projectName": "mobile-chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "491382254a121adeeb47-337c4ab6747b001dedad",
+              "file": "inventory.spec.ts",
+              "line": 148,
+              "column": 9
+            },
+            {
+              "title": "should generate low stock alert when threshold reached",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-safari",
+                  "projectName": "mobile-safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "491382254a121adeeb47-ace9c14974f89237d509",
+              "file": "inventory.spec.ts",
+              "line": 97,
+              "column": 9
+            },
+            {
+              "title": "should show expiry warning for near-expiry batches",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-safari",
+                  "projectName": "mobile-safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "491382254a121adeeb47-88242af18cbafb001c77",
+              "file": "inventory.spec.ts",
+              "line": 148,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "title": "Inventory - Stock Adjustments",
+          "file": "inventory.spec.ts",
+          "line": 201,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should record stock adjustment with audit trail",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "491382254a121adeeb47-c32b00e969b1b1c61f61",
+              "file": "inventory.spec.ts",
+              "line": 202,
+              "column": 9
+            },
+            {
+              "title": "should record stock adjustment with audit trail",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "491382254a121adeeb47-6b0119b6cbf1da06fd06",
+              "file": "inventory.spec.ts",
+              "line": 202,
+              "column": 9
+            },
+            {
+              "title": "should record stock adjustment with audit trail",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "491382254a121adeeb47-24a0dd1314f35e5fd2c6",
+              "file": "inventory.spec.ts",
+              "line": 202,
+              "column": 9
+            },
+            {
+              "title": "should record stock adjustment with audit trail",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-chrome",
+                  "projectName": "mobile-chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "491382254a121adeeb47-9b3b5097392e3b86927d",
+              "file": "inventory.spec.ts",
+              "line": 202,
+              "column": 9
+            },
+            {
+              "title": "should record stock adjustment with audit trail",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-safari",
+                  "projectName": "mobile-safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "491382254a121adeeb47-ca8a654181550a17ab28",
+              "file": "inventory.spec.ts",
+              "line": 202,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "onboarding.spec.ts",
+      "file": "onboarding.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Onboarding - Store Setup",
+          "file": "onboarding.spec.ts",
+          "line": 14,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should complete store setup wizard",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "fe534f0825407f213faa-4bb01c14d8c3d50beb49",
+              "file": "onboarding.spec.ts",
+              "line": 15,
+              "column": 9
+            },
+            {
+              "title": "should configure operating hours",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "fe534f0825407f213faa-982b4246638a1ed7546a",
+              "file": "onboarding.spec.ts",
+              "line": 80,
+              "column": 9
+            },
+            {
+              "title": "should complete store setup wizard",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "fe534f0825407f213faa-c6a4ad7e7323cfd8998d",
+              "file": "onboarding.spec.ts",
+              "line": 15,
+              "column": 9
+            },
+            {
+              "title": "should configure operating hours",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "fe534f0825407f213faa-3b93f006404d81b6f1a4",
+              "file": "onboarding.spec.ts",
+              "line": 80,
+              "column": 9
+            },
+            {
+              "title": "should complete store setup wizard",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "fe534f0825407f213faa-db9f9e3507a9348f0454",
+              "file": "onboarding.spec.ts",
+              "line": 15,
+              "column": 9
+            },
+            {
+              "title": "should configure operating hours",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "fe534f0825407f213faa-60b24a4ddb0cee73b26a",
+              "file": "onboarding.spec.ts",
+              "line": 80,
+              "column": 9
+            },
+            {
+              "title": "should complete store setup wizard",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-chrome",
+                  "projectName": "mobile-chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "fe534f0825407f213faa-c16925b76841f66cb421",
+              "file": "onboarding.spec.ts",
+              "line": 15,
+              "column": 9
+            },
+            {
+              "title": "should configure operating hours",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-chrome",
+                  "projectName": "mobile-chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "fe534f0825407f213faa-db2b61a8af3963037a24",
+              "file": "onboarding.spec.ts",
+              "line": 80,
+              "column": 9
+            },
+            {
+              "title": "should complete store setup wizard",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-safari",
+                  "projectName": "mobile-safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "fe534f0825407f213faa-136f7de823a92d6390ef",
+              "file": "onboarding.spec.ts",
+              "line": 15,
+              "column": 9
+            },
+            {
+              "title": "should configure operating hours",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-safari",
+                  "projectName": "mobile-safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "fe534f0825407f213faa-9f8fa97aee1e9681863d",
+              "file": "onboarding.spec.ts",
+              "line": 80,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "title": "Onboarding - Staff Management",
+          "file": "onboarding.spec.ts",
+          "line": 140,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should invite staff member",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "fe534f0825407f213faa-765a6ce053703b54fbca",
+              "file": "onboarding.spec.ts",
+              "line": 141,
+              "column": 9
+            },
+            {
+              "title": "should invite staff member",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "fe534f0825407f213faa-3aaad3ac0876c71fff95",
+              "file": "onboarding.spec.ts",
+              "line": 141,
+              "column": 9
+            },
+            {
+              "title": "should invite staff member",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "fe534f0825407f213faa-cc348503379f22544a8c",
+              "file": "onboarding.spec.ts",
+              "line": 141,
+              "column": 9
+            },
+            {
+              "title": "should invite staff member",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-chrome",
+                  "projectName": "mobile-chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "fe534f0825407f213faa-835d951f23f1cb56662a",
+              "file": "onboarding.spec.ts",
+              "line": 141,
+              "column": 9
+            },
+            {
+              "title": "should invite staff member",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-safari",
+                  "projectName": "mobile-safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "fe534f0825407f213faa-0082e5a5fdda3ad061fa",
+              "file": "onboarding.spec.ts",
+              "line": 141,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "title": "Onboarding - Completion",
+          "file": "onboarding.spec.ts",
+          "line": 193,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should track onboarding progress and completion",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "fe534f0825407f213faa-b43f033722a0d08d8b27",
+              "file": "onboarding.spec.ts",
+              "line": 194,
+              "column": 9
+            },
+            {
+              "title": "should track onboarding progress and completion",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "fe534f0825407f213faa-b81a0b64d509b5209e70",
+              "file": "onboarding.spec.ts",
+              "line": 194,
+              "column": 9
+            },
+            {
+              "title": "should track onboarding progress and completion",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "fe534f0825407f213faa-2ee83dd0844331e1eca8",
+              "file": "onboarding.spec.ts",
+              "line": 194,
+              "column": 9
+            },
+            {
+              "title": "should track onboarding progress and completion",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-chrome",
+                  "projectName": "mobile-chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "fe534f0825407f213faa-5eb2465cb4b8b6ad1434",
+              "file": "onboarding.spec.ts",
+              "line": 194,
+              "column": 9
+            },
+            {
+              "title": "should track onboarding progress and completion",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-safari",
+                  "projectName": "mobile-safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "fe534f0825407f213faa-3b8f350be8c674f8f036",
+              "file": "onboarding.spec.ts",
+              "line": 194,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "pos.spec.ts",
+      "file": "pos.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "POS - Quick Sale",
+          "file": "pos.spec.ts",
+          "line": 15,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should complete a quick OTC sale and verify backend state",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "8d72c8cda0dde62ea615-a5c775aa0aab7b2697df",
+              "file": "pos.spec.ts",
+              "line": 16,
+              "column": 9
+            },
+            {
+              "title": "should prevent sale when insufficient stock",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "8d72c8cda0dde62ea615-ae363c209bf355ee547f",
+              "file": "pos.spec.ts",
+              "line": 101,
+              "column": 9
+            },
+            {
+              "title": "should complete a quick OTC sale and verify backend state",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "8d72c8cda0dde62ea615-7a62359dc9170d6585a1",
+              "file": "pos.spec.ts",
+              "line": 16,
+              "column": 9
+            },
+            {
+              "title": "should prevent sale when insufficient stock",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "8d72c8cda0dde62ea615-6309e78a4426c870d43b",
+              "file": "pos.spec.ts",
+              "line": 101,
+              "column": 9
+            },
+            {
+              "title": "should complete a quick OTC sale and verify backend state",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "8d72c8cda0dde62ea615-ca4cadaba7f8bc72fb5e",
+              "file": "pos.spec.ts",
+              "line": 16,
+              "column": 9
+            },
+            {
+              "title": "should prevent sale when insufficient stock",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "8d72c8cda0dde62ea615-5fb1f9681d02fa4204e2",
+              "file": "pos.spec.ts",
+              "line": 101,
+              "column": 9
+            },
+            {
+              "title": "should complete a quick OTC sale and verify backend state",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-chrome",
+                  "projectName": "mobile-chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "8d72c8cda0dde62ea615-d47e3e8b9e2876902158",
+              "file": "pos.spec.ts",
+              "line": 16,
+              "column": 9
+            },
+            {
+              "title": "should prevent sale when insufficient stock",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-chrome",
+                  "projectName": "mobile-chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "8d72c8cda0dde62ea615-f8d2579d0346536a0669",
+              "file": "pos.spec.ts",
+              "line": 101,
+              "column": 9
+            },
+            {
+              "title": "should complete a quick OTC sale and verify backend state",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-safari",
+                  "projectName": "mobile-safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "8d72c8cda0dde62ea615-3580fbebd1ace98ecd3f",
+              "file": "pos.spec.ts",
+              "line": 16,
+              "column": 9
+            },
+            {
+              "title": "should prevent sale when insufficient stock",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-safari",
+                  "projectName": "mobile-safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "8d72c8cda0dde62ea615-7c9fff477fb4e4227d96",
+              "file": "pos.spec.ts",
+              "line": 101,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "title": "POS - Customer Sales",
+          "file": "pos.spec.ts",
+          "line": 154,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should create sale with customer and update ledger",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "8d72c8cda0dde62ea615-aa42faa0cf8ce8a1388e",
+              "file": "pos.spec.ts",
+              "line": 155,
+              "column": 9
+            },
+            {
+              "title": "should create sale with customer and update ledger",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "8d72c8cda0dde62ea615-f39af6f0bc75b6ef1143",
+              "file": "pos.spec.ts",
+              "line": 155,
+              "column": 9
+            },
+            {
+              "title": "should create sale with customer and update ledger",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "8d72c8cda0dde62ea615-b6f1306ed7a29781c39d",
+              "file": "pos.spec.ts",
+              "line": 155,
+              "column": 9
+            },
+            {
+              "title": "should create sale with customer and update ledger",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-chrome",
+                  "projectName": "mobile-chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "8d72c8cda0dde62ea615-74a991ce9df954ae6e0e",
+              "file": "pos.spec.ts",
+              "line": 155,
+              "column": 9
+            },
+            {
+              "title": "should create sale with customer and update ledger",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-safari",
+                  "projectName": "mobile-safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "8d72c8cda0dde62ea615-67e8f9ba33e6d0426ca8",
+              "file": "pos.spec.ts",
+              "line": 155,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "prescriptions.spec.ts",
+      "file": "prescriptions.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Prescription - Create & Manage",
+          "file": "prescriptions.spec.ts",
+          "line": 14,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should create prescription and track status",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "7d2146a658adf885e746-ba2b4637e046d4105742",
+              "file": "prescriptions.spec.ts",
+              "line": 15,
+              "column": 9
+            },
+            {
+              "title": "should transition prescription through workflow",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "7d2146a658adf885e746-f8b25c2aef78e4e6e5f6",
+              "file": "prescriptions.spec.ts",
+              "line": 88,
+              "column": 9
+            },
+            {
+              "title": "should create prescription and track status",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "7d2146a658adf885e746-7c4b13159aaba6dccadf",
+              "file": "prescriptions.spec.ts",
+              "line": 15,
+              "column": 9
+            },
+            {
+              "title": "should transition prescription through workflow",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "7d2146a658adf885e746-e8017800ed9e01a73007",
+              "file": "prescriptions.spec.ts",
+              "line": 88,
+              "column": 9
+            },
+            {
+              "title": "should create prescription and track status",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "7d2146a658adf885e746-cd6d97a6085d8b2c7b5f",
+              "file": "prescriptions.spec.ts",
+              "line": 15,
+              "column": 9
+            },
+            {
+              "title": "should transition prescription through workflow",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "7d2146a658adf885e746-d2411045e84b164c7ff0",
+              "file": "prescriptions.spec.ts",
+              "line": 88,
+              "column": 9
+            },
+            {
+              "title": "should create prescription and track status",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-chrome",
+                  "projectName": "mobile-chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "7d2146a658adf885e746-46b370563536c6d4d950",
+              "file": "prescriptions.spec.ts",
+              "line": 15,
+              "column": 9
+            },
+            {
+              "title": "should transition prescription through workflow",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-chrome",
+                  "projectName": "mobile-chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "7d2146a658adf885e746-dafd0f4b4b5369604c94",
+              "file": "prescriptions.spec.ts",
+              "line": 88,
+              "column": 9
+            },
+            {
+              "title": "should create prescription and track status",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-safari",
+                  "projectName": "mobile-safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "7d2146a658adf885e746-656d646f444aec37c42d",
+              "file": "prescriptions.spec.ts",
+              "line": 15,
+              "column": 9
+            },
+            {
+              "title": "should transition prescription through workflow",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-safari",
+                  "projectName": "mobile-safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "7d2146a658adf885e746-cb34ddf11329647be293",
+              "file": "prescriptions.spec.ts",
+              "line": 88,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "title": "Prescription - Dispense",
+          "file": "prescriptions.spec.ts",
+          "line": 157,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should dispense prescription and deduct inventory",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "7d2146a658adf885e746-6460ae3fb08c8046d292",
+              "file": "prescriptions.spec.ts",
+              "line": 158,
+              "column": 9
+            },
+            {
+              "title": "should dispense prescription and deduct inventory",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "7d2146a658adf885e746-e9c8070eedb506492a67",
+              "file": "prescriptions.spec.ts",
+              "line": 158,
+              "column": 9
+            },
+            {
+              "title": "should dispense prescription and deduct inventory",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "7d2146a658adf885e746-c504291eb348b2688245",
+              "file": "prescriptions.spec.ts",
+              "line": 158,
+              "column": 9
+            },
+            {
+              "title": "should dispense prescription and deduct inventory",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-chrome",
+                  "projectName": "mobile-chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "7d2146a658adf885e746-40afbe5f08cfce1b85aa",
+              "file": "prescriptions.spec.ts",
+              "line": 158,
+              "column": 9
+            },
+            {
+              "title": "should dispense prescription and deduct inventory",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-safari",
+                  "projectName": "mobile-safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "7d2146a658adf885e746-2899f93388315897fa5a",
+              "file": "prescriptions.spec.ts",
+              "line": 158,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "title": "Prescription - Refills",
+          "file": "prescriptions.spec.ts",
+          "line": 237,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should track refill count on prescription",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "7d2146a658adf885e746-b5d7e13649387119637c",
+              "file": "prescriptions.spec.ts",
+              "line": 238,
+              "column": 9
+            },
+            {
+              "title": "should track refill count on prescription",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "7d2146a658adf885e746-17d82898c23cde46fa51",
+              "file": "prescriptions.spec.ts",
+              "line": 238,
+              "column": 9
+            },
+            {
+              "title": "should track refill count on prescription",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "7d2146a658adf885e746-30dcd428bec94e50b587",
+              "file": "prescriptions.spec.ts",
+              "line": 238,
+              "column": 9
+            },
+            {
+              "title": "should track refill count on prescription",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-chrome",
+                  "projectName": "mobile-chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "7d2146a658adf885e746-5b471a9508b5a53de194",
+              "file": "prescriptions.spec.ts",
+              "line": 238,
+              "column": 9
+            },
+            {
+              "title": "should track refill count on prescription",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-safari",
+                  "projectName": "mobile-safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "7d2146a658adf885e746-ea342199c626f7f51331",
+              "file": "prescriptions.spec.ts",
+              "line": 238,
+              "column": 9
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "title": "procurement.spec.ts",
+      "file": "procurement.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Procurement - Purchase Orders",
+          "file": "procurement.spec.ts",
+          "line": 14,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should create purchase order and track status",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "efa395b3df66e0f122dd-2496d36778b26ab305cb",
+              "file": "procurement.spec.ts",
+              "line": 15,
+              "column": 9
+            },
+            {
+              "title": "should approve purchase order",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "efa395b3df66e0f122dd-da0b81564ebb9fa06913",
+              "file": "procurement.spec.ts",
+              "line": 76,
+              "column": 9
+            },
+            {
+              "title": "should create purchase order and track status",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "efa395b3df66e0f122dd-b46d419fe3f8d3883f08",
+              "file": "procurement.spec.ts",
+              "line": 15,
+              "column": 9
+            },
+            {
+              "title": "should approve purchase order",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "efa395b3df66e0f122dd-8c71686eb69dbe0c7221",
+              "file": "procurement.spec.ts",
+              "line": 76,
+              "column": 9
+            },
+            {
+              "title": "should create purchase order and track status",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "efa395b3df66e0f122dd-097c8ecab8a14212567c",
+              "file": "procurement.spec.ts",
+              "line": 15,
+              "column": 9
+            },
+            {
+              "title": "should approve purchase order",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "efa395b3df66e0f122dd-79ea882c997c2fe1e842",
+              "file": "procurement.spec.ts",
+              "line": 76,
+              "column": 9
+            },
+            {
+              "title": "should create purchase order and track status",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-chrome",
+                  "projectName": "mobile-chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "efa395b3df66e0f122dd-1ef99012be647aa4baad",
+              "file": "procurement.spec.ts",
+              "line": 15,
+              "column": 9
+            },
+            {
+              "title": "should approve purchase order",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-chrome",
+                  "projectName": "mobile-chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "efa395b3df66e0f122dd-101b4a99f362536dd48b",
+              "file": "procurement.spec.ts",
+              "line": 76,
+              "column": 9
+            },
+            {
+              "title": "should create purchase order and track status",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-safari",
+                  "projectName": "mobile-safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "efa395b3df66e0f122dd-2005bf231730c8ba5a63",
+              "file": "procurement.spec.ts",
+              "line": 15,
+              "column": 9
+            },
+            {
+              "title": "should approve purchase order",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-safari",
+                  "projectName": "mobile-safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "efa395b3df66e0f122dd-9c4e725040be0487f8b6",
+              "file": "procurement.spec.ts",
+              "line": 76,
+              "column": 9
+            }
+          ]
+        },
+        {
+          "title": "Procurement - GRN Receiving",
+          "file": "procurement.spec.ts",
+          "line": 141,
+          "column": 6,
+          "specs": [
+            {
+              "title": "should receive goods and update inventory",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "efa395b3df66e0f122dd-c520614e5b3d0115b2cb",
+              "file": "procurement.spec.ts",
+              "line": 142,
+              "column": 9
+            },
+            {
+              "title": "should handle partial receiving",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "chromium",
+                  "projectName": "chromium",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "efa395b3df66e0f122dd-2a594570d55e024d28ff",
+              "file": "procurement.spec.ts",
+              "line": 244,
+              "column": 9
+            },
+            {
+              "title": "should receive goods and update inventory",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "efa395b3df66e0f122dd-e6d3be87a6aded6819fb",
+              "file": "procurement.spec.ts",
+              "line": 142,
+              "column": 9
+            },
+            {
+              "title": "should handle partial receiving",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "firefox",
+                  "projectName": "firefox",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "efa395b3df66e0f122dd-469b9739fd243af42af5",
+              "file": "procurement.spec.ts",
+              "line": 244,
+              "column": 9
+            },
+            {
+              "title": "should receive goods and update inventory",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "efa395b3df66e0f122dd-110235834f458ac98604",
+              "file": "procurement.spec.ts",
+              "line": 142,
+              "column": 9
+            },
+            {
+              "title": "should handle partial receiving",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "webkit",
+                  "projectName": "webkit",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "efa395b3df66e0f122dd-a7bca1fd6354a6be7181",
+              "file": "procurement.spec.ts",
+              "line": 244,
+              "column": 9
+            },
+            {
+              "title": "should receive goods and update inventory",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-chrome",
+                  "projectName": "mobile-chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "efa395b3df66e0f122dd-c01d9411a214d2d253a9",
+              "file": "procurement.spec.ts",
+              "line": 142,
+              "column": 9
+            },
+            {
+              "title": "should handle partial receiving",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-chrome",
+                  "projectName": "mobile-chrome",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "efa395b3df66e0f122dd-ca26c07af7a3d39599db",
+              "file": "procurement.spec.ts",
+              "line": 244,
+              "column": 9
+            },
+            {
+              "title": "should receive goods and update inventory",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-safari",
+                  "projectName": "mobile-safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "efa395b3df66e0f122dd-7b9d92f39e42f8ceabe1",
+              "file": "procurement.spec.ts",
+              "line": 142,
+              "column": 9
+            },
+            {
+              "title": "should handle partial receiving",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 60000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "mobile-safari",
+                  "projectName": "mobile-safari",
+                  "results": [],
+                  "status": "skipped"
+                }
+              ],
+              "id": "efa395b3df66e0f122dd-d9e96f1a1696cdcdb999",
+              "file": "procurement.spec.ts",
+              "line": 244,
+              "column": 9
             }
           ]
         }
@@ -300,11 +3891,11 @@
   ],
   "errors": [],
   "stats": {
-    "startTime": "2026-01-09T08:19:57.494Z",
-    "duration": 5884.813,
+    "startTime": "2026-01-09T12:05:07.518Z",
+    "duration": 156.12300000000005,
     "expected": 0,
-    "skipped": 4,
-    "unexpected": 1,
+    "skipped": 176,
+    "unexpected": 0,
     "flaky": 0
   }
 }

@@ -4,6 +4,7 @@
  */
 
 import { getApiBaseUrl } from '@/lib/config/env';
+import { apiClient } from './client';
 
 const API_BASE = getApiBaseUrl();
 
@@ -102,66 +103,35 @@ export interface CreateTemplateRequest {
 
 // API Client
 class WhatsAppAPI {
-    private async request<T>(
-        endpoint: string,
-        options: RequestInit = {}
-    ): Promise<T> {
-        const url = `${API_BASE}/whatsapp${endpoint}`;
-
-        const response = await fetch(url, {
-            ...options,
-            headers: {
-                'Content-Type': 'application/json',
-                ...options.headers,
-            },
-            credentials: 'include',
-        });
-
-        if (!response.ok) {
-            const error = await response.json().catch(() => ({ error: 'Request failed' }));
-            throw new Error(error.error || `HTTP ${response.status}`);
-        }
-
-        return response.json();
-    }
-
     // Connection Management
     async connect(storeId: string, tempToken: string): Promise<{ success: boolean }> {
-        return this.request('/connect', {
-            method: 'POST',
-            body: JSON.stringify({ storeId, tempToken }),
-        });
+        const response = await apiClient.post('/whatsapp/connect', { storeId, tempToken });
+        return response.data;
     }
 
     async finalize(storeId: string): Promise<any> {
-        return this.request('/finalize', {
-            method: 'POST',
-            body: JSON.stringify({ storeId }),
-        });
+        const response = await apiClient.post('/whatsapp/finalize', { storeId });
+        return response.data;
     }
 
     async manualSetup(storeId: string, systemToken: string): Promise<{ success: boolean }> {
-        return this.request('/manual-token', {
-            method: 'POST',
-            body: JSON.stringify({ storeId, systemToken }),
-        });
+        const response = await apiClient.post('/whatsapp/manual-token', { storeId, systemToken });
+        return response.data;
     }
 
     async getStatus(storeId: string): Promise<WhatsAppConnection> {
-        return this.request(`/status/${storeId}`);
+        const response = await apiClient.get(`/whatsapp/status/${storeId}`);
+        return response.data;
     }
 
     async verifyPhone(storeId: string, code: string): Promise<{ success: boolean }> {
-        return this.request('/verify-phone', {
-            method: 'POST',
-            body: JSON.stringify({ storeId, code }),
-        });
+        const response = await apiClient.post('/whatsapp/verify-phone', { storeId, code });
+        return response.data;
     }
 
     async disconnect(storeId: string): Promise<{ success: boolean }> {
-        return this.request(`/disconnect/${storeId}`, {
-            method: 'DELETE',
-        });
+        const response = await apiClient.delete(`/whatsapp/disconnect/${storeId}`);
+        return response.data;
     }
 
     // Conversations & Messaging
@@ -176,7 +146,8 @@ class WhatsAppAPI {
         if (filters?.take !== undefined) params.set('take', filters.take.toString());
 
         const query = params.toString() ? `?${params.toString()}` : '';
-        return this.request(`/conversations/${storeId}${query}`);
+        const response = await apiClient.get(`/whatsapp/conversations/${storeId}${query}`);
+        return response.data;
     }
 
     async getMessages(
@@ -188,7 +159,8 @@ class WhatsAppAPI {
         if (pagination?.take !== undefined) params.set('take', pagination.take.toString());
 
         const query = params.toString() ? `?${params.toString()}` : '';
-        return this.request(`/messages/${conversationId}${query}`);
+        const response = await apiClient.get(`/whatsapp/messages/${conversationId}${query}`);
+        return response.data;
     }
 
     async sendMessage(data: SendMessageRequest): Promise<{ success: boolean; message: Message }> {
@@ -198,23 +170,13 @@ class WhatsAppAPI {
             await enforceConsent(data.patientId, 'WhatsApp', 'sending messages');
         }
 
-        return this.request('/send', {
-            method: 'POST',
-            body: JSON.stringify(data),
-        });
+        const response = await apiClient.post('/whatsapp/send', data);
+        return response.data;
     }
 
     async sendTestMessage(storeId: string, phoneNumber: string) {
-        const response = await fetch(`/api/v1/whatsapp/test-message/${storeId}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ phoneNumber }),
-        });
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Failed to send test message');
-        }
-        return response.json();
+        const response = await apiClient.post(`/whatsapp/test-message/${storeId}`, { phoneNumber });
+        return response.data;
     }
 
     async sendTemplate(data: SendTemplateRequest): Promise<{ success: boolean; message: Message }> {
@@ -224,30 +186,24 @@ class WhatsAppAPI {
             await enforceConsent(data.patientId, 'WhatsApp', 'sending template messages');
         }
 
-        return this.request('/send-template', {
-            method: 'POST',
-            body: JSON.stringify(data),
-        });
+        const response = await apiClient.post('/whatsapp/send-template', data);
+        return response.data;
     }
 
     async updateConversationStatus(
         conversationId: string,
         status: string
     ): Promise<{ success: boolean }> {
-        return this.request(`/conversations/${conversationId}/status`, {
-            method: 'PATCH',
-            body: JSON.stringify({ status }),
-        });
+        const response = await apiClient.patch(`/whatsapp/conversations/${conversationId}/status`, { status });
+        return response.data;
     }
 
     async assignConversation(
         conversationId: string,
         agentId: string
     ): Promise<{ success: boolean }> {
-        return this.request(`/conversations/${conversationId}/assign`, {
-            method: 'PATCH',
-            body: JSON.stringify({ agentId }),
-        });
+        const response = await apiClient.patch(`/whatsapp/conversations/${conversationId}/assign`, { agentId });
+        return response.data;
     }
 
     // Templates
@@ -256,27 +212,23 @@ class WhatsAppAPI {
         status?: string
     ): Promise<WhatsAppTemplate[]> {
         const query = status ? `?status=${status}` : '';
-        const data = await this.request<{ templates: WhatsAppTemplate[] }>(`/templates/${storeId}${query}`);
-        return data.templates || [];
+        const response = await apiClient.get(`/whatsapp/templates/${storeId}${query}`);
+        return response.data.templates || [];
     }
 
     async createTemplate(data: CreateTemplateRequest): Promise<{ success: boolean; template: WhatsAppTemplate }> {
-        return this.request('/templates', {
-            method: 'POST',
-            body: JSON.stringify(data),
-        });
+        const response = await apiClient.post('/whatsapp/templates', data);
+        return response.data;
     }
 
     async syncTemplates(storeId: string): Promise<{ success: boolean; synced: number }> {
-        return this.request(`/templates/${storeId}/sync`, {
-            method: 'POST',
-        });
+        const response = await apiClient.post(`/whatsapp/templates/${storeId}/sync`);
+        return response.data;
     }
 
     async deleteTemplate(templateId: string): Promise<{ success: boolean }> {
-        return this.request(`/templates/${templateId}`, {
-            method: 'DELETE',
-        });
+        const response = await apiClient.delete(`/whatsapp/templates/${templateId}`);
+        return response.data;
     }
 }
 

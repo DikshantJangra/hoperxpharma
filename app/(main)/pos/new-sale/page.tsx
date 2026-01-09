@@ -168,6 +168,13 @@ export default function NewSalePage() {
     useEffect(() => {
         const restoreDraft = async () => {
             try {
+                // Check auto-restore setting
+                const autoRestore = localStorage.getItem('pos_auto_restore_drafts') !== 'false';
+                if (!autoRestore) {
+                    console.log('Auto-restore disabled, skipping draft restoration');
+                    return;
+                }
+
                 // Check if user is authenticated first (use logged_in cookie since tokens are httpOnly)
                 const hasSession = typeof document !== 'undefined' &&
                     document.cookie.includes('logged_in=true');
@@ -866,10 +873,11 @@ export default function NewSalePage() {
         setCustomer(null);
         setLinkedPrescriptionId(undefined);
         setActivePrescription(null);
-        setCurrentDraftId(null); // Clear draft ID when clearing basket
+        setCurrentDraftId(null);
         setShouldCreateRefill(false);
-        setOverallDiscount({ type: null, value: 0 }); // Reset overall discount
-        localStorage.removeItem('currentDraftId'); // Remove from localStorage
+        setOverallDiscount({ type: null, value: 0 });
+        setDispenseFor(null);
+        localStorage.removeItem('currentDraftId');
     };
 
     // Apply Overall Discount (stores for application in calculateTotals)
@@ -1100,7 +1108,10 @@ export default function NewSalePage() {
         setShowSuccess(false);
         clearBasket();
         setCustomer(null);
-        setLastSaleId(null); // Clear sale ID
+        setDispenseFor(null);
+        setLinkedPrescriptionId(undefined);
+        setActivePrescription(null);
+        setLastSaleId(null);
         setSaleId(`S-2025-${Math.floor(Math.random() * 10000).toString().padStart(5, '0')}`);
 
         // Fetch next invoice number for the new sale
@@ -1114,10 +1125,17 @@ export default function NewSalePage() {
         }
     };
 
-    const handleSplitPaymentConfirm = (splits: any) => {
+    const handleSplitPaymentConfirm = async (splits: any) => {
+        // Check if credit is used and customer is required
+        if (splits.credit && splits.credit > 0 && !customer) {
+            toast.error('Customer Required for Credit Payment!');
+            toast.info("Please add a customer before using credit");
+            return;
+        }
+        
         console.log('Split payment confirmed:', splits);
         setShowSplitPayment(false);
-        handleFinalize('SPLIT');
+        await handleFinalize('SPLIT', splits);
     };
 
     return (

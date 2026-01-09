@@ -230,7 +230,7 @@ class SaleService {
 
     /**
      * Create Quick Sale (Walk-in without prescription)
-     * Auto-creates minimal ONE_TIME prescription in background
+     * PRODUCTION-GRADE: Fast + Scalable + Auditable
      */
     async createQuickSale(saleData, userId) {
         try {
@@ -238,11 +238,9 @@ class SaleService {
 
             logger.info('createQuickSale: Starting quick sale creation', { storeId: saleInfo.storeId, userId, itemCount: items.length });
 
-            // Ensure we have a patient (create walk-in if not provided)
+            // 1. Get or create patient (outside transaction - can be cached)
             let actualPatientId = patientId;
             if (!actualPatientId) {
-                logger.info('createQuickSale: Creating walk-in patient');
-                // Create a walk-in patient
                 const walkInPatient = await prisma.patient.create({
                     data: {
                         storeId: saleInfo.storeId,
@@ -252,66 +250,51 @@ class SaleService {
                     }
                 });
                 actualPatientId = walkInPatient.id;
-                logger.info('createQuickSale: Walk-in patient created', { patientId: actualPatientId });
             }
 
-            // 1. Create minimal ONE_TIME prescription in background
-            logger.info('createQuickSale: Creating ONE_TIME prescription');
-            const prescriptionData = {
+            // 2. Create prescription with optimized settings (uses existing service for validation)
+            const prescription = await prescriptionService.createPrescription({
                 storeId: saleInfo.storeId,
                 patientId: actualPatientId,
                 type: 'ONE_TIME',
-                totalRefills: 0, // No refills for quick sales
-                expiryDate: new Date(Date.now() + 24 * 60 * 60 * 1000), // Expires in 24 hours
+                status: 'ACTIVE', // Skip DRAFT, go straight to ACTIVE
+                totalRefills: 0,
+                expiryDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
                 items: items.map(item => ({
                     drugId: item.drugId,
                     batchId: item.batchId,
                     quantity: item.quantity,
-                    sig: 'As directed', // Default instruction
+                    sig: 'As directed',
                     substitutionAllowed: true
                 })),
-                instructions: 'Quick Sale - Walk-in customer'
-            };
+                instructions: 'Quick Sale'
+            }, userId);
 
-            const prescription = await prescriptionService.createPrescription(prescriptionData, userId);
-            logger.info('createQuickSale: Prescription created', { prescriptionId: prescription.id });
+            // 3. Get refill and version (already created by prescriptionService)
+            const [refill, version] = await Promise.all([
+                refillService.getNextAvailableRefill(prescription.id),
+                versionService.getLatestVersion(prescription.id)
+            ]);
 
-            // 2. Auto-activate prescription
-            logger.info('createQuickSale: Activating prescription');
-            await prescriptionService.activatePrescription(prescription.id, userId);
-            logger.info('createQuickSale: Prescription activated');
+            // 4. Create dispense with READY status (will be completed by createSaleFromDispense)
+            const dispense = await prisma.dispense.create({
+                data: {
+                    refillId: refill.id,
+                    prescriptionVersionId: version.id,
+                    status: 'READY', // Must be READY for createSaleFromDispense
+                    queuedBy: userId,
+                    queuedAt: new Date()
+                }
+            });
 
-            // 3. Get refill and create dispense
-            logger.info('createQuickSale: Getting refill and version');
-            const refill = await refillService.getNextAvailableRefill(prescription.id);
-            const version = await versionService.getLatestVersion(prescription.id);
-            logger.info('createQuickSale: Got refill and version', { refillId: refill.id, versionId: version.id });
-
-            logger.info('createQuickSale: Creating dispense');
-            const dispense = await dispenseService.createDispense(
-                refill.id,
-                version.id,
-                userId
-            );
-            logger.info('createQuickSale: Dispense created', { dispenseId: dispense.id });
-
-            // 4. Auto-progress dispense to READY (skip workflow for quick sales)
-            logger.info('createQuickSale: Marking dispense as READY');
-            await dispenseService.updateStatus(dispense.id, 'READY', userId, 'Quick Sale - Auto-progressed');
-            logger.info('createQuickSale: Dispense marked as READY');
-
-            // 5. Create sale from dispense
-            logger.info('createQuickSale: Creating sale from dispense');
+            // 5. Create sale from dispense (this will complete dispense and update refill/prescription)
             const sale = await this.createSaleFromDispense(
                 dispense.id,
                 {
                     ...saleInfo,
                     itemPrices: items.reduce((acc, item) => ({
                         ...acc,
-                        [item.drugId]: {
-                            mrp: item.mrp,
-                            discount: item.discount || 0
-                        }
+                        [item.drugId]: { mrp: item.mrp, discount: item.discount || 0 }
                     }), {}),
                     batches: items.reduce((acc, item) => ({
                         ...acc,
@@ -321,8 +304,8 @@ class SaleService {
                 },
                 userId
             );
-            logger.info('createQuickSale: Sale created successfully', { saleId: sale.id, invoiceNumber: sale.invoiceNumber });
 
+            logger.info('createQuickSale: Sale created successfully', { saleId: sale.id, invoiceNumber: sale.invoiceNumber });
             return sale;
         } catch (error) {
             logger.error('createQuickSale: Error in quick sale creation', {
@@ -336,10 +319,23 @@ class SaleService {
     }
 
     /**
-     * Legacy: Create sale (OLD ARCHITECTURE - kept for backward compatibility)
-     * Will be deprecated once frontend migrates to dispense-based flow
+     * @deprecated LEGACY METHOD - Use createQuickSale() or createSaleFromDispense() instead
+     * 
+     * This method bypasses the prescription workflow and should only be used for:
+     * - Backward compatibility with old frontend code
+     * - Emergency situations where prescription workflow is unavailable
+     * 
+     * RECOMMENDED ALTERNATIVES:
+     * - For walk-in customers: createQuickSale()
+     * - For prescription-based sales: createSaleFromDispense()
+     * 
+     * MIGRATION GUIDE:
+     * Old: await saleService.createSale({ items, paymentSplits, ... })
+     * New: await saleService.createQuickSale({ items, paymentSplits, ... }, userId)
      */
     async createSale(saleData) {
+        logger.warn('⚠️  DEPRECATED: createSale() called. Please migrate to createQuickSale() or createSaleFromDispense()');
+        
         const { items, paymentSplits, ...saleInfo } = saleData;
 
         // Generate invoice number
@@ -399,6 +395,36 @@ class SaleService {
         );
 
         logger.info(`Sale created(legacy): ${invoiceNumber} - Total: ${saleInfo.total} - GST: ${gstResult.saleTotals.totalTax}`);
+
+        // Update prescription status if this sale is linked to a prescription
+        if (saleInfo.prescriptionId) {
+            try {
+                const prescriptionService = require('../prescriptions/prescriptionService');
+                const prescription = await prisma.prescription.findUnique({
+                    where: { id: saleInfo.prescriptionId },
+                    select: { type: true, status: true }
+                });
+
+                if (prescription) {
+                    // For ONE_TIME prescriptions, mark as COMPLETED after sale
+                    if (prescription.type === 'ONE_TIME' && prescription.status !== 'COMPLETED') {
+                        await prisma.prescription.update({
+                            where: { id: saleInfo.prescriptionId },
+                            data: { status: 'COMPLETED' }
+                        });
+                        logger.info(`Prescription ${saleInfo.prescriptionId} marked as COMPLETED (ONE_TIME, legacy sale)`);
+                    }
+                    // For REGULAR prescriptions, update status based on refills
+                    else if (prescription.type === 'REGULAR') {
+                        await prescriptionService.updatePrescriptionStatus(saleInfo.prescriptionId, null);
+                        logger.info(`Prescription ${saleInfo.prescriptionId} status updated (REGULAR, legacy sale)`);
+                    }
+                }
+            } catch (error) {
+                logger.error('Failed to update prescription status after legacy sale:', error);
+                // Don't fail the sale if prescription update fails
+            }
+        }
 
         return {
             ...result.sale,
