@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useAuthStore } from '@/lib/store/auth-store';
 import type { WelcomeState, SubscriptionData } from '@/lib/types/welcome.types';
+import { apiClient } from '@/lib/api/client';
 
 /**
  * Premium Post-Payment Welcome Experience Hook
@@ -28,18 +29,9 @@ export function useWelcomeExperience() {
      */
     const checkEligibility = useCallback(async () => {
         try {
-            // Fetch subscription state from /status endpoint
-            const response = await fetch('/api/v1/subscriptions/status', {
-                credentials: 'include',
-            });
-
-            if (!response.ok) {
-                console.error('[Welcome] Failed to fetch subscription');
-                return;
-            }
-
-            const { data } = await response.json();
-            const subscription = data;
+            // Fetch subscription state using apiClient (handles auth tokens automatically)
+            const response = await apiClient.get('/subscriptions/status');
+            const subscription = response.data;
 
             // Check eligibility
             const isActive = subscription?.status === 'ACTIVE';
@@ -82,18 +74,7 @@ export function useWelcomeExperience() {
         if (!welcomeState.subscriptionData) return;
 
         try {
-            const response = await fetch(
-                `/api/v1/subscriptions/${welcomeState.subscriptionData.id}/mark-welcome-shown`,
-                {
-                    method: 'POST',
-                    credentials: 'include',
-                }
-            );
-
-            if (!response.ok) {
-                console.error('[Welcome] Failed to mark as shown');
-                // Don't throw - still hide welcome
-            }
+            await apiClient.post(`/subscriptions/${welcomeState.subscriptionData.id}/mark-welcome-shown`);
 
             // Hide welcome regardless of API call result
             setWelcomeState(prev => ({
