@@ -130,7 +130,7 @@ export default function SupplierSelect({ value, onChange }: SupplierSelectProps)
       setIsAddModalOpen(false);
       setIsOpen(false);
 
-      console.log('🎉 [SupplierSelect] Supplier created and selected:', newSupplier);
+      console.log('[SupplierSelect] Supplier created and selected:', newSupplier);
     } catch (err: any) {
       console.error('❌ [SupplierSelect] Failed to create supplier:', err);
       toast.error(err.message || 'Failed to create supplier. Please try again.', {

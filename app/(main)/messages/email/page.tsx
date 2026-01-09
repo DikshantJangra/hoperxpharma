@@ -11,11 +11,7 @@ import QuickGroupSelector from '@/components/messages/email/QuickGroupSelector';
 import AttachmentUploader from '@/components/messages/email/AttachmentUploader';
 import EmailShimmer, { LogsShimmer } from '@/components/messages/email/EmailShimmer';
 import { getProviderWebmailLink, getProviderInfo } from '@/utils/emailProviderLinks';
-
-// Helper to get headers for requests (credentials: include handles auth)
-const getAuthHeaders = () => ({
-  'Content-Type': 'application/json',
-});
+import { apiClient } from '@/lib/api/client';
 
 type EmailSection = 'compose' | 'sent' | 'templates' | 'settings';
 
@@ -58,24 +54,14 @@ export default function EmailPage() {
   const fetchEmailAccounts = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('/api/v1/email/accounts', {
-        headers: getAuthHeaders(),
-        credentials: 'include',
-      });
+      const response = await apiClient.get('/email/accounts');
+      const accounts = response.data?.accounts || [];
+      setEmailAccounts(accounts);
 
-      if (response.ok) {
-        const data = await response.json();
-        const accounts = data.data?.accounts || [];
-        setEmailAccounts(accounts);
-
-        // Set primary account as default for composer
-        const primaryAccount = accounts.find((acc: any) => acc.isPrimary);
-        if (primaryAccount) {
-          setSelectedAccountId(primaryAccount.id);
-        }
-      } else if (response.status === 401) {
-        // Auth not ready yet, silently fail
-        console.debug('Email accounts: Auth not ready');
+      // Set primary account as default for composer
+      const primaryAccount = accounts.find((acc: any) => acc.isPrimary);
+      if (primaryAccount) {
+        setSelectedAccountId(primaryAccount.id);
       }
     } catch (error: any) {
       // Silently handle errors - email is optional feature
@@ -89,15 +75,8 @@ export default function EmailPage() {
 
   const handleSetPrimary = async (accountId: string) => {
     try {
-      const response = await fetch(`/api/v1/email/accounts/${accountId}/primary`, {
-        method: 'PUT',
-        headers: getAuthHeaders(),
-        credentials: 'include',
-      });
-
-      if (response.ok) {
-        await fetchEmailAccounts();
-      }
+      await apiClient.put(`/email/accounts/${accountId}/primary`);
+      await fetchEmailAccounts();
     } catch (error) {
       console.error('Failed to set primary account:', error);
     }
@@ -115,20 +94,10 @@ export default function EmailPage() {
     if (!accountToDelete) return;
 
     try {
-      const response = await fetch(`/api/v1/email/accounts/${accountToDelete.id}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders(),
-        credentials: 'include',
-      });
-
-      if (response.ok) {
-        setShowDeleteModal(false);
-        setAccountToDelete(null);
-        await fetchEmailAccounts();
-      } else {
-        const error = await response.json();
-        alert(error.message || 'Failed to delete account');
-      }
+      await apiClient.delete(`/email/accounts/${accountToDelete.id}`);
+      setShowDeleteModal(false);
+      setAccountToDelete(null);
+      await fetchEmailAccounts();
     } catch (error: any) {
       alert(error.message || 'Failed to delete account');
     }
@@ -143,21 +112,14 @@ export default function EmailPage() {
         ...(search && { search }),
       });
 
-      const response = await fetch(`/api/v1/email/logs?${params}`, {
-        headers: getAuthHeaders(),
-        credentials: 'include',
+      const response = await apiClient.get(`/email/logs?${params}`);
+      setEmailLogs(response.data?.logs || []);
+      setLogsPagination({
+        page: response.data?.page || 1,
+        limit: logsPagination.limit,
+        total: response.data?.total || 0,
+        totalPages: response.data?.totalPages || 0,
       });
-
-      if (response.ok) {
-        const data = await response.json();
-        setEmailLogs(data.data?.logs || []);
-        setLogsPagination({
-          page: data.data?.page || 1,
-          limit: logsPagination.limit,
-          total: data.data?.total || 0,
-          totalPages: data.data?.totalPages || 0,
-        });
-      }
     } catch (error) {
       console.error('Failed to fetch email logs:', error);
     } finally {
@@ -171,36 +133,22 @@ export default function EmailPage() {
     setIsSending(true);
 
     try {
-      const response = await fetch('/api/v1/email/send', {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        credentials: 'include',
-        body: JSON.stringify({
-          to: toRecipients[0]?.email || '', // Primary recipient
-          cc: ccRecipients.map(r => r.email),
-          bcc: bccRecipients.map(r => r.email),
-          subject,
-          bodyHtml: `<html><body style="font-family: Arial, sans-serif; line-height: 1.6;">${body.replace(/\n/g, '<br>')}</body></html>`,
-          accountId: selectedAccountId || undefined,
-          attachments: attachments.map(att => ({ filename: att.filename, path: att.path, contentType: att.mimeType })),
-        }),
+      await apiClient.post('/email/send', {
+        to: toRecipients[0]?.email || '', // Primary recipient
+        cc: ccRecipients.map(r => r.email),
+        bcc: bccRecipients.map(r => r.email),
+        subject,
+        bodyHtml: `<html><body style="font-family: Arial, sans-serif; line-height: 1.6;">${body.replace(/\n/g, '<br>')}</body></html>`,
+        accountId: selectedAccountId || undefined,
+        attachments: attachments.map(att => ({ filename: att.filename, path: att.path, contentType: att.mimeType })),
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to send email');
-      }
 
       setSendSuccess(true);
 
       // Delete uploaded temp files
       for (const att of attachments) {
         try {
-          await fetch(`/api/v1/email/attachments/${att.filename}`, {
-            method: 'DELETE',
-            headers: getAuthHeaders(),
-            credentials: 'include',
-          });
+          await apiClient.delete(`/email/attachments/${att.filename}`);
         } catch (err) {
           console.error('Failed to delete temp file:', err);
         }
@@ -494,14 +442,10 @@ function ComposeSection({
   const fetchTemplatesForModal = async () => {
     setTemplatesLoading(true);
     try {
-      const response = await fetch('/api/v1/email/templates', {
-        headers: getAuthHeaders(),
-        credentials: 'include',
-      });
-      const data = await response.json();
-      if (data.success) {
+      const response = await apiClient.get('/email/templates');
+      if (response.success) {
         // Filter to only show email templates (not WhatsApp or SMS)
-        const emailTemplates = (data.data.templates || []).filter(
+        const emailTemplates = (response.data.templates || []).filter(
           (t: any) => !t.channel || t.channel.toLowerCase() === 'email'
         );
         setTemplates(emailTemplates);
@@ -519,16 +463,12 @@ function ComposeSection({
     try {
       // If template has variables, render it with the values
       if (selectedTemplate.variables && selectedTemplate.variables.length > 0) {
-        const response = await fetch(`/api/v1/email/templates/${selectedTemplate.id}/render`, {
-          method: 'POST',
-          headers: getAuthHeaders(),
-          credentials: 'include',
-          body: JSON.stringify({ variables: templateVariables }),
+        const response = await apiClient.post(`/email/templates/${selectedTemplate.id}/render`, {
+          variables: templateVariables
         });
-        const data = await response.json();
-        if (data.success) {
-          setSubject(data.data.subject);
-          setBody(data.data.bodyHtml);
+        if (response.success) {
+          setSubject(response.data.subject);
+          setBody(response.data.bodyHtml);
         }
       } else {
         // No variables, apply directly
@@ -1281,13 +1221,9 @@ function TemplatesSection() {
   const fetchTemplates = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/api/v1/email/templates', {
-        headers: getAuthHeaders(),
-        credentials: 'include',
-      });
-      const data = await response.json();
-      if (data.success) {
-        setTemplates(data.data.templates || []);
+      const response = await apiClient.get('/email/templates');
+      if (response.success) {
+        setTemplates(response.data.templates || []);
       }
     } catch (error) {
       console.error('Failed to fetch templates:', error);
@@ -1495,24 +1431,20 @@ function SettingsSection({ emailAccounts, onAddAccount, onSetPrimary, onDelete, 
   const handleTestConnection = async (accountId: string) => {
     setTestingAccount(accountId);
     try {
-      const response = await fetch(`/api/v1/email/test-connection`, {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        credentials: 'include',
-        body: JSON.stringify({ accountId }), // Send accountId in body
+      const response = await apiClient.post('/email/test-connection', {
+        accountId // Send accountId in body
       });
-      const data = await response.json();
 
       setTestResults(prev => ({
         ...prev,
         [accountId]: {
-          success: data.success,
-          message: data.message || (data.success ? 'Connection verified!' : 'Connection failed')
+          success: response.success,
+          message: response.message || (response.success ? 'Connection verified!' : 'Connection failed')
         }
       }));
 
       // Smoothly refetch accounts without page reload!
-      if (data.success && onRefreshAccounts) {
+      if (response.success && onRefreshAccounts) {
         setTimeout(() => onRefreshAccounts(), 1500);
       }
     } catch (error) {

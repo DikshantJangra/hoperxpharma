@@ -18,7 +18,7 @@ interface TourStep {
 const TOUR_STEPS: TourStep[] = [
     // ===== INTRO =====
     {
-        title: 'Welcome to HopeRxPharma! 🎉',
+        title: 'Welcome to HopeRxPharma',
         content: 'Your complete pharmacy management system. Let\'s take a quick tour of the main features.',
     },
 
