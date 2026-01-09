@@ -364,6 +364,8 @@ model Subscription {
   billingCycle       String             @default("monthly")
   comboBundle        String?
   monthlyAmount      Decimal?           @db.Decimal(10, 2)
+  welcomeShown       Boolean            @default(false)
+  welcomeShownAt     DateTime?
   store              Store              @relation(fields: [storeId], references: [id], onDelete: Cascade)
   plan               SubscriptionPlan?  @relation(fields: [planId], references: [id])
   usageQuota         UsageQuota?

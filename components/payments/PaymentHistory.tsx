@@ -84,6 +84,27 @@ export function PaymentHistory({ storeId }: PaymentHistoryProps) {
         });
     };
 
+    const handleDownloadInvoice = async (paymentId: string) => {
+        try {
+            const response = await apiClient.post(`/subscriptions/payments/${paymentId}/invoice`, {}, {
+                responseType: 'blob'
+            });
+
+            // Create blob link to download
+            const url = window.URL.createObjectURL(response.data);
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `INV-${paymentId.slice(0, 8).toUpperCase()}.pdf`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Failed to download invoice:', error);
+            alert('Failed to download invoice. Please try again.');
+        }
+    };
+
     if (loading) {
         return (
             <div className="space-y-3">
@@ -135,7 +156,10 @@ export function PaymentHistory({ storeId }: PaymentHistoryProps) {
                                 {formatAmount(payment.amount, payment.currency)}
                             </div>
                             {payment.status === 'SUCCESS' && payment.completedAt && (
-                                <button className="mt-2 text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1">
+                                <button
+                                    onClick={() => handleDownloadInvoice(payment.id)}
+                                    className="mt-2 text-xs text-blue-600 hover:text-blue-700 font-medium flex items-center gap-1 hover:underline"
+                                >
                                     <FiDownload className="w-3 h-3" />
                                     Invoice
                                 </button>

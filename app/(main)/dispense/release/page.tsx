@@ -82,7 +82,7 @@ export default function ReleasePage() {
 
     const handleComplete = () => {
         toast.success("Prescription dispensed successfully! Patient counseling documented.", {
-            icon: <FiCheckCircle className="w-6 h-6" />,
+            icon: "✓",
             duration: 5000
         });
     };

@@ -31,5 +31,20 @@ router.get('/usage', authenticate, subscriptionController.getUsage);
  */
 router.get('/payments', authenticate, subscriptionController.getSubscriptionPayments);
 
+/**
+ * @route POST /api/v1/subscriptions/payments/:paymentId/invoice
+ * @desc Generate and download invoice PDF for a payment
+ * @access Private
+ */
+router.post('/payments/:paymentId/invoice', authenticate, subscriptionController.downloadInvoice);
+
+/**
+ * @route POST /api/v1/subscriptions/:subscriptionId/mark-welcome-shown
+ * @desc Mark welcome experience as shown for a subscription
+ * @access Private
+ */
+router.post('/:subscriptionId/mark-welcome-shown', authenticate, subscriptionController.markWelcomeShown);
+
 module.exports = router;
+
 

@@ -76,8 +76,9 @@ export class PaymentVerificationService {
             // Step 1: Submit signature verification to backend
             await this.submitSignature(params);
 
-            // Step 2: Wait for immediate reconciliation to complete
-            await this.sleep(3500);
+            // Step 2: Wait for webhook reconciliation to complete
+            // Production webhook processing takes 5-7 seconds typically
+            await this.sleep(8000);
 
             // Step 3: Poll for final status
             const result = await this.pollPaymentStatus(params.paymentId);
