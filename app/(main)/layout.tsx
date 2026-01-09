@@ -13,6 +13,8 @@ import { PermissionProvider } from "@/contexts/PermissionContext"
 import { BusinessTypeProvider } from "@/contexts/BusinessTypeContext"
 import { AlertProvider } from "@/contexts/AlertContext"
 import { useAuthStore } from "@/lib/store/auth-store"
+import { useWelcomeExperience } from "@/lib/hooks/useWelcomeExperience"
+import { PremiumWelcome } from "@/components/welcome"
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
     const router = useRouter();
@@ -22,6 +24,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
     const [isMobile, setIsMobile] = useState(false)
     const [expandedItems, setExpandedItems] = useState<string[]>([])
     const { permissions, isAuthenticated, hasStore, isLoading, isLoggingOut, primaryStore } = useAuthStore()
+    const { shouldShow, subscriptionData, markAsShown } = useWelcomeExperience();
 
     // Detect mobile viewport and set initial sidebar state
     useEffect(() => {
@@ -91,6 +94,16 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         } else {
             setSidebarOpen(!sidebarOpen)
         }
+    }
+
+    // Show premium welcome experience (fullscreen override)
+    if (shouldShow && subscriptionData) {
+        return (
+            <PremiumWelcome
+                subscriptionData={subscriptionData}
+                onComplete={markAsShown}
+            />
+        );
     }
 
     return (

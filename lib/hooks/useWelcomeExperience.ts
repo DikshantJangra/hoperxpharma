@@ -28,8 +28,8 @@ export function useWelcomeExperience() {
      */
     const checkEligibility = useCallback(async () => {
         try {
-            // Fetch subscription state
-            const response = await fetch('/api/v1/subscriptions/me', {
+            // Fetch subscription state from /status endpoint
+            const response = await fetch('/api/v1/subscriptions/status', {
                 credentials: 'include',
             });
 
@@ -39,22 +39,22 @@ export function useWelcomeExperience() {
             }
 
             const { data } = await response.json();
-            const subscription = data.subscription;
+            const subscription = data;
 
             // Check eligibility
             const isActive = subscription?.status === 'ACTIVE';
             const wasShown = subscription?.welcomeShown === true;
             const isVerified = subscription?.paymentVerified !== false;
 
-            const eligible = isActive && !wasShown && isVerified;
+            const eligible = isActive && !wasShown && isVerified && !!subscription.id;
 
             if (eligible) {
                 // Transform subscription data for display
                 const subscriptionData: SubscriptionData = {
                     id: subscription.id,
-                    planName: subscription.planName || 'HopeRx Premium',
+                    planName: subscription.plan?.displayName || subscription.plan?.name || 'HopeRx Premium',
                     status: subscription.status,
-                    activatedAt: subscription.activatedAt || new Date().toISOString(),
+                    activatedAt: subscription.currentPeriodStart || new Date().toISOString(),
                     billingCycle: subscription.billingCycle || 'monthly',
                 };
 

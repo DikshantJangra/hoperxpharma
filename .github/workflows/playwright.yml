@@ -66,11 +66,15 @@ jobs:
       - name: Start backend server
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/hoperx_test
+          DIRECT_URL: postgresql://postgres:postgres@localhost:5432/hoperx_test
           NODE_ENV: test
           PORT: 8000
           JWT_SECRET: test-jwt-secret-key-for-ci-with-32-chars-minimum
           JWT_REFRESH_SECRET: test-jwt-refresh-secret-for-ci-32-chars-min
+          GOOGLE_CLIENT_ID: test-google-client-id-for-ci
+          GOOGLE_CLIENT_SECRET: test-google-client-secret-for-ci
           API_KEY: test-gemini-key-for-ci
+          FRONTEND_URL: http://localhost:3000
         run: |
           cd backend
           node src/server.js &

@@ -59,11 +59,11 @@ export function PremiumWelcome({
 
     return (
         <div
-            className="fixed inset-0 z-50 bg-gradient-to-br from-emerald-700 to-emerald-600 overflow-hidden"
+            className="fixed inset-0 z-50 bg-neutral-950 overflow-hidden font-sans antialiased text-white selection:bg-emerald-500/30"
             onClick={handleBackgroundClick}
         >
-            {/* Subtle gradient overlay for depth */}
-            <div className="absolute inset-0 bg-gradient-to-t from-emerald-800/20 to-transparent pointer-events-none" />
+            {/* Minimal noise texture for authenticity */}
+            <div className="absolute inset-0 opacity-[0.02] pointer-events-none bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
 
             {/* Content */}
             <div onClick={(e) => e.stopPropagation()}>

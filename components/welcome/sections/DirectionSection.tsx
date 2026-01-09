@@ -16,38 +16,43 @@ export function DirectionSection({
     if (!isActive) return null;
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen p-8">
+        <div className="flex flex-col items-center justify-center min-h-screen p-8 bg-neutral-950 font-mono">
             {/* Primary Message */}
             <h2
-                className={`text-3xl md:text-4xl font-bold text-white text-center mb-8 ${getAnimationClass(animationClasses.fadeInUp)}`}
+                className={`text-4xl md:text-5xl font-bold text-white text-center mb-4 tracking-tighter ${getAnimationClass(animationClasses.fadeInUp)}`}
                 style={{ animationDelay: '200ms' }}
             >
-                You can begin right away.
+                System Ready.
             </h2>
+
+            <p
+                className={`text-emerald-500 text-sm uppercase tracking-widest mb-12 ${getAnimationClass(animationClasses.fadeIn)}`}
+                style={{ animationDelay: '400ms' }}
+            >
+                Workspace Initialized Successfully
+            </p>
 
             {/* CTA Button */}
             <button
                 onClick={onComplete}
                 className={`
-          px-8 py-4 rounded-xl font-semibold text-lg
-          transition-all duration-300
-          ${isPremium
-                        ? 'bg-white text-emerald-700 hover:bg-emerald-50'
-                        : 'bg-white text-emerald-600 hover:bg-gray-50'
-                    }
+          group relative px-8 py-3 bg-white text-black font-bold text-sm tracking-wider uppercase
+          hover:bg-emerald-400 transition-colors duration-300
           ${getAnimationClass(animationClasses.fadeInUp)}
         `}
-                style={{ animationDelay: '400ms' }}
+                style={{ animationDelay: '600ms' }}
             >
-                Continue to Dashboard
+                <span className="relative z-10 flex items-center gap-2">
+                    Enter Dashboard <span className="group-hover:translate-x-1 transition-transform">→</span>
+                </span>
             </button>
 
             {/* Optional skip hint */}
             <p
-                className={`text-white/40 text-sm mt-8 ${getAnimationClass(animationClasses.fadeIn)}`}
-                style={{ animationDelay: '800ms' }}
+                className={`text-neutral-600 text-xs mt-12 animate-pulse ${getAnimationClass(animationClasses.fadeIn)}`}
+                style={{ animationDelay: '100ms' }}
             >
-                Click anywhere to continue
+                PRESS_ANY_KEY_OR_CLICK_TO_START
             </p>
         </div>
     );

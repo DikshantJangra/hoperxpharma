@@ -38,33 +38,44 @@ export function CapabilitySection({ isActive, onComplete, isPremium }: WelcomeSe
     if (!isActive) return null;
 
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen p-8">
+        <div className="flex flex-col items-center justify-center min-h-screen p-8 bg-neutral-950 font-mono">
             {/* Primary Message */}
             <h2
-                className={`text-3xl md:text-4xl font-bold text-white text-center mb-12 ${getAnimationClass(animationClasses.fadeInUp)}`}
+                className={`text-sm text-emerald-500 uppercase tracking-widest mb-12 ${getAnimationClass(animationClasses.fadeInUp)}`}
             >
-                You now have access to the full experience.
+                Loading_Modules...
             </h2>
 
             {/* Capabilities Grid */}
-            <div className="flex flex-col gap-4 max-w-md w-full">
+            <div className="flex flex-col gap-2 max-w-md w-full">
                 {PREMIUM_CAPABILITIES.map((capability, index) => (
                     <div
                         key={capability.id}
                         className={`
-              p-5 rounded-xl border transition-all duration-300
-              ${isPremium ? 'bg-white/10 backdrop-blur-sm border-white/20' : 'bg-white/5 border-white/10'}
+              flex items-center gap-3 p-3 border-l-2 transition-all duration-300
+              ${visibleCapabilities.includes(index) ? 'border-emerald-500 bg-emerald-500/5' : 'border-neutral-800 bg-transparent'}
               ${visibleCapabilities.includes(index) ? getAnimationClass(animationClasses.sequentialReveal) : 'opacity-0'}
             `}
                         style={{
                             opacity: visibleCapabilities.includes(index) ? 1 : 0,
                         }}
                     >
-                        <p className="text-white/90 text-lg font-medium">
+                        <span className={`text-xs ${visibleCapabilities.includes(index) ? 'text-emerald-500' : 'text-neutral-600'}`}>
+                            {visibleCapabilities.includes(index) ? '[OK]' : '[..]'}
+                        </span>
+                        <p className="text-white/90 text-sm md:text-base font-medium tracking-wide">
                             {capability.title}
                         </p>
                     </div>
                 ))}
+            </div>
+
+            <div className="h-8 mt-4 flex items-center">
+                {visibleCapabilities.length === PREMIUM_CAPABILITIES.length && (
+                    <span className={`text-neutral-500 text-xs ${getAnimationClass(animationClasses.fadeIn)}`}>
+                        ALL_SYSTEMS_OPERATIONAL
+                    </span>
+                )}
             </div>
         </div>
     );

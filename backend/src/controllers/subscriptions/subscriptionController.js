@@ -19,6 +19,7 @@ const getSubscriptionStatus = asyncHandler(async (req, res) => {
 
         res.status(200).json(
             new ApiResponse(200, {
+                id: subscription.id,
                 status: subscription.status,
                 activeVerticals: subscription.activeVerticals || [],
                 comboBundle: subscription.comboBundle,
@@ -28,6 +29,8 @@ const getSubscriptionStatus = asyncHandler(async (req, res) => {
                 currentPeriodEnd: subscription.currentPeriodEnd,
                 trialEndsAt: subscription.trialEndsAt,
                 autoRenew: subscription.autoRenew,
+                welcomeShown: subscription.welcomeShown || false,
+                welcomeShownAt: subscription.welcomeShownAt,
                 plan: subscription.plan ? {
                     id: subscription.plan.id,
                     name: subscription.plan.name,
@@ -49,6 +52,8 @@ const getSubscriptionStatus = asyncHandler(async (req, res) => {
                     currentPeriodEnd: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 days
                     trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
                     autoRenew: false,
+                    welcomeShown: false,
+                    welcomeShownAt: null,
                     plan: null,
                 }, 'Default trial subscription')
             );
@@ -179,7 +184,7 @@ const downloadInvoice = asyncHandler(async (req, res) => {
         include: {
             subscription: {
                 include: {
-                    store: { select: { id: true, name: true, address: true, gstin: true } }
+                    store: { select: { id: true, name: true, addressLine1: true, addressLine2: true, city: true, state: true, pinCode: true, gstin: true, email: true, phoneNumber: true } }
                 }
             }
         }
