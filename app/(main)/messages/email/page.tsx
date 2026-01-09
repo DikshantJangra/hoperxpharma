@@ -48,7 +48,11 @@ export default function EmailPage() {
   const [logsSearch, setLogsSearch] = useState('');
 
   useEffect(() => {
-    fetchEmailAccounts();
+    // Small delay to ensure auth is ready
+    const timer = setTimeout(() => {
+      fetchEmailAccounts();
+    }, 500);
+    return () => clearTimeout(timer);
   }, []);
 
   const fetchEmailAccounts = async () => {

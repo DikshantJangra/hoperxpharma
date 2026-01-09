@@ -24,30 +24,38 @@ export default function PlanAndBilling() {
     const [plans, setPlans] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        const fetchData = async () => {
+    const fetchData = async () => {
+        try {
+            const storeData = await userApi.getPrimaryStore();
+            setStore(storeData);
+            
+            // Fetch plans from backend API
             try {
-                const storeData = await userApi.getPrimaryStore();
-                setStore(storeData);
-                
-                // Fetch plans from backend API
-                try {
-                    const plansResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'}/subscriptions/plans`);
-                    if (plansResponse.ok) {
-                        const plansJson = await plansResponse.json();
-                        setPlans(plansJson.data || []);
-                    }
-                } catch (planError) {
-                    console.error('[PlanAndBilling] Failed to fetch plans:', planError);
+                const plansResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'}/subscriptions/plans`);
+                if (plansResponse.ok) {
+                    const plansJson = await plansResponse.json();
+                    setPlans(plansJson.data || []);
                 }
-            } catch (err) {
-                console.error("Failed to load data", err);
-            } finally {
-                setLoading(false);
+            } catch (planError) {
+                console.error('[PlanAndBilling] Failed to fetch plans:', planError);
             }
-        };
+        } catch (err) {
+            console.error("Failed to load data", err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
         fetchData();
     }, []);
+
+    // Refetch when user changes (after payment success)
+    useEffect(() => {
+        if (user) {
+            fetchData();
+        }
+    }, [user]);
 
     // Get subscription data
     const subscription = store?.subscription;
