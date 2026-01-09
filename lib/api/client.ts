@@ -80,54 +80,88 @@ let refreshPromise: Promise<void> | null = null;
 
 async function refreshTokenIfNeeded(): Promise<void> {
     const token = tokenManager.getAccessToken();
-    if (!token || !isTokenExpiringSoon(token)) return;
-
-    if (isRefreshing) {
-        return refreshPromise!;
-    }
-
-    isRefreshing = true;
-    refreshPromise = (async () => {
-        try {
-            console.log('Refreshing access token...');
-            // NOTE: Refresh token is sent automatically via httpOnly cookie
-            // No need to include in request body - more secure this way
-            const response = await fetch(`${config.baseURL}/auth/refresh`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                credentials: 'include', // Send refresh token cookie automatically
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                console.error('Token refresh failed:', response.status, errorData.message);
-                throw new Error(errorData.message || 'Token refresh failed');
-            }
-
-            const data = await response.json();
-            if (data?.data?.accessToken) {
-                tokenManager.saveTokens(data.data.accessToken, data.data.refreshToken);
-                console.log('Access token refreshed successfully');
-            } else {
-                console.error('Token refresh response missing accessToken');
-            }
-        } catch (error: any) {
-            console.error('RefreshToken logic caught error:', error.message);
-            // Only logout on definitive auth errors (401/403) to avoid issues with flaky network
-            if (error.message.includes('Unauthorized') ||
-                error.message.includes('unauthenticated') ||
-                error.message.includes('expired') ||
-                error.message.includes('start with') || // JWT malformed
-                error.message.includes('required')) {
-                handleRefreshError(error);
-            }
-        } finally {
-            isRefreshing = false;
-            refreshPromise = null;
+    
+    // If no token in memory, try to refresh from httpOnly cookie
+    if (!token) {
+        if (isRefreshing) {
+            return refreshPromise!;
         }
-    })();
+        
+        isRefreshing = true;
+        refreshPromise = (async () => {
+            try {
+                const response = await fetch(`${config.baseURL}/auth/refresh`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                });
 
-    return refreshPromise;
+                if (!response.ok) {
+                    // Silently fail - user needs to login
+                    return;
+                }
+
+                const data = await response.json();
+                if (data?.data?.accessToken) {
+                    tokenManager.saveTokens(data.data.accessToken, data.data.refreshToken);
+                }
+            } catch (error) {
+                // Silently fail on initial load
+            } finally {
+                isRefreshing = false;
+                refreshPromise = null;
+            }
+        })();
+        
+        return refreshPromise;
+    }
+    
+    // If token exists but expiring soon, refresh it
+    if (isTokenExpiringSoon(token)) {
+        if (isRefreshing) {
+            return refreshPromise!;
+        }
+
+        isRefreshing = true;
+        refreshPromise = (async () => {
+            try {
+                console.log('Refreshing access token...');
+                const response = await fetch(`${config.baseURL}/auth/refresh`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    console.error('Token refresh failed:', response.status, errorData.message);
+                    throw new Error(errorData.message || 'Token refresh failed');
+                }
+
+                const data = await response.json();
+                if (data?.data?.accessToken) {
+                    tokenManager.saveTokens(data.data.accessToken, data.data.refreshToken);
+                    console.log('Access token refreshed successfully');
+                } else {
+                    console.error('Token refresh response missing accessToken');
+                }
+            } catch (error: any) {
+                console.error('RefreshToken logic caught error:', error.message);
+                if (error.message.includes('Unauthorized') ||
+                    error.message.includes('unauthenticated') ||
+                    error.message.includes('expired') ||
+                    error.message.includes('start with') ||
+                    error.message.includes('required')) {
+                    handleRefreshError(error);
+                }
+            } finally {
+                isRefreshing = false;
+                refreshPromise = null;
+            }
+        })();
+
+        return refreshPromise;
+    }
 }
 
 // Helper to handle unauthorized errors during refresh

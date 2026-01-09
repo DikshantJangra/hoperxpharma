@@ -53,6 +53,12 @@ if (process.env.REDIS_ENABLED === 'true' && process.env.REDIS_URL) {
 const generalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
     max: 1000, // 1000 requests per window (increased for development)
+    skip: (req) => {
+        // Skip rate limiting for localhost in development
+        const isDev = process.env.NODE_ENV !== 'production';
+        const isLocalhost = req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1';
+        return isDev && isLocalhost;
+    },
     message: {
         success: false,
         message: 'Too many requests from this IP, please try again later',
@@ -88,6 +94,12 @@ const authLimiter = rateLimit({
     max: 5, // 5 attempts per 15 minutes
     skipSuccessfulRequests: true, // Don't count successful logins
     validate: { trustProxy: false, xForwardedForHeader: false },
+    skip: (req) => {
+        // Skip rate limiting for localhost in development
+        const isDev = process.env.NODE_ENV !== 'production';
+        const isLocalhost = req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1';
+        return isDev && isLocalhost;
+    },
     message: {
         success: false,
         message: 'Too many authentication attempts, please try again later',
@@ -106,6 +118,42 @@ const authLimiter = rateLimit({
             success: false,
             message: 'Too many login attempts. Please try again after 15 minutes.',
             retryAfter: 15 * 60
+        });
+    }
+});
+
+/**
+ * Refresh token rate limiter (lenient for legitimate use)
+ * Refresh tokens are called frequently by frontend
+ */
+const refreshLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1 minute
+    max: 10, // 10 refresh attempts per minute (reasonable for legitimate use)
+    validate: { trustProxy: false },
+    skip: (req) => {
+        // Skip rate limiting for localhost in development
+        const isDev = process.env.NODE_ENV !== 'production';
+        const isLocalhost = req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1';
+        return isDev && isLocalhost;
+    },
+    message: {
+        success: false,
+        message: 'Too many refresh requests, please try again later',
+        retryAfter: 60
+    },
+    store: redisClient ? new RedisStore({
+        client: redisClient,
+        prefix: 'rl:refresh:'
+    }) : undefined,
+    handler: (req, res) => {
+        logger.warn('Refresh rate limit exceeded', {
+            ip: req.ip,
+            path: req.path
+        });
+        res.status(429).json({
+            success: false,
+            message: 'Too many refresh requests. Please slow down.',
+            retryAfter: 60
         });
     }
 });
@@ -270,6 +318,7 @@ const createCustomLimiter = (options) => {
 module.exports = {
     generalLimiter,
     authLimiter,
+    refreshLimiter,
     userLimiter,
     posLimiter,
     searchLimiter,

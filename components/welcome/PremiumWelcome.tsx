@@ -41,6 +41,8 @@ export function PremiumWelcome({
     const handleSectionComplete = useCallback(async () => {
         switch (currentSection) {
             case 'arrival':
+                // Change URL to dashboard/overview when experience starts
+                router.replace('/dashboard/overview', { scroll: false });
                 setCurrentSection('confirmation');
                 break;
             case 'confirmation':
@@ -53,7 +55,6 @@ export function PremiumWelcome({
                 // Final section - complete welcome
                 try {
                     await markAsShown();
-                    router.push('/dashboard/overview');
                     if (onComplete) onComplete();
                 } catch (error) {
                     console.error('Failed to complete welcome flow:', error);

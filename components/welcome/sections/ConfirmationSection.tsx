@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { FaCheckCircle, FaFileInvoiceDollar, FaCalendarAlt, FaClock } from 'react-icons/fa';
+import { FaCheckCircle, FaFileInvoiceDollar, FaCalendarAlt, FaClock, FaCreditCard } from 'react-icons/fa';
 import type { WelcomeSectionProps } from '@/lib/types/welcome.types';
 import { getAnimationClass, animationClasses } from '@/lib/animations/welcomeAnimations';
 
@@ -53,13 +53,17 @@ export function ConfirmationSection({
 
     return (
         <div className="flex flex-col items-center justify-center min-h-screen p-8 bg-neutral-950 font-mono selection:bg-emerald-500/30">
-            {/* Main Heading */}
-            <h1
-                className={`text-2xl md:text-5xl font-bold text-white uppercase tracking-tight mb-12 ${getAnimationClass(animationClasses.fadeInUp)}`}
-                style={{ animationDelay: '100ms' }}
-            >
-                PAYMENT_VERIFIED
-            </h1>
+            {/* Main Heading with animated payment icons */}
+            <div className="relative mb-12">
+                <FaCreditCard className="absolute -left-16 top-1/2 -translate-y-1/2 text-4xl text-emerald-500 opacity-20 animate-[slideInFromLeft_1s_ease-out]" />
+                <FaCheckCircle className="absolute -right-16 top-1/2 -translate-y-1/2 text-4xl text-emerald-500 opacity-20 animate-[slideInFromRight_1s_ease-out]" />
+                <h1
+                    className={`text-2xl md:text-5xl font-bold text-white uppercase tracking-tight flex items-center gap-4 ${getAnimationClass(animationClasses.fadeInUp)}`}
+                    style={{ animationDelay: '100ms' }}
+                >
+                    <FaCheckCircle className="text-emerald-500 animate-[bounce_1s_ease-in-out_2]" /> PAYMENT_VERIFIED<span className="animate-pulse text-emerald-500">_</span>
+                </h1>
+            </div>
 
             {/* Data Block - FULL EMERALD DESIGN */}
             <div className="bg-emerald-600 border border-emerald-500 p-8 md:p-12 rounded-lg max-w-xl w-full relative overflow-hidden group shadow-[0_0_50px_rgba(16,185,129,0.3)]">

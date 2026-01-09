@@ -53,6 +53,9 @@ jobs:
           npm install
           npx prisma generate
           npx prisma db push --accept-data-loss --skip-generate
+          # Generate Prisma client in root for Playwright tests
+          cd ..
+          npx prisma generate --schema=./backend/prisma/schema.prisma
 
       - name: Build application
         env:

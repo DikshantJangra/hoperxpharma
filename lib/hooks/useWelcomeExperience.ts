@@ -124,10 +124,12 @@ export function useWelcomeExperience() {
         markAsShown();
     }, [markAsShown]);
 
-    // Check eligibility on mount
+    // Check eligibility on mount and when user updates (e.g. after payment)
     useEffect(() => {
-        checkEligibility();
-    }, [checkEligibility]);
+        if (user) {
+            checkEligibility();
+        }
+    }, [checkEligibility, user]);
 
     return {
         shouldShow: welcomeState.shouldShow,

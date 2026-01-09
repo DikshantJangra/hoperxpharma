@@ -141,9 +141,27 @@ export function PaymentVerificationFlow({
         });
     };
 
-    const handleDownloadReceipt = () => {
-        // TODO: Implement receipt download
-        console.log('Download receipt for payment:', state.paymentData?.id);
+    const handleDownloadReceipt = async () => {
+        if (!state.paymentData?.id) return;
+
+        try {
+            const response = await apiClient.post(`/subscriptions/payments/${state.paymentData.id}/invoice`, {}, {
+                responseType: 'blob'
+            });
+
+            // Create blob link to download
+            const url = window.URL.createObjectURL(response);
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `INV-${state.paymentData.id.slice(0, 8).toUpperCase()}.pdf`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+        } catch (error: any) {
+            console.error('[PaymentVerification] Invoice download failed:', error);
+            alert('Failed to download invoice. Please try again.');
+        }
     };
 
     // Get reference ID for display

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { FaRocket } from 'react-icons/fa';
 import type { WelcomeSectionProps } from '@/lib/types/welcome.types';
 import { getAnimationClass, animationClasses } from '@/lib/animations/welcomeAnimations';
 
@@ -32,13 +33,16 @@ export function DirectionSection({
 
     return (
         <div className="flex flex-col items-center justify-center min-h-screen p-8 bg-emerald-600 font-mono selection:bg-white/30">
-            {/* Primary Heading */}
-            <h1
-                className={`text-3xl md:text-6xl font-bold text-white uppercase tracking-tight mb-8 text-center drop-shadow-md ${getAnimationClass(animationClasses.fadeInUp)}`}
-                style={{ animationDelay: '200ms' }}
-            >
-                YOUR_WORKSPACE_IS_NOW_ACTIVE<span className="animate-pulse">_</span>
-            </h1>
+            {/* Primary Heading with modern icon */}
+            <div className="relative mb-8">
+                <FaRocket className="absolute -top-20 left-1/2 -translate-x-1/2 text-7xl text-white animate-[float_3s_ease-in-out_infinite]" />
+                <h1
+                    className={`text-3xl md:text-6xl font-bold text-white uppercase tracking-tight text-center drop-shadow-md ${getAnimationClass(animationClasses.fadeInUp)}`}
+                    style={{ animationDelay: '200ms' }}
+                >
+                    YOUR_WORKSPACE_IS_NOW_ACTIVE<span className="animate-pulse text-white">_</span>
+                </h1>
+            </div>
 
             <div
                 className={`text-emerald-100 text-sm md:text-lg text-center max-w-2xl leading-relaxed mb-16 font-medium ${getAnimationClass(animationClasses.fadeIn)}`}

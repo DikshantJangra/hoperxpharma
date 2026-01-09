@@ -221,16 +221,15 @@ export default function InvoiceDrawer({ invoice, onClose, isLoading }: any) {
                 <span className="text-[#10b981]">-₹{invoice.summary.discount}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-[#64748b]">GST</span>
-                <span className="text-[#0f172a]">₹{invoice.summary.gst}</span>
-              </div>
-              <div className="flex justify-between">
                 <span className="text-[#64748b]">Round-off</span>
                 <span className="text-[#0f172a]">{invoice.summary.roundOff < 0 ? '-' : ''}₹{Math.abs(invoice.summary.roundOff)}</span>
               </div>
               <div className="border-t border-[#e2e8f0] pt-3 mt-3 flex justify-between items-center">
                 <span className="font-semibold text-[#0f172a]">Total</span>
                 <span className="font-bold text-xl md:text-2xl text-[#0ea5a3]">₹{invoice.amount}</span>
+              </div>
+              <div className="pt-2 mt-2 border-t border-[#e2e8f0]">
+                <p className="text-xs text-[#64748b] italic">GST ₹{invoice.summary.gst} included in total</p>
               </div>
             </div>
           </div>

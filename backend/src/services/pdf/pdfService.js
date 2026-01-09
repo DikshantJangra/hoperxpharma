@@ -582,12 +582,14 @@ class PDFService {
                 const rightX = pageWidth - margin - 150;
                 let rightY = footerY + 10;
 
-                // GST values
+                // GST values (already included in sale.total)
                 const cgstAmount = Number(sale.cgstAmount) || (Number(sale.taxAmount) / 2) || 0;
                 const sgstAmount = Number(sale.sgstAmount) || (Number(sale.taxAmount) / 2) || 0;
                 const totalGst = cgstAmount + sgstAmount;
                 const roundOff = Number(sale.roundOff) || 0;
                 const totalSaving = totalMrp - Number(sale.total);
+                // Taxable value = Net Payable - GST (since GST is included in total)
+                const taxableValue = Number(sale.total) - totalGst;
 
                 doc.fontSize(8).font('Helvetica').fillColor(textColor);
 
@@ -608,24 +610,32 @@ class PDFService {
                     rightY += 11;
                 }
 
-                // CGST
-                doc.text('CGST', rightX, rightY, { width: 75 });
+                // Subtotal after discount (before GST breakdown)
+                doc.fillColor(textColor);
+                doc.text('Subtotal', rightX, rightY, { width: 75 });
+                doc.text(formatCurrency(totalMrp - totalDiscount), rightX + 75, rightY, { width: 70, align: 'right' });
+                rightY += 11;
+
+                // GST Breakdown (informational - already included above)
+                doc.fillColor(textLight).fontSize(7);
+                doc.text('(Incl. GST breakdown)', rightX, rightY, { width: 145, align: 'left' });
+                rightY += 10;
+
+                doc.fontSize(8);
+                doc.text('  CGST', rightX, rightY, { width: 75 });
                 doc.text(formatCurrency(cgstAmount), rightX + 75, rightY, { width: 70, align: 'right' });
-                rightY += 11;
+                rightY += 10;
 
-                // SGST
-                doc.text('SGST', rightX, rightY, { width: 75 });
+                doc.text('  SGST', rightX, rightY, { width: 75 });
                 doc.text(formatCurrency(sgstAmount), rightX + 75, rightY, { width: 70, align: 'right' });
-                rightY += 11;
+                rightY += 10;
 
-                // Total GST
-                doc.font('Helvetica-Bold');
-                doc.text('Total GST', rightX, rightY, { width: 75 });
-                doc.text(formatCurrency(totalGst), rightX + 75, rightY, { width: 70, align: 'right' });
+                doc.text('  Taxable Value', rightX, rightY, { width: 75 });
+                doc.text(formatCurrency(taxableValue), rightX + 75, rightY, { width: 70, align: 'right' });
                 rightY += 11;
-                doc.font('Helvetica');
 
                 // Round off
+                doc.fillColor(textColor);
                 doc.text('Round off', rightX, rightY, { width: 75 });
                 doc.text(formatCurrency(Math.abs(roundOff)), rightX + 75, rightY, { width: 70, align: 'right' });
                 rightY += 15;

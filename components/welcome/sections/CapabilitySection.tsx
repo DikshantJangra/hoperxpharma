@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
+import { FaCog } from 'react-icons/fa';
 import type { WelcomeSectionProps } from '@/lib/types/welcome.types';
 import { PREMIUM_CAPABILITIES } from '@/lib/types/welcome.types';
 import { getAnimationClass, animationClasses, sleep } from '@/lib/animations/welcomeAnimations';
@@ -53,12 +54,15 @@ export function CapabilitySection({ isActive, onComplete }: WelcomeSectionProps)
 
     return (
         <div className="flex flex-col items-center justify-center min-h-screen p-8 bg-neutral-950 font-mono selection:bg-emerald-500/30">
-            {/* Primary Message */}
+            {/* Primary Message with animated gear */}
             <h1
-                className={`text-2xl md:text-4xl font-bold text-white uppercase tracking-tight mb-8 ${getAnimationClass(animationClasses.fadeInUp)}`}
+                className={`text-2xl md:text-4xl font-bold text-white uppercase tracking-tight mb-2 flex items-center gap-4 ${getAnimationClass(animationClasses.fadeInUp)}`}
             >
-                INSTALLING_MODULES<span className="animate-pulse text-emerald-500">_</span>
+                <FaCog className="text-emerald-500 animate-[spin_3s_linear_infinite]" style={{ filter: 'drop-shadow(0 0 10px rgba(16,185,129,0.5))' }} /> ACTIVATING_CORE_CAPABILITIES<span className="animate-pulse text-emerald-500">_</span>
             </h1>
+            <p className="text-neutral-500 text-xs md:text-sm mb-6 text-center max-w-md">
+                Configuring your environment based on your subscription.
+            </p>
 
             {/* Terminal Window */}
             <div className="w-full max-w-lg bg-neutral-900 border border-neutral-800 rounded-sm p-4 h-64 overflow-hidden relative shadow-inner">

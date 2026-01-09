@@ -26,12 +26,14 @@ export function ArrivalSection({ isActive, onComplete }: WelcomeSectionProps) {
         <div className="flex flex-col items-center justify-center min-h-screen p-8 bg-neutral-950 font-mono selection:bg-emerald-500/30 relative">
 
 
-            {/* Main Heading */}
+            {/* Main Heading with animated RX logo */}
             <h1
-                className={`text-3xl md:text-6xl font-bold text-emerald-500 uppercase tracking-tighter mb-12 mt-10 text-center ${getAnimationClass(animationClasses.fadeInUp)}`}
+                className={`text-3xl md:text-6xl font-bold uppercase tracking-tighter mb-12 mt-10 text-center ${getAnimationClass(animationClasses.fadeInUp)}`}
                 style={{ animationDelay: '200ms' }}
             >
-                HOPE_RX<span className="animate-pulse text-white">_</span>
+                <span className="text-white">HOPE</span>
+                <span className="text-emerald-500 inline-block animate-[pulse_2s_ease-in-out_infinite]" style={{ textShadow: '0 0 20px rgba(16,185,129,0.5)' }}>_RX</span>
+                <span className="animate-pulse text-emerald-500">_</span>
             </h1>
 
             {/* System Status Indicators - Centered Below */}

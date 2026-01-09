@@ -123,16 +123,12 @@ export default function InvoiceEmailModal({ isOpen, invoice, onClose }: InvoiceE
               <!-- Summary -->
               <div style="background-color: #f8fafc; border-radius: 8px; padding: 20px; margin-bottom: 24px;">
                 <div style="display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px;">
-                  <span style="color: #64748b;">Subtotal (incl. GST)</span>
+                  <span style="color: #64748b;">Subtotal</span>
                   <span style="color: #0f172a;">₹${invoice.items.reduce((sum: number, item: any) => sum + Number(item.total || 0), 0).toFixed(2)}</span>
                 </div>
                 <div style="display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px;">
                   <span style="color: #64748b;">Discount</span>
                   <span style="color: #10b981;">-₹${Number(invoice.summary.discount || 0).toFixed(2)}</span>
-                </div>
-                <div style="display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px;">
-                  <span style="color: #64748b;">GST (Included)</span>
-                  <span style="color: #0f172a;">₹${Number(invoice.summary.gst || 0).toFixed(2)}</span>
                 </div>
                 <div style="display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px;">
                   <span style="color: #64748b;">Round-off</span>
@@ -141,6 +137,9 @@ export default function InvoiceEmailModal({ isOpen, invoice, onClose }: InvoiceE
                 <div style="display: flex; justify-content: space-between; padding-top: 12px; font-size: 18px;">
                   <span style="color: #0f172a; font-weight: 700;">Total</span>
                   <span style="color: #10b981; font-weight: 700;">₹${Number(invoice.amount || 0).toFixed(2)}</span>
+                </div>
+                <div style="padding-top: 8px; margin-top: 8px; border-top: 1px solid #e2e8f0;">
+                  <p style="margin: 0; font-size: 12px; color: #64748b; font-style: italic;">GST ₹${Number(invoice.summary.gst || 0).toFixed(2)} included in total</p>
                 </div>
               </div>
 

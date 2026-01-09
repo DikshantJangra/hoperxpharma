@@ -55,6 +55,38 @@ body {
     }
   }
   
+  /* Welcome Experience Animations */
+  @keyframes slideInFromLeft {
+    0% {
+      transform: translateX(-100px);
+      opacity: 0;
+    }
+    100% {
+      transform: translateX(0);
+      opacity: 0.2;
+    }
+  }
+  
+  @keyframes slideInFromRight {
+    0% {
+      transform: translateX(100px);
+      opacity: 0;
+    }
+    100% {
+      transform: translateX(0);
+      opacity: 0.2;
+    }
+  }
+  
+  @keyframes float {
+    0%, 100% {
+      transform: translate(-50%, 0);
+    }
+    50% {
+      transform: translate(-50%, -10px);
+    }
+  }
+  
   /* Premium glow effect on hover */
   .premium-glow {
     transition: box-shadow var(--premium-transition-duration) var(--premium-transition-easing);

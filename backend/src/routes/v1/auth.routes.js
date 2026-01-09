@@ -3,7 +3,7 @@ const express = require('express');
 const authController = require('../../controllers/auth/authController');
 const validate = require('../../middlewares/validate');
 const { authenticate } = require('../../middlewares/auth');
-const { authLimiter } = require('../../middlewares/rateLimiter');
+const { authLimiter, refreshLimiter } = require('../../middlewares/rateLimiter');
 const {
     signupSchema,
     loginSchema,
@@ -39,6 +39,7 @@ router.post(
 
 router.post(
     '/refresh',
+    refreshLimiter,
     authController.refresh
 );
 
