@@ -39,8 +39,13 @@ export function PaymentHistory({ storeId }: PaymentHistoryProps) {
             const data = response.data?.data || response.data;
             setPayments(data?.payments || []);
             setPagination(data?.pagination || { total: 0, hasMore: false });
-        } catch (error) {
-            console.error('Failed to fetch payments:', error);
+        } catch (error: any) {
+            console.error('[PaymentHistory] Failed to fetch payment history:', {
+                error: error.message,
+                storeId,
+                timestamp: new Date().toISOString()
+            });
+            console.error(error);
             setPayments([]);
         } finally {
             setLoading(false);
@@ -99,7 +104,12 @@ export function PaymentHistory({ storeId }: PaymentHistoryProps) {
             link.click();
             link.remove();
             window.URL.revokeObjectURL(url);
-        } catch (error) {
+        } catch (error: any) {
+            console.error('[PaymentHistory] Invoice download failed:', {
+                error: error.message,
+                paymentId,
+                timestamp: new Date().toISOString()
+            });
             console.error('Failed to download invoice:', error);
             alert('Failed to download invoice. Please try again.');
         }

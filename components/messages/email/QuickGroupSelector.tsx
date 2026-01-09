@@ -33,18 +33,27 @@ export default function QuickGroupSelector({ onRecipientsSelected }: QuickGroupS
         setIsLoading(true);
         try {
             const response = await fetch('/api/v1/email/groups', {
-                headers: getAuthHeaders(),
                 credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
             });
 
-            if (response.ok) {
-                const data = await response.json();
-                setGroups(data.data?.groups || []);
+            if (!response.ok) {
+                console.error('[QuickGroupSelector] Failed to fetch email groups:', {
+                    status: response.status,
+                    statusText: response.statusText,
+                    url: response.url
+                });
+                throw new Error(`Failed to fetch groups: ${response.status}`);
             }
-        } catch (error) {
-            console.error('Failed to fetch groups:', error);
+
+            const data = await response.json();
+            setGroups(data.data || []);
+        } catch (err) {
+            console.error('[QuickGroupSelector] Error fetching email groups:', err);
         } finally {
-            setIsLoading(false);
+            setIsLoading(false); // Changed setLoading to setIsLoading to match existing state
         }
     };
 

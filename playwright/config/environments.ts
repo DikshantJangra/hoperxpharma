@@ -31,7 +31,7 @@ const environments: Record<string, Environment> = {
         name: 'development',
         baseURL: 'http://localhost:3000',
         apiURL: 'http://localhost:8000',
-        databaseURL: process.env.TEST_DATABASE_URL,
+        databaseURL: process.env.TEST_DATABASE_URL || 'postgresql://dikshantjangra@localhost:5432/hoperxpharma_test',
         auth: {
             testUser: {
                 email: process.env.TEST_USER_EMAIL || 'test@automation.com',

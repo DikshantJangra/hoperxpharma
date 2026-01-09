@@ -24,10 +24,14 @@ router.post('/payments/:paymentId/invoice', authenticateToken, async (req, res, 
                             select: {
                                 id: true,
                                 name: true,
-                                address: true,
-                                phone: true,
+                                addressLine1: true,
+                                addressLine2: true,
+                                city: true,
+                                state: true,
+                                pinCode: true,
                                 gstin: true,
-                                pan: true,
+                                email: true,
+                                phoneNumber: true,
                             }
                         }
                     }
@@ -177,12 +181,22 @@ router.post('/payments/:paymentId/invoice', authenticateToken, async (req, res, 
             .font('Helvetica-Bold')
             .text(payment.subscription.store.name, pageWidth - 250, yPosRight);
 
-        yPosRight += 15;
+        // Build address from components
+        const addressParts = [
+            payment.subscription.store.addressLine1,
+            payment.subscription.store.addressLine2,
+            payment.subscription.store.city,
+            payment.subscription.store.state,
+            payment.subscription.store.pinCode
+        ].filter(Boolean);
+
+        const fullAddress = addressParts.length > 0 ? addressParts.join(', ') : 'N/A';
+
         doc
             .fontSize(9)
             .fillColor(textSecondary)
             .font('Helvetica')
-            .text(payment.subscription.store.address || 'N/A', pageWidth - 250, yPosRight);
+            .text(fullAddress, pageWidth - 250, yPosRight, { width: 200 });
 
         if (payment.subscription.store.gstin) {
             yPosRight += 15;
