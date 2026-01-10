@@ -52,7 +52,9 @@ model User {
   documents             StaffDocument[]
   performanceMetrics    PerformanceMetric[]
   shift                 Shift?                @relation(fields: [shiftId], references: [id])
-  ConsolidatedInvoice   ConsolidatedInvoice[]
+  consolidatedInvoicesCreated   ConsolidatedInvoice[] @relation("ConsolidatedInvoiceCreator")
+  consolidatedInvoicesConfirmed ConsolidatedInvoice[] @relation("ConsolidatedInvoiceConfirmer")
+  supplierInvoicePayments       SupplierInvoicePayment[]
 
   @@index([email])
   @@index([phoneNumber])
@@ -617,6 +619,9 @@ model Drug {
   requiresPrescription     Boolean                   @default(false)
   defaultUnit              String?
   lowStockThreshold        Int?
+  lowStockThresholdBase    Decimal?                  @db.Decimal(12, 3)
+  baseUnit                 String?
+  displayUnit              String?
   description              String?
   lastSyncedAt             DateTime?
   createdAt                DateTime                  @default(now())
@@ -632,6 +637,8 @@ model Drug {
   returnItems              SupplierReturnItem[]
   grnItems                 GRNItem[]
   prescriptionItemVersions PrescriptionItemVersion[]
+  unitConfigurations       DrugUnit[]
+  locationMappings         LocationMapping[]
 
   @@index([name])
   @@index([hsnCode])
@@ -639,6 +646,7 @@ model Drug {
   @@index([storeId])
   @@index([storeId, name])
   @@index([storeId, hsnCode])
+  @@index([storeId, baseUnit])
 }
 
 model TaxSlab {
@@ -695,10 +703,20 @@ model InventoryBatch {
   batchNumber              String
   expiryDate               DateTime
   quantityInStock          Int
+  baseUnitQuantity         Decimal?                  @db.Decimal(12, 3)
+  baseUnitReserved         Decimal                   @default(0) @db.Decimal(12, 3)
+  receivedUnit             String?
+  receivedQuantity         Int?
   mrp                      Decimal                   @db.Decimal(10, 2)
   purchasePrice            Decimal                   @db.Decimal(10, 2)
   supplierId               String?
   location                 String?
+  manufacturerBarcode      String?
+  internalQRCode           String?                   @unique
+  barcodeType              String?
+  tabletsPerStrip          Int?
+  partialStripsCount       Int                       @default(0)
+  looseTabletsCount        Int                       @default(0)
   createdAt                DateTime                  @default(now())
   updatedAt                DateTime                  @updatedAt
   deletedAt                DateTime?
@@ -709,6 +727,8 @@ model InventoryBatch {
   saleItems                SaleItem[]
   PrescriptionItem         PrescriptionItem[]
   prescriptionItemVersions PrescriptionItemVersion[]
+  barcodes                 BarcodeRegistry[]
+  partialStrips            PartialStripInventory[]
 
   @@unique([storeId, batchNumber, drugId])
   @@index([storeId, drugId])
@@ -717,6 +737,7 @@ model InventoryBatch {
   @@index([supplierId, createdAt])
   @@index([batchNumber])
   @@index([storeId, deletedAt])
+  @@index([storeId, drugId, baseUnitQuantity])
 }
 
 model StockMovement {
@@ -724,6 +745,9 @@ model StockMovement {
   batchId       String
   movementType  String
   quantity      Int
+  baseUnitQuantity Decimal?  @db.Decimal(12, 3)
+  movementUnit     String?
+  originalQuantity Int?
   reason        String?
   referenceType String?
   referenceId   String?
@@ -1347,12 +1371,14 @@ model GRNItem {
   lineTotal       Decimal           @db.Decimal(12, 2)
   discountType    String            @default("BEFORE_GST")
   location        String?
+  manufacturerBarcode String?
   isSplit         Boolean           @default(false)
   parentItemId    String?
   grn             GoodsReceivedNote @relation(fields: [grnId], references: [id], onDelete: Cascade)
   drug            Drug              @relation(fields: [drugId], references: [id])
   parent          GRNItem?          @relation("GRNItemSplit", fields: [parentItemId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   children        GRNItem[]         @relation("GRNItemSplit")
+  invoiceItems    ConsolidatedInvoiceItem[]
 
   @@index([grnId])
   @@index([poItemId])
@@ -1390,9 +1416,25 @@ model ConsolidatedInvoice {
   periodEnd     DateTime?
   subtotal      Decimal                   @db.Decimal(12, 2)
   taxAmount     Decimal                   @db.Decimal(12, 2)
+  adjustments   Decimal                   @default(0) @db.Decimal(12, 2)
   total         Decimal                   @db.Decimal(12, 2)
   type          ConsolidatedInvoiceType   @default(SINGLE_SUPPLIER)
   status        ConsolidatedInvoiceStatus @default(DRAFT)
+  
+  // Payment tracking
+  paidAmount       Decimal    @default(0) @db.Decimal(12, 2)
+  paymentStatus    PaymentStatus @default(UNPAID)
+  paymentDate      DateTime?
+  
+  // Supplier invoice details
+  supplierInvoiceNo   String?
+  supplierInvoiceDate DateTime?
+  supplierInvoiceFile String?  // R2 key for uploaded PDF
+  
+  // Confirmation workflow
+  confirmedAt   DateTime?
+  confirmedBy   String?
+  
   notes         String?
   createdBy     String
   createdAt     DateTime                  @default(now())
@@ -1401,7 +1443,9 @@ model ConsolidatedInvoice {
   supplier      Supplier?                 @relation(fields: [supplierId], references: [id])
   grns          ConsolidatedInvoiceGRN[]
   items         ConsolidatedInvoiceItem[]
-  createdByUser User                      @relation(fields: [createdBy], references: [id])
+  payments      SupplierInvoicePayment[]
+  createdByUser User                      @relation("ConsolidatedInvoiceCreator", fields: [createdBy], references: [id])
+  confirmedByUser User?                   @relation("ConsolidatedInvoiceConfirmer", fields: [confirmedBy], references: [id])
 
   @@index([storeId, invoiceDate])
   @@index([supplierId])
@@ -1424,10 +1468,18 @@ model ConsolidatedInvoiceGRN {
 model ConsolidatedInvoiceItem {
   id                    String              @id @default(cuid())
   consolidatedInvoiceId String
+  grnItemId             String?             // Link to source GRN item
   drugId                String
   drugName              String
   batchNumber           String?
-  totalQuantity         Int
+  expiryDate            DateTime?
+  
+  // Quantities
+  receivedQty           Int
+  freeQty               Int                 @default(0)
+  billedQty             Int                 // Can be adjusted for disputes
+  
+  // Pricing
   unit                  String
   unitPrice             Decimal             @db.Decimal(10, 2)
   gstPercent            Decimal             @db.Decimal(5, 2)
@@ -1435,10 +1487,41 @@ model ConsolidatedInvoiceItem {
   subtotal              Decimal             @db.Decimal(12, 2)
   taxAmount             Decimal             @db.Decimal(12, 2)
   lineTotal             Decimal             @db.Decimal(12, 2)
+  
+  // References for traceability
+  poNumber              String?
+  grnNumber             String?
+  receivedDate          DateTime?
+  
+  // Dispute handling
+  isExcluded            Boolean             @default(false)
+  isDisputed            Boolean             @default(false)
+  disputeNotes          String?
+  
   consolidatedInvoice   ConsolidatedInvoice @relation(fields: [consolidatedInvoiceId], references: [id], onDelete: Cascade)
+  grnItem               GRNItem?            @relation(fields: [grnItemId], references: [id])
 
   @@index([consolidatedInvoiceId])
   @@map("consolidated_invoice_items")
+}
+
+model SupplierInvoicePayment {
+  id                    String              @id @default(cuid())
+  consolidatedInvoiceId String
+  amount                Decimal             @db.Decimal(12, 2)
+  paymentDate           DateTime
+  paymentMethod         PaymentMethod
+  referenceNumber       String?
+  notes                 String?
+  createdAt             DateTime            @default(now())
+  createdBy             String
+  
+  invoice               ConsolidatedInvoice @relation(fields: [consolidatedInvoiceId], references: [id], onDelete: Cascade)
+  creator               User                @relation(fields: [createdBy], references: [id])
+  
+  @@index([consolidatedInvoiceId])
+  @@index([paymentDate])
+  @@map("supplier_invoice_payments")
 }
 
 model SupplierReturn {
@@ -1558,6 +1641,8 @@ model SaleItem {
   drugId        String
   batchId       String
   quantity      Int
+  unit          String?
+  baseUnitQuantity Decimal?  @db.Decimal(12, 3)
   mrp           Decimal        @db.Decimal(10, 2)
   discount      Decimal        @default(0) @db.Decimal(10, 2)
   gstRate       Decimal        @db.Decimal(5, 2)
@@ -1569,6 +1654,12 @@ model SaleItem {
   sgstAmount    Decimal        @default(0) @db.Decimal(10, 2)
   taxSlabId     String?
   taxableAmount Decimal        @default(0) @db.Decimal(10, 2)
+  scanned       Boolean        @default(false)
+  scanMethod    String?
+  overrideReason String?
+  isPartialSale Boolean        @default(false)
+  partialQuantity Int?
+  partialStripId String?
   sale          Sale           @relation(fields: [saleId], references: [id], onDelete: Cascade)
   drug          Drug           @relation(fields: [drugId], references: [id])
   batch         InventoryBatch @relation(fields: [batchId], references: [id])
@@ -2183,15 +2274,16 @@ model LoyaltyProgram {
 model AuditLog {
   id         String   @id @default(cuid())
   storeId    String
-  userId     String
+  userId     String?
   action     String
   entityType String
   entityId   String
   changes    Json?
+  metadata   Json?
   ipAddress  String?
   createdAt  DateTime @default(now())
   store      Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  user       User     @relation(fields: [userId], references: [id])
+  user       User?    @relation(fields: [userId], references: [id])
 
   @@index([storeId, userId, createdAt])
   @@index([storeId, entityType, entityId])
@@ -2269,6 +2361,176 @@ model AlertPreference {
   @@unique([userId, storeId, category])
   @@index([userId, storeId])
 }
+
+// ========================================
+// INDIAN PHARMACY SYSTEM - BEHAVIORAL TRACKING
+// ========================================
+
+model BarcodeRegistry {
+  id                  String          @id @default(cuid())
+  barcode             String          @unique
+  batchId             String
+  barcodeType         String          // EAN13, QR, INTERNAL
+  manufacturerCode    String?
+  unitType            String?         // STRIP, BOTTLE, BOX
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+  
+  batch               InventoryBatch  @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  scans               ScanAudit[]
+  
+  @@index([barcode])
+  @@index([batchId])
+  @@index([barcodeType])
+}
+
+model ScanAudit {
+  id              String          @id @default(cuid())
+  barcodeId       String?
+  employeeId      String
+  saleId          String?
+  scannedAt       DateTime        @default(now())
+  scanType        String          // ENROLLMENT, SALE, VERIFICATION, ADJUSTMENT
+  deviceType      String?         // SCANNER, CAMERA, MANUAL
+  storeId         String
+  
+  barcode         BarcodeRegistry? @relation(fields: [barcodeId], references: [id], onDelete: Cascade)
+  
+  @@index([employeeId, scannedAt])
+  @@index([barcodeId, scannedAt])
+  @@index([storeId, scannedAt])
+}
+
+model FEFODeviation {
+  id                    String    @id @default(cuid())
+  saleId                String
+  saleItemId            String?
+  drugId                String
+  recommendedBatchId    String
+  actualBatchId         String
+  deviationDays         Int       // How much newer was selected batch
+  employeeId            String
+  reason                String?
+  storeId               String
+  createdAt             DateTime  @default(now())
+  
+  @@index([employeeId, createdAt])
+  @@index([drugId, createdAt])
+  @@index([storeId, createdAt])
+}
+
+model EmployeeBehaviorMetric {
+  id                    String    @id @default(cuid())
+  employeeId            String
+  storeId               String
+  date                  DateTime  @db.Date
+  scanBypassCount       Int       @default(0)
+  voidCount             Int       @default(0)
+  overrideCount         Int       @default(0)
+  fefoDeviationCount    Int       @default(0)
+  manualEntryCount      Int       @default(0)
+  totalSalesCount       Int       @default(0)
+  manualEntryRate       Float     @default(0)
+  anomalyScore          Float     @default(0)
+  peerRank              Int?
+  lastCalculatedAt      DateTime  @updatedAt
+  
+  @@unique([employeeId, storeId, date])
+  @@index([date, anomalyScore])
+  @@index([storeId, date])
+  @@index([employeeId, date])
+}
+
+model OperationOverride {
+  id              String    @id @default(cuid())
+  employeeId      String
+  storeId         String
+  overrideType    String    // PRICE, BATCH, FEFO, MANUAL_ENTRY, DISCOUNT
+  entityType      String    // SALE, RETURN, ADJUSTMENT
+  entityId        String
+  originalValue   String?
+  newValue        String?
+  reason          String
+  approvedBy      String?
+  timestamp       DateTime  @default(now())
+  
+  @@index([employeeId, timestamp])
+  @@index([overrideType, timestamp])
+  @@index([storeId, timestamp])
+}
+
+model Location {
+  id          String                @id @default(cuid())
+  storeId     String
+  name        String                // "Rack A", "Drawer 3", "Cold Storage"
+  displayName String
+  type        String                // RACK, DRAWER, COLD_STORAGE, COUNTER, BEHIND_COUNTER
+  parentId    String?
+  isActive    Boolean               @default(true)
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+  
+  parent      Location?             @relation("LocationHierarchy", fields: [parentId], references: [id], onDelete: Restrict, onUpdate: Restrict)
+  children    Location[]            @relation("LocationHierarchy")
+  mappings    LocationMapping[]
+  mismatches  LocationMismatch[]    @relation("ExpectedLocation")
+  
+  @@unique([storeId, name])
+  @@index([storeId, isActive])
+  @@index([parentId])
+}
+
+model LocationMapping {
+  id              String    @id @default(cuid())
+  drugId          String
+  locationId      String
+  storeId         String
+  isPrimary       Boolean   @default(false)
+  lastRestockAt   DateTime  @default(now())
+  createdAt       DateTime  @default(now())
+  
+  drug            Drug      @relation(fields: [drugId], references: [id], onDelete: Cascade)
+  location        Location  @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  
+  @@unique([drugId, locationId])
+  @@index([locationId])
+  @@index([storeId])
+}
+
+model LocationMismatch {
+  id                  String    @id @default(cuid())
+  saleId              String
+  drugId              String
+  storeId             String
+  expectedLocationId  String
+  suspectedLocationId String?
+  detectedAt          DateTime  @default(now())
+  resolvedAt          DateTime?
+  resolution          String?
+  
+  expectedLocation    Location  @relation("ExpectedLocation", fields: [expectedLocationId], references: [id])
+  
+  @@index([drugId, detectedAt])
+  @@index([storeId, detectedAt, resolvedAt])
+}
+
+model PartialStripInventory {
+  id                  String          @id @default(cuid())
+  batchId             String
+  storeId             String
+  stripIdentifier     String          // UUID for tracking
+  totalTablets        Int             // Original count (e.g., 10)
+  tabletsRemaining    Int
+  firstOpenedAt       DateTime        @default(now())
+  lastSoldAt          DateTime        @updatedAt
+  closedAt            DateTime?       // When all tablets sold
+  
+  batch               InventoryBatch  @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  
+  @@index([batchId, tabletsRemaining])
+  @@index([storeId, tabletsRemaining])
+}
+
 
 model APIKey {
   id          String       @id @default(cuid())
@@ -2373,6 +2635,23 @@ model PatientAudit {
   patient   Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
 
   @@index([patientId, createdAt])
+}
+
+model DrugUnit {
+  id         String   @id @default(cuid())
+  drugId     String
+  baseUnit   String
+  parentUnit String?
+  childUnit  String
+  conversion Decimal  @db.Decimal(10, 3)
+  isDefault  Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  drug       Drug     @relation(fields: [drugId], references: [id], onDelete: Cascade)
+
+  @@unique([drugId, parentUnit, childUnit])
+  @@index([drugId, isDefault])
+  @@index([drugId, baseUnit])
 }
 
 model UserAvatar {
@@ -2817,8 +3096,14 @@ enum ConsolidatedInvoiceType {
 
 enum ConsolidatedInvoiceStatus {
   DRAFT
-  FINALIZED
-  SENT
+  FINALIZED         // Keep for backward compatibility
+  CONFIRMED         // New: replaces FINALIZED for new invoices
+  SENT_TO_SUPPLIER
+  SENT              // Keep for backward compatibility
+  PARTIALLY_PAID
+  PAID
+  DISPUTED
+  CANCELLED
   ARCHIVED
 }
 

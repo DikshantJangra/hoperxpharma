@@ -3,6 +3,14 @@
 import React from 'react';
 import { FiAlertCircle, FiThermometer } from 'react-icons/fi';
 import { BsSnow } from 'react-icons/bs';
+import { formatStockQuantity, getStockStatus } from '@/lib/utils/stock-display';
+import { BsQrCodeScan, BsUpcScan } from 'react-icons/bs';
+import { scanApi } from '@/lib/api/scan';
+import { toast } from 'sonner';
+import dynamic from 'next/dynamic';
+import QRCodeModal from './QRCodeModal';
+
+const BarcodeScannerModal = dynamic(() => import('@/components/pos/BarcodeScannerModal'), { ssr: false });
 
 const BatchRowSkeleton = () => (
   <tr className="animate-pulse border-b border-[#f1f5f9]">
@@ -24,7 +32,63 @@ const BatchRowSkeleton = () => (
   </tr>
 )
 
-export default function BatchTable({ batches, isLoading, searchQuery, onSelectBatch, selectedBatch }: any) {
+export default function BatchTable({ batches, isLoading, searchQuery, onSelectBatch, selectedBatch, onRefresh }: any) {
+  const [scanningBatchId, setScanningBatchId] = React.useState<string | null>(null);
+  const [qrModalOpen, setQrModalOpen] = React.useState(false);
+  const [qrData, setQrData] = React.useState<any>(null);
+
+  const handleEnroll = async (code: string) => {
+    if (!scanningBatchId) return;
+    const toastId = toast.loading('Linking barcode...');
+    try {
+      await scanApi.enrollBarcode({
+        barcode: code,
+        batchId: scanningBatchId,
+        barcodeType: 'MANUFACTURER'
+      });
+      toast.success(`Barcode ${code} linked successfully!`);
+      if (onRefresh) onRefresh();
+    } catch (error: any) {
+      // Extract exact error message from backend
+      const msg = error.response?.data?.message || error.message || 'Failed to link barcode';
+      toast.error(msg);
+    } finally {
+      toast.dismiss(toastId);
+      setScanningBatchId(null); // Always close modal
+    }
+  };
+
+  const handleGenerateQR = async (batch: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const toastId = toast.loading('Generating QR...');
+    try {
+      // Check if already has internal QR
+      if (batch.internalQRCode && batch.internalQRCode.startsWith('data:')) {
+        // This logic depends on what backend returns. 
+        // Actually backend `generateQR` returns the data URL.
+        // Let's just call the API to be safe and get the fresh data URL.
+      }
+
+      const response = await scanApi.generateQR(batch.id);
+
+      setQrData({
+        qrDataURL: response.qrDataURL,
+        batchId: batch.id,
+        batchNumber: batch.batchNumber,
+        drugName: batch.drug?.name,
+        expiryDate: batch.expiryDate
+      });
+      setQrModalOpen(true);
+      toast.success('QR Code generated');
+      if (onRefresh) onRefresh();
+    } catch (error: any) {
+      toast.error('Failed to generate QR');
+      console.error(error);
+    } finally {
+      toast.dismiss(toastId);
+    }
+  };
+
   const getExpiryColor = (days: number) => {
     if (days < 0) return 'bg-[#991b1b] text-white';
     if (days < 7) return 'bg-[#fee2e2] text-[#991b1b]';
@@ -48,6 +112,7 @@ export default function BatchTable({ batches, isLoading, searchQuery, onSelectBa
             <th className="text-left px-4 py-3 text-xs font-semibold text-[#64748b] uppercase w-8">
               <input type="checkbox" className="w-4 h-4 rounded" />
             </th>
+            <th className="text-left px-4 py-3 text-xs font-semibold text-[#64748b] uppercase">Barcode</th>
             <th className="text-left px-4 py-3 text-xs font-semibold text-[#64748b] uppercase">Batch #</th>
             <th className="text-left px-4 py-3 text-xs font-semibold text-[#64748b] uppercase">Drug / Item</th>
             <th className="text-left px-4 py-3 text-xs font-semibold text-[#64748b] uppercase">Expiry</th>
@@ -69,6 +134,7 @@ export default function BatchTable({ batches, isLoading, searchQuery, onSelectBa
             batches.map((batch: any) => {
               const daysToExpiry = Math.floor((new Date(batch.expiryDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
               const status = daysToExpiry < 0 ? 'Expired' : 'Active';
+              const stockStatus = getStockStatus(batch);
 
               return (
                 <tr
@@ -83,6 +149,41 @@ export default function BatchTable({ batches, isLoading, searchQuery, onSelectBa
                       onClick={(e) => e.stopPropagation()}
                       className="w-4 h-4 rounded"
                     />
+                  </td>
+                  <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                    <div className="flex flex-col gap-1.5 items-start">
+                      {batch.manufacturerBarcode ? (
+                        <button
+                          onClick={() => setScanningBatchId(batch.id)}
+                          className="flex items-center gap-2 px-2 py-1 hover:bg-gray-100 rounded text-sm text-[#0f172a] group/btn"
+                          title="Edit Manufacturer Barcode"
+                        >
+                          <BsUpcScan className="w-4 h-4 text-emerald-600" />
+                          <span>{batch.manufacturerBarcode}</span>
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => setScanningBatchId(batch.id)}
+                          className="flex items-center gap-1.5 px-2 py-1 text-xs font-medium text-blue-600 bg-blue-50 hover:bg-blue-100 rounded border border-blue-200 transition-colors"
+                        >
+                          <BsUpcScan className="w-3.5 h-3.5" />
+                          Link Barcode
+                        </button>
+                      )}
+
+                      {/* Internal QR Button */}
+                      <button
+                        onClick={(e) => handleGenerateQR(batch, e)}
+                        className={`flex items-center gap-1.5 px-2 py-1 text-xs font-medium rounded border transition-colors ${batch.internalQRCode
+                            ? 'text-purple-700 bg-purple-50 border-purple-200 hover:bg-purple-100'
+                            : 'text-gray-600 bg-gray-50 border-gray-200 hover:bg-gray-100'
+                          }`}
+                        title="Generate/View Internal QR"
+                      >
+                        <BsQrCodeScan className="w-3.5 h-3.5" />
+                        {batch.internalQRCode ? 'View QR' : 'Gen QR'}
+                      </button>
+                    </div>
                   </td>
                   <td className="px-4 py-3">
                     <span className="font-semibold text-[#0f172a]">{batch.batchNumber}</span>
@@ -109,7 +210,9 @@ export default function BatchTable({ batches, isLoading, searchQuery, onSelectBa
                       </span>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-right font-semibold text-[#0f172a]">{batch.quantityInStock}</td>
+                  <td className={`px-4 py-3 text-right font-semibold ${stockStatus.color}`}>
+                    {batch.baseUnitQuantity ?? batch.quantityInStock}
+                  </td>
                   <td className="px-4 py-3 text-right font-semibold text-[#0ea5a3]">₹{Number(batch.mrp).toFixed(2)}</td>
                   <td className="px-4 py-3 text-sm text-[#64748b]">{batch.location || batch.rackLocation || 'N/A'}</td>
                   <td className="px-4 py-3">
@@ -138,6 +241,38 @@ export default function BatchTable({ batches, isLoading, searchQuery, onSelectBa
           )}
         </tbody>
       </table>
+
+      {scanningBatchId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full overflow-hidden relative">
+            <button
+              onClick={() => setScanningBatchId(null)}
+              className="absolute top-3 right-3 p-2 hover:bg-gray-100 rounded-full z-10"
+            >
+              <span className="sr-only">Close</span>
+              <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            <div className="p-4 border-b">
+              <h3 className="text-lg font-semibold text-gray-900">Link Barcode</h3>
+              <p className="text-sm text-gray-500">Scan or type the manufacturer's barcode</p>
+            </div>
+            <div className="p-4">
+              <BarcodeScannerModal
+                onClose={() => setScanningBatchId(null)}
+                onScan={handleEnroll}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      <QRCodeModal
+        isOpen={qrModalOpen}
+        onClose={() => setQrModalOpen(false)}
+        qrData={qrData}
+      />
     </div>
   );
 }

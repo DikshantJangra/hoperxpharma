@@ -48,6 +48,11 @@ database.connect().then(() => {
     initializeJobs();
     logger.info('✅ Payment background jobs initialized');
 
+    // Initialize Indian Pharmacy System Background Jobs
+    const { startDailyBehavioralScoringJob } = require('./jobs/dailyBehavioralScoringJob');
+    startDailyBehavioralScoringJob();
+    logger.info('✅ Indian Pharmacy behavioral scoring job scheduled');
+
     // Start server
     const server = app.listen(PORT, '0.0.0.0', () => {
         logger.info(`Server is running on port http://localhost:${PORT}`);

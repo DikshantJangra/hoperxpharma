@@ -138,6 +138,10 @@ app.use(correlationId);
 // Request logging (now includes correlation ID)
 app.use(requestLogger);
 
+// Comprehensive activity logging for behavioral detection
+const { activityLogger } = require('./middlewares/activityLogger');
+app.use('/api', activityLogger); // Log all API requests for behavioral analysis
+
 // Session timeout for HIPAA compliance (15 minutes of inactivity)
 const { sessionTimeout } = require('./middlewares/sessionTimeout');
 app.use(sessionTimeout);

@@ -28,8 +28,17 @@ class GRNService {
         const draftGrn = existingGrns.find(g => g.status === 'IN_PROGRESS' || g.status === 'DRAFT');
 
         if (draftGrn) {
-            logger.info(`Returning existing draft GRN: ${draftGrn.grnNumber} for PO ${po.poNumber}`);
-            return draftGrn;
+            // CRITICAL FIX: Return existing draft instead of deleting it
+            // This allows users to resume work from where they left off
+            logger.info(`Resuming existing draft GRN: ${draftGrn.grnNumber} for PO ${po.poNumber}`);
+
+            // If the draft exists but items were somehow lost or empty (edge case), we might want to repopulate,
+            // but for now, we assume the draft is valid if it exists.
+
+            // We need to return the full GRN object including items, similar to what createGRN returns
+            // Since getGRNsByPOId might return a lightweight object, let's fetch the full one by ID
+            const fullDraftGrn = await grnRepository.getGRNById(draftGrn.id);
+            return fullDraftGrn;
         }
 
         // Retry logic for GRN creation (handle unique constraint failures)
@@ -115,6 +124,7 @@ class GRNService {
         const discountPercent = details.discountPercent !== undefined ? details.discountPercent : item.discountPercent;
         const discountType = details.discountType !== undefined ? details.discountType : (item.discountType || 'BEFORE_GST');
         const gstPercent = details.gstPercent !== undefined ? details.gstPercent : item.gstPercent;
+        const manufacturerBarcode = details.manufacturerBarcode !== undefined ? details.manufacturerBarcode : item.manufacturerBarcode;
 
         // Calculate line total based on discount type
         let lineTotal;
@@ -219,6 +229,7 @@ class GRNService {
                 discountType: split.discountType || 'BEFORE_GST',
                 gstPercent: split.gstPercent,
                 location: split.location || null,
+                manufacturerBarcode: split.manufacturerBarcode || null,
                 parentItemId: itemId,  // Link to parent
                 lineTotal
             });

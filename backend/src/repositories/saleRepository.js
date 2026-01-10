@@ -277,11 +277,19 @@ class SaleRepository {
 
             // Update inventory (skip for estimates)
             if (saleData.invoiceType !== 'ESTIMATE') {
+                const salesUnitHelper = require('../services/sales/salesUnitConversionHelper');
+
                 // Batch update inventory and create stock movements
                 const inventoryPromises = items.map(async (item) => {
                     const currentBatch = await tx.inventoryBatch.findUnique({
                         where: { id: item.batchId },
-                        select: { quantityInStock: true, batchNumber: true, drug: { select: { name: true } } }
+                        select: {
+                            quantityInStock: true,
+                            baseUnitQuantity: true,
+                            batchNumber: true,
+                            drugId: true,
+                            drug: { select: { name: true, baseUnit: true } }
+                        }
                     });
 
                     if (!currentBatch || currentBatch.quantityInStock < item.quantity) {
@@ -290,23 +298,66 @@ class SaleRepository {
                         );
                     }
 
+                    // Calculate base unit quantity for this sale item
+                    let baseUnitQtyToDeduct = item.quantity; // Default 1:1
+                    let saleUnit = item.unit || 'unit';
+
+                    try {
+                        const conversion = await salesUnitHelper.calculateSaleBaseUnitQty({
+                            drugId: currentBatch.drugId,
+                            quantity: item.quantity,
+                            unit: item.unit || 'unit'
+                        });
+
+                        baseUnitQtyToDeduct = conversion.baseUnitQty;
+                        saleUnit = conversion.unit;
+                    } catch (error) {
+                        // Fallback: use quantity as-is if no conversion configured
+                        logger.warn(`Unit conversion fallback for sale item batch ${item.batchId}:`, error.message);
+                    }
+
+                    // Validate base unit availability
+                    const availableBaseQty = currentBatch.baseUnitQuantity || currentBatch.quantityInStock;
+                    if (availableBaseQty < baseUnitQtyToDeduct) {
+                        throw new Error(
+                            `Insufficient base unit stock for ${currentBatch?.drug.name}. ` +
+                            `Available: ${availableBaseQty} ${currentBatch.drug.baseUnit || 'units'}, ` +
+                            `Required: ${baseUnitQtyToDeduct} ${currentBatch.drug.baseUnit || 'units'}`
+                        );
+                    }
+
                     // Update batch and create movement (parallel)
                     return Promise.all([
                         tx.inventoryBatch.update({
                             where: { id: item.batchId },
                             data: {
-                                quantityInStock: { decrement: item.quantity }
+                                quantityInStock: { decrement: item.quantity }, // Backward compat
+                                baseUnitQuantity: { decrement: baseUnitQtyToDeduct } // New truth
                             }
                         }),
                         tx.stockMovement.create({
                             data: {
-                                // storeId removed as it's not in StockMovement model
                                 batchId: item.batchId,
                                 movementType: 'SALE',
-                                quantity: -item.quantity,
-                                referenceType: 'SALE', // Explicitly set referenceType
+                                quantity: -item.quantity, // Legacy field
+                                baseUnitQuantity: -baseUnitQtyToDeduct, // New field
+                                movementUnit: saleUnit, // Audit trail
+                                originalQuantity: item.quantity, // Audit trail
+                                referenceType: 'SALE',
                                 referenceId: sale.invoiceNumber,
-                                userId: saleData.soldBy // Mapped from createdBy/soldBy
+                                userId: saleData.soldBy
+                            }
+                        }),
+                        // Update the sale item with base unit quantity for return tracking
+                        tx.saleItem.updateMany({
+                            where: {
+                                saleId: sale.id,
+                                drugId: currentBatch.drugId,
+                                batchId: item.batchId
+                            },
+                            data: {
+                                unit: saleUnit,
+                                baseUnitQuantity: baseUnitQtyToDeduct
                             }
                         })
                     ]);

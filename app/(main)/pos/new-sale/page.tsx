@@ -21,7 +21,8 @@ import { prescriptionApi } from '@/lib/api/prescriptions';
 import PrescriptionImportModal from '@/components/pos/PrescriptionImportModal';
 import { inventoryApi } from '@/lib/api/inventory';
 import { useBarcodeScanner } from '@/hooks/useBarcodeScanner';
-import { useMedicineMaster } from '@/contexts/MedicineMasterContext';
+// import { useMedicineMaster } from '@/contexts/MedicineMasterContext'; // Removed legacy lookup
+import { scanApi } from '@/lib/api/scan';
 
 export default function NewSalePage() {
     const router = useRouter();
@@ -55,39 +56,68 @@ export default function NewSalePage() {
     const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
 
     // Barcode Scanner Integration
-    const { lookupByBarcode } = useMedicineMaster();
+    // const { lookupByBarcode } = useMedicineMaster(); // Deprecated
 
-    const handleScan = (barcode: string) => {
+    const handleScan = async (barcode: string) => {
         console.log('🔫 Scanned Barcode:', barcode);
+        const toastId = toast.loading('Searching inventory...');
 
-        // 1. Lookup in Master Data (O(1))
-        const masterItem = lookupByBarcode(barcode);
+        try {
+            // 1. Lookup in LIVE Inventory via API
+            const scannedItem = await scanApi.processScan(barcode);
+            toast.dismiss(toastId);
 
-        if (masterItem) {
-            toast.success(`Scanned: ${masterItem.name}`);
+            if (!scannedItem) {
+                toast.error(`Item not found: ${barcode}`);
+                return;
+            }
+
+            toast.success(`Found: ${scannedItem.drugName} (${scannedItem.batchNumber})`);
 
             // 2. Convert to Product format for basket
-            // Note: We don't have batch info from barcode yet, so we set stock/batches to 0
-            // This will trigger addToBasket to open the BatchModal, which is correct for Phase 1
+            // CRITICAL: We have the SPECIFIC batch from the scan, so we populate batchId directly.
+            // This allows `addToBasket` to bypass the Batch Selection Modal.
             const productToAdd = {
-                id: masterItem.sku || masterItem.barcode, // Prefer SKU if available
-                name: masterItem.name,
-                mrp: masterItem.mrp,
-                gstRate: masterItem.gstRate,
-                manufacturer: masterItem.manufacturer,
-                type: masterItem.type || 'OTC',
-                requiresPrescription: masterItem.requiresPrescription || masterItem.type === 'RX',
-                stock: 0,
-                batches: 0,
-                batchCount: 0,
-                // Pass barcode to help with batch lookup later if needed
-                barcode: listBarcode(masterItem)
+                id: scannedItem.drugId, // Ensure we map drugId to id
+                drugId: scannedItem.drugId, // Explicitly add drugId
+                name: scannedItem.drugName,
+                mrp: Number(scannedItem.mrp),
+                gstRate: Number(scannedItem.gstRate),
+                manufacturer: scannedItem.manufacturer || 'Unknown',
+                type: 'RX',
+                requiresPrescription: true,
+                stock: Number(scannedItem.quantityInStock),
+                batches: 1,
+                batchCount: 1,
+
+                // Specific Batch Details
+                batchId: scannedItem.batchId,
+                batchNumber: scannedItem.batchNumber,
+                expiryDate: scannedItem.expiryDate,
+                location: scannedItem.location,
+
+                barcode: barcode
             };
 
+            console.log('📦 Add Payload:', productToAdd);
+
+            // Validate critical fields
+            if (!productToAdd.id || !productToAdd.batchId) {
+                console.error('❌ Missing critical fields:', productToAdd);
+                toast.error('Scan failed: Invalid item data received');
+                return;
+            }
+
             addToBasket(productToAdd);
-        } else {
-            toast.error(`Item not found in Master Data: ${barcode}`);
-            // Optional: Open search with this barcode pre-filled?
+            console.log('✅ addToBasket called');
+            toast.success('Added to basket!');
+
+        } catch (error: any) {
+            toast.dismiss(toastId);
+            console.error('Scan error:', error);
+            // Customize error message based on API response
+            const msg = error.response?.data?.message || `Item not found: ${barcode}`;
+            toast.error(msg);
         }
     };
 
@@ -1132,7 +1162,7 @@ export default function NewSalePage() {
             toast.info("Please add a customer before using credit");
             return;
         }
-        
+
         console.log('Split payment confirmed:', splits);
         setShowSplitPayment(false);
         await handleFinalize('SPLIT', splits);

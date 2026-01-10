@@ -80,13 +80,13 @@ let refreshPromise: Promise<void> | null = null;
 
 async function refreshTokenIfNeeded(): Promise<void> {
     const token = tokenManager.getAccessToken();
-    
+
     // If no token in memory, try to refresh from httpOnly cookie
     if (!token) {
         if (isRefreshing) {
             return refreshPromise!;
         }
-        
+
         isRefreshing = true;
         refreshPromise = (async () => {
             try {
@@ -112,10 +112,10 @@ async function refreshTokenIfNeeded(): Promise<void> {
                 refreshPromise = null;
             }
         })();
-        
+
         return refreshPromise;
     }
-    
+
     // If token exists but expiring soon, refresh it
     if (isTokenExpiringSoon(token)) {
         if (isRefreshing) {
@@ -316,8 +316,24 @@ async function baseFetch(
  * API client with automatic token refresh
  */
 export const apiClient = {
-    async get(endpoint: string, options?: RequestInit & { responseType?: 'json' | 'blob'; timeout?: number }) {
-        return baseFetch(endpoint, { ...options, method: 'GET' });
+    async get(endpoint: string, options?: RequestInit & { params?: Record<string, any>; responseType?: 'json' | 'blob'; timeout?: number }) {
+        let url = endpoint;
+
+        // Append query parameters if provided
+        if (options?.params) {
+            const searchParams = new URLSearchParams();
+            Object.entries(options.params).forEach(([key, value]) => {
+                if (value !== null && value !== undefined) {
+                    searchParams.append(key, String(value));
+                }
+            });
+            const queryString = searchParams.toString();
+            if (queryString) {
+                url = `${endpoint}?${queryString}`;
+            }
+        }
+
+        return baseFetch(url, { ...options, method: 'GET' });
     },
 
     async post(endpoint: string, data?: any, options?: RequestInit & { responseType?: 'json' | 'blob'; timeout?: number }) {

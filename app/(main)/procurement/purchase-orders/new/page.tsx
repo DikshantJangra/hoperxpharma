@@ -21,7 +21,7 @@ export default function NewPurchaseOrderPage() {
     });
 
     const [items, setItems] = useState<any[]>([
-        { drugId: '', quantity: 1, unitPrice: 0, gstRate: 12, discount: 0 }
+        { drugId: '', quantity: 1, unitPrice: 0, gstRate: 12, discount: 0, packUnit: 'unit', packSize: 1 }
     ]);
 
     // Auto-fill delivery address with store address
@@ -70,7 +70,7 @@ export default function NewPurchaseOrderPage() {
     }, []);
 
     const addItem = () => {
-        setItems([...items, { drugId: '', quantity: 1, unitPrice: 0, gstRate: 12, discount: 0 }]);
+        setItems([...items, { drugId: '', quantity: 1, unitPrice: 0, gstRate: 12, discount: 0, packUnit: 'unit', packSize: 1 }]);
     };
 
     const removeItem = (index: number) => {
@@ -144,6 +144,8 @@ export default function NewPurchaseOrderPage() {
                     unitPrice: Number(item.unitPrice),
                     discount: Number(item.discount || 0),
                     gstRate: Number(item.gstRate),
+                    packUnit: item.packUnit || 'unit',
+                    packSize: Number(item.packSize || 1),
                     totalAmount: calculateItemTotal(item),
                 })),
             };
@@ -261,7 +263,7 @@ export default function NewPurchaseOrderPage() {
                         <div className="space-y-3">
                             {items.map((item, index) => (
                                 <div key={index} className="flex items-start gap-3 p-4 bg-[#f8fafc] rounded-lg">
-                                    <div className="flex-1 grid grid-cols-6 gap-3">
+                                    <div className="flex-1 grid grid-cols-8 gap-3">
                                         <div className="col-span-2">
                                             <label className="block text-xs font-medium text-[#64748b] mb-1">Drug</label>
                                             <select
@@ -287,6 +289,33 @@ export default function NewPurchaseOrderPage() {
                                                 min="1"
                                                 className="w-full px-2 py-1.5 text-sm border border-[#cbd5e1] rounded focus:outline-none focus:ring-2 focus:ring-[#0ea5a3]"
                                                 required
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-medium text-emerald-600 mb-1">Pack Unit</label>
+                                            <select
+                                                value={item.packUnit || 'unit'}
+                                                onChange={(e) => updateItem(index, 'packUnit', e.target.value)}
+                                                className="w-full px-2 py-1.5 text-sm border border-emerald-200 bg-emerald-50 rounded focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                                            >
+                                                <option value="unit">Unit</option>
+                                                <option value="strip">Strip</option>
+                                                <option value="bottle">Bottle</option>
+                                                <option value="box">Box</option>
+                                                <option value="tube">Tube</option>
+                                                <option value="vial">Vial</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-medium text-emerald-600 mb-1">Pack Size</label>
+                                            <input
+                                                type="number"
+                                                value={item.packSize || 1}
+                                                onChange={(e) => updateItem(index, 'packSize', e.target.value)}
+                                                min="1"
+                                                placeholder="e.g. 10"
+                                                className="w-full px-2 py-1.5 text-sm border border-emerald-200 bg-emerald-50 rounded focus:outline-none focus:ring-2 focus:ring-emerald-300"
+                                                title="How many base units per pack (e.g., 10 tablets per strip)"
                                             />
                                         </div>
                                         <div>

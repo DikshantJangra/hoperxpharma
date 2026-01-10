@@ -25,7 +25,7 @@ export default function BatchesPage() {
       });
 
       console.log('📦 Batches API Response:', response);
-      
+
       // Handle both response formats
       const batchesData = Array.isArray(response) ? response : (response.data || []);
       console.log('📦 Batches Data:', batchesData);
@@ -48,7 +48,7 @@ export default function BatchesPage() {
         quarantined: 0,
         recalled: 0,
       });
-      
+
       console.log('📊 Stats:', { total, onHand, expiringSoon });
     } catch (error) {
       console.error('Failed to fetch batches:', error);
@@ -161,6 +161,7 @@ export default function BatchesPage() {
             searchQuery={searchQuery}
             onSelectBatch={setSelectedBatch}
             selectedBatch={selectedBatch}
+            onRefresh={fetchBatches}
           />
         </div>
 

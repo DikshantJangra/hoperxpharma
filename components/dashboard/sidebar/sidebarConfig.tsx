@@ -8,7 +8,7 @@ import {
     RiCapsuleLine
 } from "react-icons/ri"
 import {
-    FiPackage, FiDollarSign, FiTrendingUp, FiMessageSquare, FiShield, FiBook, FiHelpCircle, FiUsers
+    FiPackage, FiDollarSign, FiTrendingUp, FiMessageSquare, FiShield, FiBook, FiHelpCircle, FiUsers, FiFileText
 } from "react-icons/fi"
 import {
     HiOutlineClipboardList
@@ -125,15 +125,22 @@ export const sidebarConfig: SidebarSection[] = [
             },
             {
                 icon: <FiPackage size={18} />,
-                label: "Orders",
+                label: "Purchase Orders",
+                requiredPermission: "po.read",
+                path: "/orders/pending", // Default landing page is "To Receive"
+                subItems: [
+                    { label: "New PO", path: "/orders/new-po", requiredPermission: "po.create" },
+                    { label: "To Receive", path: "/orders/pending", requiredPermission: "po.read" },
+                    { label: "Received", path: "/orders/received", requiredPermission: "po.receive" },
+                    { label: "Returns", path: "/orders/returns", requiredPermission: "po.read" }
+                ]
+            },
+            {
+                icon: <FiDollarSign size={18} />,
+                label: "Accounts",
                 requiredPermission: "po.read",
                 subItems: [
-                    { label: "Overview", path: "/orders", requiredPermission: "po.read" },
-                    { label: "New PO", path: "/orders/new-po", requiredPermission: "po.create" },
-                    { label: "Pending", path: "/orders/pending", requiredPermission: "po.read" },
-                    { label: "Received", path: "/orders/received", requiredPermission: "po.receive" },
-                    { label: "Invoices", path: "/orders/invoices", requiredPermission: "po.view" },
-                    { label: "Returns", path: "/orders/returns", requiredPermission: "po.read" }
+                    { label: "Supplier Invoices", path: "/supplier-invoices", requiredPermission: "po.read" }
                 ]
             },
             {

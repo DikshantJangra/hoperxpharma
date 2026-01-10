@@ -34,6 +34,7 @@
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "csv-parser": "^3.2.0",
+    "dayjs": "^1.11.19",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "express-rate-limit": "^8.2.1",
@@ -57,6 +58,8 @@
     "passport-google-oauth20": "^2.0.0",
     "pdf-lib": "^1.17.1",
     "pdfkit": "^0.17.2",
+    "prisma": "^6.18.0",
+    "qrcode": "^1.5.4",
     "razorpay": "^2.9.6",
     "resend": "^6.6.0",
     "safer-buffer": "^2.1.2",
@@ -75,6 +78,6 @@
     "eslint": "^9.39.1",
     "prisma": "^6.18.0",
     "ts-node": "^10.9.2",
-    "typescript": "^5.9.3"
+    "typescript": "^5.3.3"
   }
 }

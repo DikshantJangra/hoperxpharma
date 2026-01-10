@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import OrderList, { Order } from '@/components/orders/OrderList';
 import OrderFilters, { FilterState } from '@/components/orders/OrderFilters';
-import { HiOutlineCheckCircle, HiOutlineCurrencyRupee, HiOutlineClock } from 'react-icons/hi2';
+import { HiOutlineCheckCircle, HiOutlineCurrencyRupee, HiOutlineClock, HiOutlinePlus } from 'react-icons/hi2';
 import { grnApi } from '@/lib/api/grn';
 
 const StatCardSkeleton = () => (
@@ -21,6 +22,7 @@ const StatCardSkeleton = () => (
 export default function ReceivedOrdersPage() {
     const [orders, setOrders] = useState<Order[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const router = useRouter();
 
     useEffect(() => {
         fetchReceivedOrders();
@@ -80,11 +82,20 @@ export default function ReceivedOrdersPage() {
     return (
         <div className="p-6">
             {/* Header */}
-            <div className="mb-6">
-                <h1 className="text-2xl font-bold text-gray-900">Received Orders</h1>
-                <p className="text-sm text-gray-500 mt-1">
-                    View all received purchase orders and inventory updates
-                </p>
+            <div className="flex justify-between items-center mb-6">
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-900">Received</h1>
+                    <p className="text-sm text-gray-500 mt-1">
+                        View all received purchase orders and inventory updates
+                    </p>
+                </div>
+                <button
+                    onClick={() => router.push('/orders/new-po')}
+                    className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors font-medium"
+                >
+                    <HiOutlinePlus className="h-5 w-5" />
+                    New Order
+                </button>
             </div>
 
             {/* Quick Stats */}

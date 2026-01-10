@@ -1,44 +1,52 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-async function main() {
-    console.log('Connecting to DB...');
+async function checkBarcode() {
+    const barcode = '012462';
+    console.log(`Checking DB for barcode: ${barcode}`);
+
+    // 1. Check Registry
+    const registry = await prisma.barcodeRegistry.findUnique({
+        where: { barcode },
+        include: { batch: true }
+    });
+    console.log('Registry Entry:', registry ? 'FOUND' : 'NOT FOUND');
+    if (registry) console.log(JSON.stringify(registry, null, 2));
+
+    // 2. Check GRN Items
+    const grnItems = await prisma.gRNItem.findMany({
+        where: { manufacturerBarcode: barcode },
+        include: { grn: true }
+    });
+    console.log('GRN Items:', grnItems.length);
+    if (grnItems.length > 0) {
+        console.log(JSON.stringify(grnItems, null, 2));
+    } else {
+        // Broad search in GRN Items just in case
+        console.log('Performing broad GRN Item search...');
+        const allGrnItems = await prisma.gRNItem.findMany({
+            take: 50,
+            orderBy: { id: 'desc' },
+            select: { id: true, manufacturerBarcode: true, batchNumber: true }
+        });
+        console.log('Recent GRN Items:', JSON.stringify(allGrnItems, null, 2));
+    }
+
+    // 3. Check Inventory Batches with that barcode (if column exists and was populated)
+    // Note: I added manufacturerBarcode to InventoryBatch in my plan, let's see if it's there
     try {
-        const stores = await prisma.store.findMany({
-            take: 5,
-            include: { settings: true }
+        const batches = await prisma.inventoryBatch.findMany({
+            where: { manufacturerBarcode: barcode }
         });
-
-        console.log('Found', stores.length, 'stores');
-        stores.forEach(s => {
-            console.log(`Store ID: ${s.id}, Name: ${s.name}`);
-            console.log('Settings:', s.settings);
-        });
-
-        // Try to find a store and specific settings
-        const specificStore = stores[0];
-        if (specificStore) {
-            console.log('Attempting upsert for store:', specificStore.id);
-            const upserted = await prisma.storeSettings.upsert({
-                where: { storeId: specificStore.id },
-                create: {
-                    storeId: specificStore.id,
-                    invoiceFormat: 'TEST/{SEQ}',
-                    footerText: 'Test Footer'
-                },
-                update: {
-                    invoiceFormat: 'TEST/{SEQ}',
-                    footerText: 'Test Footer'
-                }
-            });
-            console.log('Upsert result:', upserted);
-        }
-
+        console.log('Inventory Batches with barcode:', batches.length);
+        if (batches.length > 0) console.log(JSON.stringify(batches, null, 2));
     } catch (e) {
-        console.error('DB Error:', e);
-    } finally {
-        await prisma.$disconnect();
+        console.log('Error querying InventoryBatch.manufacturerBarcode (maybe column missing?):', e.message);
     }
 }
 
-main();
+checkBarcode()
+    .catch(e => console.error(e))
+    .finally(async () => {
+        await prisma.$disconnect();
+    });

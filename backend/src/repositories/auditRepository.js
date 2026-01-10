@@ -63,19 +63,12 @@ class AuditRepository {
                 : {}),
         };
 
+
         const [logs, total] = await Promise.all([
             prisma.auditLog.findMany({
                 where,
                 include: {
-                    user: {
-                        select: {
-                            id: true,
-                            firstName: true,
-                            lastName: true,
-                            email: true,
-                            role: true,
-                        },
-                    },
+                    user: true,
                     store: {
                         select: {
                             id: true,

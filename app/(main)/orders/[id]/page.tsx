@@ -59,31 +59,40 @@ export default function OrderDetailsPage() {
 
     const fetchOrderDetails = async (id: string) => {
         try {
-            // Fetch PO details
-            const data = await purchaseOrderApi.getPOById(id);
+            // Fetch PO details - purchaseOrderApi already unwraps response.data
+            const order = await purchaseOrderApi.getPOById(id);
+
+            console.log('Order received:', order);
+
+            // Check if we got valid data
+            if (!order || !order.id) {
+                console.error('Invalid order data:', order);
+                setError('Order not found');
+                setIsLoading(false);
+                return;
+            }
 
             // Transform supplier data to match frontend expectations
-
-            // Transform supplier data to match frontend expectations
-            if (data.data && data.data.supplier) {
-                data.data.supplier.phone = data.data.supplier.phoneNumber || '';
-                data.data.supplier.address = [
-                    data.data.supplier.addressLine1,
-                    data.data.supplier.addressLine2,
-                    data.data.supplier.city,
-                    data.data.supplier.state,
-                    data.data.supplier.pinCode
+            if (order.supplier) {
+                order.supplier.phone = order.supplier.phoneNumber || '';
+                order.supplier.address = [
+                    order.supplier.addressLine1,
+                    order.supplier.addressLine2,
+                    order.supplier.city,
+                    order.supplier.state,
+                    order.supplier.pinCode
                 ].filter(Boolean).join(', ');
             }
 
-            setOrder(data.data);
+            setOrder(order);
 
             // Fetch GRN data if order is received or partially received
-            if (data.data.status === 'RECEIVED' || data.data.status === 'PARTIALLY_RECEIVED') {
+            if (order.status === 'RECEIVED' || order.status === 'PARTIALLY_RECEIVED') {
                 const grnData = await grnApi.getGRNsByPOId(id);
                 setGrns(grnData.data || []);
             }
         } catch (err: any) {
+            console.error('Error fetching order:', err);
             setError(err.message || 'Failed to load order');
         } finally {
             setIsLoading(false);

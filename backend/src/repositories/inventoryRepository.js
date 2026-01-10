@@ -298,6 +298,16 @@ class InventoryRepository {
     }
 
     /**
+     * Update generic batch details
+     */
+    async updateBatch(id, data) {
+        return await prisma.inventoryBatch.update({
+            where: { id },
+            data
+        });
+    }
+
+    /**
      * Delete batch (soft delete)
      */
     async deleteBatch(id, userId) {

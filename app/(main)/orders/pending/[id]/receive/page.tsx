@@ -12,6 +12,7 @@ import { HiOutlineArrowLeft, HiOutlineCheck, HiOutlineXMark } from 'react-icons/
 import { toast } from 'sonner';
 import { grnApi } from '@/lib/api/grn';
 import { purchaseOrderApi } from '@/lib/api/purchaseOrders';
+import { scanApi } from '@/lib/api/scan';
 
 export default function ReceiveShipmentPage() {
     const params = useParams();
@@ -26,6 +27,7 @@ export default function ReceiveShipmentPage() {
     const [po, setPO] = useState<any>(null);
     const [showSummary, setShowSummary] = useState(false);
     const [lastSaved, setLastSaved] = useState<Date | null>(null);
+    const [isAutoSaving, setIsAutoSaving] = useState(false); // Track if ANY item is currently saving
     const [validationErrors, setValidationErrors] = useState<any[]>([]);
     const [showValidationModal, setShowValidationModal] = useState(false);
     const [showStatusModal, setShowStatusModal] = useState(false);
@@ -183,12 +185,13 @@ export default function ReceiveShipmentPage() {
         }
     };
 
-    const updateTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+    // Use a Map to store timeouts for EACH item independently to prevent race conditions
+    const updateTimeoutsRef = React.useRef<Map<string, NodeJS.Timeout>>(new Map());
     const pendingUpdatesRef = React.useRef<Set<string>>(new Set());
 
     const handleItemUpdate = async (itemId: string, updates: any) => {
         // Define fields that should propagate from parent to children
-        const PROPAGATABLE_FIELDS = ['batchNumber', 'expiryDate', 'mrp', 'unitPrice', 'discountPercent', 'discountType', 'gstPercent', 'location'];
+        const PROPAGATABLE_FIELDS = ['batchNumber', 'expiryDate', 'mrp', 'unitPrice', 'discountPercent', 'discountType', 'gstPercent', 'location', 'manufacturerBarcode'];
         const isPropagatingUpdate = Object.keys(updates).some(key => PROPAGATABLE_FIELDS.includes(key));
 
         // Optimistic update (immediate UI feedback) with REF update
@@ -273,25 +276,35 @@ export default function ReceiveShipmentPage() {
             childIds.forEach((id: string) => pendingUpdatesRef.current.add(id));
         }
 
-        // Debounce the API call
-        if (updateTimeoutRef.current) {
-            clearTimeout(updateTimeoutRef.current);
+        // Set auto-saving state to true
+        setIsAutoSaving(true);
+        setLastSaved(null); // Clear last saved while saving
+
+        // Debounce the API call PER ITEM to ensure all updates are saved
+        const existingTimeout = updateTimeoutsRef.current.get(itemId);
+        if (existingTimeout) {
+            clearTimeout(existingTimeout);
         }
 
-        updateTimeoutRef.current = setTimeout(async () => {
+        const newTimeout = setTimeout(async () => {
+            // Remove this timeout from the map
+            updateTimeoutsRef.current.delete(itemId);
+
             const token = tokenManager.getAccessToken();
 
             // Function to process a single item update
             const updateSingleItem = async (id: string, itemUpdates: any) => {
                 try {
-                    // Sanitize values
+                    // Sanitize values - ONLY include fields explicitly being updated
                     const sanitizedUpdates: any = {};
                     const numericFields = ['receivedQty', 'freeQty', 'unitPrice', 'discountPercent', 'gstPercent', 'mrp'];
 
                     for (const [key, value] of Object.entries(itemUpdates)) {
                         if (numericFields.includes(key)) {
-                            if (value === '' || value === null || value === undefined) {
-                                sanitizedUpdates[key] = 0;
+                            // CRITICAL FIX: Skip undefined/null/empty values to preserve existing DB values
+                            // Don't default to 0 - that would overwrite previously set MRP!
+                            if (value === null || value === undefined || value === '') {
+                                continue;  // Don't include in update payload
                             } else {
                                 const parsedValue = key.includes('Qty') ? parseInt(value as string) : parseFloat(value as string);
                                 sanitizedUpdates[key] = isNaN(parsedValue) ? 0 : parsedValue;
@@ -306,10 +319,21 @@ export default function ReceiveShipmentPage() {
                     // We don't need to consume the response data here because we already did optimistic updates.
                     // The only risk is if server transforms data differently, but we'll fetch fresh on save/complete.
                     pendingUpdatesRef.current.delete(id);
+
+                    // If no more pending updates, we are done saving
+                    if (pendingUpdatesRef.current.size === 0) {
+                        setIsAutoSaving(false);
+                        setLastSaved(new Date());
+                    }
                     return true;
-                } catch (error) {
+                } catch (error: any) {
                     console.error(`Error updating item ${id}:`, error);
                     pendingUpdatesRef.current.delete(id);
+                    if (pendingUpdatesRef.current.size === 0) {
+                        setIsAutoSaving(false);
+                    }
+                    // Show error toast only for real failures
+                    toast.error(`Failed to save item update: ${error.message || 'Unknown error'}`);
                     return false;
                 }
 
@@ -330,13 +354,12 @@ export default function ReceiveShipmentPage() {
 
                 // Update all children concurrently
                 await Promise.all(childIds.map(childId => updateSingleItem(childId, childUpdates)));
-
-                if (childIds.length > 0) {
-                    toast.success('Updated parent and propagation to split batches');
-                }
             }
 
         }, 1500);
+
+        // Store the new timeout for this specific item
+        updateTimeoutsRef.current.set(itemId, newTimeout);
     };
 
     // Calculate detailed totals from items (client-side calculation)
@@ -666,16 +689,18 @@ export default function ReceiveShipmentPage() {
     };
 
     const handleCompleteClick = () => {
-        // Validate before showing status modal
+        // Validate before showing barcode enrollment
         const errors = validateGRN();
         if (errors.length > 0) {
             setValidationErrors(errors);
             setShowValidationModal(true);
             return;
         }
-        // If validation passes, show status selection modal
+        // If validation passes, show status confirmation
         setShowStatusModal(true);
     };
+
+    // Barcode enrollment removed (handled inline in table)
 
     const handleComplete = async (targetStatus?: 'COMPLETED' | 'PARTIALLY_RECEIVED') => {
         setSaving(true);
@@ -769,12 +794,26 @@ export default function ReceiveShipmentPage() {
                         <h1 className="text-2xl font-bold text-gray-900">Receive Shipment</h1>
                         <p className="text-sm text-gray-500 mt-1">
                             PO: {po.poNumber} | Supplier: {po.supplier.name} | Received By: {grn.receivedByUser ? `${grn.receivedByUser.firstName} ${grn.receivedByUser.lastName}` : grn.receivedBy || 'Unknown'}
-                            {lastSaved && (
-                                <span className="ml-3 text-xs text-gray-400">
-                                    {autoSaving ? 'Saving...' : `Last saved: ${lastSaved.toLocaleTimeString()}`}
-                                </span>
-                            )}
                         </p>
+                    </div>
+                    {/* New Auto-Save Status Indicator */}
+                    <div className={`transition-all duration-300 px-4 py-2 rounded-full flex items-center gap-2 ${isAutoSaving
+                            ? 'bg-blue-100 text-blue-700'
+                            : lastSaved
+                                ? 'bg-emerald-100 text-emerald-700'
+                                : 'opacity-0'
+                        }`}>
+                        {isAutoSaving ? (
+                            <>
+                                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                                <span className="text-sm font-medium">Saving...</span>
+                            </>
+                        ) : (
+                            <>
+                                <HiOutlineCheck className="w-5 h-5" />
+                                <span className="text-sm font-medium">Saved</span>
+                            </>
+                        )}
                     </div>
 
                     <div className="flex items-center gap-3">
@@ -1060,7 +1099,9 @@ export default function ReceiveShipmentPage() {
                     errors={validationErrors}
                     onClose={() => setShowValidationModal(false)}
                 />
+
             )}
+
 
             {/* Status Confirmation Modal */}
             {showStatusModal && (() => {

@@ -132,9 +132,65 @@ const getAllDrugs = asyncHandler(async (req, res) => {
     res.status(response.statusCode).json(response);
 });
 
+/**
+ * Get available units for a drug
+ */
+const getDrugUnits = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+
+    const unitConversionService = require('../../services/inventory/unitConversionService');
+
+    try {
+        const units = await unitConversionService.getValidUnits(id);
+        const baseUnit = await unitConversionService.getBaseUnit(id);
+        const displayUnit = await unitConversionService.getDefaultDisplayUnit(id);
+
+        const unitsWithFactors = [];
+
+        for (const unitInfo of units) {
+            let conversionFactor = 1;
+
+            try {
+                conversionFactor = await unitConversionService.getConversionFactor(
+                    id,
+                    displayUnit,
+                    unitInfo.unit
+                );
+            } catch (error) {
+                // If conversion not found, use 1:1
+            }
+
+            unitsWithFactors.push({
+                unit: unitInfo.unit,
+                isBase: unitInfo.isBase,
+                isDefault: unitInfo.isDefault,
+                conversionFactor
+            });
+        }
+
+        const response = ApiResponse.success({
+            drugId: id,
+            baseUnit,
+            displayUnit,
+            units: unitsWithFactors
+        });
+        res.status(response.statusCode).json(response);
+    } catch (error) {
+        // Fallback for drugs without unit configuration
+        const response = ApiResponse.success({
+            drugId: id,
+            baseUnit: 'unit',
+            displayUnit: 'unit',
+            units: [{ unit: 'unit', isBase: true, isDefault: true, conversionFactor: 1 }]
+        });
+        res.status(response.statusCode).json(response);
+    }
+});
+
 module.exports = {
     searchDrugs,
     getDrugById,
+    getDrugUnits,
     importDrugsFromCSV,
     createDrug,
     updateDrug,

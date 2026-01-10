@@ -138,6 +138,39 @@ class GRNRepository {
      * Update GRN item
      */
     async updateGRNItem(grnId, itemId, itemData) {
+        // CRITICAL FIX #3: Prevent MRP regression and completed GRN modification
+
+        // Fetch current item and GRN status
+        const current = await prisma.gRNItem.findUnique({
+            where: { id: itemId },
+            select: {
+                mrp: true,
+                grnId: true,
+                grn: {
+                    select: { status: true }
+                }
+            }
+        });
+
+        if (!current) {
+            throw new Error('GRN item not found');
+        }
+
+        // Prevent modification of completed GRNs
+        if (current.grn.status === 'COMPLETED') {
+            throw new Error('Cannot modify items in completed GRN');
+        }
+
+        // Prevent MRP regression (valid value → 0)
+        if (itemData.mrp !== undefined && itemData.mrp === 0) {
+            if (current.mrp > 0) {
+                throw new Error(
+                    `Cannot reset MRP from ${current.mrp} to 0. ` +
+                    `If this is intentional, set MRP to 0.01 instead, or contact support.`
+                );
+            }
+        }
+
         return await prisma.gRNItem.update({
             where: { id: itemId },
             data: itemData
@@ -360,6 +393,35 @@ class GRNRepository {
 
                 if (totalQty > 0) {
                     // logger.info(`🔍 Creating/updating inventory for batch ${item.batchNumber}`);
+
+                    // Calculate base unit quantity if unit conversion is configured
+                    let baseUnitQty = totalQty; // Default 1:1
+                    let receivedUnit = 'unit';
+                    let receivedQuantity = totalQty;
+
+                    try {
+                        const grnUnitHelper = require('./grnUnitConversionHelper');
+                        const packUnit = updatedGrn.po?.items?.find(pi => pi.id === item.poItemId)?.packUnit || 'unit';
+                        const packSize = updatedGrn.po?.items?.find(pi => pi.id === item.poItemId)?.packSize || 1;
+
+                        const conversion = await grnUnitHelper.calculateBaseUnitQty(
+                            {
+                                drugId: item.drugId,
+                                receivedQty: item.receivedQty,
+                                freeQty: item.freeQty
+                            },
+                            packUnit,
+                            packSize
+                        );
+
+                        baseUnitQty = conversion.baseUnitQty;
+                        receivedUnit = conversion.receivedUnit;
+                        receivedQuantity = conversion.receivedQuantity;
+                    } catch (error) {
+                        // Fallback to simple quantity if conversion fails
+                        logger.warn(`Unit conversion failed for batch ${item.batchNumber}, using 1:1 mapping:`, error.message);
+                    }
+
                     const batch = await tx.inventoryBatch.upsert({
                         where: {
                             storeId_batchNumber_drugId: {
@@ -372,11 +434,14 @@ class GRNRepository {
                             quantityInStock: {
                                 increment: totalQty
                             },
-                            // Update price/location if necessary, or keep existing?
-                            // Usually new GRN means new price, so we should update purchasePrice and MRP
+                            baseUnitQuantity: {
+                                increment: baseUnitQty
+                            },
+                            // Update price/location if necessary
                             mrp: item.mrp,
                             purchasePrice: item.unitPrice,
-                            location: item.location || undefined // Only update if provided
+                            location: item.location || undefined,
+                            manufacturerBarcode: item.manufacturerBarcode || undefined
                         },
                         create: {
                             storeId: grn.storeId,
@@ -384,12 +449,55 @@ class GRNRepository {
                             batchNumber: item.batchNumber,
                             expiryDate: item.expiryDate,
                             quantityInStock: totalQty,
+                            baseUnitQuantity: baseUnitQty,
+                            baseUnitReserved: 0,
+                            receivedUnit,
+                            receivedQuantity,
                             mrp: item.mrp,
                             purchasePrice: item.unitPrice,
                             supplierId: grn.supplierId,
-                            location: item.location || null
+                            location: item.location || null,
+                            manufacturerBarcode: item.manufacturerBarcode || null
                         }
                     });
+
+                    // CRITICAL: Enroll manufacturer barcode in registry for POS scanning
+                    if (item.manufacturerBarcode) {
+                        // Check if barcode already exists
+                        const existingBarcode = await tx.barcodeRegistry.findUnique({
+                            where: { barcode: item.manufacturerBarcode }
+                        });
+
+                        if (!existingBarcode) {
+                            await tx.barcodeRegistry.create({
+                                data: {
+                                    barcode: item.manufacturerBarcode,
+                                    batchId: batch.id,
+                                    barcodeType: 'MANUFACTURER',
+                                    unitType: 'STRIP', // Default, maybe derive from pack unit?
+                                    manufacturerCode: item.manufacturerBarcode
+                                }
+                            });
+                        } else if (existingBarcode.batchId !== batch.id) {
+                            // If it points to an old batch, should we update it?
+                            // For manufacturer barcodes, they might reuse EAN-13 for different batches of same drug.
+                            // The system currently enforces 1:1 or 1:Many (Barcode -> Batch).
+                            // If we want multiple batches to share a barcode, we need a refined lookup strategy.
+                            // For now, let's keep the FIRST enrollment as the primary one, unless we explicitly handle multi-batch lookup.
+                            // BUT, user wants to sell THIS batch.
+
+                            // Strategy: Scan Service handles multi-batch lookup if we verify `drugId`.
+                            // But `BarcodeRegistry.barcode` is `@unique`.
+                            // So we can only have ONE batch linked to a barcode.
+
+                            // TEMPORARY FIX: Updating registry to point to NEWEST batch (FIFO-ish behavior for scan)
+                            // This ensures if I scan the product I just bought, I get the new batch.
+                            await tx.barcodeRegistry.update({
+                                where: { id: existingBarcode.id },
+                                data: { batchId: batch.id }
+                            });
+                        }
+                    }
 
                     // logger.info(`✅ Inventory batch ${item.batchNumber} created/updated, qty: ${totalQty}`);
 

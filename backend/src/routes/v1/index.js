@@ -37,7 +37,11 @@ const featuresRoutes = require('./features');
 const platformConfigRoutes = require('../platformConfigRoutes');
 const paymentRoutes = require('./payment.routes');
 const subscriptionRoutes = require('./subscription.routes');
-
+const scanRoutes = require('./scan.routes'); // Indian Pharmacy System - Barcode scanning
+const fefoRoutes = require('./fefo.routes'); // Indian Pharmacy System - FEFO logic
+const behavioralRoutes = require('./behavioral.routes'); // Indian Pharmacy System - Behavioral analytics
+const locationRoutes = require('./location.routes'); // Indian Pharmacy System - Location intelligence
+const supplierInvoiceRoutes = require('./supplierInvoice.routes'); // Supplier invoice compilation
 
 
 const router = express.Router();
@@ -77,6 +81,7 @@ router.use('/dispense', dispenseRoutes);
 router.use('/prescribers', require('./prescribers.routes'));
 router.use('/portal', portalRoutes);
 router.use('/consolidated-invoices', consolidatedInvoicesRoutes);
+router.use('/supplier-invoices', supplierInvoiceRoutes); // New: Supplier invoice compilation
 router.use('/email', emailRoutes);
 router.use('/engage/loyalty', loyaltyRoutes);
 router.use('/sales/analytics', salesAnalyticsRoutes);
@@ -87,6 +92,10 @@ router.use('/features', featuresRoutes);  // Feature toggle system
 router.use('/platform', platformConfigRoutes);  // Platform configuration (SMTP setup)
 router.use('/payments', paymentRoutes); // Razorpay Payment Routes
 router.use('/subscriptions', subscriptionRoutes); // Subscription management
+router.use('/scan', scanRoutes); // Indian Pharmacy System - Barcode/QR scanning
+router.use('/fefo', fefoRoutes); // Indian Pharmacy System - FEFO logic
+router.use('/behavioral', behavioralRoutes); // Indian Pharmacy System - Behavioral analytics
+router.use('/location', locationRoutes); // Indian Pharmacy System - Location intelligence
 
 
 

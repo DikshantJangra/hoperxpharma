@@ -108,11 +108,16 @@ class AuditService {
             id: log.id,
             timestamp: log.createdAt,
             severity: this.getSeverity(log.action),
-            actor: {
+            actor: log.user ? {
                 id: log.user.id,
                 name: `${log.user.firstName} ${log.user.lastName}`,
                 email: log.user.email,
                 role: log.user.role.toLowerCase(),
+            } : {
+                id: 'system',
+                name: 'System',
+                email: 'system@hoperx.com',
+                role: 'system',
             },
             action: log.action,
             resource: {
@@ -131,7 +136,7 @@ class AuditService {
      * Generate human-readable summary
      */
     generateSummary(log) {
-        const userName = `${log.user.firstName} ${log.user.lastName}`;
+        const userName = log.user ? `${log.user.firstName} ${log.user.lastName}` : 'System';
         const action = log.action.toLowerCase().replace(/_/g, ' ');
         return `${userName} ${action} ${log.entityType} ${log.entityId}`;
     }

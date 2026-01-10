@@ -33,6 +33,11 @@ if (isDevelopment) {
         new winston.transports.Console({
             level: process.env.LOG_LEVEL || 'info',
             format: consoleFormat,
+        }),
+        new winston.transports.File({
+            filename: path.join(__dirname, '../../logs/dev-debug.log'),
+            level: 'info',
+            format: logFormat
         })
     );
 }

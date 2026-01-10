@@ -1,10 +1,14 @@
-'use client';
 
 import React, { useState } from 'react';
-import { HiOutlineCheck, HiOutlineExclamationCircle, HiOutlineArrowUp, HiOutlineCog, HiOutlineExclamationTriangle, HiOutlineTrash } from 'react-icons/hi2';
+import { HiOutlineCheck, HiOutlineExclamationCircle, HiOutlineArrowUp, HiOutlineCog, HiOutlineExclamationTriangle, HiOutlineTrash, HiOutlineQrCode } from 'react-icons/hi2';
 import BatchSplitModal from './BatchSplitModal';
 import DiscrepancyHandler from './DiscrepancyHandler';
 import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation';
+import { scanApi } from '@/lib/api/scan';
+import { toast } from 'sonner';
+import dynamic from 'next/dynamic';
+
+const BarcodeScannerModal = dynamic(() => import('@/components/pos/BarcodeScannerModal'), { ssr: false });
 
 interface ReceivingTableProps {
     items: any[];
@@ -25,8 +29,72 @@ export default function ReceivingTable({ items, poItems, discrepancies = [], onI
     const [editingItem, setEditingItem] = useState<string | null>(null);
     const [splitItem, setSplitItem] = useState<any | null>(null);
     const [discrepancyItem, setDiscrepancyItem] = useState<any | null>(null);
+    const [scanningItem, setScanningItem] = useState<string | null>(null);
 
     const { handleKeyDown } = useKeyboardNavigation();
+
+    // 1. DUPLICATE CHECK LOGIC
+    const checkBarcodeDuplicate = (itemId: string, barcode: string) => {
+        // Find if this barcode is used by any OTHER item
+        const duplicateItem = items.find(i =>
+            i.manufacturerBarcode === barcode &&
+            i.id !== itemId &&
+            !i.parentItemId // Don't check against split parents, they don't hold stock themselves usually, but children do. 
+            // Better logic: Check ALL flat list. 
+            // Wait, items list includes parents and split children? 
+            // Yes usually. Let's just check against all items where id !== itemId
+        );
+
+        if (duplicateItem) {
+            // Found a duplicate use of this barcode
+            // Check if it's the SAME DRUG
+            if (duplicateItem.drugId === items.find(i => i.id === itemId)?.drugId) {
+                // Same drug, different batch -> ALLOWED
+                return { status: 'ALLOWED', message: 'Matched to same product' };
+            } else {
+                // Different drug -> WARN/BLOCK
+                return {
+                    status: 'WARNING',
+                    message: `Duplicate! Used by ${getDrugName(duplicateItem.drugId)}`,
+                    conflictingItem: duplicateItem
+                };
+            }
+        }
+        return { status: 'OK' };
+    };
+
+    const handleBarcodeChange = async (itemId: string, barcode: string) => {
+        // 1. Local Duplicate Check
+        const dupCheck = checkBarcodeDuplicate(itemId, barcode);
+        if (dupCheck.status === 'WARNING') {
+            toast.warning(dupCheck.message || 'Barcode conflict detected');
+            // We still allow setting it, but user is warned. 
+            // Or should we clear it? User said "Account for above two", enabling reuse for same product.
+            // Implicitly, different product reuse is bad. 
+        } else if (dupCheck.status === 'ALLOWED') {
+            // toast.success(dupCheck.message); // Optional: don't spam toasts
+        }
+
+        // 2. Update State
+        handleFieldUpdate(itemId, 'manufacturerBarcode', barcode);
+
+        // 3. Optional: Verify with backend if it's a real barcode (for feedback only)
+        // We don't block input if offline or API fails
+        if (barcode.length > 5) {
+            try {
+                const verification = await scanApi.verifyBarcode(barcode);
+                if (verification.batch) {
+                    // Check against DB
+                    const currentItem = items.find(i => i.id === itemId);
+                    if (currentItem && currentItem.drugId !== verification.batch.drugId) {
+                        toast.error(`Warning: This barcode is registered to ${verification.batch.drugName} in the system!`);
+                    }
+                }
+            } catch (e) {
+                // Ignore API errors for inline typing checks
+            }
+        }
+    };
 
     const getStatus = (item: any) => {
         const received = parseFloat(item.receivedQty) || 0;
@@ -67,6 +135,10 @@ export default function ReceivingTable({ items, poItems, discrepancies = [], onI
                 <table className="w-full">
                     <thead className="bg-gray-50 border-b border-gray-200">
                         <tr>
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider w-12">
+                                {/* Barcode Icon Header */}
+                                <HiOutlineQrCode className="w-5 h-5 mx-auto" />
+                            </th>
                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
                                 Item
                             </th>
@@ -122,6 +194,49 @@ export default function ReceivingTable({ items, poItems, discrepancies = [], onI
                                 <React.Fragment key={item.id}>
                                     {/* Parent Row */}
                                     <tr className={`${isParent ? 'bg-blue-50 font-medium' : 'hover:bg-gray-50'}`}>
+                                        <td className="px-2 py-3">
+                                            {/* Barcode Input / Scan Trigger */}
+                                            {isParent ? (
+                                                <div className="flex justify-center">
+                                                    <span className="text-gray-400">-</span>
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center gap-1">
+                                                    <button
+                                                        onClick={() => setScanningItem(item.id)}
+                                                        className={`p-1.5 rounded-md transition-colors ${item.manufacturerBarcode
+                                                            ? 'text-emerald-600 bg-emerald-50 hover:bg-emerald-100'
+                                                            : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                                                            }`}
+                                                        title="Scan Barcode"
+                                                    >
+                                                        <HiOutlineQrCode className="w-5 h-5" />
+                                                    </button>
+                                                    {/* Optional: Small input if they want to type? 
+                                                         User said "keep the BarCode icon before items". 
+                                                         Let's just keep the icon trigger for now, 
+                                                         or maybe a very small input field? 
+                                                         "Move it to the place where ... verified ... is written"
+                                                         Let's assume they want to SCAN primarily.
+                                                         If I put an input, it takes space. 
+                                                         Let's put a small input that expands or just an icon that opens scanner?
+                                                         "what if I scan the same barcode ... in frontend for all" implies manual entry/rapid scanning might be used.
+                                                         Let's add a small input field hidden/visible?
+                                                         Actually, standard usage: Click icon -> Scan. 
+                                                         Or focus field -> Scan.
+                                                         Let's make the barcode editable via a small input next to icon.
+                                                     */}
+                                                    <input
+                                                        type="text"
+                                                        value={item.manufacturerBarcode || ''}
+                                                        onChange={(e) => handleBarcodeChange(item.id, e.target.value)}
+                                                        className={`w-24 text-xs px-1 py-1 border rounded ${item.manufacturerBarcode ? 'border-emerald-300 bg-emerald-50' : 'border-gray-300'
+                                                            }`}
+                                                        placeholder="Barcode..."
+                                                    />
+                                                </div>
+                                            )}
+                                        </td>
                                         <td className="px-4 py-3">
                                             <div className="text-sm font-medium text-gray-900">
                                                 {isParent && '📦 '}
@@ -161,6 +276,7 @@ export default function ReceivingTable({ items, poItems, discrepancies = [], onI
                                             />
                                         </td>
                                         <td className="px-4 py-3">
+
                                             <input
                                                 type="text"
                                                 value={item.batchNumber || ''}
@@ -170,6 +286,7 @@ export default function ReceivingTable({ items, poItems, discrepancies = [], onI
                                                 placeholder="Batch No"
                                             // Batch number editing enabled for parent to propagate
                                             />
+
                                         </td>
                                         <td className="px-4 py-3">
                                             <input
@@ -406,7 +523,29 @@ export default function ReceivingTable({ items, poItems, discrepancies = [], onI
 
                                         return (
                                             <tr key={child.id} className="bg-emerald-50 border-l-4 border-emerald-500">
-                                                <td className="px-4 py-3 pl-12">
+                                                <td className="px-2 py-3 pl-8">
+                                                    <div className="flex items-center gap-1">
+                                                        <button
+                                                            onClick={() => setScanningItem(child.id)}
+                                                            className={`p-1.5 rounded-md transition-colors ${child.manufacturerBarcode
+                                                                    ? 'text-emerald-600 bg-white hover:bg-emerald-100'
+                                                                    : 'text-gray-400 hover:text-gray-600 hover:bg-white'
+                                                                }`}
+                                                            title="Scan Barcode"
+                                                        >
+                                                            <HiOutlineQrCode className="w-5 h-5" />
+                                                        </button>
+                                                        <input
+                                                            type="text"
+                                                            value={child.manufacturerBarcode || ''}
+                                                            onChange={(e) => handleBarcodeChange(child.id, e.target.value)}
+                                                            className={`w-24 text-xs px-1 py-1 border rounded ${child.manufacturerBarcode ? 'border-emerald-300 bg-white' : 'border-gray-300'
+                                                                }`}
+                                                            placeholder="Barcode..."
+                                                        />
+                                                    </div>
+                                                </td>
+                                                <td className="px-4 py-3 pl-4">
                                                     <div className="text-sm text-gray-700">
                                                         ↳ {getDrugName(child.drugId)}
                                                     </div>
@@ -677,6 +816,31 @@ export default function ReceivingTable({ items, poItems, discrepancies = [], onI
                     onClose={() => setDiscrepancyItem(null)}
                 />
             )}
+
+            {/* Barcode Scanner Modal */}
+            {scanningItem && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                    <div className="bg-white rounded-lg shadow-xl max-w-lg w-full overflow-hidden relative">
+                        <button
+                            onClick={() => setScanningItem(null)}
+                            className="absolute top-2 right-2 p-2 hover:bg-gray-100 rounded-full"
+                        >
+                            <HiOutlineTrash className="w-5 h-5 text-gray-500" />
+                        </button>
+                        <div className="p-4">
+                            <h3 className="text-lg font-semibold mb-4">Scan Barcode</h3>
+                            <BarcodeScannerModal
+                                onClose={() => setScanningItem(null)}
+                                onScan={(code) => {
+                                    handleBarcodeChange(scanningItem, code);
+                                    setScanningItem(null); // Close after successful scan
+                                }}
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
+
     );
 }

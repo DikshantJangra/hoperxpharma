@@ -4,7 +4,7 @@
 import React, { useState, useEffect } from 'react';
 import OrderList from '@/components/orders/OrderList';
 import OrderFilters, { FilterState } from '@/components/orders/OrderFilters';
-import { HiOutlineClock, HiOutlineExclamationCircle, HiOutlineCalendar } from 'react-icons/hi2';
+import { HiOutlineClock, HiOutlineExclamationCircle, HiOutlineCalendar, HiOutlinePlus } from 'react-icons/hi2';
 import { HiOutlineRefresh } from 'react-icons/hi';
 import { Order } from '@/components/orders/OrderList';
 import { tokenManager } from '@/lib/api/client';
@@ -135,14 +135,26 @@ export default function PendingOrdersPage() {
     return (
         <div className="p-6">
             <div className="flex justify-between items-center mb-6">
-                <h1 className="text-2xl font-bold text-gray-900">Pending Orders</h1>
-                <button
-                    onClick={fetchPendingOrders}
-                    className="flex items-center gap-2 px-4 py-2 text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
-                >
-                    <HiOutlineRefresh className={`h-5 w-5 ${isLoading ? 'animate-spin' : ''}`} />
-                    Refresh
-                </button>
+                <div>
+                    <h1 className="text-2xl font-bold text-gray-900">To Receive</h1>
+                    <p className="text-sm text-gray-500 mt-1">Purchase orders awaiting delivery and receiving</p>
+                </div>
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => router.push('/orders/new-po')}
+                        className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg transition-colors font-medium"
+                    >
+                        <HiOutlinePlus className="h-5 w-5" />
+                        New Order
+                    </button>
+                    <button
+                        onClick={fetchPendingOrders}
+                        className="flex items-center gap-2 px-4 py-2 text-gray-600 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                    >
+                        <HiOutlineRefresh className={`h-5 w-5 ${isLoading ? 'animate-spin' : ''}`} />
+                        Refresh
+                    </button>
+                </div>
             </div>
 
             {/* Stats Cards */}

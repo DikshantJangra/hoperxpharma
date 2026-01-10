@@ -128,6 +128,9 @@ class InventoryService {
         const expiryDate = new Date(batch.expiryDate);
         const daysLeft = Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24));
 
+        // Use base unit quantity for accurate reporting
+        const stockQuantity = batch.baseUnitQuantity || batch.quantityInStock;
+
         // Emit expired event
         if (daysLeft <= 0) {
             eventBus.emitEvent(INVENTORY_EVENTS.EXPIRED, {
@@ -138,7 +141,8 @@ class InventoryService {
                 drugName: batch.drug?.name || 'Unknown',
                 batchNumber: batch.batchNumber,
                 expiryDate: batch.expiryDate,
-                quantityInStock: batch.quantityInStock,
+                quantityInStock: stockQuantity, // Base unit quantity
+                baseUnit: batch.drug?.baseUnit,
                 mrp: batch.mrp,
             });
         }
@@ -153,7 +157,8 @@ class InventoryService {
                 batchNumber: batch.batchNumber,
                 expiryDate: batch.expiryDate,
                 daysLeft,
-                quantityInStock: batch.quantityInStock,
+                quantityInStock: stockQuantity, // Base unit quantity
+                baseUnit: batch.drug?.baseUnit,
                 mrp: batch.mrp,
             });
         }

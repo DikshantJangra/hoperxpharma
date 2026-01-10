@@ -105,6 +105,7 @@ class GRNController {
         try {
             const { id, itemId } = req.params;
             const details = req.body;
+            console.log(`[DEBUG] updateGRNItem payload for ${itemId}:`, JSON.stringify(details));
             const userId = req.user.id;
 
             const updatedItem = await grnService.updateReceivingDetails({

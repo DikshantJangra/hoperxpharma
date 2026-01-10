@@ -14,6 +14,8 @@ router.use(authenticate);
 router.get('/search', drugController.searchDrugs);
 router.get('/', drugController.getAllDrugs);
 router.get('/:id', drugController.getDrugById);
+router.get('/:id/units', drugController.getDrugUnits); // New: Get available units for drug
+
 
 /**
  * Drug management routes (require pharmacist role)
