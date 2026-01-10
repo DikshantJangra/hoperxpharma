@@ -32,10 +32,10 @@ export default function OrderList({ orders, loading = false, onView, onEdit, onR
         day: 'numeric'
     });
 
-    if (orders.length === 0) {
+    if (orders.length === 0 && !loading) {
         return (
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-                <div className="text-gray-400 mb-2">
+                <div className="text-gray-400 mb-2 animate-bounce">
                     <FiDownload size={48} className="mx-auto" />
                 </div>
                 <h3 className="text-lg font-medium text-gray-900 mb-1">No orders found</h3>

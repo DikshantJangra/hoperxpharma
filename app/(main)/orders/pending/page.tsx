@@ -47,24 +47,22 @@ export default function PendingOrdersPage() {
                 limit: 100
             });
 
-            if (result && result.data) {
-                const fetchedOrders = Array.isArray(result.data) ? result.data : [];
+            // Handle both array response and {data: array} response
+            const fetchedOrders = Array.isArray(result) ? result : (result?.data || []);
 
-                // Transform to Order format
-                const transformedOrders: Order[] = fetchedOrders.map((po: any) => ({
-                    id: po.id,
-                    poNumber: po.poNumber,
-                    supplier: po.supplier?.name || 'Unknown',
-                    date: po.createdAt,
-                    amount: Number(po.total),
-                    status: po.status.toLowerCase() as any,
-                    expectedDelivery: po.expectedDeliveryDate
-                }));
+            const transformedOrders: Order[] = fetchedOrders.map((po: any) => ({
+                id: po.id,
+                poNumber: po.poNumber,
+                supplier: po.supplier?.name || 'Unknown',
+                date: po.createdAt,
+                amount: Number(po.total),
+                status: po.status.toLowerCase() as any,
+                expectedDelivery: po.expectedDeliveryDate
+            }));
 
-                setOrders(transformedOrders);
-            }
+            setOrders(transformedOrders);
         } catch (error) {
-            console.error('Failed to fetch pending orders:', error);
+            console.error('[PendingOrders] Failed to fetch pending orders:', error);
         } finally {
             setIsLoading(false);
         }

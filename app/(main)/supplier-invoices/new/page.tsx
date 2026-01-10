@@ -57,7 +57,6 @@ export default function NewSupplierInvoicePage() {
 
             const params = {
                 supplierId: selectedSupplier,
-                storeId: '1', // TODO: Get from user session
                 periodStart: periodStart,
                 periodEnd: periodEnd
             };
@@ -65,6 +64,9 @@ export default function NewSupplierInvoicePage() {
             console.log('Fetching eligible items with params:', params);
 
             const result = await supplierInvoiceApi.getEligibleItems(params);
+
+            console.log('API Response:', result);
+            console.log('Items received:', result.data);
 
             setEligibleItems(result.data || []);
             setStep(2);
@@ -111,16 +113,31 @@ export default function NewSupplierInvoicePage() {
             setLoading(true);
             const result = await supplierInvoiceApi.createDraftInvoice({
                 supplierId: selectedSupplier,
-                storeId: '1', // TODO: Get from user session
                 periodStart,
                 periodEnd,
                 selectedGrnItemIds: Array.from(selectedItems)
             });
 
-            router.push(`/supplier-invoices/${result.data.id}`);
+            // Handle different possible response structures - result IS the invoice object
+            const invoiceId = result.id;
+
+            if (!invoiceId) {
+                console.error('Could not find invoice ID in response:', result);
+                alert('Invoice created but could not get ID. Check console for details.');
+                return;
+            }
+
+            alert('✅ Draft invoice created successfully!');
+            router.push(`/supplier-invoices/${invoiceId}`);
         } catch (error: any) {
             console.error('Error creating invoice:', error);
-            alert(error.response?.data?.message || 'Failed to create invoice');
+
+            // Handle already-invoiced items error
+            if (error.message?.includes('already invoiced')) {
+                alert(`⚠️ Some items are already on another invoice.\n\nThis can happen if items were invoiced in another tab or by another user.\n\nPlease click "Back" and then "Fetch Items" again to refresh the list.`);
+            } else {
+                alert(error.response?.data?.message || error.message || 'Failed to create invoice');
+            }
         } finally {
             setLoading(false);
         }
@@ -248,39 +265,106 @@ export default function NewSupplierInvoicePage() {
                             </div>
                         ) : (
                             <>
-                                <div className="space-y-2 max-h-96 overflow-y-auto mb-6">
-                                    {eligibleItems.map((item) => (
-                                        <label
-                                            key={item.grnItemId}
-                                            className="flex items-center gap-4 p-4 border border-slate-200 rounded-xl hover:bg-slate-50 cursor-pointer transition-colors"
-                                        >
-                                            <input
-                                                type="checkbox"
-                                                checked={selectedItems.has(item.grnItemId)}
-                                                onChange={() => handleToggleItem(item.grnItemId)}
-                                                className="w-5 h-5 text-emerald-600 rounded focus:ring-emerald-500"
-                                            />
-                                            <div className="flex-1 grid grid-cols-5 gap-4 text-sm">
-                                                <div>
-                                                    <div className="font-medium text-slate-900">{item.drugName}</div>
-                                                    <div className="text-xs text-slate-500">Batch: {item.batchNumber}</div>
+                                <div className="space-y-4 max-h-[600px] overflow-y-auto mb-6">
+                                    {/* Group items by GRN */}
+                                    {(() => {
+                                        const groupedByGrn = eligibleItems.reduce((acc, item) => {
+                                            if (!acc[item.grnNumber]) acc[item.grnNumber] = [];
+                                            acc[item.grnNumber].push(item);
+                                            return acc;
+                                        }, {} as Record<string, typeof eligibleItems>);
+
+                                        return Object.entries(groupedByGrn).map(([grnNumber, items]) => {
+                                            const grnItemIds = items.map(i => i.grnItemId);
+                                            const allSelected = grnItemIds.every(id => selectedItems.has(id));
+                                            const someSelected = grnItemIds.some(id => selectedItems.has(id));
+                                            const totalAmount = items.reduce((sum, item) => sum + Number(item.calculatedTotal), 0);
+
+                                            return (
+                                                <div key={grnNumber} className="border-2 border-slate-200 rounded-xl overflow-hidden bg-white">
+                                                    {/* GRN Header */}
+                                                    <div className="bg-gradient-to-r from-emerald-50 to-teal-50 border-b-2 border-emerald-100 p-4">
+                                                        <div className="flex items-center justify-between">
+                                                            <div className="flex items-center gap-3">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={allSelected}
+                                                                    ref={input => { if (input) input.indeterminate = someSelected && !allSelected; }}
+                                                                    onChange={() => {
+                                                                        const newSelected = new Set(selectedItems);
+                                                                        if (allSelected) grnItemIds.forEach(id => newSelected.delete(id));
+                                                                        else grnItemIds.forEach(id => newSelected.add(id));
+                                                                        setSelectedItems(newSelected);
+                                                                    }}
+                                                                    className="w-5 h-5 text-emerald-600 rounded"
+                                                                />
+                                                                <div>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <h3 className="font-semibold text-slate-900">{grnNumber}</h3>
+                                                                        <span className="px-2 py-0.5 bg-emerald-100 text-emerald-700 text-xs font-medium rounded">
+                                                                            {items.length} items
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="flex gap-3 text-xs text-slate-600 mt-1">
+                                                                        <span>PO: {items[0].poNumber}</span>
+                                                                        <span>Received: {new Date(items[0].receivedDate).toLocaleDateString()}</span>
+                                                                        <span className="font-semibold text-slate-900">₹{totalAmount.toFixed(2)}</span>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                            <button
+                                                                onClick={() => {
+                                                                    const newSelected = new Set(selectedItems);
+                                                                    if (allSelected) grnItemIds.forEach(id => newSelected.delete(id));
+                                                                    else grnItemIds.forEach(id => newSelected.add(id));
+                                                                    setSelectedItems(newSelected);
+                                                                }}
+                                                                className="text-xs font-medium text-emerald-600 hover:text-emerald-700 px-3 py-1.5 hover:bg-emerald-100 rounded-md"
+                                                            >
+                                                                {allSelected ? 'Deselect All' : 'Select All'}
+                                                            </button>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Items in this GRN */}
+                                                    <div className="divide-y divide-slate-100">
+                                                        {items.map((item) => (
+                                                            <label
+                                                                key={item.grnItemId}
+                                                                className={`flex items-center gap-3 p-3 hover:bg-slate-50 cursor-pointer ${selectedItems.has(item.grnItemId) ? 'bg-emerald-50' : ''}`}
+                                                            >
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={selectedItems.has(item.grnItemId)}
+                                                                    onChange={() => handleToggleItem(item.grnItemId)}
+                                                                    className="w-4 h-4 text-emerald-600 rounded"
+                                                                />
+                                                                <div className="flex-1 grid grid-cols-5 gap-3 text-sm items-center">
+                                                                    <div>
+                                                                        <div className="font-medium text-slate-900">{item.drugName}</div>
+                                                                        <div className="text-xs text-slate-500">Batch: {item.batchNumber}</div>
+                                                                    </div>
+                                                                    <div className="text-slate-600 text-center">
+                                                                        <div>Qty: {item.receivedQty}</div>
+                                                                        {item.freeQty > 0 && <div className="text-xs text-emerald-600">+{item.freeQty} free</div>}
+                                                                    </div>
+                                                                    <div className="text-slate-600 text-right">
+                                                                        ₹{Number(item.unitPrice).toFixed(2)}
+                                                                    </div>
+                                                                    <div className="text-xs text-slate-500 text-center">
+                                                                        {item.gstPercent}% GST
+                                                                    </div>
+                                                                    <div className="font-semibold text-slate-900 text-right">
+                                                                        ₹{Number(item.calculatedTotal).toLocaleString('en-IN')}
+                                                                    </div>
+                                                                </div>
+                                                            </label>
+                                                        ))}
+                                                    </div>
                                                 </div>
-                                                <div className="text-slate-600">
-                                                    <div>Qty: {item.receivedQty}</div>
-                                                    {item.freeQty > 0 && <div className="text-xs text-emerald-600">+{item.freeQty} free</div>}
-                                                </div>
-                                                <div className="text-slate-600">
-                                                    ₹{Number(item.unitPrice).toFixed(2)}
-                                                </div>
-                                                <div className="text-slate-600">
-                                                    {item.grnNumber}
-                                                </div>
-                                                <div className="font-semibold text-slate-900 text-right">
-                                                    ₹{Number(item.calculatedTotal).toLocaleString('en-IN')}
-                                                </div>
-                                            </div>
-                                        </label>
-                                    ))}
+                                            );
+                                        });
+                                    })()}
                                 </div>
 
                                 <div className="flex gap-4">

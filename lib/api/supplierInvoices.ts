@@ -80,12 +80,16 @@ export const supplierInvoiceApi = {
      */
     async getEligibleItems(params: {
         supplierId: string;
-        storeId: string;
         periodStart: string;
         periodEnd: string;
     }): Promise<{ data: EligibleItem[]; count: number }> {
         const response = await apiClient.get('/supplier-invoices/eligible-items', { params });
-        return response.data;
+        // Backend returns { success: true, data: [...], count: 47 }
+        // We need to return { data: [...], count: 47 }
+        return {
+            data: response.data || [],
+            count: response.count || 0
+        };
     },
 
     /**
@@ -93,13 +97,13 @@ export const supplierInvoiceApi = {
      */
     async createDraftInvoice(data: {
         supplierId: string;
-        storeId: string;
         periodStart: string;
         periodEnd: string;
         selectedGrnItemIds: string[];
-    }): Promise<{ data: SupplierInvoice }> {
+    }): Promise<SupplierInvoice> {
         const response = await apiClient.post('/supplier-invoices/draft', data);
-        return response.data;
+        // Backend returns invoice directly, not wrapped in {data: ...}
+        return response;
     },
 
     /**
@@ -115,7 +119,20 @@ export const supplierInvoiceApi = {
         offset?: number;
     }): Promise<{ data: SupplierInvoice[]; pagination: any }> {
         const response = await apiClient.get('/supplier-invoices', { params });
-        return response.data;
+        // Backend returns {success: true, data: [...], pagination: {...}}
+        // Extract the data array from the response
+        return {
+            data: response.data || [],
+            pagination: response.pagination || {}
+        };
+    },
+
+    /**
+     * Get single invoice by ID
+     */
+    async getInvoice(id: string): Promise<{ data: SupplierInvoice }> {
+        const response = await apiClient.get(`/supplier-invoices/${id}`);
+        return { data: response };
     },
 
     /**
@@ -123,7 +140,7 @@ export const supplierInvoiceApi = {
      */
     async getInvoiceById(id: string): Promise<{ data: SupplierInvoice }> {
         const response = await apiClient.get(`/supplier-invoices/${id}`);
-        return response.data;
+        return { data: response.data };
     },
 
     /**

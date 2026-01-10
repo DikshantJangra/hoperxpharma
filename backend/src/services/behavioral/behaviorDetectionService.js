@@ -202,7 +202,7 @@ class BehaviorDetectionService {
                 soldBy: employeeId,
                 storeId,
                 createdAt: { gte: startDate, lte: endDate },
-                status: { in: ['VOIDED', 'CANCELLED'] }
+                status: 'CANCELLED'
             }
         });
     }

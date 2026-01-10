@@ -51,11 +51,11 @@ jobs:
         run: |
           cd backend
           npm install
-          npx prisma generate
-          npx prisma db push --accept-data-loss --skip-generate
+          npx --package=prisma@6.18.0 prisma generate
+          npx --package=prisma@6.18.0 prisma db push --accept-data-loss --skip-generate
           # Generate Prisma client in root for Playwright tests
           cd ..
-          npx prisma generate --schema=./backend/prisma/schema.prisma
+          npx --package=prisma@6.18.0 prisma generate --schema=./backend/prisma/schema.prisma
 
       - name: Build application
         env:

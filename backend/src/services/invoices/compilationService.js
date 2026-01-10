@@ -19,6 +19,22 @@ async function getEligibleItems({ supplierId, storeId, periodStart, periodEnd })
     try {
         console.log('Fetching GRNs for:', { supplierId, storeId, periodStart, periodEnd });
 
+        // DEBUG: Check what GRNs exist for this supplier (any status, any date)
+        const allGrnsForSupplier = await prisma.goodsReceivedNote.findMany({
+            where: { supplierId },
+            select: {
+                id: true,
+                grnNumber: true,
+                status: true,
+                storeId: true,
+                completedAt: true,
+                createdAt: true
+            },
+            take: 10
+        });
+        console.log(`DEBUG: Found ${allGrnsForSupplier.length} total GRNs for supplier:`,
+            JSON.stringify(allGrnsForSupplier, null, 2));
+
         // Fetch completed GRNs for the supplier within period
         const grns = await prisma.goodsReceivedNote.findMany({
             where: {
@@ -45,22 +61,34 @@ async function getEligibleItems({ supplierId, storeId, periodStart, periodEnd })
             }
         });
 
-        console.log(`Found ${grns.length} GRNs`);
+        console.log(`Found ${grns.length} GRNs matching criteria`);
 
         // Flatten to individual items and filter uninvoiced ones
         const eligibleItems = [];
 
+        console.log('Processing GRN items...');
         for (const grn of grns) {
+            console.log(`GRN ${grn.grnNumber}: ${grn.items?.length || 0} items`);
+
+            if (!grn.items || grn.items.length === 0) {
+                console.log(`  ⚠️ GRN has no items`);
+                continue;
+            }
+
             for (const item of grn.items) {
                 // Skip if already invoiced
                 if (item.invoiceItems && item.invoiceItems.length > 0) {
+                    console.log(`  ❌ Item ${item.id.substring(0, 8)} already invoiced (${item.invoiceItems.length} invoice links)`);
                     continue;
                 }
 
                 // Skip split parent items (they don't have actual stock)
                 if (item.isSplit && item.children && item.children.length > 0) {
+                    console.log(`  ❌ Item ${item.id.substring(0, 8)} is split parent`);
                     continue;
                 }
+
+                console.log(`  ✅ Item ${item.id.substring(0, 8)} eligible: ${item.drug?.name || 'unknown'}`);
 
                 eligibleItems.push({
                     grnItemId: item.id,
@@ -87,6 +115,8 @@ async function getEligibleItems({ supplierId, storeId, periodStart, periodEnd })
                 });
             }
         }
+
+        console.log(`Total eligible items: ${eligibleItems.length}`);
 
         return eligibleItems;
     } catch (error) {
@@ -315,7 +345,7 @@ async function recordPayment({ invoiceId, amount, paymentDate, paymentMethod, re
         if (newPaidAmount >= totalAmount) {
             newPaymentStatus = 'PAID';
         } else if (newPaidAmount > 0) {
-            newPaymentStatus = 'PARTIALLY_PAID';
+            newPaymentStatus = 'PARTIAL';
         } else {
             newPaymentStatus = 'UNPAID';
         }

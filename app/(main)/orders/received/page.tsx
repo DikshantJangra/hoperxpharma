@@ -35,7 +35,7 @@ export default function ReceivedOrdersPage() {
             const result = await grnApi.getGRNs({ status: 'COMPLETED', limit: 100 });
 
             if (result) {
-                const fetchedGRNs = Array.isArray(result.data) ? result.data : [];
+                const fetchedGRNs = Array.isArray(result) ? result : (result?.data || []);
 
                 // Transform GRNs to Order format
                 const transformedOrders: Order[] = fetchedGRNs.map((grn: any) => ({

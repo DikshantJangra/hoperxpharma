@@ -34,7 +34,7 @@ export default function SupplierInvoicesPage() {
             }
 
             const result = await supplierInvoiceApi.getInvoices(params);
-            setInvoices(result.data || []);
+            setInvoices(Array.isArray(result.data) ? result.data : []);
         } catch (error) {
             console.error('Error fetching invoices:', error);
         } finally {

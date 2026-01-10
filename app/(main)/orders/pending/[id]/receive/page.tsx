@@ -113,7 +113,6 @@ export default function ReceiveShipmentPage() {
     const initializeGRN = async () => {
         setLoading(true);
         try {
-            // Create GRN from PO
             const grnData = await grnApi.createGRN(poId);
 
             if (grnData) {
@@ -142,7 +141,7 @@ export default function ReceiveShipmentPage() {
                 throw new Error('Failed to create GRN');
             }
         } catch (error) {
-            console.error('Error initializing GRN:', error);
+            console.error('[ReceiveShipment] Error initializing GRN:', error);
             alert(`Error initializing GRN: ${error instanceof Error ? error.message : 'Unknown error'}`);
             router.push('/orders/pending');
         } finally {

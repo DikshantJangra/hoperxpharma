@@ -43,6 +43,9 @@ export default function Signup() {
 
     const signupuser = async (e: React.FormEvent) => {
         e.preventDefault();
+        
+        if (loading) return; // Prevent double submission
+        
         setErr("");
 
         if (!email || !password) {

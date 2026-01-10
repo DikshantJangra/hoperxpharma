@@ -75,6 +75,9 @@ function LoginForm() {
 
     const handlePasswordLogin = async (e: React.FormEvent) => {
         e.preventDefault();
+        
+        if (loading) return; // Prevent double submission
+        
         setErr("");
         setLoading(true);
 

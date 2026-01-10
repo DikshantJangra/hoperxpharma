@@ -37,7 +37,7 @@ class GRNRepository {
                 include: {
                     items: {
                         include: {
-                            drug: true  // Include drug information on GRN items
+                            drug: true
                         }
                     },
                     discrepancies: true,
@@ -51,14 +51,12 @@ class GRNRepository {
                             supplier: true
                         }
                     },
-                    /*
                     receivedByUser: {
                         select: {
                             firstName: true,
                             lastName: true
                         }
                     },
-                    */
                     attachments: {
                         orderBy: {
                             uploadedAt: 'desc'
@@ -66,6 +64,9 @@ class GRNRepository {
                     }
                 }
             });
+        }, {
+            maxWait: 10000,
+            timeout: 15000
         });
     }
 
@@ -106,14 +107,14 @@ class GRNRepository {
                         supplier: true
                     }
                 },
-                /*
+                  
                 receivedByUser: {
                     select: {
                         firstName: true,
                         lastName: true
                     }
                 },
-                */
+                  
                 attachments: {
                     orderBy: {
                         uploadedAt: 'desc'
@@ -649,14 +650,14 @@ class GRNRepository {
                         supplier: true
                     }
                 },
-                /*
+                  
                 receivedByUser: {
                     select: {
                         firstName: true,
                         lastName: true
                     }
                 },
-                */
+                  
                 attachments: {
                     orderBy: {
                         uploadedAt: 'desc'

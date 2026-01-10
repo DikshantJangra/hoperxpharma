@@ -10,17 +10,23 @@ const ApiError = require('../../utils/ApiError');
 exports.getEligibleItems = asyncHandler(async (req, res) => {
     console.log('GET /supplier-invoices/eligible-items');
     console.log('Query params:', req.query);
-    console.log('Body:', req.body);
+    console.log('User:', { id: req.user.id, storeId: req.user.storeId });
 
-    const { supplierId, storeId, periodStart, periodEnd } = req.query;
+    const { supplierId, periodStart, periodEnd } = req.query;
 
-    if (!supplierId || !storeId || !periodStart || !periodEnd) {
-        throw new ApiError(400, 'Missing required parameters: supplierId, storeId, periodStart, periodEnd');
+    if (!supplierId || !periodStart || !periodEnd) {
+        throw new ApiError(400, 'Missing required parameters: supplierId, periodStart, periodEnd');
+    }
+
+    // Use authenticated user's storeId instead of requiring it from frontend
+    const storeId = req.user.storeId;
+    if (!storeId) {
+        throw new ApiError(400, 'User does not have an assigned store');
     }
 
     const items = await compilationService.getEligibleItems({
         supplierId,
-        storeId,
+        storeId, // Use user's actual store ID
         periodStart: new Date(periodStart),
         periodEnd: new Date(periodEnd)
     });
@@ -37,11 +43,16 @@ exports.getEligibleItems = asyncHandler(async (req, res) => {
  * POST /api/v1/supplier-invoices/draft
  */
 exports.createDraftInvoice = asyncHandler(async (req, res) => {
-    const { supplierId, storeId, periodStart, periodEnd, selectedGrnItemIds } = req.body;
+    const { supplierId, periodStart, periodEnd, selectedGrnItemIds } = req.body;
     const userId = req.user.id;
+    const storeId = req.user.storeId; // Use user's store ID
 
-    if (!supplierId || !storeId || !periodStart || !periodEnd || !selectedGrnItemIds || selectedGrnItemIds.length === 0) {
+    if (!supplierId || !periodStart || !periodEnd || !selectedGrnItemIds || selectedGrnItemIds.length === 0) {
         throw new ApiError(400, 'Missing required fields');
+    }
+
+    if (!storeId) {
+        throw new ApiError(400, 'User does not have an assigned store');
     }
 
     const invoice = await compilationService.createDraftInvoice({
