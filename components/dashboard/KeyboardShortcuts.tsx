@@ -2,66 +2,29 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { FiX } from "react-icons/fi"
+import { useKeyboardCommand } from "@/hooks/useKeyboardCommand"
 
 export default function KeyboardShortcuts() {
     const [showHelp, setShowHelp] = useState(false)
     const router = useRouter()
 
-    useEffect(() => {
-        const handleKeyPress = (e: KeyboardEvent) => {
-            // Show help overlay
-            if (e.shiftKey && e.key === '?') {
-                e.preventDefault()
-                setShowHelp(true)
-                return
-            }
+    useKeyboardCommand('global.help', () => setShowHelp(prev => !prev));
+    useKeyboardCommand('action.escape', () => setShowHelp(false));
 
-            // Close help with Escape
-            if (e.key === 'Escape' && showHelp) {
-                setShowHelp(false)
-                return
-            }
+    useKeyboardCommand('global.search', (ctx) => {
+        // We can do this safely now
+        if (ctx.isInputActive && ctx.activeElement?.tagName === 'INPUT') return; // Don't hijack if already valid
 
-            // Focus search
-            if (e.key === '/' && !e.ctrlKey && !e.metaKey) {
-                e.preventDefault()
-                const searchInput = document.querySelector('input[type="text"]') as HTMLInputElement
-                searchInput?.focus()
-                return
-            }
+        const searchInput = document.querySelector('input[type="text"]') as HTMLInputElement
+        searchInput?.focus()
+    });
 
-            // Navigation shortcuts (g + key)
-            if (e.key === 'g') {
-                const nextKey = new Promise<string>((resolve) => {
-                    const handler = (event: KeyboardEvent) => {
-                        resolve(event.key)
-                        window.removeEventListener('keydown', handler)
-                    }
-                    window.addEventListener('keydown', handler)
-                    setTimeout(() => {
-                        window.removeEventListener('keydown', handler)
-                        resolve('')
-                    }, 1000)
-                })
+    useKeyboardCommand('action.newRx', () => {
+        console.log('New Rx triggered via Engine')
+    });
 
-                nextKey.then((key) => {
-                    if (key === 'd') router.push('/dashboard/overview')
-                    if (key === 'p') router.push('/dashboard/prescriptions/new')
-                })
-                return
-            }
-
-            // Quick actions
-            if (e.key === 'n' && !e.ctrlKey && !e.metaKey) {
-                e.preventDefault()
-                // Trigger new Rx modal
-                console.log('New Rx triggered')
-            }
-        }
-
-        window.addEventListener('keydown', handleKeyPress)
-        return () => window.removeEventListener('keydown', handleKeyPress)
-    }, [router, showHelp])
+    // Note: 'g' sequence logic is temporarily removed or needs a dedicated hook/engine feature.
+    // For now we focus on the single keys.
 
     if (!showHelp) return null
 

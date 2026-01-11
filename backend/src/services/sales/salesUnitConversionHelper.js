@@ -5,8 +5,8 @@
  * Used during sale creation to deduct correct base unit quantities
  */
 
-const unitConversionService = require('../services/inventory/unitConversionService');
-const logger = require('../config/logger');
+const unitConversionService = require('../inventory/unitConversionService');
+const logger = require('../../config/logger');
 
 class SalesUnitConversionHelper {
     /**
@@ -63,7 +63,7 @@ class SalesUnitConversionHelper {
     async calculatePartialUnitPrice(batch, quantity, unit, drugId) {
         try {
             // Get conversion factor to calculate per-unit price
-            const drug = await require('../db/prisma').drug.findUnique({
+            const drug = await require('../../db/prisma').drug.findUnique({
                 where: { id: drugId },
                 select: { displayUnit: true, baseUnit: true }
             });

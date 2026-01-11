@@ -3,7 +3,7 @@
  */
 import { isNetworkError, isTimeoutError } from '@/lib/utils/network';
 import { getApiBaseUrl } from '@/lib/config/env';
-import { RequestError, OfflineError } from './errors';
+import { ApiRequestError, OfflineError } from './errors';
 
 const API_BASE_URL = getApiBaseUrl();
 const API_TIMEOUT = parseInt(process.env.NEXT_PUBLIC_API_TIMEOUT || '60000');
@@ -77,17 +77,33 @@ function isTokenExpiringSoon(token: string): boolean {
 
 let isRefreshing = false;
 let refreshPromise: Promise<void> | null = null;
+let lastRefreshAttempt = 0;
+const REFRESH_COOLDOWN = 5000; // 5 second cooldown between refresh attempts
 
 async function refreshTokenIfNeeded(): Promise<void> {
+    // CRITICAL: If a refresh is already in progress, wait for it to complete
+    // This prevents the token refresh storm
+    if (isRefreshing && refreshPromise) {
+        return refreshPromise;
+    }
+
     const token = tokenManager.getAccessToken();
+    const now = Date.now();
+
+    // Cooldown check to prevent refresh spam
+    if (now - lastRefreshAttempt < REFRESH_COOLDOWN) {
+        return;
+    }
 
     // If no token in memory, try to refresh from httpOnly cookie
     if (!token) {
-        if (isRefreshing) {
-            return refreshPromise!;
+        // Double check that we're not already refreshing (race condition protection)
+        if (isRefreshing && refreshPromise) {
+            return refreshPromise;
         }
 
         isRefreshing = true;
+        lastRefreshAttempt = now;
         refreshPromise = (async () => {
             try {
                 const response = await fetch(`${config.baseURL}/auth/refresh`, {
@@ -118,11 +134,13 @@ async function refreshTokenIfNeeded(): Promise<void> {
 
     // If token exists but expiring soon, refresh it
     if (isTokenExpiringSoon(token)) {
-        if (isRefreshing) {
-            return refreshPromise!;
+        // Double check that we're not already refreshing (race condition protection)
+        if (isRefreshing && refreshPromise) {
+            return refreshPromise;
         }
 
         isRefreshing = true;
+        lastRefreshAttempt = now;
         refreshPromise = (async () => {
             try {
                 console.log('Refreshing access token...');
@@ -183,7 +201,8 @@ async function baseFetch(
     options: RequestInit & { responseType?: 'json' | 'blob'; timeout?: number } = {}
 ): Promise<any> {
     // Auto-refresh token if needed (except for auth endpoints)
-    if (!endpoint.includes('/auth/')) {
+    // CRITICAL: Exclude /auth/refresh to prevent infinite loops
+    if (!endpoint.includes('/auth/login') && !endpoint.includes('/auth/register') && !endpoint.includes('/auth/refresh')) {
         await refreshTokenIfNeeded();
     }
 
@@ -252,7 +271,7 @@ async function baseFetch(
             } catch {
                 data = {};
             }
-            throw new RequestError(
+            throw new ApiRequestError(
                 response.status,
                 data.message || 'Request failed',
                 data
@@ -275,7 +294,7 @@ async function baseFetch(
     } catch (error) {
         clearTimeout(timeoutId);
 
-        if (error instanceof RequestError) {
+        if (error instanceof ApiRequestError) {
             throw error;
         }
 
@@ -300,15 +319,15 @@ async function baseFetch(
 
         if (error instanceof Error) {
             if (error.name === 'AbortError' || isTimeoutError(error)) {
-                throw new RequestError(408, 'Request timeout');
+                throw new ApiRequestError(408, 'Request timeout');
             }
             if (isNetworkError(error)) {
-                throw new RequestError(503, 'Network connection failed');
+                throw new ApiRequestError(503, 'Network connection failed');
             }
-            throw new RequestError(500, error.message);
+            throw new ApiRequestError(500, error.message);
         }
 
-        throw new RequestError(500, 'Unknown error occurred');
+        throw new ApiRequestError(500, 'Unknown error occurred');
     }
 }
 

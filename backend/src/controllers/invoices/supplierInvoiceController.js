@@ -1,5 +1,6 @@
 const asyncHandler = require('../../middlewares/asyncHandler');
 const compilationService = require('../../services/invoices/compilationService');
+const invoicePdfService = require('../../services/invoices/invoicePdfService');
 const prisma = require('../../db/prisma');
 const ApiError = require('../../utils/ApiError');
 
@@ -126,7 +127,13 @@ exports.getInvoices = asyncHandler(async (req, res) => {
     const { storeId, supplierId, status, periodStart, periodEnd, limit = 50, offset = 0 } = req.query;
 
     const where = {};
-    if (storeId) where.storeId = storeId;
+
+    // Enforce store-specific access
+    if (req.user.storeId) {
+        where.storeId = req.user.storeId;
+    } else if (storeId) {
+        where.storeId = storeId;
+    }
     if (supplierId) where.supplierId = supplierId;
     if (status) where.status = status;
     if (periodStart || periodEnd) {
@@ -314,4 +321,54 @@ exports.deleteDraftInvoice = asyncHandler(async (req, res) => {
         success: true,
         message: 'Draft invoice deleted successfully'
     });
+});
+
+/**
+ * Download invoice PDF
+ * GET /api/v1/supplier-invoices/:id/pdf
+ */
+exports.downloadInvoicePdf = asyncHandler(async (req, res) => {
+    const { id } = req.params;
+
+    // Verify invoice exists and user has access
+    const invoice = await prisma.consolidatedInvoice.findFirst({
+        where: {
+            id,
+            storeId: req.user.storeId
+        },
+        include: {
+            supplier: true
+        }
+    });
+
+    if (!invoice) {
+        throw new ApiError(404, 'Invoice not found or access denied');
+    }
+
+    // Fetch store for filename
+    const store = await prisma.store.findUnique({
+        where: { id: invoice.storeId },
+        select: { name: true }
+    });
+
+    // Generate PDF
+    const pdfBuffer = await invoicePdfService.generateInvoicePdf(id);
+
+    // Create custom filename
+    let invoiceNum = invoice.invoiceNumber;
+    if (invoiceNum.startsWith('DRAFT-')) {
+        const count = await prisma.consolidatedInvoice.count({
+            where: { storeId: invoice.storeId, status: { not: 'DRAFT' } }
+        });
+        invoiceNum = `SI-${String(count + 1).padStart(4, '0')}`;
+    }
+    const storeName = store?.name || 'Pharmacy';
+    const filename = `${storeName} Invoice ${invoiceNum}.pdf`;
+
+    // Set headers for PDF download
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Length', pdfBuffer.length);
+
+    res.send(pdfBuffer);
 });

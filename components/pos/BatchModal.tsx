@@ -33,6 +33,7 @@ const BatchCardSkeleton = () => (
 export default function BatchModal({ product, onSelect, onClose }: any) {
   const [batches, setBatches] = useState<Batch[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedIndex, setSelectedIndex] = useState(0);
 
   useEffect(() => {
     const fetchBatches = async () => {
@@ -44,47 +45,50 @@ export default function BatchModal({ product, onSelect, onClose }: any) {
       setIsLoading(true);
       try {
         const { inventoryApi } = await import('@/lib/api/inventory');
-        const response = await inventoryApi.getBatches({ drugId: product.id, limit: 100 });
+        const response = await inventoryApi.getBatches({ drugId: product.id, minQuantity: 0 });
 
         console.log('Batch API Response:', response);
 
-        // Handle paginated response - data is an array of batches
-        let batchesData: any[] = [];
-
-        if (response?.data) {
-          // Check if it's a paginated response or direct array
-          batchesData = Array.isArray(response.data) ? response.data : [];
+        // Resilient parsing: Handle direct array or wrapped { success, data }
+        let rawBatches: any[] = [];
+        if (Array.isArray(response)) {
+          rawBatches = response;
+        } else if (response?.success && Array.isArray(response.data)) {
+          rawBatches = response.data;
+        } else if (response?.data && Array.isArray(response.data)) {
+          rawBatches = response.data;
         }
 
-        console.log('Batches Data:', batchesData);
-
-        if (batchesData.length > 0) {
-          // Transform to match expected format
-          const formattedBatches: Batch[] = batchesData
+        if (rawBatches.length > 0) {
+          const formattedBatches = rawBatches
             .map((batch: any) => ({
               batchId: batch.id,
               batchNumber: batch.batchNumber,
               expiry: new Date(batch.expiryDate).toLocaleDateString(),
               expiryDate: batch.expiryDate,
-              qty: batch.quantityInStock,
-              mrp: Number(batch.mrp),
+              qty: Number(batch.quantityInStock || batch.quantity || 0),
+              mrp: Number(batch.mrp || 0),
               location: batch.location || 'N/A',
-              recommended: false, // Will set after sorting
+              recommended: false,
             }))
-            .sort((a, b) => {
-              // Sort by stock: in-stock (qty > 0) first, then out-of-stock (qty = 0)
-              if (a.qty > 0 && b.qty === 0) return -1;
-              if (a.qty === 0 && b.qty > 0) return 1;
-              // If both have stock or both out of stock, maintain FEFO (earliest expiry first)
-              return new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime();
+            .sort((a: any, b: any) => {
+              // Priority 1: In-stock first
+              if (a.qty > 0 && b.qty <= 0) return -1;
+              if (a.qty <= 0 && b.qty > 0) return 1;
+
+              // Priority 2: FEFO (Earliest expiry first)
+              const dateA = new Date(a.expiryDate).getTime();
+              const dateB = new Date(b.expiryDate).getTime();
+              return dateA - dateB;
             });
 
-          // Mark first in-stock batch as recommended (FEFO)
+          // Mark first in-stock batch as recommended
           if (formattedBatches.length > 0 && formattedBatches[0].qty > 0) {
             formattedBatches[0].recommended = true;
           }
 
           setBatches(formattedBatches);
+          setSelectedIndex(0);
         } else {
           setBatches([]);
         }
@@ -98,6 +102,45 @@ export default function BatchModal({ product, onSelect, onClose }: any) {
 
     fetchBatches();
   }, [product]);
+
+  // Keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (batches.length === 0 || isLoading) return;
+
+      switch (e.key) {
+        case 'ArrowDown':
+          e.preventDefault();
+          setSelectedIndex((prev) => Math.min(prev + 1, batches.length - 1));
+          break;
+        case 'ArrowUp':
+          e.preventDefault();
+          setSelectedIndex((prev) => Math.max(prev - 1, 0));
+          break;
+        case 'Enter':
+        case ' ':
+          e.preventDefault();
+          const selectedBatch = batches[selectedIndex];
+          if (selectedBatch && selectedBatch.qty > 0) {
+            onSelect(selectedBatch);
+          } else if (selectedBatch) {
+            toast.error(`Batch ${selectedBatch.batchNumber} is out of stock!`);
+          }
+          break;
+        case 'Escape':
+          e.preventDefault();
+          onClose();
+          break;
+        case 'Tab':
+          e.preventDefault();
+          setSelectedIndex((prev) => (prev + 1) % batches.length);
+          break;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [batches, selectedIndex, isLoading, onSelect, onClose]);
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
@@ -121,7 +164,7 @@ export default function BatchModal({ product, onSelect, onClose }: any) {
                 <BatchCardSkeleton />
               </>
             ) : batches.length > 0 ? (
-              batches.map((batch) => (
+              batches.map((batch, index) => (
                 <div
                   key={batch.batchId}
                   onClick={() => {
@@ -133,9 +176,11 @@ export default function BatchModal({ product, onSelect, onClose }: any) {
                   }}
                   className={`p-4 border-2 rounded-lg transition-all ${batch.qty <= 0
                     ? 'opacity-50 cursor-not-allowed border-gray-300 bg-gray-50'
-                    : batch.recommended
-                      ? 'border-[#0ea5a3] bg-[#f0fdfa] cursor-pointer hover:shadow-md'
-                      : 'border-[#e2e8f0] hover:border-[#cbd5e1] cursor-pointer hover:shadow-md'
+                    : index === selectedIndex
+                      ? 'border-emerald-500 bg-emerald-50 cursor-pointer shadow-md ring-2 ring-emerald-200'
+                      : batch.recommended
+                        ? 'border-[#0ea5a3] bg-[#f0fdfa] cursor-pointer hover:shadow-md'
+                        : 'border-[#e2e8f0] hover:border-[#cbd5e1] cursor-pointer hover:shadow-md'
                     }`}
                 >
                   <div className="flex items-center justify-between">
@@ -144,6 +189,9 @@ export default function BatchModal({ product, onSelect, onClose }: any) {
                         <span className="font-semibold text-[#0f172a]">{batch.batchNumber}</span>
                         {batch.recommended && (
                           <span className="px-2 py-0.5 bg-[#0ea5a3] text-white text-xs rounded-full">FEFO</span>
+                        )}
+                        {index === selectedIndex && (
+                          <span className="px-2 py-0.5 bg-emerald-500 text-white text-xs rounded-full">Selected</span>
                         )}
                       </div>
                       <div className="text-sm text-[#64748b] mt-1">
@@ -166,11 +214,21 @@ export default function BatchModal({ product, onSelect, onClose }: any) {
             )}
           </div>
 
-          <div className="mt-4 p-3 bg-[#fef3c7] border border-[#fde68a] rounded-lg flex items-start gap-2">
-            <FiAlertCircle className="w-4 h-4 text-[#f59e0b] mt-0.5 shrink-0" />
-            <p className="text-xs text-[#92400e]">
-              FEFO (First-Expire-First-Out) batch is recommended for optimal inventory management.
-            </p>
+          <div className="mt-4 space-y-3">
+            <div className="p-3 bg-[#fef3c7] border border-[#fde68a] rounded-lg flex items-start gap-2">
+              <FiAlertCircle className="w-4 h-4 text-[#f59e0b] mt-0.5 shrink-0" />
+              <p className="text-xs text-[#92400e]">
+                FEFO (First-Expire-First-Out) batch is recommended for optimal inventory management.
+              </p>
+            </div>
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-xs text-blue-900 font-medium mb-1">Keyboard Shortcuts:</p>
+              <p className="text-xs text-blue-700">
+                <span className="font-mono bg-blue-100 px-1 rounded">↑/↓</span> Navigate •
+                <span className="font-mono bg-blue-100 px-1 rounded ml-1">Enter/Space</span> Select •
+                <span className="font-mono bg-blue-100 px-1 rounded ml-1">Esc</span> Close
+              </p>
+            </div>
           </div>
         </div>
       </div>

@@ -154,19 +154,17 @@ class SaleService {
 
             // 6. Track loyalty event (async, don't block sale completion)
             if (prescription.patientId) {
-                try {
-                    await loyaltyService.processPurchase(
-                        result.sale.id,
-                        prescription.patientId,
-                        saleInfo.storeId,
-                        parseFloat(result.sale.total),
-                        items.length
-                    );
-                    logger.info(`Loyalty event tracked for patient: ${prescription.patientId}`);
-                } catch (loyaltyError) {
+                loyaltyService.processPurchase(
+                    result.sale.id,
+                    prescription.patientId,
+                    saleInfo.storeId,
+                    parseFloat(result.sale.total),
+                    items.length
+                ).catch(loyaltyError => {
                     // Log error but don't fail the sale
                     logger.error('Failed to track loyalty event:', loyaltyError);
-                }
+                });
+                logger.info(`Loyalty event tracking initiated for patient: ${prescription.patientId}`);
             }
 
             // 7. Create audit log for Sale/Dispense (showing deviations)
@@ -335,7 +333,7 @@ class SaleService {
      */
     async createSale(saleData) {
         logger.warn('⚠️  DEPRECATED: createSale() called. Please migrate to createQuickSale() or createSaleFromDispense()');
-        
+
         const { items, paymentSplits, ...saleInfo } = saleData;
 
         // Generate invoice number

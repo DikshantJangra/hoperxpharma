@@ -2,11 +2,12 @@
 
 import React from 'react';
 import { useKeyboard } from '@/contexts/KeyboardContext';
+import { COMMANDS } from '@/lib/keyboard/commands';
 import { FiCommand, FiSettings, FiCheckCircle, FiMonitor } from 'react-icons/fi';
 import { MdKeyboardArrowRight, MdKeyboard } from 'react-icons/md';
 
 export default function KeyboardShortcutsPage() {
-    const { navigationMode, toggleNavigationMode, keyBindings } = useKeyboard();
+    const { navigationMode, toggleNavigationMode, keyBindings, updateKeyBinding } = useKeyboard();
 
     // Group bindings for better display (mocking categories for now based on context)
     const groupedBindings = {
@@ -112,19 +113,37 @@ export default function KeyboardShortcutsPage() {
                                         <tr>
                                             <th className="px-6 py-4">Action</th>
                                             <th className="px-6 py-4">Key Combination</th>
+                                            <th className="px-6 py-4">ID</th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-100">
-                                        {Object.entries(keyBindings).map(([action, key]) => (
-                                            <tr key={action} className="hover:bg-gray-50/50 transition-colors">
-                                                <td className="px-6 py-4 text-sm font-medium text-gray-900">{action}</td>
-                                                <td className="px-6 py-4">
-                                                    <span className="inline-flex items-center px-2.5 py-1 rounded-md bg-gray-100 border border-gray-200 text-xs font-mono font-medium text-gray-700 shadow-sm">
-                                                        {key}
-                                                    </span>
-                                                </td>
-                                            </tr>
-                                        ))}
+                                        {Object.values(COMMANDS).map((cmd) => {
+                                            const currentKey = keyBindings[cmd.id] || cmd.defaultKey || 'Unbound';
+                                            return (
+                                                <tr key={cmd.id} className="hover:bg-gray-50/50 transition-colors">
+                                                    <td className="px-6 py-4">
+                                                        <div className="text-sm font-medium text-gray-900">{cmd.label}</div>
+                                                        {cmd.description && <div className="text-xs text-gray-400 mt-0.5">{cmd.description}</div>}
+                                                    </td>
+                                                    <td className="px-6 py-4">
+                                                        <button
+                                                            className="inline-flex items-center px-2.5 py-1 rounded-md bg-gray-100 border border-gray-200 text-xs font-mono font-medium text-gray-700 shadow-sm hover:bg-gray-200 transition-colors"
+                                                            onClick={() => {
+                                                                const newKey = prompt(`Enter new key for "${cmd.label}":`, currentKey);
+                                                                if (newKey) {
+                                                                    updateKeyBinding(cmd.id, newKey);
+                                                                }
+                                                            }}
+                                                        >
+                                                            {currentKey}
+                                                        </button>
+                                                    </td>
+                                                    <td className="px-6 py-4 text-xs text-gray-400 font-mono">
+                                                        {cmd.id}
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
                                     </tbody>
                                 </table>
                             </div>

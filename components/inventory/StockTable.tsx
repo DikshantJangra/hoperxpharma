@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { FiChevronDown, FiChevronRight, FiAlertCircle, FiPackage } from 'react-icons/fi';
 import { BsSnow } from 'react-icons/bs';
 import { usePremiumTheme } from '@/lib/hooks/usePremiumTheme';
+import { formatStockQuantity, formatUnitName, renderStockQuantity } from '@/lib/utils/stock-display';
 
 const TableRowSkeleton = () => (
   <tr className="border-b border-[#f1f5f9] animate-pulse">
@@ -136,7 +137,8 @@ export default function StockTable({
             drugs.map((drug) => {
               const totalStock = drug.inventory?.reduce((sum: number, batch: any) => sum + batch.quantityInStock, 0) || 0;
               const batchCount = drug.inventory?.length || 0;
-              const lowStock = totalStock <= (drug.lowStockThreshold || 10);
+              const totalStockFormatted = formatStockQuantity({ ...drug, quantityInStock: totalStock });
+              const lowStock = totalStock <= (drug.lowStockThresholdBase || drug.lowStockThreshold || 10);
 
               return (
                 <React.Fragment key={drug.id}>
@@ -182,11 +184,13 @@ export default function StockTable({
                     <td className="px-4 py-3 text-center">
                       <span className="px-2 py-1 bg-[#f1f5f9] text-[#64748b] text-xs rounded">{batchCount}</span>
                     </td>
-                    <td className="px-4 py-3 text-right font-semibold text-[#0f172a]">{totalStock}</td>
+                    <td className="px-4 py-3 text-right">
+                      {renderStockQuantity({ totalStock, drug })}
+                    </td>
                     <td className="px-4 py-3 text-right text-[#64748b]">{drug.gstRate}%</td>
                     <td className="px-4 py-3 text-right">
                       <span className={lowStock ? 'text-[#ef4444] font-semibold' : 'text-[#64748b]'}>
-                        {drug.lowStockThreshold || 10}
+                        {formatStockQuantity({ ...drug, quantityInStock: drug.lowStockThresholdBase || drug.lowStockThreshold || 10 })}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-center">
@@ -213,7 +217,7 @@ export default function StockTable({
                           <div className="flex items-center gap-2">
                             <FiPackage className="w-3 h-3 text-[#64748b]" />
                             <span className="text-sm font-medium text-[#0f172a]">{batch.batchNumber}</span>
-                            <span className="text-xs text-[#64748b]">• Rack: {batch.rackLocation || 'N/A'}</span>
+                            <span className="text-xs text-[#64748b]">• Rack: {batch.location || 'N/A'}</span>
                             {daysToExpiry < 30 && daysToExpiry > 0 && (
                               <span className="px-2 py-0.5 bg-[#fee2e2] text-[#991b1b] text-xs rounded">
                                 Expires in {daysToExpiry}d
@@ -226,7 +230,9 @@ export default function StockTable({
                             )}
                           </div>
                         </td>
-                        <td className="px-4 py-2 text-right text-sm text-[#64748b]">{batch.quantityInStock}</td>
+                        <td className="px-4 py-2 text-right text-sm text-[#64748b]">
+                          {renderStockQuantity(batch)}
+                        </td>
                         <td className="px-4 py-2 text-right text-sm text-[#64748b]">₹{Number(batch.purchasePrice).toFixed(2)}</td>
                         <td className="px-4 py-2 text-right text-sm text-[#64748b]">₹{Number(batch.mrp).toFixed(2)}</td>
                         <td className="px-4 py-2 text-sm text-[#64748b]">{new Date(batch.expiryDate).toLocaleDateString()}</td>

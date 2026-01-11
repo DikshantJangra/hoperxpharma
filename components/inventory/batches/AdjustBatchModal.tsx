@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { FiX, FiAlertCircle } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation';
+import { formatStockQuantity, formatUnitName } from '@/lib/utils/stock-display';
 
 export default function AdjustBatchModal({ batch, onClose, onSuccess }: any) {
   const [delta, setDelta] = useState(0);
@@ -37,7 +38,7 @@ export default function AdjustBatchModal({ batch, onClose, onSuccess }: any) {
         reason
       });
 
-      toast.success(`Stock adjusted successfully: ${delta > 0 ? '+' : ''}${delta} units`);
+      toast.success(`Stock adjusted successfully: ${delta > 0 ? '+' : ''}${delta} ${formatUnitName(batch.unit || 'unit')}s`);
 
       if (onSuccess) {
         onSuccess();
@@ -84,7 +85,7 @@ export default function AdjustBatchModal({ batch, onClose, onSuccess }: any) {
               disabled={isSubmitting}
             />
             <p className="text-xs text-[#64748b] mt-1">
-              Current: {currentQty} → Resulting: <span className={resultingQty < 0 ? 'text-[#ef4444]' : 'text-[#10b981]'}>{resultingQty}</span>
+              Current: {formatStockQuantity(batch)} → Resulting: <span className={resultingQty < 0 ? 'text-[#ef4444]' : 'text-[#10b981]'}>{resultingQty} {formatUnitName(batch.unit || 'unit')}s</span>
             </p>
           </div>
 

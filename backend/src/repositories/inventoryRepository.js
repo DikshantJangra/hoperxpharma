@@ -441,19 +441,15 @@ SUM(ib."quantityInStock" * ib."purchasePrice") as "totalValue",
                             { manufacturer: { contains: searchTerm, mode: 'insensitive' } },
                         ],
                     },
-                    {
-                        inventory: {
-                            some: {
-                                storeId,
-                                deletedAt: null,
-                                quantityInStock: { gt: 0 },
-                            },
-                        },
-                    },
+                    // Removed stock > 0 check to allow "Out of Stock" items to appear in POS
+                    // This is required for the "Find Substitute" feature
                 ],
             },
             take: 20,
             orderBy: { name: 'asc' },
+            include: {
+                unitConfigurations: true
+            }
         });
 
         logger.info('🔍 POS Search - Found drugs:', drugs.length);

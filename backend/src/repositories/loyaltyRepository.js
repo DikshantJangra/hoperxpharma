@@ -22,8 +22,33 @@ class LoyaltyRepository {
     }
 
     async getProfileByPatientId(patientId) {
+        if (!patientId) return null;
         return prisma.loyaltyProfile.findUnique({
             where: { patientId },
+            include: {
+                patient: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                        phoneNumber: true,
+                        createdAt: true,
+                    },
+                },
+                _count: {
+                    select: {
+                        events: true,
+                        rewards: true,
+                    },
+                },
+            },
+        });
+    }
+
+    async getProfileById(id) {
+        if (!id) return null;
+        return prisma.loyaltyProfile.findUnique({
+            where: { id },
             include: {
                 patient: {
                     select: {

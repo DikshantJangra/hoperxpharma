@@ -7,6 +7,7 @@ import PatientSearchSelect from '@/components/prescriptions/PatientSearchSelect'
 import PrescriberSelect from './PrescriberSelect';
 import BatchModal from '@/components/pos/BatchModal';
 import toast from 'react-hot-toast';
+import { useKeyboardCommand } from '@/hooks/useKeyboardCommand';
 
 // Types
 interface MedicationDraft {
@@ -215,16 +216,12 @@ const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ onSubmit, onCancel,
         }
     };
 
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.key === '/' && document.activeElement !== searchInputRef.current) {
-                e.preventDefault();
-                searchInputRef.current?.focus();
-            }
-        };
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, []);
+    // Global keyboard commands
+    useKeyboardCommand('global.search', () => {
+        if (document.activeElement !== searchInputRef.current) {
+            searchInputRef.current?.focus();
+        }
+    });
 
     // Add medication with batch handling (POS-style)
     const addMedication = (drug: any) => {

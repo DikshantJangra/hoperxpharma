@@ -1,6 +1,7 @@
 'use client';
 
 import { FiX, FiCheckCircle, FiAlertTriangle } from 'react-icons/fi';
+import { formatUnitName } from '@/lib/utils/stock-display';
 
 export default function ConfirmationModal({ items, onConfirm, onClose }: any) {
   const totalDelta = items.reduce((sum: number, item: any) => sum + item.delta, 0);
@@ -36,9 +37,8 @@ export default function ConfirmationModal({ items, onConfirm, onClose }: any) {
                   <h4 className="font-semibold text-[#0f172a]">{item.name}</h4>
                   <p className="text-xs text-[#64748b] mt-0.5">Batch: {item.batchId}</p>
                 </div>
-                <div className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                  item.delta > 0 ? 'bg-[#d1fae5] text-[#065f46]' : 'bg-[#fee2e2] text-[#991b1b]'
-                }`}>
+                <div className={`px-3 py-1 rounded-full text-sm font-semibold ${item.delta > 0 ? 'bg-[#d1fae5] text-[#065f46]' : 'bg-[#fee2e2] text-[#991b1b]'
+                  }`}>
                   {item.delta > 0 ? '+' : ''}{item.delta}
                 </div>
               </div>
@@ -46,16 +46,16 @@ export default function ConfirmationModal({ items, onConfirm, onClose }: any) {
               <div className="grid grid-cols-3 gap-3 text-sm mb-3">
                 <div>
                   <p className="text-[#64748b] text-xs">Current Qty</p>
-                  <p className="font-semibold text-[#0f172a]">{item.currentQty}</p>
+                  <p className="font-semibold text-[#0f172a]">{item.currentQty} <span className="text-[10px] text-gray-400 uppercase">{formatUnitName(item.unit || 'unit')}</span></p>
                 </div>
                 <div>
                   <p className="text-[#64748b] text-xs">New Qty</p>
-                  <p className="font-semibold text-[#0f172a]">{item.newQty}</p>
+                  <p className="font-semibold text-[#0f172a]">{item.newQty} <span className="text-[10px] text-gray-400 uppercase">{formatUnitName(item.unit || 'unit')}</span></p>
                 </div>
                 <div>
                   <p className="text-[#64748b] text-xs">Delta</p>
                   <p className={`font-semibold ${item.delta > 0 ? 'text-[#10b981]' : 'text-[#ef4444]'}`}>
-                    {item.delta > 0 ? '+' : ''}{item.delta}
+                    {item.delta > 0 ? '+' : ''}{item.delta} <span className="text-[10px] opacity-70 uppercase">{formatUnitName(item.unit || 'unit')}</span>
                   </p>
                 </div>
               </div>

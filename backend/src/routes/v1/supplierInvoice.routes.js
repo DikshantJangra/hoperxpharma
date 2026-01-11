@@ -32,6 +32,17 @@ router.get(
 );
 
 /**
+ * @route   GET /api/v1/supplier-invoices/:id/pdf
+ * @desc    Download invoice as PDF
+ * @access  Private (requires po.read)
+ */
+router.get(
+    '/:id/pdf',
+    requirePermission('po.read'),
+    supplierInvoiceController.downloadInvoicePdf
+);
+
+/**
  * @route   GET /api/v1/supplier-invoices/:id
  * @desc    Get single invoice by ID with full details
  * @access  Private (requires po.read)

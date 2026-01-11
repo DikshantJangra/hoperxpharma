@@ -14,6 +14,7 @@ import { toast } from 'sonner';
 import { FiMinus, FiPlus, FiX, FiTag, FiChevronDown, FiPercent, FiTrash, FiAlertCircle, FiPackage } from 'react-icons/fi';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { usePremiumTheme } from '@/lib/hooks/usePremiumTheme';
+import { formatUnitName, formatStockQuantity, renderStockQuantity } from '@/lib/utils/stock-display';
 
 export default function Basket({ items, onUpdateItem, onRemoveItem, onClear, onEditBatch }: any) {
   const [expandedItem, setExpandedItem] = useState<number | null>(null);
@@ -24,21 +25,75 @@ export default function Basket({ items, onUpdateItem, onRemoveItem, onClear, onE
   // Fetch available units for each drug
   useEffect(() => {
     const fetchUnitsForDrugs = async () => {
-      const drugIds = items.map((item: any) => item.drugId).filter(Boolean);
+      // Use both drugId and id as fallback, as some search results use id for the drug ID
+      const drugIds = items.map((item: any) => item.drugId || item.id).filter(Boolean);
       if (drugIds.length === 0) return;
 
+      // 1. First, check if any items already have unitConfigurations (passed from ProductSearch)
+      // This allows instant unit selection without waiting for the API
+      const preloadedUnits: Record<string, any[]> = {};
+      let needsFetch = false;
+
+      items.forEach((item: any) => {
+        const drugId = item.drugId || item.id;
+        if (!drugId || availableUnits[drugId]) return;
+
+        if (item.unitConfigurations && Array.isArray(item.unitConfigurations) && item.unitConfigurations.length > 0) {
+          // Transform unitConfigurations to the format expected by the UI
+          const transformedUnits = [
+            {
+              unit: item.displayUnit || 'Strip',
+              isDefault: true,
+              isBase: item.displayUnit === item.baseUnit,
+              conversionFactor: 1
+            }
+          ];
+
+          // Add configurations as additional units
+          item.unitConfigurations.forEach((config: any) => {
+            if (config.childUnit && config.childUnit !== item.displayUnit) {
+              transformedUnits.push({
+                unit: config.childUnit,
+                isDefault: false,
+                isBase: config.childUnit === item.baseUnit,
+                conversionFactor: Number(config.conversion)
+              });
+            }
+          });
+
+          preloadedUnits[drugId] = transformedUnits;
+        } else {
+          needsFetch = true;
+        }
+      });
+
+      if (Object.keys(preloadedUnits).length > 0) {
+        setAvailableUnits(prev => ({ ...prev, ...preloadedUnits }));
+      }
+
+      if (!needsFetch) return;
+
+      console.log('💊 Basket - Fetching units for remaining drugs...');
+
       try {
-        const units: Record<string, any[]> = {};
+        const { inventoryApi } = await import('@/lib/api/inventory');
+        const fetchedUnits: Record<string, any[]> = {};
 
         for (const drugId of drugIds) {
-          const res = await fetch(`/api/drugs/${drugId}/units`);
-          if (res.ok) {
-            const data = await res.json();
-            units[drugId] = data.units || [];
+          if (availableUnits[drugId] || preloadedUnits[drugId]) continue; // Skip if already have it
+
+          try {
+            const res = await inventoryApi.getDrugUnits(drugId);
+            const unitList = res.data?.units || res.units || [];
+            fetchedUnits[drugId] = unitList;
+          } catch (error) {
+            console.error(`💊 Basket - Failed to load units for ${drugId}`, error);
           }
         }
 
-        setAvailableUnits(units);
+        if (Object.keys(fetchedUnits).length > 0) {
+          setAvailableUnits(prev => ({ ...prev, ...fetchedUnits }));
+        }
       } catch (error) {
         console.error('Failed to fetch units:', error);
       }
@@ -69,7 +124,7 @@ export default function Basket({ items, onUpdateItem, onRemoveItem, onClear, onE
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
-      <div className="flex-1 overflow-y-auto p-4 min-h-0">
+      <div className="flex-1 overflow-y-auto px-4 py-2 min-h-0">
         {items.length === 0 ? (
           <div className="h-full flex items-center justify-center">
             <div className="text-center">
@@ -85,7 +140,7 @@ export default function Basket({ items, onUpdateItem, onRemoveItem, onClear, onE
             {items.map((item: any, index: number) => {
               const unitPrice = calculateUnitPrice(item);
               const lineTotal = item.qty * unitPrice;
-              const drugUnits = availableUnits[item.drugId] || [];
+              const drugUnits = availableUnits[item.drugId || item.id];
               const selectedUnit = item.unit || item.displayUnit || 'unit';
 
               return (
@@ -185,7 +240,7 @@ export default function Basket({ items, onUpdateItem, onRemoveItem, onClear, onE
                           const newQty = Math.max(1, parseInt(e.target.value) || 1);
                           const maxQty = item.stock || item.totalStock || 999;
                           if (newQty > maxQty) {
-                            toast.error(`Only ${maxQty} units available in stock!`);
+                            toast.error(`Only ${maxQty} ${formatUnitName(selectedUnit)}s available in stock!`);
                             return;
                           }
                           onUpdateItem(index, { qty: newQty });
@@ -197,7 +252,7 @@ export default function Basket({ items, onUpdateItem, onRemoveItem, onClear, onE
                         onClick={() => {
                           const maxQty = item.stock || item.totalStock || 999;
                           if (item.qty + 1 > maxQty) {
-                            toast.error(`Only ${maxQty} units available in stock!`);
+                            toast.error(`Only ${maxQty} ${formatUnitName(selectedUnit)}s available in stock!`);
                             return;
                           }
                           onUpdateItem(index, { qty: item.qty + 1 });
@@ -209,25 +264,56 @@ export default function Basket({ items, onUpdateItem, onRemoveItem, onClear, onE
                       </button>
 
                       {/* UNIT SELECTOR */}
-                      {drugUnits.length > 1 && (
+                      {drugUnits === undefined ? (
+                        <span className="px-2 py-1 text-xs border border-gray-100 rounded bg-gray-50 text-gray-400 font-medium animate-pulse select-none" title="Loading alternatives...">
+                          {formatUnitName(selectedUnit)}
+                        </span>
+                      ) : drugUnits.length <= 1 ? (
+                        <span className="px-2 py-1 text-xs border border-gray-200 rounded bg-gray-50 text-gray-600 font-medium" title="Only one unit available">
+                          {formatUnitName(selectedUnit)}
+                        </span>
+                      ) : (
                         <select
                           value={selectedUnit}
                           onChange={(e) => {
                             const newUnit = e.target.value;
                             const unitConfig = drugUnits.find((u: any) => u.unit === newUnit);
 
-                            onUpdateItem(index, {
-                              unit: newUnit,
-                              conversionFactor: unitConfig?.conversionFactor || 1
-                            });
+                            // Check if changing to this unit makes it identical to ANOTHER item in the basket
+                            const otherItemIndex = items.findIndex((other: any, oIndex: number) =>
+                              oIndex !== index &&
+                              (other.drugId || other.id) === (item.drugId || item.id) &&
+                              other.batchId === item.batchId &&
+                              (other.unit || other.displayUnit || 'unit') === newUnit
+                            );
+
+                            if (otherItemIndex >= 0) {
+                              // Merge this item into the other item
+                              const targetQty = items[otherItemIndex].qty + item.qty;
+                              const targetMax = items[otherItemIndex].stock || items[otherItemIndex].totalStock || 999;
+
+                              if (targetQty > targetMax) {
+                                toast.error(`Merging these items would exceed available stock (${targetMax} ${newUnit}s)`);
+                                return;
+                              }
+
+                              // Remove current item and update the other one
+                              onRemoveItem(index);
+                              onUpdateItem(otherItemIndex, { qty: targetQty });
+                              toast.info(`Merged items under unit: ${formatUnitName(newUnit)}`);
+                            } else {
+                              onUpdateItem(index, {
+                                unit: newUnit,
+                                conversionFactor: unitConfig?.conversionFactor || 1
+                              });
+                            }
                           }}
-                          className="px-2 py-1 text-xs border border-emerald-200 rounded bg-emerald-50 text-emerald-700 font-medium focus:outline-none focus:ring-2 focus focus:ring-emerald-300"
+                          className="px-2 py-1 text-xs border border-emerald-200 rounded bg-emerald-50 text-emerald-700 font-medium focus:outline-none focus:ring-2 focus focus:ring-emerald-300 cursor-pointer"
                           title="Select unit"
                         >
                           {drugUnits.map((unitOption: any) => (
                             <option key={unitOption.unit} value={unitOption.unit}>
-                              {unitOption.unit}
-                              {unitOption.isBase && ' (base)'}
+                              {formatUnitName(unitOption.unit)}
                             </option>
                           ))}
                         </select>
@@ -338,7 +424,7 @@ export default function Basket({ items, onUpdateItem, onRemoveItem, onClear, onE
                       <div className="flex items-center justify-between text-xs mt-2 bg-gray-50 p-2 rounded border border-gray-100">
                         <span className="text-gray-500">Available Stock</span>
                         <span className={`font-bold ${item.qty > (item.stock || 0) ? 'text-red-600' : 'text-gray-700'}`}>
-                          {item.stock !== undefined && item.stock !== null && !isNaN(item.stock) ? item.stock : '0'} units
+                          {item.stock !== undefined && item.stock !== null && !isNaN(item.stock) ? formatStockQuantity({ ...item, quantityInStock: item.stock }) : '0'}
                         </span>
                       </div>
                       {item.qty > (item.stock || item.totalStock || 0) && (
@@ -356,16 +442,16 @@ export default function Basket({ items, onUpdateItem, onRemoveItem, onClear, onE
       </div>
 
       {items.length > 0 && (
-        <div className={`shrink-0 border-t p-4 ${isPremium ? 'bg-emerald-50/30 border-emerald-100' : 'bg-white border-[#e2e8f0]'}`}>
-          <div className="flex items-center justify-between mb-3">
+        <div className={`shrink-0 border-t px-4 py-3 ${isPremium ? 'bg-emerald-50/30 border-emerald-100' : 'bg-white border-[#e2e8f0]'}`}>
+          <div className="flex items-center justify-between mb-2">
             <span className="text-sm text-[#64748b]">Subtotal ({items.length} items)</span>
             <span className={`font-semibold text-lg ${isPremium ? 'text-emerald-700' : 'text-[#0f172a]'}`}>₹{subtotal.toFixed(2)}</span>
           </div>
           <button
             onClick={() => setShowClearDialog(true)}
-            className="w-full py-2.5 text-sm font-medium text-[#ef4444] border border-[#fecaca] rounded-lg hover:bg-[#fef2f2] flex items-center justify-center gap-2 transition-colors"
+            className="w-full py-2 text-sm font-medium text-[#ef4444] border border-[#fecaca] rounded-lg hover:bg-[#fef2f2] flex items-center justify-center gap-1 transition-colors"
           >
-            <FiTrash className="w-4 h-4" />
+            <FiTrash className="w-3.5 h-3.5" />
             <span>Clear Sale</span>
           </button>
         </div>

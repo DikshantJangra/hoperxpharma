@@ -1,4 +1,5 @@
 'use client';
+import { formatUnitName } from '@/lib/utils/stock-display';
 
 export default function AdjustmentSummary({ items, onSubmit }: any) {
   const totalDelta = items.reduce((sum: number, item: any) => sum + item.delta, 0);
@@ -19,7 +20,7 @@ export default function AdjustmentSummary({ items, onSubmit }: any) {
               <p className="text-[#64748b] mb-1">Total Delta</p>
               <p className={`text-xl font-bold ${totalDelta > 0 ? 'text-[#10b981]' : totalDelta < 0 ? 'text-[#ef4444]' : 'text-[#64748b]'
                 }`}>
-                {totalDelta > 0 ? '+' : ''}{totalDelta} units
+                {totalDelta > 0 ? '+' : ''}{totalDelta} <span className="text-[10px] font-normal uppercase">Totals</span>
               </p>
             </div>
             <div className="text-right">

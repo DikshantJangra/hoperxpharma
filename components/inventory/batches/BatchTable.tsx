@@ -1,10 +1,9 @@
 'use client';
 
 import React from 'react';
-import { FiAlertCircle, FiThermometer } from 'react-icons/fi';
-import { BsSnow } from 'react-icons/bs';
-import { formatStockQuantity, getStockStatus } from '@/lib/utils/stock-display';
-import { BsQrCodeScan, BsUpcScan } from 'react-icons/bs';
+import { FiAlertCircle } from 'react-icons/fi';
+import { BsSnow, BsUpcScan, BsQrCodeScan } from 'react-icons/bs';
+import { getStockStatus, formatStockQuantity, formatUnitName, renderStockQuantity } from '@/lib/utils/stock-display';
 import { scanApi } from '@/lib/api/scan';
 import { toast } from 'sonner';
 import dynamic from 'next/dynamic';
@@ -49,27 +48,28 @@ export default function BatchTable({ batches, isLoading, searchQuery, onSelectBa
       toast.success(`Barcode ${code} linked successfully!`);
       if (onRefresh) onRefresh();
     } catch (error: any) {
-      // Extract exact error message from backend
       const msg = error.response?.data?.message || error.message || 'Failed to link barcode';
       toast.error(msg);
     } finally {
       toast.dismiss(toastId);
-      setScanningBatchId(null); // Always close modal
+      setScanningBatchId(null);
     }
   };
 
-  const handleGenerateQR = async (batch: any, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleGenerateInternal = async () => {
+    if (!scanningBatchId) return;
+    const batch = batches.find((b: any) => b.id === scanningBatchId);
+    if (!batch) return;
+
+    // Close scanner modal first
+    setScanningBatchId(null);
+
     const toastId = toast.loading('Generating QR...');
     try {
-      // Check if already has internal QR
-      if (batch.internalQRCode && batch.internalQRCode.startsWith('data:')) {
-        // This logic depends on what backend returns. 
-        // Actually backend `generateQR` returns the data URL.
-        // Let's just call the API to be safe and get the fresh data URL.
-      }
-
       const response = await scanApi.generateQR(batch.id);
+
+      // Update local state temporarily for immediate feedback if needed, 
+      // but onRefresh will handle it.
 
       setQrData({
         qrDataURL: response.qrDataURL,
@@ -79,7 +79,8 @@ export default function BatchTable({ batches, isLoading, searchQuery, onSelectBa
         expiryDate: batch.expiryDate
       });
       setQrModalOpen(true);
-      toast.success('QR Code generated');
+      toast.success('Internal QR Generated');
+
       if (onRefresh) onRefresh();
     } catch (error: any) {
       toast.error('Failed to generate QR');
@@ -87,7 +88,7 @@ export default function BatchTable({ batches, isLoading, searchQuery, onSelectBa
     } finally {
       toast.dismiss(toastId);
     }
-  };
+  }
 
   const getExpiryColor = (days: number) => {
     if (days < 0) return 'bg-[#991b1b] text-white';
@@ -161,6 +162,14 @@ export default function BatchTable({ batches, isLoading, searchQuery, onSelectBa
                           <BsUpcScan className="w-4 h-4 text-emerald-600" />
                           <span>{batch.manufacturerBarcode}</span>
                         </button>
+                      ) : batch.internalQRCode ? (
+                        <button
+                          onClick={() => onSelectBatch(batch)}
+                          className="flex items-center gap-2 px-2 py-1 text-xs font-medium text-purple-700 bg-purple-50 rounded border border-purple-200"
+                        >
+                          <BsQrCodeScan className="w-3.5 h-3.5" />
+                          <span>Internal QR Linked</span>
+                        </button>
                       ) : (
                         <button
                           onClick={() => setScanningBatchId(batch.id)}
@@ -170,19 +179,6 @@ export default function BatchTable({ batches, isLoading, searchQuery, onSelectBa
                           Link Barcode
                         </button>
                       )}
-
-                      {/* Internal QR Button */}
-                      <button
-                        onClick={(e) => handleGenerateQR(batch, e)}
-                        className={`flex items-center gap-1.5 px-2 py-1 text-xs font-medium rounded border transition-colors ${batch.internalQRCode
-                            ? 'text-purple-700 bg-purple-50 border-purple-200 hover:bg-purple-100'
-                            : 'text-gray-600 bg-gray-50 border-gray-200 hover:bg-gray-100'
-                          }`}
-                        title="Generate/View Internal QR"
-                      >
-                        <BsQrCodeScan className="w-3.5 h-3.5" />
-                        {batch.internalQRCode ? 'View QR' : 'Gen QR'}
-                      </button>
                     </div>
                   </td>
                   <td className="px-4 py-3">
@@ -210,8 +206,8 @@ export default function BatchTable({ batches, isLoading, searchQuery, onSelectBa
                       </span>
                     </div>
                   </td>
-                  <td className={`px-4 py-3 text-right font-semibold ${stockStatus.color}`}>
-                    {batch.baseUnitQuantity ?? batch.quantityInStock}
+                  <td className={`px-4 py-3 text-right ${stockStatus.color}`}>
+                    {renderStockQuantity(batch)}
                   </td>
                   <td className="px-4 py-3 text-right font-semibold text-[#0ea5a3]">₹{Number(batch.mrp).toFixed(2)}</td>
                   <td className="px-4 py-3 text-sm text-[#64748b]">{batch.location || batch.rackLocation || 'N/A'}</td>
@@ -228,7 +224,7 @@ export default function BatchTable({ batches, isLoading, searchQuery, onSelectBa
             })
           ) : (
             <tr>
-              <td colSpan={9}>
+              <td colSpan={10}>
                 <div className="flex flex-col items-center justify-center h-64">
                   <FiAlertCircle className="w-12 h-12 text-[#cbd5e1] mb-3" />
                   <p className="text-[#64748b]">No batches found</p>
@@ -243,28 +239,27 @@ export default function BatchTable({ batches, isLoading, searchQuery, onSelectBa
       </table>
 
       {scanningBatchId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl max-w-md w-full overflow-hidden relative">
-            <button
-              onClick={() => setScanningBatchId(null)}
-              className="absolute top-3 right-3 p-2 hover:bg-gray-100 rounded-full z-10"
-            >
-              <span className="sr-only">Close</span>
-              <svg className="w-5 h-5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-            <div className="p-4 border-b">
-              <h3 className="text-lg font-semibold text-gray-900">Link Barcode</h3>
-              <p className="text-sm text-gray-500">Scan or type the manufacturer's barcode</p>
-            </div>
-            <div className="p-4">
-              <BarcodeScannerModal
-                onClose={() => setScanningBatchId(null)}
-                onScan={handleEnroll}
-              />
-            </div>
-          </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 font-sans">
+          {/* Modal Wrapper is inside BarcodeScannerModal now effectively via ReactDOM or here, 
+               but BarcodeScannerModal renders its own overlay. 
+               We should just render BarcodeScannerModal directly if it handles full screen.
+               Checking BarcodeScannerModal again... Yes, it has fixed inset-0.
+               So we don't need this wrapper. It might duplicate the overlay or trap focus.
+               
+               However, `scanningBatchId` controls the mounting.
+               
+               Wait, the original code wrapped it. Layout might be needed.
+               Let's check BarcodeScannerModal source again.
+               Line 158: <div className="fixed inset-0 ..."> 
+               It is a full screen modal.
+               So I should NOT wrap it in another fixed div.
+           */}
+
+          <BarcodeScannerModal
+            onClose={() => setScanningBatchId(null)}
+            onScan={handleEnroll}
+            onGenerateInternal={handleGenerateInternal}
+          />
         </div>
       )}
 

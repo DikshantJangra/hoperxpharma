@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { FiX, FiShoppingCart, FiTrendingUp, FiInfo } from 'react-icons/fi';
+import { formatUnitName } from '@/lib/utils/stock-display';
 import { BsLightningChargeFill } from 'react-icons/bs';
 
 export default function ForecastDetailDrawer({ sku, forecastWindow, onClose }: any) {
@@ -56,11 +57,10 @@ export default function ForecastDetailDrawer({ sku, forecastWindow, onClose }: a
                 <button
                   key={days}
                   onClick={() => setChartView(days as any)}
-                  className={`px-2 py-1 text-xs rounded ${
-                    chartView === days
+                  className={`px-2 py-1 text-xs rounded ${chartView === days
                       ? 'bg-[#0ea5a3] text-white'
                       : 'bg-[#f1f5f9] text-[#64748b]'
-                  }`}
+                    }`}
                 >
                   {days}d
                 </button>
@@ -105,7 +105,7 @@ export default function ForecastDetailDrawer({ sku, forecastWindow, onClose }: a
           <div className="space-y-2 text-xs text-[#6b21a8]">
             <div className="flex justify-between">
               <span>Avg daily sale:</span>
-              <span className="font-semibold">{sku.avgDailySales} units</span>
+              <span className="font-semibold">{sku.avgDailySales} <span className="text-[10px] opacity-70 uppercase">{formatUnitName(sku.baseUnit || sku.unit || 'unit')}</span></span>
             </div>
             <div className="flex justify-between">
               <span>Seasonal adjustment:</span>
@@ -117,7 +117,7 @@ export default function ForecastDetailDrawer({ sku, forecastWindow, onClose }: a
             </div>
             <div className="flex justify-between">
               <span>Safety stock:</span>
-              <span className="font-semibold">84 units</span>
+              <span className="font-semibold">{sku.safetyStock || 84} <span className="text-[10px] opacity-70 uppercase">{formatUnitName(sku.baseUnit || sku.unit || 'unit')}</span></span>
             </div>
             <div className="flex justify-between">
               <span>Expiry adjustment:</span>
@@ -125,7 +125,7 @@ export default function ForecastDetailDrawer({ sku, forecastWindow, onClose }: a
             </div>
             <div className="border-t border-[#e9d5ff] pt-2 mt-2 flex justify-between font-bold">
               <span>Final predicted demand:</span>
-              <span>{sku.forecastDemand14} units</span>
+              <span>{sku.forecastDemand14} <span className="text-[10px] opacity-70 uppercase">{formatUnitName(sku.baseUnit || sku.unit || 'unit')}</span></span>
             </div>
           </div>
         </div>
@@ -161,7 +161,7 @@ export default function ForecastDetailDrawer({ sku, forecastWindow, onClose }: a
             </div>
             <div className="flex justify-between pt-2 border-t border-[#e2e8f0]">
               <span className="text-[#64748b]">Recommended qty:</span>
-              <span className="font-bold text-[#0ea5a3]">{sku.reorderQty} units</span>
+              <span className="font-bold text-[#0ea5a3]">{sku.reorderQty} <span className="text-[10px] opacity-70 uppercase">{formatUnitName(sku.baseUnit || sku.unit || 'unit')}</span></span>
             </div>
           </div>
         </div>
@@ -180,7 +180,7 @@ export default function ForecastDetailDrawer({ sku, forecastWindow, onClose }: a
       <div className="border-t border-[#e2e8f0] p-4">
         <button className="w-full py-3 bg-[#0ea5a3] text-white rounded-lg hover:bg-[#0d9391] flex items-center justify-center gap-2 font-medium">
           <FiShoppingCart className="w-4 h-4" />
-          Create PO ({sku.reorderQty} units)
+          Create PO ({sku.reorderQty} {formatUnitName(sku.baseUnit || sku.unit || 'unit')}s)
         </button>
       </div>
     </div>

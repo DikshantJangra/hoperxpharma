@@ -21,7 +21,7 @@ export default function PaymentPanel({
   onDispenseForChange,
   onSaveDraft
 }: any) {
-  const [invoiceType, setInvoiceType] = useState<'RECEIPT' | 'GST_INVOICE' | 'ESTIMATE'>('RECEIPT');
+  const [invoiceType, setInvoiceType] = useState<'GST_INVOICE' | 'ESTIMATE'>('GST_INVOICE');
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'upi' | 'wallet' | 'credit'>('cash');
   const [showFinalizeModal, setShowFinalizeModal] = useState(false);
   const [overallDiscount, setOverallDiscount] = useState(0);
@@ -61,7 +61,7 @@ export default function PaymentPanel({
   const [showAddRelation, setShowAddRelation] = useState(false);
   const [newRelationData, setNewRelationData] = useState({ firstName: '', lastName: '', phoneNumber: '', relationType: 'CHILD' });
   const [isCreatingRelation, setIsCreatingRelation] = useState(false);
-  
+
   const [relationSearchQuery, setRelationSearchQuery] = useState('');
   const [relationSearchResults, setRelationSearchResults] = useState<any[]>([]);
   const [isSearchingRelation, setIsSearchingRelation] = useState(false);
@@ -138,12 +138,12 @@ export default function PaymentPanel({
       toast.error("First Name is required");
       return;
     }
-    
+
     if (!newCustomerData.phoneNumber.trim()) {
       toast.error("Phone Number is required");
       return;
     }
-    
+
     // Phone validation: must be 10 digits
     const phoneRegex = /^[0-9]{10}$/;
     if (!phoneRegex.test(newCustomerData.phoneNumber)) {
@@ -154,7 +154,7 @@ export default function PaymentPanel({
     setIsCreatingCustomer(true);
     try {
       const { patientsApi } = await import('@/lib/api/patients');
-      
+
       try {
         const response = await patientsApi.createPatient({
           ...newCustomerData,
@@ -177,7 +177,7 @@ export default function PaymentPanel({
       } catch (createError: any) {
         // Handle patient creation error specifically
         const errorMessage = createError?.message || String(createError);
-        
+
         if (errorMessage.includes('already exists') || errorMessage.includes('409')) {
           toast.error("Customer with this phone number already exists! Try searching instead.");
         } else {
@@ -195,7 +195,7 @@ export default function PaymentPanel({
 
   const searchRelations = async (query: string) => {
     if (query.length < 2) return;
-    
+
     setIsSearchingRelation(true);
     try {
       const { patientsApi } = await import('@/lib/api/patients');
@@ -215,7 +215,7 @@ export default function PaymentPanel({
 
   const handleLinkExistingRelation = async (patient: any) => {
     if (!customer) return;
-    
+
     try {
       const { apiClient } = await import('@/lib/api/client');
       await apiClient.post(`/patients/${customer.id}/relations`, {
@@ -237,17 +237,17 @@ export default function PaymentPanel({
 
   const handleCreateRelation = async () => {
     if (!customer) return;
-    
+
     if (!newRelationData.firstName.trim()) {
       toast.error("First Name is required");
       return;
     }
-    
+
     if (!newRelationData.phoneNumber.trim()) {
       toast.error("Phone Number is required");
       return;
     }
-    
+
     const phoneRegex = /^[0-9]{10}$/;
     if (!phoneRegex.test(newRelationData.phoneNumber)) {
       toast.error("Phone Number must be exactly 10 digits");
@@ -257,7 +257,7 @@ export default function PaymentPanel({
     setIsCreatingRelation(true);
     try {
       const { patientsApi } = await import('@/lib/api/patients');
-      
+
       try {
         const response = await patientsApi.createPatient({
           ...newRelationData,
@@ -289,7 +289,7 @@ export default function PaymentPanel({
         console.log('🔴 Caught error in handleCreateRelation:', createError);
         const errorMessage = createError?.message || String(createError);
         console.log('🔴 Error message:', errorMessage);
-        
+
         if (errorMessage.includes('already exists') || errorMessage.includes('409')) {
           console.log('🔴 Showing duplicate error toast');
           toast.error("Patient with this phone number already exists! Try searching instead.", { duration: 5000 });
@@ -319,20 +319,10 @@ export default function PaymentPanel({
       return;
     }
 
-    if (invoiceType === 'GST_INVOICE' && !customer) {
-      toast.error('Customer Details Required for Tax Invoice (GST)!');
-      toast.info("Please search or add a customer");
-      return;
-    }
-
+    // Customer is REQUIRED only for Credit/Pay Later
     if (paymentMethod === 'credit' && !customer) {
       toast.error('Customer Details Required for Credit/Pay Later!');
       toast.info("Please search or add a customer");
-      return;
-    }
-
-    if (!customer && invoiceType !== 'RECEIPT') {
-      toast.error('Customer required for this invoice type');
       return;
     }
 
@@ -408,7 +398,7 @@ export default function PaymentPanel({
                           <span className="text-xs font-semibold text-indigo-700">Add Family Member</span>
                           <button onClick={() => { setShowAddRelation(false); setShowRelationSearch(false); }} className="text-xs text-gray-500 hover:text-gray-700">Cancel</button>
                         </div>
-                        
+
                         {showRelationSearch ? (
                           <div className="space-y-2">
                             <input
@@ -454,65 +444,65 @@ export default function PaymentPanel({
                           </div>
                         ) : (
                           <div className="space-y-2">
-                          <select
-                            className="w-full text-xs p-1.5 border border-gray-300 rounded focus:border-indigo-500 outline-none"
-                            value={newRelationData.relationType}
-                            onChange={e => setNewRelationData({ ...newRelationData, relationType: e.target.value })}
-                          >
-                            <option value="FAMILY">Family Member</option>
-                            <option value="PARENT">Parent</option>
-                            <option value="CHILD">Child</option>
-                            <option value="SPOUSE">Spouse</option>
-                            <option value="BROTHER">Brother</option>
-                            <option value="SISTER">Sister</option>
-                            <option value="SIBLING">Sibling</option>
-                            <option value="GRANDPARENT">Grandparent</option>
-                            <option value="GRANDCHILD">Grandchild</option>
-                            <option value="FRIEND">Friend</option>
-                            <option value="CAREGIVER">Caregiver</option>
-                            <option value="OTHER">Other</option>
-                          </select>
-                          <div className="grid grid-cols-2 gap-1">
-                            <input
-                              type="text"
-                              placeholder="First Name"
+                            <select
                               className="w-full text-xs p-1.5 border border-gray-300 rounded focus:border-indigo-500 outline-none"
-                              value={newRelationData.firstName}
-                              onChange={e => setNewRelationData({ ...newRelationData, firstName: e.target.value })}
-                            />
+                              value={newRelationData.relationType}
+                              onChange={e => setNewRelationData({ ...newRelationData, relationType: e.target.value })}
+                            >
+                              <option value="FAMILY">Family Member</option>
+                              <option value="PARENT">Parent</option>
+                              <option value="CHILD">Child</option>
+                              <option value="SPOUSE">Spouse</option>
+                              <option value="BROTHER">Brother</option>
+                              <option value="SISTER">Sister</option>
+                              <option value="SIBLING">Sibling</option>
+                              <option value="GRANDPARENT">Grandparent</option>
+                              <option value="GRANDCHILD">Grandchild</option>
+                              <option value="FRIEND">Friend</option>
+                              <option value="CAREGIVER">Caregiver</option>
+                              <option value="OTHER">Other</option>
+                            </select>
+                            <div className="grid grid-cols-2 gap-1">
+                              <input
+                                type="text"
+                                placeholder="First Name"
+                                className="w-full text-xs p-1.5 border border-gray-300 rounded focus:border-indigo-500 outline-none"
+                                value={newRelationData.firstName}
+                                onChange={e => setNewRelationData({ ...newRelationData, firstName: e.target.value })}
+                              />
+                              <input
+                                type="text"
+                                placeholder="Last Name"
+                                className="w-full text-xs p-1.5 border border-gray-300 rounded focus:border-indigo-500 outline-none"
+                                value={newRelationData.lastName}
+                                onChange={e => setNewRelationData({ ...newRelationData, lastName: e.target.value })}
+                              />
+                            </div>
                             <input
-                              type="text"
-                              placeholder="Last Name"
+                              type="tel"
+                              placeholder="Phone (10 digits)"
                               className="w-full text-xs p-1.5 border border-gray-300 rounded focus:border-indigo-500 outline-none"
-                              value={newRelationData.lastName}
-                              onChange={e => setNewRelationData({ ...newRelationData, lastName: e.target.value })}
+                              value={newRelationData.phoneNumber}
+                              onChange={e => {
+                                const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+                                setNewRelationData({ ...newRelationData, phoneNumber: value });
+                              }}
+                              maxLength={10}
                             />
+                            <button
+                              onClick={handleCreateRelation}
+                              disabled={isCreatingRelation}
+                              className="w-full bg-indigo-600 text-white text-xs font-bold py-1 rounded hover:bg-indigo-700 disabled:opacity-50"
+                            >
+                              {isCreatingRelation ? 'Adding...' : 'Add & Select'}
+                            </button>
+                            <button
+                              onClick={() => setShowRelationSearch(true)}
+                              className="w-full text-xs text-indigo-600 hover:text-indigo-800 py-1 border-t border-gray-200 mt-1 pt-1"
+                            >
+                              Search existing patient
+                            </button>
                           </div>
-                          <input
-                            type="tel"
-                            placeholder="Phone (10 digits)"
-                            className="w-full text-xs p-1.5 border border-gray-300 rounded focus:border-indigo-500 outline-none"
-                            value={newRelationData.phoneNumber}
-                            onChange={e => {
-                              const value = e.target.value.replace(/\D/g, '').slice(0, 10);
-                              setNewRelationData({ ...newRelationData, phoneNumber: value });
-                            }}
-                            maxLength={10}
-                          />
-                          <button
-                            onClick={handleCreateRelation}
-                            disabled={isCreatingRelation}
-                            className="w-full bg-indigo-600 text-white text-xs font-bold py-1 rounded hover:bg-indigo-700 disabled:opacity-50"
-                          >
-                            {isCreatingRelation ? 'Adding...' : 'Add & Select'}
-                          </button>
-                          <button
-                            onClick={() => setShowRelationSearch(true)}
-                            className="w-full text-xs text-indigo-600 hover:text-indigo-800 py-1 border-t border-gray-200 mt-1 pt-1"
-                          >
-                            Search existing patient
-                          </button>
-                        </div>
                         )}
                       </div>
                     ) : (
@@ -631,7 +621,7 @@ export default function PaymentPanel({
                           onBlur={() => setTimeout(() => setIsSearching(false), 200)}
                           onKeyDown={(e) => {
                             if (!isSearching || searchResults.length === 0) return;
-                            
+
                             if (e.key === 'ArrowDown') {
                               e.preventDefault();
                               setSelectedIndex(prev => Math.min(prev + 1, searchResults.length - 1));
@@ -665,9 +655,8 @@ export default function PaymentPanel({
                               searchResults.map((c: any, idx: number) => (
                                 <div
                                   key={c.id}
-                                  className={`p-2 cursor-pointer flex items-center gap-3 border-b border-gray-50 last:border-0 transition-colors ${
-                                    idx === selectedIndex ? 'bg-indigo-100' : 'hover:bg-indigo-50'
-                                  }`}
+                                  className={`p-2 cursor-pointer flex items-center gap-3 border-b border-gray-50 last:border-0 transition-colors ${idx === selectedIndex ? 'bg-indigo-100' : 'hover:bg-indigo-50'
+                                    }`}
                                   onClick={() => {
                                     onCustomerChange(c);
                                     setSearchQuery('');
@@ -726,14 +715,12 @@ export default function PaymentPanel({
               onChange={(e) => setInvoiceType(e.target.value as any)}
               className="w-full bg-gray-50 border border-gray-200 text-gray-900 text-sm rounded-md focus:ring-indigo-500 focus:border-indigo-500 block p-1.5"
             >
-              <option value="RECEIPT">Standard Receipt</option>
               <option value="GST_INVOICE">Tax Invoice (GST)</option>
               <option value="ESTIMATE">Estimate / Quote</option>
             </select>
 
             <div className="mt-1.5 text-[10px] leading-tight text-gray-500 px-1">
-              {invoiceType === 'RECEIPT' && "Standard sale. Deducts stock & records revenue."}
-              {invoiceType === 'GST_INVOICE' && <span className="text-orange-600">Requires Customer. Deducts stock.</span>}
+              {invoiceType === 'GST_INVOICE' && <span className="text-green-600">Official sale with GST. Deducts stock & records revenue.</span>}
               {invoiceType === 'ESTIMATE' && <span className="text-blue-600">Quotation only. Does NOT deduct stock.</span>}
             </div>
           </div>
@@ -901,11 +888,10 @@ export default function PaymentPanel({
               });
             }}
             disabled={basketItems.length === 0 || actionState.status !== 'idle'}
-            className={`py-2.5 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2 ${
-              actionState.name === 'split' && actionState.status === 'loading'
+            className={`py-2.5 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2 ${actionState.name === 'split' && actionState.status === 'loading'
                 ? 'bg-gray-100 text-gray-700 border border-gray-300'
                 : 'text-gray-700 bg-gray-50 border border-gray-200 hover:bg-gray-100'
-            }`}
+              }`}
           >
             {actionState.name === 'split' && actionState.status === 'loading' && <ProcessingLoader size="sm" color="gray" />}
             <span>Split (F9)</span>

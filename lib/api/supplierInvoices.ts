@@ -144,6 +144,16 @@ export const supplierInvoiceApi = {
     },
 
     /**
+     * Download invoice PDF
+     */
+    async downloadPdf(id: string): Promise<Blob> {
+        const response = await apiClient.get(`/supplier-invoices/${id}/pdf`, {
+            responseType: 'blob'
+        });
+        return response;
+    },
+
+    /**
      * Update draft invoice
      */
     async updateDraftInvoice(

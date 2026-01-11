@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { FiX, FiShoppingCart, FiEdit, FiSend, FiClock, FiPackage, FiAlertCircle, FiCheck, FiTrash2, FiEdit2, FiPlus } from 'react-icons/fi';
+import { formatStockQuantity, formatUnitName, renderStockQuantity } from '@/lib/utils/stock-display';
 import { BsSnow, BsQrCode } from 'react-icons/bs';
 import { toast } from 'sonner';
 import { getApiBaseUrl } from '@/lib/config/env';
@@ -176,21 +177,27 @@ export default function StockDetailPanel({ item, onClose, onUpdate }: any) {
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <p className="text-xs text-[#64748b] mb-1">On-hand</p>
-                <p className="text-2xl font-bold text-[#0f172a]">{mappedItem.onHand}</p>
+                <div className="flex flex-col">
+                  {renderStockQuantity({ ...item, quantityInStock: mappedItem.onHand }, { className: "text-2xl font-bold text-[#0f172a]" })}
+                </div>
               </div>
               <div>
                 <p className="text-xs text-[#64748b] mb-1">Available</p>
-                <p className="text-2xl font-bold text-[#0ea5a3]">{mappedItem.available}</p>
+                <div className="flex flex-col">
+                  {renderStockQuantity({ ...item, quantityInStock: mappedItem.available }, { className: "text-2xl font-bold text-[#0ea5a3]" })}
+                </div>
               </div>
               <div>
                 <p className="text-xs text-[#64748b] mb-1">Reorder Point</p>
-                <p className={`text-lg font-semibold ${mappedItem.available < mappedItem.reorderPoint ? 'text-[#ef4444]' : 'text-[#0f172a]'}`}>
-                  {mappedItem.reorderPoint}
-                </p>
+                <div className="flex flex-col">
+                  {renderStockQuantity({ ...item, quantityInStock: mappedItem.reorderPoint }, { className: `text-lg font-semibold ${mappedItem.available < mappedItem.reorderPoint ? 'text-[#ef4444]' : 'text-[#0f172a]'}` })}
+                </div>
               </div>
               <div>
                 <p className="text-xs text-[#64748b] mb-1">Avg Usage/mo</p>
-                <p className="text-lg font-semibold text-[#0f172a]">{mappedItem.avgUsage}</p>
+                <div className="flex flex-col">
+                  {renderStockQuantity({ ...item, quantityInStock: mappedItem.avgUsage }, { className: "text-lg font-semibold text-[#0f172a]" })}
+                </div>
               </div>
             </div>
           </div>
@@ -203,7 +210,7 @@ export default function StockDetailPanel({ item, onClose, onUpdate }: any) {
                 <div className="flex-1">
                   <p className="text-sm font-medium text-[#92400e] mb-1">Reorder Suggested</p>
                   <p className="text-xs text-[#92400e] mb-2">
-                    Reorder {mappedItem.reorderPoint * 2} units • Lead time: 5 days
+                    Reorder {formatStockQuantity({ ...item, quantityInStock: mappedItem.reorderPoint * 2 })} • Lead time: 5 days
                   </p>
                   <button onClick={handleCreatePO} className="px-3 py-1.5 bg-[#f59e0b] text-white text-xs rounded-lg hover:bg-[#d97706]">
                     Create PO
@@ -302,7 +309,7 @@ export default function StockDetailPanel({ item, onClose, onUpdate }: any) {
                         <BsQrCode className="w-5 h-5 text-[#64748b] cursor-pointer hover:text-[#0f172a]" />
                       </div>
                       <div className="flex items-center justify-between text-sm mb-2">
-                        <span className="text-[#64748b]">Qty: {batch.quantityInStock}</span>
+                        <span className="text-[#64748b]">Qty: {renderStockQuantity(batch, { className: "text-gray-700" })}</span>
                         <span className="text-[#64748b]">Cost: ₹{Number(batch.purchasePrice).toFixed(2)} • MRP: ₹{Number(batch.mrp).toFixed(2)}</span>
                       </div>
                       {batch.supplier && (
@@ -337,7 +344,7 @@ export default function StockDetailPanel({ item, onClose, onUpdate }: any) {
                                 <div key={movement.id} className="flex items-center justify-between text-xs">
                                   <span className={typeInfo.color}>{typeInfo.label}</span>
                                   <span className="text-[#64748b]">
-                                    {movement.quantity > 0 ? '+' : ''}{movement.quantity} • {new Date(movement.createdAt).toLocaleDateString()}
+                                    {movement.quantity > 0 ? '+' : ''}{formatStockQuantity({ ...batch, quantityInStock: Math.abs(movement.quantity) })} • {new Date(movement.createdAt).toLocaleDateString()}
                                   </span>
                                 </div>
                               );

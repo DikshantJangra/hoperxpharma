@@ -6,8 +6,9 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { FEFORecommendation } from '@/lib/api/fefo';
-import { AlertTriangle, Calendar, Package, TrendingDown } from 'react-icons/fi';
+import { FiAlertTriangle, FiCalendar, FiPackage, FiTrendingDown } from 'react-icons/fi';
 import dayjs from 'dayjs';
+import { formatStockQuantity, renderStockQuantity } from '@/lib/utils/stock-display';
 
 interface FEFOBatchSelectorProps {
     drugId: string;
@@ -89,7 +90,7 @@ export function FEFOBatchSelector({
                     {/* FEFO Warning */}
                     {isOverride && (
                         <Alert variant="destructive">
-                            <AlertTriangle className="h-4 w-4" />
+                            <FiAlertTriangle className="h-4 w-4" />
                             <AlertDescription>
                                 You are selecting a batch that is NOT the oldest expiry. This deviation will be logged.
                             </AlertDescription>
@@ -102,14 +103,14 @@ export function FEFOBatchSelector({
                         <div
                             onClick={() => setSelectedBatchId(recommendation.recommendedBatchId)}
                             className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${selectedBatchId === recommendation.recommendedBatchId
-                                    ? 'border-emerald-500 bg-emerald-50'
-                                    : 'border-gray-200 hover:border-emerald-300'
+                                ? 'border-emerald-500 bg-emerald-50'
+                                : 'border-gray-200 hover:border-emerald-300'
                                 }`}
                         >
                             <div className="flex items-start justify-between">
                                 <div className="flex-1">
                                     <div className="flex items-center gap-2">
-                                        <Package className="h-4 w-4 text-emerald-600" />
+                                        <FiPackage className="h-4 w-4 text-emerald-600" />
                                         <span className="font-semibold">
                                             Batch: {recommendation.batchNumber}
                                         </span>
@@ -122,7 +123,7 @@ export function FEFOBatchSelector({
                                         <div>
                                             <div className="text-gray-500">Expiry Date</div>
                                             <div className="flex items-center gap-1 mt-1">
-                                                <Calendar className="h-3 w-3" />
+                                                <FiCalendar className="h-3 w-3" />
                                                 <span className="font-medium">
                                                     {dayjs(recommendation.expiryDate).format('DD MMM YYYY')}
                                                 </span>
@@ -135,8 +136,9 @@ export function FEFOBatchSelector({
                                             </div>
                                         </div>
                                         <div>
-                                            <div className="text-gray-500">Available Stock</div>
-                                            <div className="font-medium mt-1">{recommendation.quantityInStock} units</div>
+                                            <div className="font-medium mt-1">
+                                                {renderStockQuantity(recommendation)}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -160,18 +162,18 @@ export function FEFOBatchSelector({
                                             key={batch.id}
                                             onClick={() => setSelectedBatchId(batch.id)}
                                             className={`p-3 border rounded-lg cursor-pointer transition-all ${selectedBatchId === batch.id
-                                                    ? 'border-blue-500 bg-blue-50'
-                                                    : 'border-gray-200 hover:border-gray-300'
+                                                ? 'border-blue-500 bg-blue-50'
+                                                : 'border-gray-200 hover:border-gray-300'
                                                 }`}
                                         >
                                             <div className="flex items-start justify-between">
                                                 <div className="flex-1">
                                                     <div className="flex items-center gap-2">
-                                                        <Package className="h-4 w-4 text-gray-600" />
+                                                        <FiPackage className="h-4 w-4 text-gray-600" />
                                                         <span className="font-medium">Batch: {batch.batchNumber}</span>
                                                         {batch.daysDifferenceFromRecommended > 0 && (
                                                             <span className="text-xs text-orange-600 flex items-center gap-1">
-                                                                <TrendingDown className="h-3 w-3" />
+                                                                <FiTrendingDown className="h-3 w-3" />
                                                                 +{batch.daysDifferenceFromRecommended} days newer
                                                             </span>
                                                         )}
@@ -188,7 +190,7 @@ export function FEFOBatchSelector({
                                                         </div>
                                                         <div>
                                                             <span className="text-gray-500">Stock: </span>
-                                                            <span className="font-medium">{batch.quantityInStock}</span>
+                                                            {renderStockQuantity(batch)}
                                                         </div>
                                                     </div>
                                                 </div>
@@ -205,7 +207,7 @@ export function FEFOBatchSelector({
                     {/* Expiry Risk Summary */}
                     {recommendation.expiryRisk.batchesExpiringSoon > 0 && (
                         <Alert>
-                            <AlertTriangle className="h-4 w-4" />
+                            <FiAlertTriangle className="h-4 w-4" />
                             <AlertDescription>
                                 <strong>{recommendation.expiryRisk.batchesExpiringSoon}</strong> batches expiring within 90 days.
                                 Total value at risk: <strong>₹{recommendation.expiryRisk.totalAtRisk.toFixed(2)}</strong>
@@ -236,7 +238,7 @@ export function FEFOBatchSelector({
                         <DialogTitle>FEFO Override Reason</DialogTitle>
                     </DialogHeader>
                     <Alert variant="destructive">
-                        <AlertTriangle className="h-4 w-4" />
+                        <FiAlertTriangle className="h-4 w-4" />
                         <AlertDescription>
                             You are choosing a batch that is not the oldest expiry. Please provide a reason for this deviation.
                         </AlertDescription>
@@ -244,7 +246,7 @@ export function FEFOBatchSelector({
                     <Textarea
                         placeholder="Enter reason for FEFO override (e.g., 'Customer requested', 'Damaged packaging on older batch', etc.)"
                         value={overrideReason}
-                        onChange={(e) => setOverrideReason(e.target.value)}
+                        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setOverrideReason(e.target.value)}
                         rows={3}
                     />
                     <div className="flex gap-2 justify-end">

@@ -6,7 +6,7 @@
  */
 
 const unitConversionService = require('../services/inventory/unitConversionService');
-const logger = require('./config/logger');
+const logger = require('../config/logger');
 
 class GRNUnitConversionHelper {
     /**

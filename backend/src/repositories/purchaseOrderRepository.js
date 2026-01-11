@@ -259,6 +259,8 @@ class PurchaseOrderRepository {
                             unitPrice: item.pricePerUnit,  // Transform pricePerUnit → unitPrice
                             discountPercent: item.discountPercent || 0,
                             gstPercent: item.gstPercent,
+                            packUnit: item.packUnit || 'unit', // Added: persisted unit info
+                            packSize: item.packSize || 1,      // Added: persisted pack size
                             lineTotal: item.lineNet,  // Transform lineNet → lineTotal
                         },
                     })
@@ -336,6 +338,8 @@ class PurchaseOrderRepository {
                             unitPrice: item.pricePerUnit,
                             discountPercent: item.discountPercent || 0,
                             gstPercent: item.gstPercent,
+                            packUnit: item.packUnit || 'unit', // Added: validated unit info
+                            packSize: item.packSize || 1,      // Added: validated pack size
                             lineTotal: item.lineNet,
                         },
                     })

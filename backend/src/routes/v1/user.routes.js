@@ -12,6 +12,34 @@ const router = express.Router();
 router.use(authenticate);
 
 /**
+ * @route   GET /api/v1/users/me
+ * @desc    Get current user profile
+ * @access  Private
+ */
+router.get('/me', userController.getMyProfile);
+
+/**
+ * @route   PATCH /api/v1/users/me
+ * @desc    Update current user profile
+ * @access  Private
+ */
+router.patch('/me', userController.updateMyProfile);
+
+/**
+ * @route   GET /api/v1/users/me/primary-store
+ * @desc    Get current user's primary store
+ * @access  Private
+ */
+router.get('/me/primary-store', userController.getMyPrimaryStore);
+
+/**
+ * @route   GET /api/v1/users/me/onboarding-status
+ * @desc    Check if user has completed onboarding
+ * @access  Private
+ */
+router.get('/me/onboarding-status', userController.getOnboardingStatus);
+
+/**
  * @route   GET /api/v1/users
  * @desc    Get all users
  * @access  Private (Requires permission)
@@ -59,34 +87,6 @@ router.post('/:id/reset-pin', requirePermission(PERMISSIONS.SYSTEM_USER_MANAGE),
  * @access  Private (Requires permission)
  */
 router.get('/:id/activity', requirePermission(PERMISSIONS.SYSTEM_USER_MANAGE), userController.getUserActivity);
-
-/**
- * @route   GET /api/v1/users/me
- * @desc    Get current user profile
- * @access  Private
- */
-router.get('/me', userController.getMyProfile);
-
-/**
- * @route   PATCH /api/v1/users/me
- * @desc    Update current user profile
- * @access  Private
- */
-router.patch('/me', userController.updateMyProfile);
-
-/**
- * @route   GET /api/v1/users/me/primary-store
- * @desc    Get current user's primary store
- * @access  Private
- */
-router.get('/me/primary-store', userController.getMyPrimaryStore);
-
-/**
- * @route   GET /api/v1/users/me/onboarding-status
- * @desc    Check if user has completed onboarding
- * @access  Private
- */
-router.get('/me/onboarding-status', userController.getOnboardingStatus);
 
 /**
  * @route   POST /api/v1/users/migrate-stores

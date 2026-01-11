@@ -65,111 +65,131 @@ function getDefaultConversion(baseUnit, displayUnit) {
 }
 
 /**
- * Main migration function
+ * Main migration function with batch processing
  */
-async function migrateToBaseUnits() {
+async function migrateToBaseUnits(batchSize = 50) {
     logger.info('='.repeat(60));
-    logger.info('Starting Base Unit Migration');
+    logger.info('Starting Base Unit Migration (Batched)');
     logger.info('='.repeat(60));
 
     try {
-        // Get all drugs
-        const drugs = await prisma.drug.findMany({
-            include: {
-                inventory: true
-            }
-        });
+        // Count total drugs first
+        const totalDrugs = await prisma.drug.count();
+        logger.info(`Total drugs to process: ${totalDrugs}`);
 
-        logger.info(`Found ${drugs.length} drugs to process`);
-
+        let processedCount = 0;
         let updatedCount = 0;
         let skippedCount = 0;
         let errorCount = 0;
+        let lastId = undefined;
 
-        for (const drug of drugs) {
-            try {
-                // Skip if already has base unit configured
-                if (drug.baseUnit) {
-                    logger.debug(`Skipping ${drug.name} - already configured`);
-                    skippedCount++;
-                    continue;
+        while (processedCount < totalDrugs) {
+            // Fetch batch of drugs
+            const drugs = await prisma.drug.findMany({
+                take: batchSize,
+                skip: lastId ? 1 : 0,
+                cursor: lastId ? { id: lastId } : undefined,
+                orderBy: { id: 'asc' },
+                include: {
+                    inventory: true
                 }
+            });
 
-                // Determine base unit
-                const baseUnit = determineBaseUnit(drug);
-                const displayUnit = getDefaultDisplayUnit(baseUnit);
-                const conversion = getDefaultConversion(baseUnit, displayUnit);
+            if (drugs.length === 0) break;
 
-                logger.info(`Processing: ${drug.name}`);
-                logger.info(`  Form: ${drug.form || 'N/A'}`);
-                logger.info(`  Base Unit: ${baseUnit}`);
-                logger.info(`  Display Unit: ${displayUnit}`);
-                logger.info(`  Conversion: 1 ${displayUnit} = ${conversion} ${baseUnit}`);
+            logger.info(`Processing batch: ${drugs.length} drugs (Progress: ${processedCount}/${totalDrugs})`);
 
-                // Update drug with base unit info
-                await prisma.drug.update({
-                    where: { id: drug.id },
-                    data: {
-                        baseUnit,
-                        displayUnit,
-                        // Convert old threshold to base units
-                        lowStockThresholdBase: drug.lowStockThreshold
-                            ? drug.lowStockThreshold * conversion
-                            : null
+            for (const drug of drugs) {
+                lastId = drug.id; // Update cursor
+                processedCount++;
+
+                try {
+                    // Skip if already has base unit configured
+                    if (drug.baseUnit) {
+                        skippedCount++;
+                        continue;
                     }
-                });
 
-                // Create default unit conversion record
-                await prisma.drugUnit.upsert({
-                    where: {
-                        drugId_parentUnit_childUnit: {
-                            drugId: drug.id,
-                            parentUnit: displayUnit,
-                            childUnit: baseUnit
-                        }
-                    },
-                    create: {
-                        drugId: drug.id,
-                        baseUnit,
-                        parentUnit: displayUnit,
-                        childUnit: baseUnit,
-                        conversion,
-                        isDefault: true
-                    },
-                    update: {
-                        conversion,
-                        isDefault: true
-                    }
-                });
+                    // Determine base unit
+                    const baseUnit = determineBaseUnit(drug);
+                    const displayUnit = getDefaultDisplayUnit(baseUnit);
+                    const conversion = getDefaultConversion(baseUnit, displayUnit);
 
-                // Migrate existing inventory batches
-                for (const batch of drug.inventory) {
-                    // Set base unit quantity = current quantity (1:1 for now)
-                    // In production, you may need to multiply by conversion if quantityInStock was in display units
-                    await prisma.inventoryBatch.update({
-                        where: { id: batch.id },
+                    // Update drug with base unit info
+                    await prisma.drug.update({
+                        where: { id: drug.id },
                         data: {
-                            baseUnitQuantity: batch.quantityInStock * conversion,
-                            receivedUnit: displayUnit,
-                            receivedQuantity: batch.quantityInStock,
-                            baseUnitReserved: 0
+                            baseUnit,
+                            displayUnit,
+                            // Convert old threshold to base units
+                            lowStockThresholdBase: drug.lowStockThreshold
+                                ? drug.lowStockThreshold * conversion
+                                : null
                         }
                     });
+
+                    // Create default unit conversion record
+                    await prisma.drugUnit.upsert({
+                        where: {
+                            drugId_parentUnit_childUnit: {
+                                drugId: drug.id,
+                                parentUnit: displayUnit,
+                                childUnit: baseUnit
+                            }
+                        },
+                        create: {
+                            drugId: drug.id,
+                            baseUnit,
+                            parentUnit: displayUnit,
+                            childUnit: baseUnit,
+                            conversion,
+                            isDefault: true
+                        },
+                        update: {
+                            conversion,
+                            isDefault: true
+                        }
+                    });
+
+                    // Migrate existing inventory batches
+                    for (const batch of drug.inventory) {
+                        // Skip if already migrated (check if baseUnitQuantity matches logic)
+                        if (batch.baseUnitQuantity !== null && batch.baseUnitQuantity !== undefined) {
+                            // Optionally skip, or force update. Let's force update 
+                            // only if baseUnitQuantity looks missing/wrong?
+                            // For safety, let's just update if it's suspicious, or always update for now.
+                        }
+
+                        // Set base unit quantity = current quantity * conversion
+                        // Assuming current `quantityInStock` is in display units (strips/bottles)
+                        const currentQty = Number(batch.quantityInStock) || 0;
+                        const baseQty = currentQty * conversion;
+
+                        await prisma.inventoryBatch.update({
+                            where: { id: batch.id },
+                            data: {
+                                baseUnitQuantity: baseQty,
+                                receivedUnit: displayUnit,
+                                receivedQuantity: currentQty,
+                                baseUnitReserved: 0
+                            }
+                        });
+                    }
+
+                    updatedCount++;
+                    // logger.info(`  ✓ Migrated ${drug.name} (1 ${displayUnit} = ${conversion} ${baseUnit})`);
+
+                } catch (error) {
+                    errorCount++;
+                    logger.error(`Error processing drug ${drug.id} (${drug.name}): ${error.message}`);
                 }
-
-                updatedCount++;
-                logger.info(`  ✓ Successfully migrated ${drug.name} and ${drug.inventory.length} batches\n`);
-
-            } catch (error) {
-                errorCount++;
-                logger.error(`Error processing drug ${drug.id} (${drug.name}):`, error);
             }
         }
 
         logger.info('='.repeat(60));
         logger.info('Migration Summary');
         logger.info('='.repeat(60));
-        logger.info(`Total Drugs: ${drugs.length}`);
+        logger.info(`Total Processed: ${processedCount}`);
         logger.info(`✓ Updated: ${updatedCount}`);
         logger.info(`⊘ Skipped: ${skippedCount}`);
         logger.info(`✗ Errors: ${errorCount}`);
@@ -178,7 +198,7 @@ async function migrateToBaseUnits() {
         if (errorCount === 0) {
             logger.info('✓ Migration completed successfully!');
         } else {
-            logger.warn(`⚠️  Migration completed with ${errorCount} errors. Please review.`);
+            logger.warn(`⚠️  Migration completed with ${errorCount} errors. Please review logs.`);
         }
 
     } catch (error) {

@@ -353,12 +353,47 @@ class InventoryService {
                 const batchCount = batches.length;
 
                 // Get the batch with nearest expiry (FEFO) that has stock
-                const primaryBatch = batches.find(b => b.quantityInStock > 0);
+                let primaryBatch = batches.find(b => b.quantityInStock > 0);
 
-                // If no batch found or MRP is 0, skip this drug
-                if (!primaryBatch || !primaryBatch.mrp || Number(primaryBatch.mrp) === 0) {
+                // Fallback: If no stock, use any batch just to get the MRP (required for UI)
+                if (!primaryBatch && batches.length > 0) {
+                    primaryBatch = batches[0];
+                }
+
+                // If absolutely no batch found (new drug never stocked), we might skip or return with 0 MRP
+                // But for "Aerotide", we likely have OOS batches.
+                if (!primaryBatch || !primaryBatch.mrp) {
+                    // If we really want to show it, we can return defaults, but let's log warns
                     logger.warn(`Drug ${drug.name} has no valid batch with MRP`);
-                    return null;
+                    // return null; // Previously we skipped
+
+                    // NEW: Return drug even without batch/MRP so we can find substitutes
+                    return {
+                        id: drug.id,
+                        name: drug.name,
+                        strength: drug.strength,
+                        form: drug.form,
+                        manufacturer: drug.manufacturer,
+                        totalStock: 0,
+                        batchCount: 0,
+                        mrp: 0,     // No MRP available
+                        batchId: null,
+                        batchNumber: null,
+                        expiryDate: null,
+                        gstRate: drug.gstRate,
+                        batchList: []
+                    };
+                }
+
+                // Find conversion factor for displayUnit -> baseUnit
+                let conversion = 1;
+                if (drug.unitConfigurations && drug.unitConfigurations.length > 0) {
+                    const config = drug.unitConfigurations.find(
+                        c => c.parentUnit === drug.displayUnit && c.childUnit === drug.baseUnit
+                    );
+                    if (config) {
+                        conversion = Number(config.conversion);
+                    }
                 }
 
                 return {
@@ -367,6 +402,9 @@ class InventoryService {
                     strength: drug.strength,
                     form: drug.form,
                     manufacturer: drug.manufacturer,
+                    baseUnit: drug.baseUnit,
+                    displayUnit: drug.displayUnit,
+                    conversion: conversion,
                     totalStock,
                     batchCount,
                     mrp: Number(primaryBatch.mrp),
@@ -374,19 +412,23 @@ class InventoryService {
                     batchNumber: primaryBatch.batchNumber,
                     expiryDate: primaryBatch.expiryDate,
                     gstRate: drug.gstRate,
+                    unitConfigurations: drug.unitConfigurations,
                     batchList: batches.map(b => ({
                         id: b.id,
                         batchNumber: b.batchNumber,
                         quantityInStock: b.quantityInStock,
                         expiryDate: b.expiryDate,
-                        mrp: b.mrp
+                        mrp: b.mrp,
+                        conversion: conversion // Pass it down to batch level if needed
                     }))
                 };
             })
         );
 
-        // Filter out drugs with no stock or null entries
-        return drugsWithBatches.filter(d => d !== null && d.totalStock > 0);
+        // Filter out only null entries (drugs with no batches or invalid MRP)
+        // IMPORTANT: We now include out-of-stock items (totalStock = 0) so that
+        // the POS can show "Find Substitute" button for salt-based alternatives
+        return drugsWithBatches.filter(d => d !== null);
     }
 
     /**

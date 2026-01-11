@@ -7,7 +7,9 @@ import dynamic from 'next/dynamic';
 
 // Dynamic import for the scanner to avoid SSR issues with html5-qrcode
 const BarcodeScannerModal = dynamic(() => import('./BarcodeScannerModal'), { ssr: false });
+const SaltAlternativesPanel = dynamic(() => import('./SaltAlternativesPanel'), { ssr: false });
 import { usePremiumTheme } from '@/lib/hooks/usePremiumTheme';
+import { formatStockQuantity, renderStockQuantity } from '@/lib/utils/stock-display';
 
 interface Product {
   id: string;
@@ -23,6 +25,9 @@ interface Product {
   batchNumber?: string;
   expiryDate?: string;
   requiresPrescription?: boolean;
+  baseUnit?: string;
+  displayUnit?: string;
+  unitConfigurations?: any[];
 }
 
 const ProductSkeleton = () => (
@@ -52,10 +57,25 @@ export default function ProductSearch({ onAddProduct, searchFocus, setSearchFocu
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
+  const [selectedForAlternatives, setSelectedForAlternatives] = useState<Product | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const { isPremium } = usePremiumTheme();
 
   const isTypingRef = useRef(false);
+
+  // Global "/" shortcut to focus search
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      // Only trigger if not already typing in an input/textarea
+      if (e.key === '/' && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+        inputRef.current?.focus();
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, []);
 
   useEffect(() => {
     // Only focus if explicitly requested AND user is not currently typing
@@ -138,10 +158,12 @@ export default function ProductSearch({ onAddProduct, searchFocus, setSearchFocu
       ...product,
       stock: product.totalStock,
       batches: product.batchCount,
-      // Explicitly pass batch info if available on the search result (flattened view)
+      baseUnit: product.baseUnit,
+      displayUnit: product.displayUnit,
       batchId: product.batchId,
       batchNumber: product.batchNumber,
-      type: product.requiresPrescription ? 'RX' : 'OTC'
+      type: product.requiresPrescription ? 'RX' : 'OTC',
+      unitConfigurations: (product as any).unitConfigurations
     });
     setQuery('');
     setResults([]);
@@ -161,6 +183,7 @@ export default function ProductSearch({ onAddProduct, searchFocus, setSearchFocu
             setQuery(e.target.value);
             setTimeout(() => { isTypingRef.current = false; }, 500);
           }}
+          onKeyDown={handleKeyDown}
           onFocus={() => setSearchFocus?.(true)}
           placeholder="Scan barcode or search product... (/)"
           className={`w-full pl-10 pr-10 py-3 border-2 rounded-lg text-[#0f172a] placeholder:text-[#94a3b8] focus:outline-none transition-all 
@@ -201,6 +224,18 @@ export default function ProductSearch({ onAddProduct, searchFocus, setSearchFocu
         />
       )}
 
+      {selectedForAlternatives && (
+        <SaltAlternativesPanel
+          originalDrug={selectedForAlternatives}
+          storeId="default"
+          onSelectAlternative={(alt) => {
+            handleAddProduct(alt);
+            setSelectedForAlternatives(null);
+          }}
+          onClose={() => setSelectedForAlternatives(null)}
+        />
+      )}
+
       {isLoading && query.length >= 2 && (
         <div className="mt-2 bg-white border border-[#e2e8f0] rounded-lg shadow-lg max-h-[300px] overflow-y-auto">
           <ProductSkeleton />
@@ -214,7 +249,13 @@ export default function ProductSearch({ onAddProduct, searchFocus, setSearchFocu
           {results.map((product, index) => (
             <div
               key={product.id}
-              onClick={() => handleAddProduct(product)}
+              onClick={() => {
+                if (product.totalStock > 0) {
+                  handleAddProduct(product);
+                } else {
+                  setSelectedForAlternatives(product);
+                }
+              }}
               className={`p-3 cursor-pointer border-b last:border-0 transition-colors ${index === selectedIndex
                 ? isPremium ? 'bg-emerald-50/80 border-emerald-100' : 'bg-[#f0fdfa] border-[#f1f5f9]'
                 : isPremium ? 'hover:bg-emerald-50/50 border-gray-100/50' : 'hover:bg-[#f8fafc] border-[#f1f5f9]'
@@ -231,20 +272,42 @@ export default function ProductSearch({ onAddProduct, searchFocus, setSearchFocu
                 </div>
                 <div className="text-right ml-4">
                   <div className="font-semibold text-[#0f172a]">₹{Number(product.mrp).toFixed(2)}</div>
-                  <div className="text-sm text-[#64748b]">
-                    Stock: {product.totalStock} {product.batchCount > 1 && `• ${product.batchCount} batches`}
+                  <div className={`mt-1 ${product.totalStock > 0 ? 'text-[#64748b]' : 'text-red-500 font-medium'}`}>
+                    {product.totalStock > 0 ? (
+                      <div className="flex flex-col items-end">
+                        {renderStockQuantity({ totalStock: product.totalStock, drug: product }, { className: "text-sm font-semibold" })}
+                        <span className="text-[10px] text-[#64748b]">{product.batchCount} batches</span>
+                      </div>
+                    ) : (
+                      <span className="text-sm">Out of Stock</span>
+                    )}
                   </div>
                 </div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleAddProduct(product);
-                  }}
-                  className="ml-3 px-3 py-1.5 bg-[#0ea5a3] text-white rounded-lg text-sm font-medium hover:bg-[#0d9391]"
-                  disabled={isLoading}
-                >
-                  + Add
-                </button>
+                <div className="ml-3">
+                  {product.totalStock > 0 ? (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleAddProduct(product);
+                      }}
+                      className="px-3 py-1.5 bg-[#0ea5a3] text-white rounded-lg text-sm font-medium hover:bg-[#0d9391]"
+                      disabled={isLoading}
+                    >
+                      + Add
+                    </button>
+                  ) : (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedForAlternatives(product);
+                      }}
+                      className="px-3 py-1.5 bg-white border border-emerald-500 text-emerald-600 rounded-lg text-sm font-medium hover:bg-emerald-50 flex items-center gap-1 shadow-sm"
+                      disabled={isLoading}
+                    >
+                      <FiSearch className="w-3 h-3" /> Find Substitute
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           ))}

@@ -4,6 +4,7 @@ const logger = require('../../config/logger');
 const cacheService = require('../cache/cacheService');
 const fs = require('fs');
 const csv = require('csv-parser');
+const saltMappingService = require('../../services/saltMappingService');
 
 /**
  * Drug Service - Business logic for drug/medicine management
@@ -146,7 +147,14 @@ class DrugService {
         if (existing) {
             return await drugRepository.updateDrug(existing.id, drugData);
         } else {
-            return await drugRepository.createDrug(drugData);
+            const newDrug = await drugRepository.createDrug(drugData);
+            // Auto-map salts
+            try {
+                await saltMappingService.autoMapDrug(newDrug.id);
+            } catch (error) {
+                logger.error(`Failed to auto-map salts for imported drug ${newDrug.id}:`, error);
+            }
+            return newDrug;
         }
     }
 
@@ -196,6 +204,13 @@ class DrugService {
 
         const drug = await drugRepository.createDrug(drugData);
         logger.info(`Drug created: ${drug.name} (ID: ${drug.id}) for store ${drugData.storeId}`);
+
+        // Auto-map salts
+        try {
+            await saltMappingService.autoMapDrug(drug.id);
+        } catch (error) {
+            logger.error(`Failed to auto-map salts for drug ${drug.id}:`, error);
+        }
 
         return drug;
     }

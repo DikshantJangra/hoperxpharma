@@ -81,6 +81,22 @@ const requireStoreAccess = async (req, res, next) => {
         (req.body && req.body.storeId) ||
         (req.query && req.query.storeId);
 
+    // DEBUG: Trace where storeId is coming from
+    // console.log('RBAC Probe:', { 
+    //    params: req.params, 
+    //    query: req.query, 
+    //    body: req.body, 
+    //    storeIdFound: storeId 
+    // });
+
+    // Sanity check: If storeId looks like a search term (e.g. not a UUID/ID format if we used UUIDs, 
+    // but here we might just check if it matches search param), ignore it.
+    // This is a Patch for the current issue where "Aerotide" is ending up as storeId
+    if (storeId && req.query && req.query.search && storeId === req.query.search) {
+        console.warn('RBAC Warning: storeId matches search term, ignoring suspect value:', storeId);
+        storeId = null;
+    }
+
     // If no storeId is provided, use the user's primary store
     if (!storeId) {
         // Use primary store or first store

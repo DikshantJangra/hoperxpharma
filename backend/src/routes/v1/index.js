@@ -63,6 +63,7 @@ router.use('/sales', salesRoutes);
 router.use('/purchase-orders', purchaseOrderRoutes);
 router.use('/suppliers', supplierRoutes);
 router.use('/drugs', drugRoutes);
+router.use('/salt', require('./salt.routes')); // Salt Intelligence endpoints
 router.use('/grn', grnRoutes);
 router.use('/chat', chatRoutes);
 router.use('/rbac', rbacRoutes);

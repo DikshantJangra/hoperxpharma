@@ -1,13 +1,40 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { FiX, FiShoppingCart, FiEdit, FiSend, FiAlertTriangle, FiAlertOctagon, FiPrinter, FiClock, FiCheck } from 'react-icons/fi';
-import { BsQrCode, BsThermometer } from 'react-icons/bs';
+import { formatStockQuantity, formatUnitName, renderStockQuantity } from '@/lib/utils/stock-display';
+import { BsQrCode, BsThermometer, BsUpcScan } from 'react-icons/bs';
 import { toast } from 'sonner';
 import QuarantineModal from './QuarantineModal';
 import AdjustBatchModal from './AdjustBatchModal';
 
 import { useRouter } from 'next/navigation';
+import QRCode from 'qrcode';
+
+const InternalQRDisplay = ({ value }: { value: string }) => {
+  const [src, setSrc] = useState<string>('');
+
+  useEffect(() => {
+    if (!value) return;
+    if (value.startsWith('data:')) {
+      setSrc(value);
+      return;
+    }
+    QRCode.toDataURL(value, { width: 200, margin: 2 })
+      .then(url => setSrc(url))
+      .catch(err => console.error('QR Gen Error', err));
+  }, [value]);
+
+  if (!src) return <div className="w-32 h-32 bg-gray-100 animate-pulse rounded mx-auto mb-2" />;
+
+  return (
+    <img
+      src={src}
+      alt="Batch QR"
+      className="w-32 h-32 mx-auto object-contain mb-2"
+    />
+  );
+};
 
 export default function BatchDetailDrawer({ batch, onClose }: any) {
   const router = useRouter();
@@ -38,14 +65,14 @@ export default function BatchDetailDrawer({ batch, onClose }: any) {
         <div className="p-4 border-b border-[#e2e8f0] flex items-start justify-between">
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
-              <h2 className="text-lg font-bold text-[#0f172a]">{batch.id}</h2>
+              <h2 className="text-lg font-bold text-[#0f172a]">{batch.drug?.name || batch.itemName || 'Unknown Drug'}</h2>
               <span className={`px-2 py-1 text-xs font-medium rounded border ${batch.status === 'Quarantine' ? 'border-[#ef4444] text-[#ef4444] bg-[#fef2f2]' : 'border-[#10b981] text-[#10b981] bg-[#d1fae5]'
                 }`}>
                 {batch.status}
               </span>
             </div>
-            <p className="text-sm text-[#64748b]">{batch.itemName}</p>
-            <p className="text-xs text-[#94a3b8] mt-1">SKU: {batch.sku}</p>
+            <p className="text-sm font-medium text-[#64748b]">Batch: {batch.batchNumber}</p>
+            <p className="text-xs text-[#94a3b8] mt-0.5">ID: {batch.id}</p>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-[#f8fafc] rounded-lg">
             <FiX className="w-5 h-5" />
@@ -112,17 +139,21 @@ export default function BatchDetailDrawer({ batch, onClose }: any) {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <p className="text-xs text-[#64748b] mb-1">On-hand</p>
-                    <p className="text-2xl font-bold text-[#0f172a]">{batch.qtyOnHand || batch.quantityInStock || 0}</p>
+                    <div className="flex flex-col">
+                      {renderStockQuantity(batch, { className: "text-2xl font-bold text-[#0f172a]" })}
+                    </div>
                   </div>
                   <div>
                     <p className="text-xs text-[#64748b] mb-1">Available</p>
-                    <p className="text-2xl font-bold text-[#0ea5a3]">{batch.qtyAvailable || batch.quantityInStock || 0}</p>
+                    <div className="flex flex-col">
+                      {renderStockQuantity(batch, { className: "text-2xl font-bold text-[#0ea5a3]" })}
+                    </div>
                   </div>
                   <div>
                     <p className="text-xs text-[#64748b] mb-1">Reserved</p>
-                    <p className="text-lg font-semibold text-[#0f172a]">
-                      {((batch.qtyOnHand || batch.quantityInStock || 0) - (batch.qtyAvailable || batch.quantityInStock || 0)) || 0}
-                    </p>
+                    <div className="flex flex-col">
+                      {renderStockQuantity({ ...batch, quantityInStock: ((batch.qtyOnHand || batch.quantityInStock || 0) - (batch.qtyAvailable || batch.quantityInStock || 0)) || 0 }, { className: "text-lg font-semibold text-[#0f172a]" })}
+                    </div>
                   </div>
                   <div>
                     <p className="text-xs text-[#64748b] mb-1">Location</p>
@@ -203,11 +234,62 @@ export default function BatchDetailDrawer({ batch, onClose }: any) {
                 </div>
               </div>
 
-              {/* QR Code */}
-              <div className="flex items-center justify-center p-4 bg-[#f8fafc] rounded-lg">
-                <div className="text-center">
-                  <BsQrCode className="w-24 h-24 mx-auto text-[#0f172a] mb-2" />
-                  <p className="text-xs text-[#64748b]">Batch QR Code</p>
+              {/* Batch Identification Section */}
+              <div className="space-y-3">
+                <h3 className="text-sm font-semibold text-[#64748b]">Batch Identification</h3>
+                <div className="grid grid-cols-1 gap-3">
+                  {/* Manufacturer Barcode Display */}
+                  {batch.manufacturerBarcode && (
+                    <div className="flex flex-col items-center justify-center p-4 bg-orange-50 rounded-lg border border-orange-100">
+                      <div className="flex items-center gap-2 mb-2">
+                        <BsUpcScan className="w-5 h-5 text-orange-600" />
+                        <span className="text-xs font-bold text-orange-700 uppercase tracking-wide">Manufacturer Barcode</span>
+                      </div>
+                      <p className="text-lg font-mono font-bold text-gray-800 tracking-widest">{batch.manufacturerBarcode}</p>
+                      <p className="text-[10px] text-gray-500 mt-1">Linked External Code</p>
+                    </div>
+                  )}
+
+                  {/* Internal QR Code Display */}
+                  {batch.internalQRCode ? (
+                    <div className="flex flex-col items-center justify-center p-4 bg-[#f8fafc] rounded-lg border border-dashed border-gray-300">
+                      <div className="text-center">
+                        <InternalQRDisplay value={batch.internalQRCode} />
+                        <div className="mt-2">
+                          <span className="block text-[10px] uppercase font-bold text-gray-400 tracking-wider">Internal Code</span>
+                          <p className="text-sm font-medium text-gray-700">Batch Control QR</p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col items-center justify-center p-4 bg-[#f8fafc] rounded-lg border border-dashed border-gray-300">
+                      <div className="text-center">
+                        <BsQrCode className="w-12 h-12 mx-auto text-gray-300 mb-2" />
+                        <div className="mb-3">
+                          <span className="block text-[10px] uppercase font-bold text-gray-400 tracking-wider">Internal QR</span>
+                          <p className="text-sm font-medium text-gray-500">Not Generated</p>
+                        </div>
+                        <button
+                          onClick={async () => {
+                            try {
+                              const { scanApi } = await import('@/lib/api/scan');
+                              const toastId = toast.loading('Generating QR...');
+                              const res = await scanApi.generateQR(batch.id);
+                              batch.internalQRCode = res.qrCode || res.qrDataURL;
+                              toast.dismiss(toastId);
+                              toast.success('Internal QR Generated');
+                              router.refresh();
+                            } catch (e) {
+                              toast.error('Failed to generate QR');
+                            }
+                          }}
+                          className="px-3 py-1.5 bg-blue-600 text-white text-xs font-medium rounded hover:bg-blue-700 transition-colors"
+                        >
+                          Generate Internal QR
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             </>
@@ -230,7 +312,7 @@ export default function BatchDetailDrawer({ batch, onClose }: any) {
                       <FiClock className="w-4 h-4 text-[#64748b] mt-0.5 shrink-0" />
                       <div className="flex-1">
                         <p className={`text-sm font-medium ${typeInfo.color}`}>
-                          {typeInfo.label} {movement.quantity > 0 ? '+' : ''}{movement.quantity} units
+                          {typeInfo.label} {movement.quantity > 0 ? '+' : ''}{formatStockQuantity({ ...batch, quantityInStock: Math.abs(movement.quantity) })}
                         </p>
                         <p className="text-xs text-[#64748b] mt-1">
                           {new Date(movement.createdAt).toLocaleString()}
@@ -310,7 +392,6 @@ export default function BatchDetailDrawer({ batch, onClose }: any) {
           onClose={() => setShowAdjust(false)}
           onSuccess={() => {
             router.refresh();
-            // If the parent provided an onSuccess prop, we could call it here too
           }}
         />
       )}

@@ -1,14 +1,14 @@
 /**
  * API Error class
  */
-export class RequestError extends Error {
+export class ApiRequestError extends Error {
     constructor(
         public statusCode: number,
         message: string,
         public data?: any
     ) {
         super(message);
-        this.name = 'RequestError';
+        this.name = 'ApiRequestError';
     }
 }
 

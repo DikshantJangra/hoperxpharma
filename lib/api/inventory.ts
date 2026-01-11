@@ -194,5 +194,13 @@ export const inventoryApi = {
     async getBatchesWithSuppliers(drugId: string) {
         const response = await apiClient.get(`/inventory/drugs/${drugId}/batches-with-suppliers`);
         return response.data;
+    },
+
+    /**
+     * Get available units for a drug
+     */
+    async getDrugUnits(drugId: string) {
+        const response = await apiClient.get(`/drugs/${drugId}/units`);
+        return response.data;
     }
 };

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { FiX, FiAlertCircle } from 'react-icons/fi';
 import { toast } from 'react-hot-toast';
 import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation';
+import { formatStockQuantity, formatUnitName } from '@/lib/utils/stock-display';
 
 export default function AdjustStockModal({ item, onClose, onSuccess }: any) {
   const [selectedBatch, setSelectedBatch] = useState(item.batches[0]?.id || '');
@@ -41,7 +42,7 @@ export default function AdjustStockModal({ item, onClose, onSuccess }: any) {
         // userId is added by backend controller from req.user.id
       });
 
-      toast.success(`Stock adjusted successfully: ${delta > 0 ? '+' : ''}${delta} units`);
+      toast.success(`Stock adjusted successfully: ${delta > 0 ? '+' : ''}${delta} ${formatUnitName(batch?.unit || item.baseUnit)}s`);
 
       if (onSuccess) {
         onSuccess();
@@ -87,7 +88,7 @@ export default function AdjustStockModal({ item, onClose, onSuccess }: any) {
             >
               {item.batches.map((batch: any) => (
                 <option key={batch.id} value={batch.id}>
-                  {batch.batchNumber} • Qty: {batch.qty} • Exp: {batch.expiry}
+                  {batch.batchNumber} • Qty: {formatStockQuantity(batch)} • Exp: {batch.expiry || batch.expiryDate}
                 </option>
               ))}
             </select>
@@ -104,7 +105,7 @@ export default function AdjustStockModal({ item, onClose, onSuccess }: any) {
               disabled={isSubmitting}
             />
             <p className="text-xs text-[#64748b] mt-1">
-              Current: {currentQty} → Resulting: <span className={resultingQty < 0 ? 'text-[#ef4444]' : 'text-[#10b981]'}>{resultingQty}</span>
+              Current: {formatStockQuantity(batch)} → Resulting: <span className={resultingQty < 0 ? 'text-[#ef4444]' : 'text-[#10b981]'}>{resultingQty} {formatUnitName(batch?.unit || item.baseUnit)}</span>
             </p>
           </div>
 

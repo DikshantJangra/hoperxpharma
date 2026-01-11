@@ -15,6 +15,8 @@ import { AlertProvider } from "@/contexts/AlertContext"
 import { useAuthStore } from "@/lib/store/auth-store"
 import { useWelcomeExperience } from "@/lib/hooks/useWelcomeExperience"
 import { PremiumWelcome } from "@/components/welcome"
+import { KeyboardProvider } from "@/components/keyboard/KeyboardProvider"
+import KeyboardDebugger from "@/components/keyboard/KeyboardDebugger"
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
     const router = useRouter();
@@ -110,42 +112,45 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
         <PermissionProvider initialPermissions={permissions}>
             <BusinessTypeProvider>
                 <AlertProvider>
-                    {/* Demo Banner - Fixed Full Width Above Everything */}
-                    <DemoModeBanner isDemo={!!primaryStore?.isDemo} />
+                    <KeyboardProvider>
+                        <KeyboardDebugger />
+                        {/* Demo Banner - Fixed Full Width Above Everything */}
+                        <DemoModeBanner isDemo={!!primaryStore?.isDemo} />
 
-                    {/* Billing Banners - Shows below demo banner */}
-                    <TrialBanner />
-                    <PaymentOverdueBanner />
+                        {/* Billing Banners - Shows below demo banner */}
+                        <TrialBanner />
+                        <PaymentOverdueBanner />
 
-                    {/* Product Tour - Only active in demo mode */}
-                    {primaryStore?.isDemo && <ProductTour />}
+                        {/* Product Tour - Only active in demo mode */}
+                        {primaryStore?.isDemo && <ProductTour />}
 
-                    {/* Fullscreen Mobile Navigation */}
-                    <MobileNav isOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
+                        {/* Fullscreen Mobile Navigation */}
+                        <MobileNav isOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
 
-                    {/* Main layout - fixed height accounting for demo banner */}
-                    <div className={`flex ${primaryStore?.isDemo ? 'h-[calc(100vh-52px)] mt-[52px]' : 'h-screen'} bg-gray-50 overflow-hidden`}>
-                        {/* Desktop Sidebar - hidden on mobile */}
-                        <div className="hidden md:flex h-full">
-                            <Sidebar
-                                isOpen={sidebarOpen}
-                                expandedItems={expandedItems}
-                                onToggleItem={toggleItem}
-                            />
+                        {/* Main layout - fixed height accounting for demo banner */}
+                        <div className={`flex ${primaryStore?.isDemo ? 'h-[calc(100vh-52px)] mt-[52px]' : 'h-screen'} bg-gray-50 overflow-hidden`}>
+                            {/* Desktop Sidebar - hidden on mobile */}
+                            <div className="hidden md:flex h-full">
+                                <Sidebar
+                                    isOpen={sidebarOpen}
+                                    expandedItems={expandedItems}
+                                    onToggleItem={toggleItem}
+                                />
+                            </div>
+                            <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+                                <Navbar
+                                    onToggleSidebar={handleToggleSidebar}
+                                    sidebarOpen={isMobile ? mobileNavOpen : sidebarOpen}
+                                />
+                                <main className="flex-1 overflow-y-auto overflow-x-hidden">
+                                    {children}
+                                </main>
+                            </div>
                         </div>
-                        <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-                            <Navbar
-                                onToggleSidebar={handleToggleSidebar}
-                                sidebarOpen={isMobile ? mobileNavOpen : sidebarOpen}
-                            />
-                            <main className="flex-1 overflow-y-auto overflow-x-hidden">
-                                {children}
-                            </main>
-                        </div>
-                    </div>
 
-                    {/* Tour Help Button - Floating button to restart tour */}
-                    {primaryStore?.isDemo && <TourButton />}
+                        {/* Tour Help Button - Floating button to restart tour */}
+                        {primaryStore?.isDemo && <TourButton />}
+                    </KeyboardProvider>
                 </AlertProvider>
             </BusinessTypeProvider>
         </PermissionProvider>

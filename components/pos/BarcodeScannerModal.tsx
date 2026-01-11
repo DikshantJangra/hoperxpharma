@@ -2,12 +2,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats, Html5QrcodeCameraScanConfig } from 'html5-qrcode';
 import { IoClose, IoCameraReverse, IoSettings } from 'react-icons/io5';
-import { BsCheckCircleFill } from 'react-icons/bs';
+import { BsCheckCircleFill, BsQrCode } from 'react-icons/bs';
 import { toast } from 'sonner';
 
 interface BarcodeScannerModalProps {
     onClose: () => void;
     onScan: (barcode: string) => void;
+    onGenerateInternal?: () => void;
 }
 
 interface CameraDevice {
@@ -15,7 +16,7 @@ interface CameraDevice {
     label: string;
 }
 
-export default function BarcodeScannerModal({ onClose, onScan }: BarcodeScannerModalProps) {
+export default function BarcodeScannerModal({ onClose, onScan, onGenerateInternal }: BarcodeScannerModalProps) {
     const scannerRef = useRef<Html5Qrcode | null>(null);
     const [isScanning, setIsScanning] = useState(false);
     const [cameras, setCameras] = useState<CameraDevice[]>([]);
@@ -187,8 +188,8 @@ export default function BarcodeScannerModal({ onClose, onScan }: BarcodeScannerM
                                             key={camera.id}
                                             onClick={() => handleCameraChange(camera.id)}
                                             className={`w-full text-left px-3 py-2 rounded text-sm ${selectedCameraId === camera.id
-                                                    ? 'bg-[#0ea5a3] text-white'
-                                                    : 'hover:bg-gray-100 text-gray-700'
+                                                ? 'bg-[#0ea5a3] text-white'
+                                                : 'hover:bg-gray-100 text-gray-700'
                                                 }`}
                                         >
                                             {camera.label || `Camera ${camera.id.slice(0, 8)}...`}
@@ -239,18 +240,42 @@ export default function BarcodeScannerModal({ onClose, onScan }: BarcodeScannerM
                 </div>
 
                 {/* Footer - Instructions + Done Button */}
-                <div className="p-4 bg-gray-50">
-                    <div className="text-center mb-3">
+                <div className="p-5 bg-gray-50 flex flex-col gap-3">
+                    <div className="text-center mb-1">
                         <p className="text-sm font-medium text-gray-700">
                             Point camera at barcode. Auto-focus enabled.
                         </p>
                     </div>
-                    <button
-                        onClick={() => { stopScanner(); onClose(); }}
-                        className="w-full py-3 bg-[#0ea5a3] hover:bg-[#0d9391] text-white font-medium rounded-lg transition-colors"
-                    >
-                        Done ({scannedItems.length} items)
-                    </button>
+
+                    <div className="flex flex-col gap-2">
+                        {onGenerateInternal && (
+                            <div className="relative flex py-1 items-center">
+                                <div className="flex-grow border-t border-gray-300"></div>
+                                <span className="flex-shrink-0 mx-4 text-gray-400 text-xs uppercase">Or</span>
+                                <div className="flex-grow border-t border-gray-300"></div>
+                            </div>
+                        )}
+
+                        {onGenerateInternal && (
+                            <button
+                                onClick={() => {
+                                    stopScanner();
+                                    onGenerateInternal();
+                                }}
+                                className="w-full py-2.5 bg-white border border-[#0ea5a3] text-[#0ea5a3] font-medium rounded-lg hover:bg-[#f0fdfa] transition-colors flex items-center justify-center gap-2"
+                            >
+                                <BsQrCode className="w-4 h-4" />
+                                Generate Internal QR Instead
+                            </button>
+                        )}
+
+                        <button
+                            onClick={() => { stopScanner(); onClose(); }}
+                            className="w-full py-2.5 bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium rounded-lg transition-colors"
+                        >
+                            Cancel
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

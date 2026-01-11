@@ -31,6 +31,7 @@ class LoyaltyService {
                 eventType: 'MILESTONE_REACHED',
                 description: 'Loyalty journey started',
                 points: 0,
+                patientId,
             });
         }
 
@@ -57,7 +58,13 @@ class LoyaltyService {
         });
 
         // Update profile points
-        const profile = await loyaltyRepository.getProfileByPatientId(eventData.patientId);
+        let profile;
+        if (eventData.patientId) {
+            profile = await loyaltyRepository.getProfileByPatientId(eventData.patientId);
+        } else if (profileId) {
+            profile = await loyaltyRepository.getProfileById(profileId);
+        }
+
         if (profile) {
             await loyaltyRepository.updateProfile(profile.patientId, {
                 totalPoints: profile.totalPoints + points,

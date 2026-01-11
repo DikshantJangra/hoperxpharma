@@ -23,6 +23,7 @@ import { inventoryApi } from '@/lib/api/inventory';
 import { useBarcodeScanner } from '@/hooks/useBarcodeScanner';
 // import { useMedicineMaster } from '@/contexts/MedicineMasterContext'; // Removed legacy lookup
 import { scanApi } from '@/lib/api/scan';
+import { useKeyboardCommand } from '@/hooks/useKeyboardCommand';
 
 export default function NewSalePage() {
     const router = useRouter();
@@ -419,65 +420,54 @@ export default function NewSalePage() {
     };
 
     // Keyboard shortcuts
-    useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            // Existing shortcuts
-            if (e.key === '/' && !e.ctrlKey && !e.metaKey) {
-                e.preventDefault();
-                setSearchFocus(true);
-            }
-            if (e.shiftKey && e.key === '?') {
-                e.preventDefault();
-                setShowShortcuts(true);
-            }
-            if (e.key === 'F4') {
-                e.preventDefault();
-                setShowCustomerModal(true);
-            }
-            if (e.key === 'F9') {
-                e.preventDefault();
-                if (basketItems.length > 0) setShowSplitPayment(true);
-            }
+    useKeyboardCommand('global.search', () => {
+        setSearchFocus(true);
+    });
 
-            // New shortcuts
-            if (e.key === 'F2') {
-                e.preventDefault();
-                saveDraft(false); // Manual save
-            }
-            if (e.key === 'F6') {
-                e.preventDefault();
-                setShowPrescriptionModal(true);
-            }
-            if (e.key === 'F8') {
-                e.preventDefault();
-                if (basketItems.length > 0) {
-                    saveDraft(false);
-                    alert('Sale parked! You can resume it from the Drafts page.');
-                    clearBasket();
-                }
-            }
-            if (e.key === 'F12') {
-                e.preventDefault();
-                if (basketItems.length > 0) {
-                    handleFinalize('CASH'); // Quick cash payment
-                }
-            }
-            if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
-                e.preventDefault();
-                // Print last receipt - TODO: implement
-                const lastSale = (window as any).lastSale;
-                if (lastSale) {
-                    console.log('Print last receipt:', lastSale);
-                    alert('Print functionality coming soon!');
-                } else {
-                    alert('No recent sale to print');
-                }
-            }
-        };
+    useKeyboardCommand('global.help', () => {
+        setShowShortcuts(true);
+    });
 
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [basketItems, customer]);
+    useKeyboardCommand('pos.customerSearch', () => {
+        setShowCustomerModal(true);
+    });
+
+    useKeyboardCommand('pos.splitPayment', () => {
+        if (basketItems.length > 0) setShowSplitPayment(true);
+    });
+
+    useKeyboardCommand('pos.saveDraft', () => {
+        saveDraft(false); // Manual save
+    });
+
+    useKeyboardCommand('pos.prescription', () => {
+        setShowPrescriptionModal(true);
+    });
+
+    useKeyboardCommand('pos.parkSale', () => {
+        if (basketItems.length > 0) {
+            saveDraft(false);
+            alert('Sale parked! You can resume it from the Drafts page.');
+            clearBasket();
+        }
+    });
+
+    useKeyboardCommand('pos.quickPay', () => {
+        if (basketItems.length > 0) {
+            handleFinalize('CASH'); // Quick cash payment
+        }
+    });
+
+    useKeyboardCommand('pos.printLast', () => {
+        // Print last receipt - TODO: implement
+        const lastSale = (window as any).lastSale;
+        if (lastSale) {
+            console.log('Print last receipt:', lastSale);
+            alert('Print functionality coming soon!');
+        } else {
+            alert('No recent sale to print');
+        }
+    });
 
     /* 
      * FIX: Add to basket with Duplicate Check
@@ -496,17 +486,20 @@ export default function NewSalePage() {
 
         if (!targetBatchId) {
             toast.error('Cannot add item: Batch ID is missing. Please select a specific batch.');
-            // Force open modal if we can't determine batch?
             setPendingProduct(product);
             setShowBatchModal(true);
             return;
         }
 
+        // Determine initial unit - use the one on product if set, otherwise displayUnit
+        const initialUnit = product.unit || product.displayUnit || 'unit';
+
         setBasketItems(prev => {
-            // Check if item with same Drug ID AND Batch ID exists
-            // Using drugId + batchId is safer than SKU which might be missing
+            // Check if item with same Drug ID AND Batch ID AND Unit exists
             const existingIndex = prev.findIndex(item =>
-                item.id === product.id && item.batchId === targetBatchId
+                item.id === product.id &&
+                item.batchId === targetBatchId &&
+                (item.unit || item.displayUnit || 'unit') === initialUnit
             );
 
             if (existingIndex >= 0) {
@@ -523,8 +516,8 @@ export default function NewSalePage() {
             // Add new item
             return [...prev, {
                 ...product,
-                // Ensure batchId is set if we found it in fallback
                 batchId: product.batchId || targetBatchId,
+                unit: initialUnit,
                 qty: 1,
                 gstRate: product.gstRate ? Number(product.gstRate) : 5
             }];
@@ -567,9 +560,16 @@ export default function NewSalePage() {
                     return newItems;
                 }
 
+                const newItemWithUnit = {
+                    ...newItem,
+                    unit: newItem.unit || newItem.displayUnit || 'unit'
+                };
+
                 // CASE 2: Adding a new item (Duplicate Check)
                 const existingIndex = prev.findIndex(item =>
-                    item.id === newItem.id && item.batchId === newItem.batchId
+                    item.id === newItemWithUnit.id &&
+                    item.batchId === newItemWithUnit.batchId &&
+                    (item.unit || item.displayUnit || 'unit') === newItemWithUnit.unit
                 );
 
                 if (existingIndex >= 0) {
@@ -582,7 +582,7 @@ export default function NewSalePage() {
                     return newItems;
                 }
 
-                return [...prev, newItem];
+                return [...prev, newItemWithUnit];
             });
         }
         setShowBatchModal(false);
@@ -918,6 +918,7 @@ export default function NewSalePage() {
 
     // Calculate GST
     // Enhanced Financial Calculations
+    // Enhanced Financial Calculations
     const calculateTotals = () => {
         let totalMrp = 0;
         let totalItemDiscount = 0;
@@ -925,7 +926,11 @@ export default function NewSalePage() {
 
         // Step 1: Calculate item-level totals (MRP - Item Discount)
         basketItems.forEach((item: any) => {
-            const itemMrpTotal = item.qty * item.mrp;
+            // Adjust MRP based on selected unit logic
+            const factor = item.conversionFactor || 1;
+            const unitAdjustedMrp = item.mrp / factor;
+
+            const itemMrpTotal = item.qty * unitAdjustedMrp;
             const itemDiscount = item.discount || 0;
             const lineSubtotal = itemMrpTotal - itemDiscount;
 
@@ -952,7 +957,11 @@ export default function NewSalePage() {
             : 1;
 
         basketItems.forEach((item: any) => {
-            const itemMrpTotal = item.qty * item.mrp;
+            // Recalculate per-item totals for GST distribution
+            const factor = item.conversionFactor || 1;
+            const unitAdjustedMrp = item.mrp / factor;
+
+            const itemMrpTotal = item.qty * unitAdjustedMrp;
             const itemDiscount = item.discount || 0;
             const lineSubtotal = itemMrpTotal - itemDiscount;
 
@@ -998,24 +1007,29 @@ export default function NewSalePage() {
 
             // Prepare sale items - GST is already included in MRP
             // Prepare sale items - GST is already included in MRP
+            // Prepare sale items - GST is already included in MRP
             const items = basketItems.filter((item: any) => item.batchId).map((item: any) => {
-                const itemTotal = item.qty * item.mrp;
+                const factor = item.conversionFactor || 1;
+                const unitAdjustedMrp = item.mrp / factor;
+
+                const itemTotal = item.qty * unitAdjustedMrp;
                 const itemDiscount = item.discount || 0;
                 const netAmount = itemTotal - itemDiscount;
                 const gstRate = item.gstRate || 0;
 
                 // Extract GST from MRP (GST is inclusive)
                 const taxableAmount = netAmount / (1 + gstRate / 100);
-                const itemTax = netAmount - taxableAmount;
 
                 return {
                     drugId: item.id,
                     batchId: item.batchId,
                     quantity: item.qty,
-                    mrp: Number(item.mrp),
+                    mrp: Number(unitAdjustedMrp), // Store actual unit price charged
                     discount: Number(itemDiscount),
                     gstRate: Number(gstRate),
                     lineTotal: Number(netAmount.toFixed(2)),
+                    unit: item.unit || item.displayUnit || 'unit', // Track the unit sold
+                    conversionFactor: Number(factor) // Track conversion factor used
                 };
             });
 
@@ -1169,7 +1183,7 @@ export default function NewSalePage() {
     };
 
     return (
-        <div className="h-full flex flex-col bg-[#f8fafc] relative">
+        <div className="h-full flex flex-col bg-[#f8fafc] relative overflow-hidden">
             <POSHeader
                 saleId={saleId}
                 onOpenCustomer={() => setShowCustomerModal(true)}
@@ -1181,7 +1195,7 @@ export default function NewSalePage() {
 
             <div className="flex-1 flex overflow-hidden">
                 {/* Left Panel - 65% */}
-                <div className="w-[65%] flex flex-col border-r border-[#e2e8f0]">
+                <div className="w-[65%] flex flex-col border-r border-[#e2e8f0] min-h-0">
                     {/* Hybrid Context Banner */}
                     <PrescriptionBanner
                         prescription={activePrescription}
@@ -1201,7 +1215,7 @@ export default function NewSalePage() {
                     </div>
                     <QuickAddGrid onAddProduct={addToBasket} storeId={storeId} />
 
-                    <div data-tour="pos-cart">
+                    <div data-tour="pos-cart" className="flex-1 min-h-0 flex flex-col">
                         <Basket
                             items={basketItems}
                             onUpdateItem={updateBasketItem}
@@ -1213,7 +1227,7 @@ export default function NewSalePage() {
                 </div>
 
                 {/* Right Panel - 35% */}
-                <div className="w-[35%] bg-white" data-tour="pos-payment">
+                <div className="w-[35%] bg-white flex flex-col min-h-0" data-tour="pos-payment">
                     <PaymentPanel
                         basketItems={basketItems}
                         customer={customer}

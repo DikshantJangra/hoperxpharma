@@ -11,6 +11,9 @@ interface QuickAddProduct {
   stock: number;
   batchId: string;
   gstRate: number;
+  baseUnit?: string;
+  displayUnit?: string;
+  unitConfigurations?: any[];
 }
 
 interface QuickAddGridProps {
@@ -72,6 +75,9 @@ export default function QuickAddGrid({ onAddProduct, storeId }: QuickAddGridProp
         stock: product.totalStock || product.stock,
         batchId: product.batchId,
         gstRate: product.gstRate,
+        baseUnit: product.baseUnit,
+        displayUnit: product.displayUnit,
+        unitConfigurations: product.unitConfigurations,
       };
       saveProducts(updated);
       setShowProductSelector(false);
@@ -87,8 +93,8 @@ export default function QuickAddGrid({ onAddProduct, storeId }: QuickAddGridProp
           <button
             onClick={() => setIsEditMode(!isEditMode)}
             className={`p-1.5 rounded-lg transition-colors ${isEditMode
-                ? 'bg-[#0ea5a3] text-white'
-                : 'text-[#64748b] hover:bg-[#e2e8f0]'
+              ? 'bg-[#0ea5a3] text-white'
+              : 'text-[#64748b] hover:bg-[#e2e8f0]'
               }`}
             title={isEditMode ? 'Done editing' : 'Edit quick add products'}
           >
@@ -101,8 +107,8 @@ export default function QuickAddGrid({ onAddProduct, storeId }: QuickAddGridProp
               key={index}
               onClick={() => handleSlotClick(index)}
               className={`p-2 border rounded-lg text-left transition-all ${product
-                  ? 'bg-white border-[#e2e8f0] hover:border-[#0ea5a3] hover:bg-[#f0fdfa]'
-                  : 'bg-white border-dashed border-[#cbd5e1] hover:border-[#0ea5a3] hover:bg-[#f0fdfa]'
+                ? 'bg-white border-[#e2e8f0] hover:border-[#0ea5a3] hover:bg-[#f0fdfa]'
+                : 'bg-white border-dashed border-[#cbd5e1] hover:border-[#0ea5a3] hover:bg-[#f0fdfa]'
                 } ${isEditMode && product ? 'ring-2 ring-red-200' : ''}`}
             >
               {product ? (
