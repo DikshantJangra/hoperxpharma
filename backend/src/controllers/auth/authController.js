@@ -62,8 +62,7 @@ const signup = asyncHandler(async (req, res) => {
         const result = await authService.signup(req.body);
 
         // Determine production mode for cookie security
-        const isProduction = process.env.NODE_ENV === 'production' ||
-            (process.env.FRONTEND_URL && process.env.FRONTEND_URL.startsWith('https'));
+        const isProduction = process.env.NODE_ENV === 'production';
 
         // Set refresh token in httpOnly cookie
         res.cookie('refreshToken', result.refreshToken, {
@@ -155,7 +154,7 @@ const login = asyncHandler(async (req, res) => {
         });
 
         // Determine production mode securely
-        const isProduction = process.env.NODE_ENV === 'production' || (process.env.FRONTEND_URL && process.env.FRONTEND_URL.startsWith('https'));
+        const isProduction = process.env.NODE_ENV === 'production';
 
         // Set refresh token in httpOnly cookie
         res.cookie('refreshToken', result.refreshToken, {
@@ -228,8 +227,7 @@ const refresh = asyncHandler(async (req, res) => {
     const tokens = await authService.refreshToken(refreshToken);
 
     // Determine production mode for cookie security
-    const isProduction = process.env.NODE_ENV === 'production' ||
-        (process.env.FRONTEND_URL && process.env.FRONTEND_URL.startsWith('https'));
+    const isProduction = process.env.NODE_ENV === 'production';
 
     // Update refresh token cookie (httpOnly - not accessible to JavaScript)
     res.cookie('refreshToken', tokens.refreshToken, {
@@ -274,8 +272,7 @@ const refresh = asyncHandler(async (req, res) => {
 const logout = asyncHandler(async (req, res) => {
     // SECURITY FIX: Cookie clearing must match the exact attributes used when setting
     // Otherwise cookies set with secure/sameSite in production won't be cleared
-    const isProduction = process.env.NODE_ENV === 'production' ||
-        (process.env.FRONTEND_URL && process.env.FRONTEND_URL.startsWith('https'));
+    const isProduction = process.env.NODE_ENV === 'production';
 
     const cookieOptions = {
         path: '/',

@@ -137,7 +137,7 @@ router.get('/verify-magic-link', async (req, res) => {
         const { accessToken, refreshToken } = result;
 
         // Determine production mode securely
-        const isProduction = process.env.NODE_ENV === 'production' || (process.env.FRONTEND_URL && process.env.FRONTEND_URL.startsWith('https'));
+        const isProduction = process.env.NODE_ENV === 'production';
 
         // Set refresh token in httpOnly cookie
         res.cookie('refreshToken', refreshToken, {

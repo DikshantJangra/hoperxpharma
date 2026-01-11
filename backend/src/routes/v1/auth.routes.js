@@ -64,9 +64,7 @@ router.post('/set-session', asyncHandler(async (req, res) => {
             success: false,
             message: 'Invalid tokens'
         });
-    }
-
-    const isProduction = process.env.NODE_ENV === 'production' || (process.env.FRONTEND_URL && process.env.FRONTEND_URL.startsWith('https'));
+    const isProduction = process.env.NODE_ENV === 'production';
 
     // Set refresh token in httpOnly cookie
     res.cookie('refreshToken', refreshToken, {
@@ -175,7 +173,7 @@ router.get('/google/callback', (req, res, next) => {
         });
 
         // Determine production mode securely
-        const isProduction = process.env.NODE_ENV === 'production' || (process.env.FRONTEND_URL && process.env.FRONTEND_URL.startsWith('https'));
+        // const isProduction = process.env.NODE_ENV === 'production';
 
         // CRITICAL: Cookies during redirect don't work reliably cross-origin
         // Instead, pass tokens in URL and let frontend set them via /auth/set-session endpoint
