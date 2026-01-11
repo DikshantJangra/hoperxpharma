@@ -250,62 +250,88 @@ class SaleService {
                 actualPatientId = walkInPatient.id;
             }
 
-            // 2. Create prescription with optimized settings (uses existing service for validation)
-            const prescription = await prescriptionService.createPrescription({
-                storeId: saleInfo.storeId,
-                patientId: actualPatientId,
-                type: 'ONE_TIME',
-                status: 'ACTIVE', // Skip DRAFT, go straight to ACTIVE
-                totalRefills: 0,
-                expiryDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
-                items: items.map(item => ({
-                    drugId: item.drugId,
-                    batchId: item.batchId,
-                    quantity: item.quantity,
-                    sig: 'As directed',
-                    substitutionAllowed: true
-                })),
-                instructions: 'Quick Sale'
-            }, userId);
-
-            // 3. Get refill and version (already created by prescriptionService)
-            const [refill, version] = await Promise.all([
-                refillService.getNextAvailableRefill(prescription.id),
-                versionService.getLatestVersion(prescription.id)
-            ]);
-
-            // 4. Create dispense with READY status (will be completed by createSaleFromDispense)
-            const dispense = await prisma.dispense.create({
-                data: {
-                    refillId: refill.id,
-                    prescriptionVersionId: version.id,
-                    status: 'READY', // Must be READY for createSaleFromDispense
-                    queuedBy: userId,
-                    queuedAt: new Date()
+            // 2. Validate Stock & Prepare Items
+            const preparedItems = [];
+            for (const item of items) {
+                const batch = await inventoryService.getBatchById(item.batchId);
+                
+                if (!batch) {
+                    throw ApiError.badRequest(`Batch not found: ${item.batchId}`);
                 }
+
+                if (batch.quantityInStock < item.quantity) {
+                    throw ApiError.badRequest(
+                        `Insufficient stock for ${batch.drug.name}. Available: ${batch.quantityInStock}, Required: ${item.quantity}`
+                    );
+                }
+                preparedItems.push({
+                    ...item,
+                    drug: batch.drug, // Needed for GST calc
+                });
+            }
+
+            // 3. Get Store State (for GST)
+            const store = await prisma.store.findUnique({
+                where: { id: saleInfo.storeId },
+                select: { state: true }
             });
 
-            // 5. Create sale from dispense (this will complete dispense and update refill/prescription)
-            const sale = await this.createSaleFromDispense(
-                dispense.id,
-                {
-                    ...saleInfo,
-                    itemPrices: items.reduce((acc, item) => ({
-                        ...acc,
-                        [item.drugId]: { mrp: item.mrp, discount: item.discount || 0 }
-                    }), {}),
-                    batches: items.reduce((acc, item) => ({
-                        ...acc,
-                        [item.drugId]: item.batchId
-                    }), {}),
-                    paymentSplits
-                },
-                userId
+            if (!store) {
+                throw ApiError.notFound('Store not found');
+            }
+
+            // 4. Compute GST
+            const gstResult = await this.computeGSTForItems(
+                preparedItems,
+                store.state,
+                saleData.buyerGstin,
+                saleData.customerState
             );
 
-            logger.info('createQuickSale: Sale created successfully', { saleId: sale.id, invoiceNumber: sale.invoiceNumber });
-            return sale;
-        } catch (error) {
+            // 5. Enrich Sale Data
+            const enrichedSaleData = await this.enrichSaleDataWithGST(
+                {
+                    ...saleInfo,
+                    patientId: actualPatientId,
+                    soldBy: userId,
+                    status: 'COMPLETED'
+                },
+                gstResult.saleTotals,
+                saleData.buyerGstin
+            );
+
+            // 6. Generate Invoice Number
+            const invoiceNumber = await saleRepository.generateInvoiceNumber(saleInfo.storeId);
+            enrichedSaleData.invoiceNumber = invoiceNumber;
+
+            // 7. Create Sale
+            const result = await saleRepository.createSale(
+                enrichedSaleData,
+                gstResult.items,
+                paymentSplits
+            );
+
+            logger.info('createQuickSale: Sale created successfully', { saleId: result.sale.id, invoiceNumber });
+
+            // 8. Track loyalty event (async)
+            if (actualPatientId) {
+                loyaltyService.processPurchase(
+                    result.sale.id,
+                    actualPatientId,
+                    saleInfo.storeId,
+                    parseFloat(result.sale.total),
+                    items.length
+                ).catch(loyaltyError => {
+                    logger.error('Failed to track loyalty event:', loyaltyError);
+                });
+            }
+
+            return {
+                ...result.sale,
+                items: result.items,
+                paymentSplits: result.payments,
+            };
+        } catch(error) {
             logger.error('createQuickSale: Error in quick sale creation', {
                 error: error.message,
                 stack: error.stack,
@@ -332,278 +358,278 @@ class SaleService {
      * New: await saleService.createQuickSale({ items, paymentSplits, ... }, userId)
      */
     async createSale(saleData) {
-        logger.warn('⚠️  DEPRECATED: createSale() called. Please migrate to createQuickSale() or createSaleFromDispense()');
+    logger.warn('⚠️  DEPRECATED: createSale() called. Please migrate to createQuickSale() or createSaleFromDispense()');
 
-        const { items, paymentSplits, ...saleInfo } = saleData;
+    const { items, paymentSplits, ...saleInfo } = saleData;
 
-        // Generate invoice number
-        const invoiceNumber = await saleRepository.generateInvoiceNumber(saleInfo.storeId);
+    // Generate invoice number
+    const invoiceNumber = await saleRepository.generateInvoiceNumber(saleInfo.storeId);
 
-        // Validations & Logic based on Invoice Type
-        if (saleInfo.invoiceType === 'ESTIMATE') {
-            saleInfo.status = 'QUOTATION';
-        } else {
-            // Validate stock availability for all items
-            for (const item of items) {
-                const batch = await inventoryService.getBatchById(item.batchId);
+    // Validations & Logic based on Invoice Type
+    if (saleInfo.invoiceType === 'ESTIMATE') {
+        saleInfo.status = 'QUOTATION';
+    } else {
+        // Validate stock availability for all items
+        for (const item of items) {
+            const batch = await inventoryService.getBatchById(item.batchId);
 
-                if (batch.quantityInStock < item.quantity) {
-                    throw ApiError.badRequest(
-                        `Insufficient stock for ${batch.drug.name}.Available: ${batch.quantityInStock}, Required: ${item.quantity} `
-                    );
-                }
-
-                // Attach drug details to item for GST computation
-                item.drug = batch.drug;
+            if (batch.quantityInStock < item.quantity) {
+                throw ApiError.badRequest(
+                    `Insufficient stock for ${batch.drug.name}.Available: ${batch.quantityInStock}, Required: ${item.quantity} `
+                );
             }
 
-            // Validate payment total matches sale total
-            const paymentTotal = paymentSplits.reduce((sum, p) => sum + p.amount, 0);
-            if (Math.abs(paymentTotal - saleInfo.total) > 0.01) {
-                throw ApiError.badRequest('Payment total does not match sale total');
-            }
+            // Attach drug details to item for GST computation
+            item.drug = batch.drug;
         }
 
-        // Fetch store details for place of supply
-        const store = await prisma.store.findUnique({
-            where: { id: saleInfo.storeId },
-            select: { state: true }
-        });
-
-        // Compute GST for items
-        const gstResult = await this.computeGSTForItems(
-            items,
-            store.state,
-            saleData.buyerGstin,
-            saleData.customerState
-        );
-
-        // Enrich sale data with GST totals and rounding
-        const enrichedSaleData = await this.enrichSaleDataWithGST(
-            saleInfo,
-            gstResult.saleTotals,
-            saleData.buyerGstin
-        );
-
-        // Create sale with transaction
-        const result = await saleRepository.createSale(
-            { ...enrichedSaleData, invoiceNumber },
-            gstResult.items,
-            paymentSplits
-        );
-
-        logger.info(`Sale created(legacy): ${invoiceNumber} - Total: ${saleInfo.total} - GST: ${gstResult.saleTotals.totalTax}`);
-
-        // Update prescription status if this sale is linked to a prescription
-        if (saleInfo.prescriptionId) {
-            try {
-                const prescriptionService = require('../prescriptions/prescriptionService');
-                const prescription = await prisma.prescription.findUnique({
-                    where: { id: saleInfo.prescriptionId },
-                    select: { type: true, status: true }
-                });
-
-                if (prescription) {
-                    // For ONE_TIME prescriptions, mark as COMPLETED after sale
-                    if (prescription.type === 'ONE_TIME' && prescription.status !== 'COMPLETED') {
-                        await prisma.prescription.update({
-                            where: { id: saleInfo.prescriptionId },
-                            data: { status: 'COMPLETED' }
-                        });
-                        logger.info(`Prescription ${saleInfo.prescriptionId} marked as COMPLETED (ONE_TIME, legacy sale)`);
-                    }
-                    // For REGULAR prescriptions, update status based on refills
-                    else if (prescription.type === 'REGULAR') {
-                        await prescriptionService.updatePrescriptionStatus(saleInfo.prescriptionId, null);
-                        logger.info(`Prescription ${saleInfo.prescriptionId} status updated (REGULAR, legacy sale)`);
-                    }
-                }
-            } catch (error) {
-                logger.error('Failed to update prescription status after legacy sale:', error);
-                // Don't fail the sale if prescription update fails
-            }
+        // Validate payment total matches sale total
+        const paymentTotal = paymentSplits.reduce((sum, p) => sum + p.amount, 0);
+        if (Math.abs(paymentTotal - saleInfo.total) > 0.01) {
+            throw ApiError.badRequest('Payment total does not match sale total');
         }
-
-        return {
-            ...result.sale,
-            items: result.items,
-            paymentSplits: result.payments,
-        };
     }
+
+    // Fetch store details for place of supply
+    const store = await prisma.store.findUnique({
+        where: { id: saleInfo.storeId },
+        select: { state: true }
+    });
+
+    // Compute GST for items
+    const gstResult = await this.computeGSTForItems(
+        items,
+        store.state,
+        saleData.buyerGstin,
+        saleData.customerState
+    );
+
+    // Enrich sale data with GST totals and rounding
+    const enrichedSaleData = await this.enrichSaleDataWithGST(
+        saleInfo,
+        gstResult.saleTotals,
+        saleData.buyerGstin
+    );
+
+    // Create sale with transaction
+    const result = await saleRepository.createSale(
+        { ...enrichedSaleData, invoiceNumber },
+        gstResult.items,
+        paymentSplits
+    );
+
+    logger.info(`Sale created(legacy): ${invoiceNumber} - Total: ${saleInfo.total} - GST: ${gstResult.saleTotals.totalTax}`);
+
+    // Update prescription status if this sale is linked to a prescription
+    if (saleInfo.prescriptionId) {
+        try {
+            const prescriptionService = require('../prescriptions/prescriptionService');
+            const prescription = await prisma.prescription.findUnique({
+                where: { id: saleInfo.prescriptionId },
+                select: { type: true, status: true }
+            });
+
+            if (prescription) {
+                // For ONE_TIME prescriptions, mark as COMPLETED after sale
+                if (prescription.type === 'ONE_TIME' && prescription.status !== 'COMPLETED') {
+                    await prisma.prescription.update({
+                        where: { id: saleInfo.prescriptionId },
+                        data: { status: 'COMPLETED' }
+                    });
+                    logger.info(`Prescription ${saleInfo.prescriptionId} marked as COMPLETED (ONE_TIME, legacy sale)`);
+                }
+                // For REGULAR prescriptions, update status based on refills
+                else if (prescription.type === 'REGULAR') {
+                    await prescriptionService.updatePrescriptionStatus(saleInfo.prescriptionId, null);
+                    logger.info(`Prescription ${saleInfo.prescriptionId} status updated (REGULAR, legacy sale)`);
+                }
+            }
+        } catch (error) {
+            logger.error('Failed to update prescription status after legacy sale:', error);
+            // Don't fail the sale if prescription update fails
+        }
+    }
+
+    return {
+        ...result.sale,
+        items: result.items,
+        paymentSplits: result.payments,
+    };
+}
 
     /**
      * Get sales statistics
      */
     async getSalesStats(storeId, startDate, endDate) {
-        const start = startDate ? new Date(startDate) : new Date(new Date().setDate(1));
-        const end = endDate ? new Date(endDate) : new Date();
+    const start = startDate ? new Date(startDate) : new Date(new Date().setDate(1));
+    const end = endDate ? new Date(endDate) : new Date();
 
-        return await saleRepository.getSalesStats(storeId, start, end);
-    }
+    return await saleRepository.getSalesStats(storeId, start, end);
+}
 
     /**
      * Get top selling drugs
      */
     async getTopSellingDrugs(storeId, limit = 10) {
-        return await saleRepository.getTopSellingDrugs(storeId, limit);
-    }
+    return await saleRepository.getTopSellingDrugs(storeId, limit);
+}
 
     /**
      * Get sale by invoice number
      */
     async getSaleByInvoiceNumber(invoiceNumber) {
-        const sale = await saleRepository.findByInvoiceNumber(invoiceNumber);
+    const sale = await saleRepository.findByInvoiceNumber(invoiceNumber);
 
-        if (!sale) {
-            throw ApiError.notFound('Sale not found');
-        }
-
-        return sale;
+    if (!sale) {
+        throw ApiError.notFound('Sale not found');
     }
+
+    return sale;
+}
 
     /**
      * Get next invoice number
      */
     async getNextInvoiceNumber(storeId) {
-        return await saleRepository.generateInvoiceNumber(storeId);
-    }
+    return await saleRepository.generateInvoiceNumber(storeId);
+}
 
     /**
      * Get ready dispenses for POS (replaces getVerifiedPrescriptions)
      * Returns dispenses that are READY for sale
      */
     async getReadyDispensesForPOS(storeId) {
-        return await dispenseService.getWorkbenchDispenses(storeId, 'READY');
-    }
+    return await dispenseService.getWorkbenchDispenses(storeId, 'READY');
+}
 
     /**
      * Compute GST for sale items
      * @private
      */
     async computeGSTForItems(items, storeState, customerGstin = null, customerState = null) {
-        const storeId = items[0]?.storeId || items[0]?.drug?.storeId;
-        const enableGSTBilling = storeId ? await configService.getEnableGSTBilling(storeId) : true;
+    const storeId = items[0]?.storeId || items[0]?.drug?.storeId;
+    const enableGSTBilling = storeId ? await configService.getEnableGSTBilling(storeId) : true;
 
-        // Determine place of supply and whether to apply IGST
-        const placeOfSupply = gstCalculator.determinePlaceOfSupply(
-            { gstin: customerGstin, state: customerState },
-            storeState
-        );
-        const isIgst = placeOfSupply !== storeState;
+    // Determine place of supply and whether to apply IGST
+    const placeOfSupply = gstCalculator.determinePlaceOfSupply(
+        { gstin: customerGstin, state: customerState },
+        storeState
+    );
+    const isIgst = placeOfSupply !== storeState;
 
-        // Compute GST for each item
-        const itemsWithGST = [];
+    // Compute GST for each item
+    const itemsWithGST = [];
 
-        for (const item of items) {
-            // Get tax slab for this item
-            let taxSlab;
+    for (const item of items) {
+        // Get tax slab for this item
+        let taxSlab;
 
-            // Try to get from drug's linked HSN code first
-            if (item.drug?.hsnCodeId) {
-                const hsnCode = await gstRepository.findHsnCodeById(item.drug.hsnCodeId);
-                if (hsnCode) {
-                    taxSlab = hsnCode.taxSlab;
-                }
+        // Try to get from drug's linked HSN code first
+        if (item.drug?.hsnCodeId) {
+            const hsnCode = await gstRepository.findHsnCodeById(item.drug.hsnCodeId);
+            if (hsnCode) {
+                taxSlab = hsnCode.taxSlab;
             }
-
-            // Fallback: construct tax slab from drug's gstRate
-            if (!taxSlab) {
-                const defaultGSTRate = await configService.getDefaultGSTRate(items[0].storeId || storeState);
-                // If GST billing is disabled, rate is 0
-                const rate = enableGSTBilling ? (item.gstRate || item.drug?.gstRate || defaultGSTRate) : 0;
-
-                taxSlab = {
-                    rate,
-                    taxType: enableGSTBilling ? 'GST' : 'EXEMPT',
-                    cgstRate: rate / 2,
-                    sgstRate: rate / 2,
-                    igstRate: rate,
-                    cessRate: 0
-                };
-            } else if (!enableGSTBilling) {
-                // Force exempt if GST billing is disabled
-                taxSlab = { ...taxSlab, rate: 0, taxType: 'EXEMPT', cgstRate: 0, sgstRate: 0, igstRate: 0, cessRate: 0 };
-            }
-
-            // Compute tax breakup using calculator
-            const taxBreakup = gstCalculator.computeItemTax(
-                {
-                    quantity: item.quantity,
-                    mrp: item.mrp,
-                    discount: item.discount || 0
-                },
-                taxSlab,
-                isIgst
-            );
-
-            itemsWithGST.push({
-                ...item,
-                hsnCode: item.drug?.hsnCode || null,
-                taxSlabId: taxSlab.id || null,
-                taxableAmount: taxBreakup.taxableAmount,
-                cgstAmount: taxBreakup.cgstAmount,
-                sgstAmount: taxBreakup.sgstAmount,
-                igstAmount: taxBreakup.igstAmount,
-                cessAmount: taxBreakup.cessAmount,
-                lineTotal: taxBreakup.lineTotal
-            });
         }
 
-        // Compute sale-level totals
-        const saleTaxTotals = gstCalculator.computeSaleTax(itemsWithGST);
+        // Fallback: construct tax slab from drug's gstRate
+        if (!taxSlab) {
+            const defaultGSTRate = await configService.getDefaultGSTRate(items[0].storeId || storeState);
+            // If GST billing is disabled, rate is 0
+            const rate = enableGSTBilling ? (item.gstRate || item.drug?.gstRate || defaultGSTRate) : 0;
 
-        return {
-            items: itemsWithGST,
-            saleTotals: {
-                taxableAmount: saleTaxTotals.taxableAmount,
-                cgstAmount: saleTaxTotals.cgstAmount,
-                sgstAmount: saleTaxTotals.sgstAmount,
-                igstAmount: saleTaxTotals.igstAmount,
-                cessAmount: saleTaxTotals.cessAmount,
-                totalTax: saleTaxTotals.totalTax,
-                isIgst,
-                placeOfSupply,
-                gstrCategory: null // Will be set later
-            }
-        };
+            taxSlab = {
+                rate,
+                taxType: enableGSTBilling ? 'GST' : 'EXEMPT',
+                cgstRate: rate / 2,
+                sgstRate: rate / 2,
+                igstRate: rate,
+                cessRate: 0
+            };
+        } else if (!enableGSTBilling) {
+            // Force exempt if GST billing is disabled
+            taxSlab = { ...taxSlab, rate: 0, taxType: 'EXEMPT', cgstRate: 0, sgstRate: 0, igstRate: 0, cessRate: 0 };
+        }
+
+        // Compute tax breakup using calculator
+        const taxBreakup = gstCalculator.computeItemTax(
+            {
+                quantity: item.quantity,
+                mrp: item.mrp,
+                discount: item.discount || 0
+            },
+            taxSlab,
+            isIgst
+        );
+
+        itemsWithGST.push({
+            ...item,
+            hsnCode: item.drug?.hsnCode || null,
+            taxSlabId: taxSlab.id || null,
+            taxableAmount: taxBreakup.taxableAmount,
+            cgstAmount: taxBreakup.cgstAmount,
+            sgstAmount: taxBreakup.sgstAmount,
+            igstAmount: taxBreakup.igstAmount,
+            cessAmount: taxBreakup.cessAmount,
+            lineTotal: taxBreakup.lineTotal
+        });
     }
+
+    // Compute sale-level totals
+    const saleTaxTotals = gstCalculator.computeSaleTax(itemsWithGST);
+
+    return {
+        items: itemsWithGST,
+        saleTotals: {
+            taxableAmount: saleTaxTotals.taxableAmount,
+            cgstAmount: saleTaxTotals.cgstAmount,
+            sgstAmount: saleTaxTotals.sgstAmount,
+            igstAmount: saleTaxTotals.igstAmount,
+            cessAmount: saleTaxTotals.cessAmount,
+            totalTax: saleTaxTotals.totalTax,
+            isIgst,
+            placeOfSupply,
+            gstrCategory: null // Will be set later
+        }
+    };
+}
 
     /**
      * Enrich sale data with GST fields and handle rounding
      * @private
      */
     async enrichSaleDataWithGST(saleData, gstTotals, customerGstin = null) {
-        let total = saleData.total;
-        let roundOff = 0;
+    let total = saleData.total;
+    let roundOff = 0;
 
-        // Apply auto-rounding if enabled
-        const autoRounding = await configService.getAutoRounding(saleData.storeId);
-        if (autoRounding) {
-            const roundedTotal = Math.round(total);
-            roundOff = roundedTotal - total;
-            total = roundedTotal;
-        }
-
-        return {
-            ...saleData,
-            total: total,
-            roundOff: roundOff,
-            buyerGstin: customerGstin,
-            placeOfSupply: gstTotals.placeOfSupply,
-            isIgst: gstTotals.isIgst,
-            cgstAmount: gstTotals.cgstAmount,
-            sgstAmount: gstTotals.sgstAmount,
-            igstAmount: gstTotals.igstAmount,
-            cessAmount: gstTotals.cessAmount,
-            taxableAmount: gstTotals.taxableAmount,
-            taxAmount: gstTotals.totalTax,
-            gstrCategory: gstCalculator.classifyGSTRCategory({
-                buyerGstin: customerGstin,
-                total: total,
-                isExport: false
-            })
-        };
+    // Apply auto-rounding if enabled
+    const autoRounding = await configService.getAutoRounding(saleData.storeId);
+    if (autoRounding) {
+        const roundedTotal = Math.round(total);
+        roundOff = roundedTotal - total;
+        total = roundedTotal;
     }
+
+    return {
+        ...saleData,
+        total: total,
+        roundOff: roundOff,
+        buyerGstin: customerGstin,
+        placeOfSupply: gstTotals.placeOfSupply,
+        isIgst: gstTotals.isIgst,
+        cgstAmount: gstTotals.cgstAmount,
+        sgstAmount: gstTotals.sgstAmount,
+        igstAmount: gstTotals.igstAmount,
+        cessAmount: gstTotals.cessAmount,
+        taxableAmount: gstTotals.taxableAmount,
+        taxAmount: gstTotals.totalTax,
+        gstrCategory: gstCalculator.classifyGSTRCategory({
+            buyerGstin: customerGstin,
+            total: total,
+            isExport: false
+        })
+    };
+}
 }
 
 module.exports = new SaleService();
