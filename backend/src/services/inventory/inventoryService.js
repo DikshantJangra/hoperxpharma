@@ -450,6 +450,13 @@ class InventoryService {
     async getBatchesWithSuppliers(drugId) {
         return await inventoryRepository.getBatchesWithSuppliers(drugId);
     }
+
+    /**
+     * Get batch history for smart suggest
+     */
+    async getBatchHistory(storeId, drugIds) {
+        return await inventoryRepository.getBatchHistoryForDrugs(storeId, drugIds);
+    }
 }
 
 module.exports = new InventoryService();

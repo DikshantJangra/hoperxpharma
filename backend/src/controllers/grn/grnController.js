@@ -268,7 +268,7 @@ class GRNController {
     async cancelGRN(req, res, next) {
         try {
             const { id } = req.params;
-            const { supplierInvoiceNo, supplierInvoiceDate, notes } = req.body;
+            const { supplierInvoiceNo, supplierInvoiceDate, notes } = req.body || {};
             const userId = req.user.id;
 
             const cancelledGRN = await grnService.cancelGRN({

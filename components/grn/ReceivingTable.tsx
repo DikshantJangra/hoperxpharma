@@ -30,8 +30,43 @@ export default function ReceivingTable({ items, poItems, discrepancies = [], onI
     const [splitItem, setSplitItem] = useState<any | null>(null);
     const [discrepancyItem, setDiscrepancyItem] = useState<any | null>(null);
     const [scanningItem, setScanningItem] = useState<string | null>(null);
+    // Store batch history: drugId -> [{batchNumber, barcode}]
+    const [batchHistory, setBatchHistory] = useState<Record<string, Array<{ batchNumber: string; barcode: string }>>>({});
 
     const { handleKeyDown } = useKeyboardNavigation();
+
+    // Fetch batch history on mount
+    React.useEffect(() => {
+        const loadHistory = async () => {
+            const drugIds = Array.from(new Set(items.map(i => i.drugId)));
+            if (drugIds.length === 0) return;
+
+            try {
+                // Use fetch directly or valid API client
+                // Assuming we have an inventoryApi or similar
+                const token = localStorage.getItem('accessToken');
+                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/inventory/batches/history`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({ drugIds })
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.success) {
+                        setBatchHistory(result.data);
+                    }
+                }
+            } catch (err) {
+                console.error('Failed to load batch history', err);
+            }
+        };
+
+        loadHistory();
+    }, [items.length]); // Run once or when items list significantly changes (initially)
 
     // 1. DUPLICATE CHECK LOGIC
     const checkBarcodeDuplicate = (itemId: string, barcode: string) => {
@@ -39,10 +74,7 @@ export default function ReceivingTable({ items, poItems, discrepancies = [], onI
         const duplicateItem = items.find(i =>
             i.manufacturerBarcode === barcode &&
             i.id !== itemId &&
-            !i.parentItemId // Don't check against split parents, they don't hold stock themselves usually, but children do. 
-            // Better logic: Check ALL flat list. 
-            // Wait, items list includes parents and split children? 
-            // Yes usually. Let's just check against all items where id !== itemId
+            !i.parentItemId
         );
 
         if (duplicateItem) {
@@ -68,33 +100,27 @@ export default function ReceivingTable({ items, poItems, discrepancies = [], onI
         const dupCheck = checkBarcodeDuplicate(itemId, barcode);
         if (dupCheck.status === 'WARNING') {
             toast.warning(dupCheck.message || 'Barcode conflict detected');
-            // We still allow setting it, but user is warned. 
-            // Or should we clear it? User said "Account for above two", enabling reuse for same product.
-            // Implicitly, different product reuse is bad. 
-        } else if (dupCheck.status === 'ALLOWED') {
-            // toast.success(dupCheck.message); // Optional: don't spam toasts
         }
 
         // 2. Update State
         handleFieldUpdate(itemId, 'manufacturerBarcode', barcode);
 
-        // 3. Optional: Verify with backend if it's a real barcode (for feedback only)
-        // We don't block input if offline or API fails
+        // 3. Optional: Verify with backend if it's a real barcode
         if (barcode.length > 5) {
             try {
                 const verification = await scanApi.verifyBarcode(barcode);
                 if (verification.batch) {
-                    // Check against DB
                     const currentItem = items.find(i => i.id === itemId);
                     if (currentItem && currentItem.drugId !== verification.batch.drugId) {
                         toast.error(`Warning: This barcode is registered to ${verification.batch.drugName} in the system!`);
                     }
                 }
             } catch (e) {
-                // Ignore API errors for inline typing checks
+                // Ignore API errors
             }
         }
     };
+
 
     const getStatus = (item: any) => {
         const received = parseFloat(item.receivedQty) || 0;
@@ -116,8 +142,49 @@ export default function ReceivingTable({ items, poItems, discrepancies = [], onI
     };
 
     const handleFieldUpdate = (itemId: string, field: string, value: any) => {
-        // Just pass the value directly to parent without conversion
-        // The parent will handle the conversion when sending to API
+        // Smart Barcode Sync:
+        // If updating batch number, check if we have a known barcode for this batch in history
+        if (field === 'batchNumber' && typeof value === 'string' && value.length > 2) {
+            const item = items.find(i => i.id === itemId);
+            if (item) {
+                const history = batchHistory[item.drugId];
+                if (history) {
+                    const match = history.find(h => h.batchNumber.toLowerCase() === value.toLowerCase());
+                    if (match && match.barcode) {
+                        // Found a match! Auto-fill barcode if currently empty or different
+                        // We update both fields
+                        const updates: any = {
+                            [field]: value,
+                            manufacturerBarcode: match.barcode
+                        };
+                        onItemUpdate(itemId, updates);
+                        return;
+                    } else {
+                        // NO MATCH for this new batch.
+                        // Check if the CURRENT barcode belongs to a DIFFERENT batch in history (i.e. it's the "old" one)
+                        const currentBarcode = item.manufacturerBarcode;
+                        if (currentBarcode) {
+                            const belongsToOther = history.some(h =>
+                                h.barcode === currentBarcode &&
+                                h.batchNumber.toLowerCase() !== value.toLowerCase()
+                            );
+
+                            if (belongsToOther) {
+                                // The current barcode belongs to a different batch in history, so it's likely incorrect for this new batch.
+                                // Clear it so user knows to scan/enter the correct one.
+                                const updates: any = {
+                                    [field]: value,
+                                    manufacturerBarcode: ''
+                                };
+                                onItemUpdate(itemId, updates);
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         const updates: any = {
             [field]: value
         };
@@ -528,8 +595,8 @@ export default function ReceivingTable({ items, poItems, discrepancies = [], onI
                                                         <button
                                                             onClick={() => setScanningItem(child.id)}
                                                             className={`p-1.5 rounded-md transition-colors ${child.manufacturerBarcode
-                                                                    ? 'text-emerald-600 bg-white hover:bg-emerald-100'
-                                                                    : 'text-gray-400 hover:text-gray-600 hover:bg-white'
+                                                                ? 'text-emerald-600 bg-white hover:bg-emerald-100'
+                                                                : 'text-gray-400 hover:text-gray-600 hover:bg-white'
                                                                 }`}
                                                             title="Scan Barcode"
                                                         >

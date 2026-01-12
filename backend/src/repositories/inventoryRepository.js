@@ -498,6 +498,91 @@ SUM(ib."quantityInStock" * ib."purchasePrice") as "totalValue",
 
         return batchesWithSuppliers;
     }
+
+    /**
+     * Find the most recently created or updated batch for a drug in a store
+     * Used for smart pre-filling of GRN
+     */
+    async findLatestBatchForDrug(storeId, drugId) {
+        // Fetch last 5 batches to find the most recent data
+        // We do this because the absolute latest batch might have missing data (e.g. no barcode),
+        // but a slightly older batch might have it. We want the "best" recent suggestions.
+        const batches = await prisma.inventoryBatch.findMany({
+            where: {
+                storeId,
+                drugId,
+                deletedAt: null
+            },
+            orderBy: {
+                createdAt: 'desc'
+            },
+            take: 5
+        });
+
+        if (batches.length === 0) {
+            console.log(`[InvRepo] No previous batches found for drug ${drugId}`);
+            return null;
+        }
+
+        const latestBatch = batches[0];
+        // Find the most recent barcode (it might be in the 2nd or 3rd batch if the latest lacked it)
+        const batchWithBarcode = batches.find(b => b.manufacturerBarcode && b.manufacturerBarcode.trim() !== '');
+
+        // Construct a "smart" result that combines the latest info
+        const smartResult = {
+            ...latestBatch, // Keep all standard fields from the actual latest batch
+            // Use the barcode from the most recent batch that had one, or fallback to the latest batch's (likely null)
+            manufacturerBarcode: batchWithBarcode ? batchWithBarcode.manufacturerBarcode : latestBatch.manufacturerBarcode
+        };
+
+        console.log(`[InvRepo] Smart lookup for drug ${drugId}: Latest Batch=${latestBatch.batchNumber}, Found Barcode=${smartResult.manufacturerBarcode} (from batch ${batchWithBarcode ? batchWithBarcode.batchNumber : 'none'})`);
+
+        return smartResult;
+    }
+
+    /**
+     * Get batch history for specific drugs (for smart suggest)
+     */
+    async getBatchHistoryForDrugs(storeId, drugIds) {
+        // Fetch last 50 batches for these drugs
+        const batches = await prisma.inventoryBatch.findMany({
+            where: {
+                storeId,
+                drugId: { in: drugIds },
+                deletedAt: null,
+                // Only want batches that have a barcode
+                manufacturerBarcode: { not: null }
+            },
+            select: {
+                drugId: true,
+                batchNumber: true,
+                manufacturerBarcode: true,
+                createdAt: true
+            },
+            orderBy: {
+                createdAt: 'desc'
+            },
+            take: 200 // Cap to prevent massive payloads
+        });
+
+        // Group by drugId
+        const history = {};
+        batches.forEach(b => {
+            // Only include if barcode is not empty string
+            if (b.manufacturerBarcode && b.manufacturerBarcode.trim()) {
+                if (!history[b.drugId]) history[b.drugId] = [];
+                // unique batch numbers only
+                if (!history[b.drugId].some(existing => existing.batchNumber === b.batchNumber)) {
+                    history[b.drugId].push({
+                        batchNumber: b.batchNumber,
+                        barcode: b.manufacturerBarcode
+                    });
+                }
+            }
+        });
+
+        return history;
+    }
 }
 
 module.exports = new InventoryRepository();

@@ -24,7 +24,8 @@ export default function BatchSplitModal({ item, drugName, onSplit, onClose }: Ba
             unitPrice: item.unitPrice,
             discountPercent: item.discountPercent,
             discountType: item.discountType || 'BEFORE_GST',
-            gstPercent: item.gstPercent
+            gstPercent: item.gstPercent,
+            manufacturerBarcode: item.manufacturerBarcode || ''
         },
         {
             receivedQty: item.receivedQty - Math.floor(item.receivedQty / 2),
@@ -36,7 +37,8 @@ export default function BatchSplitModal({ item, drugName, onSplit, onClose }: Ba
             unitPrice: item.unitPrice,
             discountPercent: item.discountPercent,
             discountType: item.discountType || 'BEFORE_GST',
-            gstPercent: item.gstPercent
+            gstPercent: item.gstPercent,
+            manufacturerBarcode: item.manufacturerBarcode || ''
         }
     ]);
 
@@ -82,7 +84,8 @@ export default function BatchSplitModal({ item, drugName, onSplit, onClose }: Ba
             unitPrice: item.unitPrice,
             discountPercent: item.discountPercent,
             discountType: item.discountType || 'BEFORE_GST',
-            gstPercent: item.gstPercent || 5
+            gstPercent: item.gstPercent,
+            manufacturerBarcode: item.manufacturerBarcode || ''
         }]);
     };
 
@@ -213,6 +216,18 @@ export default function BatchSplitModal({ item, drugName, onSplit, onClose }: Ba
                                             onChange={(e) => updateSplit(index, 'batchNumber', e.target.value)}
                                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
                                             placeholder="e.g., A2X9"
+                                        />
+                                    </div>
+                                    <div className="col-span-2 sm:col-span-1">
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Barcode
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={(split as any).manufacturerBarcode || ''}
+                                            onChange={(e) => updateSplit(index, 'manufacturerBarcode', e.target.value)}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
+                                            placeholder="Scan/Type..."
                                         />
                                     </div>
                                     <div className="col-span-2 sm:col-span-1">

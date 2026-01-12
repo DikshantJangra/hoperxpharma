@@ -82,7 +82,7 @@ export default function BarcodeScannerModal({ onClose, onScan, onGenerateInterna
 
             const config: Html5QrcodeCameraScanConfig = {
                 fps: 10,
-                qrbox: { width: 280, height: 280 },
+                qrbox: { width: 400, height: 400 },
                 aspectRatio: 1.0,
                 disableFlip: false,
                 // Advanced camera controls
@@ -156,11 +156,11 @@ export default function BarcodeScannerModal({ onClose, onScan, onGenerateInterna
     };
 
     return (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-            <div className="bg-white w-full max-w-md rounded-2xl overflow-hidden shadow-2xl relative">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+            <div className="bg-white w-full max-w-3xl rounded-2xl overflow-hidden shadow-2xl relative flex flex-col max-h-[90vh]">
 
                 {/* Header with Controls */}
-                <div className="flex items-center justify-between p-4 border-b border-gray-100 bg-gradient-to-r from-[#0ea5a3] to-[#0d9391]">
+                <div className="flex-none flex items-center justify-between p-4 border-b border-gray-100 bg-gradient-to-r from-[#0ea5a3] to-[#0d9391]">
                     <div>
                         <h3 className="text-lg font-semibold text-white">Scan Barcode</h3>
                         {scannedItems.length > 0 && (
@@ -209,7 +209,7 @@ export default function BarcodeScannerModal({ onClose, onScan, onGenerateInterna
                 </div>
 
                 {/* Scanner Area */}
-                <div className="relative bg-black h-[420px] flex flex-col justify-center">
+                <div className="relative bg-black flex-grow min-h-[500px] flex flex-col justify-center overflow-hidden">
                     <div id={regionId} className="w-full h-full"></div>
 
                     {/* Guidelines Overlay */}
@@ -240,7 +240,7 @@ export default function BarcodeScannerModal({ onClose, onScan, onGenerateInterna
                 </div>
 
                 {/* Footer - Instructions + Done Button */}
-                <div className="pt-10 pb-6 px-6 bg-gray-50 flex flex-col gap-4 border-t border-gray-100">
+                <div className="flex-none pt-4 pb-6 px-6 bg-gray-50 flex flex-col gap-4 border-t border-gray-100">
                     <div className="text-center">
                         <p className="text-sm font-semibold text-gray-800 tracking-wide">
                             Point camera at barcode. Auto-focus enabled.

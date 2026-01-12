@@ -36,6 +36,9 @@ router.put('/batches/:id', requirePharmacist, validate(batchUpdateSchema), audit
 router.delete('/batches/:id', requirePharmacist, auditLogger.logActivity('BATCH_DELETED', 'batch'), inventoryController.deleteBatch);
 router.patch('/batches/:id/location', requirePharmacist, auditLogger.logActivity('BATCH_LOCATION_UPDATED', 'batch'), inventoryController.updateBatchLocation);
 
+// Batch history for smart suggest
+router.post('/batches/history', inventoryController.getBatchHistory);
+
 /**
  * Drug-specific batch routes
  */

@@ -38,6 +38,78 @@ class GRNService {
             // We need to return the full GRN object including items, similar to what createGRN returns
             // Since getGRNsByPOId might return a lightweight object, let's fetch the full one by ID
             const fullDraftGrn = await grnRepository.getGRNById(draftGrn.id);
+
+            // SMART PRE-FILL FIX FOR EXISTING DRAFTS:
+            // If we are resuming a draft, check if we can fill in any missing "TBD" batch numbers or barcodes
+            // from historical data (in case the draft was created before this feature or data was missing then)
+            try {
+                const itemsToUpdate = [];
+                const drugIds = new Set();
+
+                // Identify items that need updates (TBD batch or missing barcode)
+                for (const item of fullDraftGrn.items) {
+                    // Only update regular items (not splits) that are incomplete
+                    if (!item.isSplit && !item.parentItemId) {
+                        if ((!item.batchNumber || item.batchNumber === 'TBD') || !item.manufacturerBarcode) {
+                            itemsToUpdate.push(item);
+                            drugIds.add(item.drugId);
+                        }
+                    }
+                }
+
+                logger.info(`[GRNService] Resuming draft ${draftGrn.grnNumber}. Found ${itemsToUpdate.length} items needing backfill. Unique drugs: ${drugIds.size}`);
+
+                if (itemsToUpdate.length > 0) {
+                    const uniqueDrugIds = Array.from(drugIds);
+                    const inventoryRepository = require('../../repositories/inventoryRepository');
+
+                    // Fetch latest batches in parallel
+                    const latestBatches = await Promise.all(
+                        uniqueDrugIds.map(drugId => inventoryRepository.findLatestBatchForDrug(po.storeId, drugId))
+                    );
+
+                    const batchMap = {};
+                    uniqueDrugIds.forEach((id, index) => {
+                        batchMap[id] = latestBatches[index];
+                    });
+
+                    // Apply updates to items
+                    const updatePromises = itemsToUpdate.map(async (item) => {
+                        const latest = batchMap[item.drugId];
+
+                        if (latest) {
+                            const updates = {};
+
+                            // Only update if currently TBD/empty and we have a value
+                            if ((!item.batchNumber || item.batchNumber === 'TBD') && latest.batchNumber) {
+                                updates.batchNumber = latest.batchNumber;
+                            }
+
+                            // Only update if currently empty and we have a value
+                            if (!item.manufacturerBarcode && latest.manufacturerBarcode) {
+                                updates.manufacturerBarcode = latest.manufacturerBarcode;
+                            }
+
+                            if (Object.keys(updates).length > 0) {
+                                logger.info(`[GRNService] Backfilling item ${item.id} (Drug: ${item.drugId}) with: ${JSON.stringify(updates)}`);
+                                return grnRepository.updateGRNItem(draftGrn.id, item.id, updates);
+                            }
+                        } else {
+                            logger.info(`[GRNService] No historical data for drug ${item.drugId}`);
+                        }
+                        return null;
+                    });
+
+                    await Promise.all(updatePromises);
+
+                    // If we made updates, refetch the GRN to return the latest state
+                    return await grnRepository.getGRNById(draftGrn.id);
+                }
+            } catch (err) {
+                logger.error('Error auto-filling draft GRN:', err);
+                // Fallback to returning original draft if auto-fill fails
+            }
+
             return fullDraftGrn;
         }
 
@@ -53,22 +125,40 @@ class GRNService {
                 const placeholderExpiry = new Date();
                 placeholderExpiry.setFullYear(placeholderExpiry.getFullYear() + 1);
 
-                const grnItems = po.items.map(poItem => ({
-                    poItemId: poItem.id,
-                    drugId: poItem.drugId,
-                    orderedQty: poItem.quantity,
-                    receivedQty: poItem.quantity - (poItem.receivedQty || 0), // Default to remaining qty
-                    freeQty: 0,
-                    rejectedQty: 0,
-                    batchNumber: 'TBD', // To be filled by user
-                    expiryDate: null, // Empty - user will fill during receiving
-                    mrp: poItem.drug?.mrp || 0, // Get from drug master or to be filled by user
-                    unitPrice: poItem.unitPrice,
-                    discountPercent: poItem.discountPercent,
-                    discountType: 'BEFORE_GST', // Default discount type
-                    gstPercent: poItem.gstPercent,
-                    lineTotal: 0 // Will be calculated
-                }));
+                // Fetch latest batch info for all drugs in parallel to pre-fill known values
+                const drugIds = po.items.map(i => i.drugId);
+                const latestBatches = await Promise.all(
+                    drugIds.map(drugId => require('../../repositories/inventoryRepository').findLatestBatchForDrug(po.storeId, drugId))
+                );
+
+                // Create a map for quick lookup: drugId -> latestBatch
+                const batchMap = {};
+                po.items.forEach((item, index) => {
+                    batchMap[item.drugId] = latestBatches[index];
+                });
+
+                const grnItems = po.items.map(poItem => {
+                    const latestBatch = batchMap[poItem.drugId];
+
+                    return {
+                        poItemId: poItem.id,
+                        drugId: poItem.drugId,
+                        orderedQty: poItem.quantity,
+                        receivedQty: poItem.quantity - (poItem.receivedQty || 0), // Default to remaining qty
+                        freeQty: 0,
+                        rejectedQty: 0,
+                        // SMART PRE-FILL: Use last known batch number if available, else 'TBD'
+                        batchNumber: latestBatch ? latestBatch.batchNumber : 'TBD',
+                        expiryDate: null, // Empty - user will fill during receiving
+                        mrp: poItem.drug?.mrp || 0, // Get from drug master or to be filled by user
+                        unitPrice: poItem.unitPrice,
+                        discountPercent: poItem.discountPercent,
+                        discountType: 'BEFORE_GST', // Default discount type
+                        gstPercent: poItem.gstPercent,
+                        manufacturerBarcode: latestBatch ? latestBatch.manufacturerBarcode : null, // SMART PRE-FILL
+                        lineTotal: 0 // Will be calculated
+                    };
+                });
 
                 // Create GRN
                 grn = await grnRepository.createGRN({

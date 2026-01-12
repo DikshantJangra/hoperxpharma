@@ -233,6 +233,21 @@ const getBatchesWithSuppliers = asyncHandler(async (req, res) => {
     res.status(response.statusCode).json(response);
 });
 
+/**
+ * Get batch history for smart suggest
+ */
+const getBatchHistory = asyncHandler(async (req, res) => {
+    const { drugIds } = req.body; // POST to allow body with array properly
+
+    if (!drugIds || !Array.isArray(drugIds)) {
+        return res.status(400).json(ApiResponse.error('drugIds array is required'));
+    }
+
+    const history = await inventoryService.getBatchHistory(req.storeId, drugIds);
+    const response = ApiResponse.success(history);
+    res.status(response.statusCode).json(response);
+});
+
 module.exports = {
     getDrugs,
     getDrugById,
@@ -251,4 +266,5 @@ module.exports = {
     searchDrugsForPOS,
     updateBatchLocation,
     getBatchesWithSuppliers,
+    getBatchHistory,
 };
