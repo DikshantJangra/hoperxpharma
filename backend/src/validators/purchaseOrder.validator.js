@@ -116,6 +116,7 @@ const poQuerySchema = Joi.object({
     limit: Joi.number().min(1).max(100).optional(),
     status: Joi.string().optional(), // Can be single or comma-separated values like "SENT,PARTIALLY_RECEIVED"
     supplierId: Joi.string().optional(),
+    storeId: Joi.string().optional(),
     search: Joi.string().optional()
 });
 

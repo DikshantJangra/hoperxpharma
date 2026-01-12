@@ -29,6 +29,7 @@ export interface POLine {
   preferredBatch?: string;
   notes?: string;
   moq?: number;
+  currentStock?: number;
 }
 
 export interface PurchaseOrder {

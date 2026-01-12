@@ -82,6 +82,8 @@ jobs:
           GOOGLE_CLIENT_SECRET: test-google-client-secret-for-ci
           API_KEY: test-gemini-key-for-ci
           FRONTEND_URL: http://localhost:3000
+          WHATSAPP_ENCRYPTION_KEY: test-whatsapp-enc-key-32-chars-min
+          SMTP_ENCRYPTION_KEY: test-smtp-enc-key-32-chars-minnnnn
         run: |
           cd backend
           node src/server.js > /tmp/backend.log 2>&1 &

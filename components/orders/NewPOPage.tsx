@@ -26,6 +26,8 @@ export default function NewPOPage({ storeId, poId }: NewPOPageProps) {
   const { primaryStore } = useAuthStore();
   const [showSuggestions, setShowSuggestions] = useState(true);
   const [isLoadingPO, setIsLoadingPO] = useState(!!poId);
+  // Initialize loading to TRUE if we are creating a new PO (no poId), so we see skeleton immediately
+  const [suggestionsLoading, setSuggestionsLoading] = useState(!poId);
 
   // Build store address from primaryStore
   const storeAddress = primaryStore ? [
@@ -58,7 +60,8 @@ export default function NewPOPage({ storeId, poId }: NewPOPageProps) {
     if (poId) {
       loadExistingPO(poId);
     } else {
-      loadSuggestions();
+      // Load suggestions and then turn off loading
+      loadSuggestions().finally(() => setSuggestionsLoading(false));
     }
   }, [poId]);
 
@@ -182,7 +185,7 @@ export default function NewPOPage({ storeId, poId }: NewPOPageProps) {
 
       // Redirect to orders list
       setTimeout(() => {
-        router.push('/orders');
+        router.push('/orders/pending');
       }, 1500);
     } catch (error: any) {
       toast.error(error.message || 'Failed to send PO');
@@ -301,6 +304,7 @@ export default function NewPOPage({ storeId, poId }: NewPOPageProps) {
             <div className="w-80 sticky top-6">
               <SuggestionsPanel
                 suggestions={suggestions}
+                isLoading={suggestionsLoading}
                 onAddItem={addLine}
                 storeId={storeId}
               />

@@ -207,8 +207,10 @@ class DrugRepository {
                 d.name,
                 d.strength,
                 d.form,
+                -- Construct description for frontend compatibility
+                TRIM(CONCAT(d.name, ' ', COALESCE(d.strength, ''), ' ', COALESCE(d.form, ''))) as "description",
                 d.manufacturer,
-                d."lowStockThreshold" as threshold,
+                COALESCE(d."lowStockThreshold", 10) as threshold,
                 d."gstRate" as "gstPercent",
                 d."defaultUnit" as "defaultUnit",
                 COALESCE(SUM(ib."quantityInStock"), 0)::int as "currentStock",
@@ -227,12 +229,12 @@ class DrugRepository {
                 AND ib."storeId" = ${storeId}
                 AND ib."deletedAt" IS NULL
             WHERE d."storeId" = ${storeId}
-                AND d."lowStockThreshold" IS NOT NULL
+                -- Removed strict NULL check to allow smart defaults
             GROUP BY d.id, d.name, d.strength, d.form, d.manufacturer, d."lowStockThreshold", d."gstRate", d."defaultUnit"
-            HAVING COALESCE(SUM(ib."quantityInStock"), 0) < d."lowStockThreshold"
+            HAVING COALESCE(SUM(ib."quantityInStock"), 0) < COALESCE(d."lowStockThreshold", 10)
             ORDER BY 
                 CASE WHEN COALESCE(SUM(ib."quantityInStock"), 0) = 0 THEN 0 ELSE 1 END,
-                COALESCE(SUM(ib."quantityInStock"), 0)::float / NULLIF(d."lowStockThreshold", 0)
+                COALESCE(SUM(ib."quantityInStock"), 0)::float / NULLIF(COALESCE(d."lowStockThreshold", 10), 0)
             LIMIT 100
         `;
 
@@ -243,6 +245,7 @@ class DrugRepository {
             strength: item.strength,
             form: item.form,
             manufacturer: item.manufacturer,
+            description: item.description,
             currentStock: item.currentStock,
             threshold: item.threshold,
             suggestedQty: Math.max(0, item.threshold - item.currentStock),

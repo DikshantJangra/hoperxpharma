@@ -12,7 +12,10 @@ interface LineItemRowProps {
 }
 
 export default function LineItemRow({ line, onChange, onRemove, supplier }: LineItemRowProps) {
-  const formatCurrency = (amount: number) => `₹${amount.toFixed(2)}`;
+  const formatCurrency = (amount: any) => {
+    const val = Number(amount);
+    return isNaN(val) ? '₹0.00' : `₹${val.toFixed(2)}`;
+  };
 
   const handleFieldChange = (field: keyof POLine, value: any) => {
     onChange({ [field]: value });
@@ -37,11 +40,7 @@ export default function LineItemRow({ line, onChange, onRemove, supplier }: Line
       <td className="px-4 py-3">
         <div>
           <div className="text-sm font-medium text-gray-900">{line.description}</div>
-          {line.suggestedQty && (
-            <div className="text-xs text-blue-600 mt-0.5">
-              Suggested: {line.suggestedQty} ({line.reorderReason})
-            </div>
-          )}
+
           {line.lastPurchasePrice && (
             <div className="text-xs text-gray-500 mt-0.5">
               Last price: {formatCurrency(line.lastPurchasePrice)}
