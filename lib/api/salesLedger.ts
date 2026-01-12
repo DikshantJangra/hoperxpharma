@@ -45,6 +45,35 @@ export async function getSummary(from: string, to: string): Promise<SalesSummary
 }
 
 /**
+ * Get margin stats for date range (Owner/Admin only)
+ */
+export async function getMarginStats(from: string, to: string): Promise<import('@/types/finance').MarginStats | null> {
+    try {
+        const params = new URLSearchParams();
+        params.append('startDate', from);
+        params.append('endDate', to);
+        const result = await apiClient.get(`/margin/stats?${params.toString()}`);
+        return result.data;
+    } catch (e) {
+        // Return null if 403 or other error, handled gracefully by UI
+        return null;
+    }
+}
+
+/**
+ * Estimate margin for provisional items (Owner/Admin only)
+ */
+export async function estimateMargin(items: any[]): Promise<import('@/types/finance').MarginStats | null> {
+    try {
+        const result = await apiClient.post('/margin/estimate', { items });
+        return result.data;
+    } catch (e) {
+        // Return null if 403 or other error
+        return null;
+    }
+}
+
+/**
  * Get match candidates for reconciliation
  */
 export async function getMatchCandidates(ledgerId: string): Promise<any[]> {

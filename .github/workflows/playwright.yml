@@ -54,7 +54,12 @@ jobs:
           npx --package=prisma@6.18.0 prisma generate
           npx --package=prisma@6.18.0 prisma db push --accept-data-loss --skip-generate
           cd ..
-          npx --package=prisma@6.18.0 prisma generate --schema=./backend/prisma/schema.prisma
+          # Manually copy generated client from backend to root to ensure compatibility
+          # This mimics the local fix that resolved the "did not initialize" error
+          rm -rf node_modules/.prisma
+          cp -r backend/node_modules/.prisma node_modules/
+          rm -rf node_modules/@prisma/client
+          cp -r backend/node_modules/@prisma/client node_modules/@prisma/
 
       - name: Build application
         env:
@@ -79,19 +84,23 @@ jobs:
           FRONTEND_URL: http://localhost:3000
         run: |
           cd backend
-          node src/server.js &
+          node src/server.js > /tmp/backend.log 2>&1 &
           BACKEND_PID=$!
           echo "Backend started with PID: $BACKEND_PID"
           
           # Wait for backend to be ready (retry up to 30 seconds)
+          # Wait for backend to be ready (retry up to 30 seconds)
           for i in {1..30}; do
-            if curl -f http://localhost:8000/api/v1/health 2>/dev/null; then
+            if curl -f http://127.0.0.1:8000/api/v1/health 2>/dev/null; then
               echo "✅ Backend is healthy"
-              break
+              exit 0
             fi
             echo "Waiting for backend... ($i/30)"
             sleep 1
           done
+          echo "❌ Backend failed to start. Logs:"
+          cat /tmp/backend.log || true
+          exit 1
 
       - name: Start frontend server
         env:
@@ -118,7 +127,8 @@ jobs:
           PLAYWRIGHT_API_URL: http://localhost:8000
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/hoperx_test
           DIRECT_URL: postgresql://postgres:postgres@localhost:5432/hoperx_test
-        run: npx playwright test
+        run: |
+          npx playwright test || (echo "❌ Tests failed. Backend logs:" && cat /tmp/backend.log)
 
       - name: Upload test results
         uses: actions/upload-artifact@v4

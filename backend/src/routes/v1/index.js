@@ -97,6 +97,7 @@ router.use('/scan', scanRoutes); // Indian Pharmacy System - Barcode/QR scanning
 router.use('/fefo', fefoRoutes); // Indian Pharmacy System - FEFO logic
 router.use('/behavioral', behavioralRoutes); // Indian Pharmacy System - Behavioral analytics
 router.use('/location', locationRoutes); // Indian Pharmacy System - Location intelligence
+router.use('/margin', require('../margin.routes')); // Margin & Profit Visibility System
 
 
 

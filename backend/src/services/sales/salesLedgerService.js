@@ -17,6 +17,8 @@ class SalesLedgerService {
         paymentMethod,
         reconStatus,
         tags,
+        sortBy = 'date',
+        sortDirection = 'desc',
         page = 1,
         limit = 50
     }) {

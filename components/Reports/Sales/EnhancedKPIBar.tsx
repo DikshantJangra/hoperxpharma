@@ -10,12 +10,16 @@ import {
     HiOutlineUsers
 } from 'react-icons/hi2';
 
+import SecureMarginReveal from '@/components/common/SecureMarginReveal';
+import { MarginStats } from '@/types/finance';
+
 interface EnhancedKPIBarProps {
     kpis: KPIMetrics;
+    marginStats?: MarginStats | null;
     onKPIClick?: (kpi: string) => void;
 }
 
-export default function EnhancedKPIBar({ kpis, onKPIClick }: EnhancedKPIBarProps) {
+export default function EnhancedKPIBar({ kpis, marginStats, onKPIClick }: EnhancedKPIBarProps) {
     const formatCurrency = (amt: number) => `₹${amt.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
     const formatNumber = (num: number) => num.toLocaleString('en-IN');
 
@@ -92,7 +96,7 @@ export default function EnhancedKPIBar({ kpis, onKPIClick }: EnhancedKPIBarProps
 
     return (
         <div className="bg-white border-b border-gray-200 px-6 py-5">
-            <div className="grid grid-cols-5 gap-4">
+            <div className={`grid ${marginStats ? 'grid-cols-6' : 'grid-cols-5'} gap-4`}>
                 {kpiCards.map(card => {
                     const Icon = card.icon;
                     const delta = formatDelta(card.delta);
@@ -135,6 +139,41 @@ export default function EnhancedKPIBar({ kpis, onKPIClick }: EnhancedKPIBarProps
                         </button>
                     );
                 })}
+
+                {/* Secure Margin Card */}
+                {marginStats && (
+                    <div className="bg-emerald-50 border border-emerald-200 p-4 rounded-lg hover:shadow-md transition-all duration-200 text-left transform hover:-translate-y-0.5">
+                        {/* Header */}
+                        <div className="flex items-center justify-between mb-3">
+                            <span className="text-xs uppercase tracking-wider text-gray-600 font-semibold">
+                                Profit
+                            </span>
+                            <div className="p-2 rounded-lg bg-emerald-100 border border-emerald-200">
+                                <HiOutlineCurrencyRupee className="h-4 w-4 text-emerald-600" />
+                            </div>
+                        </div>
+
+                        {/* Value - Secure Reveal */}
+                        <div className="mb-1 h-8 flex items-center overflow-hidden">
+                            <SecureMarginReveal
+                                value={marginStats.totalMargin}
+                                label=""
+                                blurIntensity="medium"
+                            />
+                        </div>
+
+                        {/* Subtext - Net Margin */}
+                        <div className="text-sm text-gray-600 flex items-center gap-1">
+                            <span>Net:</span>
+                            <SecureMarginReveal
+                                value={marginStats.netMarginPercent}
+                                label=""
+                                isCurrency={false}
+                                blurIntensity="medium"
+                            />
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

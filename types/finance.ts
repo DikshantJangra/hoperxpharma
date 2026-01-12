@@ -34,6 +34,13 @@ export interface SalesSummary {
   reconRate: number;
 }
 
+export interface MarginStats {
+  totalMargin: number;
+  totalRevenue: number;
+  totalCost: number;
+  netMarginPercent: number;
+}
+
 export interface BankTransaction {
   id: string;
   date: string;

@@ -24,6 +24,7 @@ export default function EnterprisePageContent() {
   const [error, setError] = useState<string | null>(null);
 
   const [reportData, setReportData] = useState<SalesAnalytics.CompleteReport | null>(null);
+  const [marginStats, setMarginStats] = useState<import('@/types/finance').MarginStats | null>(null); // [NEW] Margin Stats State
 
   // Fetch complete report
   useEffect(() => {
@@ -31,12 +32,51 @@ export default function EnterprisePageContent() {
       setIsLoading(true);
       setError(null);
       try {
-        const data = await SalesAnalytics.getCompleteReport({
-          datePreset,
-          customStart: datePreset === 'custom' ? customStart : undefined,
-          customEnd: datePreset === 'custom' ? customEnd : undefined
-        });
+        // Fetch report and margin stats in parallel
+        const { inventoryApi } = await import('@/lib/api/inventory'); // Ensure api is imported if needed, but here we need salesLedgerApi
+        const salesLedgerApi = await import('@/lib/api/salesLedger');
+
+        // Calculate date range for margin stats
+        // Note: SalesAnalytics.processDateRange is private, so we might need to rely on the API request's internal dates or pass the presets.
+        // But getMarginStats expects actual strings. 
+        // For 'custom', we have customStart/End. For presets, we need to calculate.
+        // Let's use the date logic from SalesPage/SalesLedgerService if possible, or just pass the same args if getMarginStats supported presets (it doesn't).
+        // Simpler: Let's import the date helper or reimplement simple conversion here.
+
+        const getDates = (preset: DatePreset, start: string, end: string) => {
+          const today = new Date();
+          let fromDate = new Date();
+          let toDate = new Date();
+
+          if (preset === 'custom') {
+            return { from: start, to: end };
+          }
+
+          if (preset === 'today') {
+            // fromDate is today 00:00
+          } else if (preset === '7d') {
+            fromDate.setDate(today.getDate() - 7);
+          } else if (preset === '30d') {
+            fromDate.setDate(today.getDate() - 30);
+          } else if (preset === 'mtd') {
+            fromDate = new Date(today.getFullYear(), today.getMonth(), 1);
+          }
+          return { from: fromDate.toISOString().split('T')[0], to: toDate.toISOString().split('T')[0] };
+        };
+
+        const { from, to } = getDates(datePreset, customStart, customEnd);
+
+        const [data, marginData] = await Promise.all([
+          SalesAnalytics.getCompleteReport({
+            datePreset,
+            customStart: datePreset === 'custom' ? customStart : undefined,
+            customEnd: datePreset === 'custom' ? customEnd : undefined
+          }),
+          salesLedgerApi.getMarginStats(from, to)
+        ]);
+
         setReportData(data);
+        setMarginStats(marginData);
       } catch (err) {
         console.error('Failed to fetch sales report:', err);
         setError('Failed to load sales report. Please try again.');
@@ -226,6 +266,7 @@ export default function EnterprisePageContent() {
           {/* KPI Row */}
           <EnhancedKPIBar
             kpis={reportData.kpis}
+            marginStats={marginStats}
             onKPIClick={(kpi) => console.log('KPI clicked:', kpi)}
           />
 

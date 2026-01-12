@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { supplierInvoiceApi, EligibleItem } from '@/lib/api/supplierInvoices';
+import { apiClient } from '@/lib/api/client';
 import { HiOutlineCheckCircle, HiOutlineArrowRight } from 'react-icons/hi2';
 
 export default function NewSupplierInvoicePage() {
@@ -38,8 +39,7 @@ export default function NewSupplierInvoicePage() {
 
     const fetchSuppliers = async () => {
         try {
-            const response = await fetch('/api/v1/suppliers');
-            const data = await response.json();
+            const data = await apiClient.get('/suppliers');
             setSuppliers(data.data || []);
         } catch (error) {
             console.error('Error fetching suppliers:', error);

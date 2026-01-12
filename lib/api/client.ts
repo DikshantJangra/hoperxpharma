@@ -78,30 +78,32 @@ function isTokenExpiringSoon(token: string): boolean {
 let isRefreshing = false;
 let refreshPromise: Promise<void> | null = null;
 let lastRefreshAttempt = 0;
-const REFRESH_COOLDOWN = 5000; // 5 second cooldown between refresh attempts
+let lastSuccessfulRefresh = 0;
+const REFRESH_COOLDOWN = 10000; // 10 second cooldown between refresh attempts
+const MIN_TOKEN_LIFETIME = 60000; // Don't refresh if token was refreshed less than 1 minute ago
 
 async function refreshTokenIfNeeded(): Promise<void> {
-    // CRITICAL: If a refresh is already in progress, wait for it to complete
-    // This prevents the token refresh storm
+    const now = Date.now();
+    
+    // CRITICAL: If a refresh is already in progress, wait for it
     if (isRefreshing && refreshPromise) {
         return refreshPromise;
     }
 
-    const token = tokenManager.getAccessToken();
-    const now = Date.now();
-
-    // Cooldown check to prevent refresh spam
+    // Prevent refresh spam - enforce cooldown
     if (now - lastRefreshAttempt < REFRESH_COOLDOWN) {
         return;
     }
 
-    // If no token in memory, try to refresh from httpOnly cookie
-    if (!token) {
-        // Double check that we're not already refreshing (race condition protection)
-        if (isRefreshing && refreshPromise) {
-            return refreshPromise;
-        }
+    // Don't refresh if we just refreshed successfully
+    if (now - lastSuccessfulRefresh < MIN_TOKEN_LIFETIME) {
+        return;
+    }
 
+    const token = tokenManager.getAccessToken();
+
+    // If no token in memory, try to refresh from httpOnly cookie (only once on page load)
+    if (!token) {
         isRefreshing = true;
         lastRefreshAttempt = now;
         refreshPromise = (async () => {
@@ -113,13 +115,13 @@ async function refreshTokenIfNeeded(): Promise<void> {
                 });
 
                 if (!response.ok) {
-                    // Silently fail - user needs to login
                     return;
                 }
 
                 const data = await response.json();
                 if (data?.data?.accessToken) {
                     tokenManager.saveTokens(data.data.accessToken, data.data.refreshToken);
+                    lastSuccessfulRefresh = Date.now();
                 }
             } catch (error) {
                 // Silently fail on initial load
@@ -134,16 +136,10 @@ async function refreshTokenIfNeeded(): Promise<void> {
 
     // If token exists but expiring soon, refresh it
     if (isTokenExpiringSoon(token)) {
-        // Double check that we're not already refreshing (race condition protection)
-        if (isRefreshing && refreshPromise) {
-            return refreshPromise;
-        }
-
         isRefreshing = true;
         lastRefreshAttempt = now;
         refreshPromise = (async () => {
             try {
-                console.log('Refreshing access token...');
                 const response = await fetch(`${config.baseURL}/auth/refresh`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -152,24 +148,18 @@ async function refreshTokenIfNeeded(): Promise<void> {
 
                 if (!response.ok) {
                     const errorData = await response.json().catch(() => ({}));
-                    console.error('Token refresh failed:', response.status, errorData.message);
                     throw new Error(errorData.message || 'Token refresh failed');
                 }
 
                 const data = await response.json();
                 if (data?.data?.accessToken) {
                     tokenManager.saveTokens(data.data.accessToken, data.data.refreshToken);
-                    console.log('Access token refreshed successfully');
-                } else {
-                    console.error('Token refresh response missing accessToken');
+                    lastSuccessfulRefresh = Date.now();
                 }
             } catch (error: any) {
-                console.error('RefreshToken logic caught error:', error.message);
                 if (error.message.includes('Unauthorized') ||
                     error.message.includes('unauthenticated') ||
-                    error.message.includes('expired') ||
-                    error.message.includes('start with') ||
-                    error.message.includes('required')) {
+                    error.message.includes('expired')) {
                     handleRefreshError(error);
                 }
             } finally {

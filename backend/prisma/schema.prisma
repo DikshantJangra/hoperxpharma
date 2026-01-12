@@ -253,6 +253,7 @@ model Store {
   ledger              CustomerLedger[]
   emailAccounts       EmailAccount[]
   payments            Payment[]
+  marginLedger        MarginLedger[]
 
   @@index([email])
   @@index([deletedAt])
@@ -644,6 +645,7 @@ model Drug {
   ingestionStatus          DrugIngestionStatus       @default(ACTIVE)
   stripImageUrl            String?
   ocrMetadata              Json?
+  marginLedger             MarginLedger[]
 
   @@index([name])
   @@index([hsnCode])
@@ -734,6 +736,7 @@ model InventoryBatch {
   prescriptionItemVersions PrescriptionItemVersion[]
   barcodes                 BarcodeRegistry[]
   partialStrips            PartialStripInventory[]
+  marginLedger             MarginLedger[]
 
   @@unique([storeId, batchNumber, drugId])
   @@index([storeId, drugId])
@@ -1612,6 +1615,7 @@ model Sale {
   paymentSplits        PaymentSplit[]
   refunds              SaleRefund[]
   allocations          InvoiceAllocation[]
+  marginLedger         MarginLedger[]
 
   @@index([storeId, createdAt, status])
   @@index([storeId, patientId, createdAt])
@@ -1658,6 +1662,7 @@ model SaleItem {
   sale               Sale           @relation(fields: [saleId], references: [id], onDelete: Cascade)
   drug               Drug           @relation(fields: [drugId], references: [id])
   batch              InventoryBatch @relation(fields: [batchId], references: [id])
+  marginLedger       MarginLedger[]
 
   @@index([saleId])
   @@index([hsnCode])
@@ -2039,6 +2044,49 @@ model WhatsAppAccount {
 
   @@index([phoneNumberId])
   @@index([storeId, status])
+}
+
+model MarginLedger {
+  id              String   @id @default(cuid())
+  storeId         String
+  saleId          String
+  saleItemId      String
+  batchId         String
+  drugId          String
+  
+  // Financials (Per Unit)
+  costPrice       Decimal  @db.Decimal(12, 4) // High precision for partials
+  sellingPrice    Decimal  @db.Decimal(12, 4)
+  taxAmount       Decimal  @db.Decimal(10, 2)
+  
+  // Totals
+  quantity        Decimal  @db.Decimal(10, 2) // Supports partial strips
+  totalCost       Decimal  @db.Decimal(12, 2)
+  totalRevenue    Decimal  @db.Decimal(12, 2)
+  marginAmount    Decimal  @db.Decimal(12, 2)
+  
+  // Meta
+  marginPercent   Decimal  @db.Decimal(6, 2)
+  isProvisional   Boolean  @default(false)
+  type            String   @default("SALE") // SALE, RETURN, ADJUSTMENT
+  notes           String?
+  
+  // Timestamps
+  finalizedAt     DateTime @default(now())
+  createdAt       DateTime @default(now())
+  
+  // Relations
+  store           Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  drug            Drug           @relation(fields: [drugId], references: [id])
+  batch           InventoryBatch @relation(fields: [batchId], references: [id])
+  sale            Sale           @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  saleItem        SaleItem       @relation(fields: [saleItemId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, finalizedAt])
+  @@index([saleId])
+  @@index([drugId])
+  @@index([batchId])
+  @@index([type])
 }
 
 model Conversation {

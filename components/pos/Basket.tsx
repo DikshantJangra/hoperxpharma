@@ -15,6 +15,7 @@ import { FiMinus, FiPlus, FiX, FiTag, FiChevronDown, FiPercent, FiTrash, FiAlert
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { usePremiumTheme } from '@/lib/hooks/usePremiumTheme';
 import { formatUnitName, formatStockQuantity, renderStockQuantity } from '@/lib/utils/stock-display';
+import { useAuthStore } from '@/lib/store/auth-store';
 
 export default function Basket({ items, onUpdateItem, onRemoveItem, onClear, onEditBatch }: any) {
   const [expandedItem, setExpandedItem] = useState<number | null>(null);
@@ -498,6 +499,7 @@ export default function Basket({ items, onUpdateItem, onRemoveItem, onClear, onE
               <span className="text-sm text-[#64748b]">Subtotal ({items.length} items)</span>
               <span className={`font-semibold text-lg ${isPremium ? 'text-emerald-700' : 'text-[#0f172a]'}`}>₹{subtotal.toFixed(2)}</span>
             </div>
+
             <button
               onClick={() => setShowClearDialog(true)}
               className="w-full py-2 text-sm font-medium text-[#ef4444] border border-[#fecaca] rounded-lg hover:bg-[#fef2f2] flex items-center justify-center gap-1 transition-colors"

@@ -34,6 +34,7 @@ export default function SalesPage({ storeId }: SalesPageProps) {
   });
 
   const [rows, setRows] = useState<LedgerRow[]>([]);
+  const [marginStats, setMarginStats] = useState<import('@/types/finance').MarginStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -48,13 +49,15 @@ export default function SalesPage({ storeId }: SalesPageProps) {
 
       try {
         // Fetch summary and ledger in parallel
-        const [summaryData, ledgerData] = await Promise.all([
+        const [summaryData, ledgerData, marginData] = await Promise.all([
           salesLedgerApi.getSummary(filters.from!, filters.to!),
-          salesLedgerApi.getLedger(filters)
+          salesLedgerApi.getLedger(filters),
+          salesLedgerApi.getMarginStats(filters.from!, filters.to!)
         ]);
 
         setSummary(summaryData);
         setRows(ledgerData.rows);
+        setMarginStats(marginData);
       } catch (err: any) {
         console.error('Error fetching sales data:', err);
         setError(err.message || 'Failed to load sales data');
@@ -140,6 +143,7 @@ export default function SalesPage({ storeId }: SalesPageProps) {
     <div className="min-h-screen bg-gray-50">
       <SalesHeaderKPIs
         summary={summary}
+        marginStats={marginStats}
         dateRange={{ from: filters.from!, to: filters.to! }}
         onDateChange={handleDateChange}
         onKPIClick={handleKPIClick}

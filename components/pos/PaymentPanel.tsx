@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { FiUser, FiCreditCard, FiSmartphone, FiDollarSign, FiUserPlus, FiClock, FiSearch, FiX, FiCheck } from 'react-icons/fi';
 import { BsWallet2 } from 'react-icons/bs';
 import ProcessingLoader from './animations/ProcessingLoader';
+import ExposeMarginEstimate from './ExposeMarginEstimate';
 
 export default function PaymentPanel({
   basketItems,
@@ -349,7 +350,7 @@ export default function PaymentPanel({
 
   return (
     <div className="h-full flex flex-col bg-[#f0f9ff]/30">
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-8">
         <div className="grid grid-cols-2 gap-3">
           <div className={`col-span-2 rounded-lg p-3 border transition-colors ${customer ? 'bg-white border-indigo-200' : 'bg-white border-gray-200 hover:border-indigo-300'}`}>
             <div className="flex items-center justify-between mb-1">
@@ -835,6 +836,8 @@ export default function PaymentPanel({
               </button>
             ))}
           </div>
+          {/* Provisional Profit Check (Owner Only) - Placed at bottom of scrollable area */}
+          <ExposeMarginEstimate items={basketItems} />
         </div>
       </div>
 
@@ -889,8 +892,8 @@ export default function PaymentPanel({
             }}
             disabled={basketItems.length === 0 || actionState.status !== 'idle'}
             className={`py-2.5 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2 ${actionState.name === 'split' && actionState.status === 'loading'
-                ? 'bg-gray-100 text-gray-700 border border-gray-300'
-                : 'text-gray-700 bg-gray-50 border border-gray-200 hover:bg-gray-100'
+              ? 'bg-gray-100 text-gray-700 border border-gray-300'
+              : 'text-gray-700 bg-gray-50 border border-gray-200 hover:bg-gray-100'
               }`}
           >
             {actionState.name === 'split' && actionState.status === 'loading' && <ProcessingLoader size="sm" color="gray" />}

@@ -2,14 +2,15 @@
 
 import { motion } from 'framer-motion';
 
-export default function ProcessingLoader({ size = "sm", color = "white" }: { size?: "sm" | "md" | "lg", color?: "white" | "blue" | "teal" }) {
+export default function ProcessingLoader({ size = "sm", color = "white" }: { size?: "sm" | "md" | "lg", color?: "white" | "blue" | "teal" | "gray" }) {
     const dotSize = size === "sm" ? 6 : size === "md" ? 8 : 10;
     const containerHeight = size === "sm" ? 20 : size === "md" ? 24 : 32;
 
     const bgColors = {
         white: "bg-white",
         blue: "bg-blue-600",
-        teal: "bg-teal-600"
+        teal: "bg-teal-600",
+        gray: "bg-gray-500"
     };
 
     return (
