@@ -8,6 +8,13 @@ import PrescriberSelect from './PrescriberSelect';
 import BatchModal from '@/components/pos/BatchModal';
 import toast from 'react-hot-toast';
 import { useKeyboardCommand } from '@/hooks/useKeyboardCommand';
+import { formatStockQuantity, formatUnitName } from '@/lib/utils/stock-display';
+import dynamic from 'next/dynamic';
+import { scanApi } from '@/lib/api/scan';
+import { useBarcodeScanner } from '@/hooks/useBarcodeScanner';
+import { BsUpcScan } from 'react-icons/bs';
+
+const BarcodeScannerModal = dynamic(() => import('@/components/pos/BarcodeScannerModal'), { ssr: false });
 
 // Types
 interface MedicationDraft {
@@ -29,6 +36,14 @@ interface MedicationDraft {
     requiresPrescription?: boolean;
     manufacturer?: string;
 
+    // Unit & Conversion
+    unit: string;
+    baseUnit?: string;
+    displayUnit?: string;
+    conversionFactor: number;
+    unitConfigurations?: any[];
+    isControlled: boolean;
+
     // Prescription Fields
     frequencyPerDay: number;
     days: number;
@@ -49,6 +64,7 @@ interface MedicationRowProps {
     onUpdate: (tempId: string, updates: Partial<MedicationDraft>) => void;
     onRemove: (tempId: string) => void;
     onChangeBatch?: (medicationIndex: number) => void;
+    availableUnits?: any[];
 }
 
 const generateSig = (frequencyPerDay: number): string => {
@@ -87,6 +103,8 @@ const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ onSubmit, onCancel,
     const [showBatchModal, setShowBatchModal] = useState(false);
     const [pendingDrug, setPendingDrug] = useState<any>(null);
     const [editingMedIndex, setEditingMedIndex] = useState<number | null>(null);
+    const [availableUnits, setAvailableUnits] = useState<Record<string, any[]>>({});
+    const [showScanner, setShowScanner] = useState(false);
 
     const patientLocked = medications.length > 0;
 
@@ -96,6 +114,142 @@ const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ onSubmit, onCancel,
         medications: medications.length > 0
     };
     const canVerify = validation.patient && validation.prescriber && validation.medications;
+
+    // Unit Fetching Logic (Matches Basket.tsx)
+    useEffect(() => {
+        const fetchUnitsForDrugs = async () => {
+            const drugIds = medications.map(m => m.drugId).filter(Boolean);
+            if (drugIds.length === 0) return;
+
+            // 1. Preload from existing medication data
+            const preloadedUnits: Record<string, any[]> = {};
+            let needsFetch = false;
+
+            medications.forEach(med => {
+                const drugId = med.drugId;
+                if (!drugId || availableUnits[drugId]) return;
+
+                if (med.unitConfigurations && med.unitConfigurations.length > 0) {
+                    const transformedUnits = [
+                        {
+                            unit: med.displayUnit || 'Strip',
+                            isDefault: true,
+                            isBase: med.displayUnit === med.baseUnit,
+                            conversionFactor: 1
+                        }
+                    ];
+
+                    med.unitConfigurations.forEach((config: any) => {
+                        const childUnit = config.name || config.childUnit || config.unit;
+                        if (childUnit && childUnit !== med.displayUnit) {
+                            transformedUnits.push({
+                                unit: childUnit,
+                                isDefault: false,
+                                isBase: childUnit === med.baseUnit,
+                                conversionFactor: Number(config.conversion || config.conversionFactor)
+                            });
+                        }
+                    });
+
+                    preloadedUnits[drugId] = transformedUnits;
+                } else {
+                    needsFetch = true;
+                }
+            });
+
+            if (Object.keys(preloadedUnits).length > 0) {
+                setAvailableUnits(prev => ({ ...prev, ...preloadedUnits }));
+            }
+
+            if (!needsFetch) return;
+
+            // 2. Fetch missing from API
+            try {
+                const missingIds = drugIds.filter(id => !availableUnits[id] && !preloadedUnits[id]);
+                if (missingIds.length === 0) return;
+
+                const fetchedUnits: Record<string, any[]> = {};
+
+                await Promise.all(missingIds.map(async (id) => {
+                    try {
+                        const res = await inventoryApi.getDrugUnits(id);
+                        const unitList = res.data?.units || res.units || [];
+                        // Transform API units to our UI format
+                        const formattedUnits = unitList.map((u: any) => ({
+                            unit: u.name || u.unit,
+                            isDefault: u.isDefault,
+                            conversionFactor: Number(u.conversionFactor || u.conversion || 1)
+                        }));
+                        if (formattedUnits.length > 0) {
+                            fetchedUnits[id] = formattedUnits;
+                        }
+                    } catch (err) {
+                        console.error(`Failed to load units for ${id}`, err);
+                    }
+                }));
+
+                if (Object.keys(fetchedUnits).length > 0) {
+                    setAvailableUnits(prev => ({ ...prev, ...fetchedUnits }));
+                }
+            } catch (error) {
+                console.error('Failed to fetch units:', error);
+            }
+        };
+
+        fetchUnitsForDrugs();
+    }, [medications.map(m => m.drugId).join(',')]);
+
+    // Barcode Scanner Integration
+    const handleScan = async (barcode: string) => {
+        const toastId = toast.loading('Searching inventory...');
+        try {
+            const scannedItem = await scanApi.processScan(barcode);
+            toast.dismiss(toastId);
+
+            if (!scannedItem) {
+                toast.error(`Item not found: ${barcode}`);
+                return;
+            }
+
+            // Convert to Drug format for addMedication
+            const drugToAdd = {
+                id: scannedItem.drugId,
+                name: scannedItem.drugName,
+                mrp: Number(scannedItem.mrp),
+                gstRate: Number(scannedItem.gstRate),
+                manufacturer: scannedItem.manufacturer || 'Unknown',
+                requiresPrescription: true,
+                stock: Number(scannedItem.quantityInStock),
+                batches: 1,
+                batchCount: 1,
+                batchId: scannedItem.batchId,
+                batchNumber: scannedItem.batchNumber,
+                expiryDate: scannedItem.expiryDate,
+                location: scannedItem.location,
+                unit: scannedItem.unit,
+                displayUnit: scannedItem.displayUnit || scannedItem.unit,
+                baseUnit: scannedItem.baseUnit,
+                unitConfigurations: scannedItem.unitConfigurations,
+                isControlled: scannedItem.isControlled || false
+            };
+
+            addMedication(drugToAdd);
+            console.log('✅ Added scanned item:', drugToAdd.name);
+            setShowScanner(false); // Auto-close scanner after success
+
+        } catch (error: any) {
+            toast.dismiss(toastId);
+            console.error('Scan error:', error);
+            const msg = error.response?.data?.message || `Item not found: ${barcode}`;
+            toast.error(msg);
+        }
+    };
+
+    useBarcodeScanner({
+        onScan: handleScan,
+        minLength: 3,
+        timeThreshold: 50
+    });
 
     // Search using inventoryApi.searchForPOS (batch-aware)
     useEffect(() => {
@@ -187,7 +341,13 @@ const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ onSubmit, onCancel,
                     sig: item.sig || '',
                     daysSupply: item.daysSupply || 0,
                     frequencyPerDay: 1,
-                    refillsAllowed: item.refillsAllowed || 0
+                    refillsAllowed: item.refillsAllowed || 0,
+                    unit: item.unit || item.drug?.displayUnit || 'Tablet',
+                    baseUnit: item.drug?.baseUnit,
+                    displayUnit: item.drug?.displayUnit,
+                    unitConfigurations: item.drug?.unitConfigurations || [],
+                    conversionFactor: item.conversionFactor || 1,
+                    isControlled: item.isControlled || false
                 }));
 
                 setMedications(loadedMeds);
@@ -281,7 +441,15 @@ const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ onSubmit, onCancel,
                 days: 5,
                 quantity: 1,
                 sig: generateSig(2),
-                refillsAllowed: 0
+                refillsAllowed: 0,
+
+                // Unit defaults
+                unit: drug.unit || drug.displayUnit || 'Tablet',
+                baseUnit: drug.baseUnit,
+                displayUnit: drug.displayUnit,
+                conversionFactor: drug.conversionFactor || 1,
+                unitConfigurations: drug.unitConfigurations || [],
+                isControlled: drug.isControlled || false
             };
 
             setMedications([...medications, newMed]);
@@ -299,6 +467,15 @@ const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ onSubmit, onCancel,
         setMedications(meds => meds.map(m => {
             if (m.tempId === tempId) {
                 const updated = { ...m, ...updates };
+
+                // Handle Unit Change
+                if ('unit' in updates && availableUnits[m.drugId]) {
+                    const units = availableUnits[m.drugId];
+                    const selectedConfig = units.find(u => u.unit === updates.unit);
+                    if (selectedConfig) {
+                        updated.conversionFactor = Number(selectedConfig.conversionFactor || 1);
+                    }
+                }
 
                 // Update Sig when frequency changes (only auto-update)
                 if ('frequencyPerDay' in updates) {
@@ -337,7 +514,12 @@ const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ onSubmit, onCancel,
                 totalStock: batch.qty,
                 expiryDate: batch.expiryDate,
                 location: batch.location,
-                mrp: batch.mrp
+                mrp: batch.mrp,
+                // Pass unit info if available on fresh batch selection
+                unit: pendingDrug.unit || pendingDrug.displayUnit,
+                baseUnit: pendingDrug.baseUnit,
+                displayUnit: pendingDrug.displayUnit,
+                unitConfigurations: pendingDrug.unitConfigurations
             });
         }
 
@@ -386,11 +568,15 @@ const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ onSubmit, onCancel,
             const items = medications.map(med => ({
                 drugId: med.drugId,
                 batchId: med.batchId,
-                quantity: med.quantity,
+                quantity: med.quantity, // Should be quantity in *selected unit*? Backend expects base?
+                // Usually backend expects quantity in *selected unit* and also the *unit* itself.
+                // But keeping consistent with POS: POS sends qty in selected unit.
+                unit: med.unit,
+                conversionFactor: med.conversionFactor,
                 sig: med.sig,
                 daysSupply: med.days,
                 substitutionAllowed: true,
-                isControlled: false,
+                isControlled: med.isControlled || false,
                 refillsAllowed: med.refillsAllowed || 0
             }));
 
@@ -447,6 +633,8 @@ const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ onSubmit, onCancel,
                 drugId: med.drugId,
                 batchId: med.batchId,
                 quantity: med.quantity,
+                unit: med.unit,
+                conversionFactor: med.conversionFactor,
                 sig: med.sig,
                 daysSupply: med.days,
                 substitutionAllowed: true,
@@ -706,6 +894,13 @@ const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ onSubmit, onCancel,
                             disabled={status === 'VERIFIED'}
                             className="w-full pl-9 pr-10 py-2 bg-gray-50 border border-transparent rounded-lg text-sm focus:outline-none focus:bg-white focus:border-teal-500 focus:ring-1 focus:ring-teal-500 transition-all disabled:opacity-50 placeholder-gray-400"
                         />
+                        <button
+                            onClick={() => setShowScanner(true)}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-teal-600 p-1 rounded"
+                            title="Open Barcode Scanner"
+                        >
+                            <BsUpcScan className="w-4 h-4" />
+                        </button>
 
                         {showResults && drugResults.length > 0 && (
                             <div className="absolute z-50 w-full mt-1 bg-white rounded-lg shadow-xl border border-gray-100 max-h-80 overflow-y-auto ring-1 ring-black ring-opacity-5">
@@ -767,23 +962,11 @@ const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ onSubmit, onCancel,
                                     onUpdate={updateMedication}
                                     onRemove={removeMedication}
                                     onChangeBatch={() => {
-                                        console.log('onChangeBatch triggered for:', med.name);
-                                        console.log('Medication data:', {
-                                            drugId: med.drugId,
-                                            batchCount: med.batchCount,
-                                            currentBatch: med.batchNumber
-                                        });
                                         setEditingMedIndex(index);
-                                        setPendingDrug({
-                                            id: med.drugId,
-                                            name: med.name,
-                                            form: med.form,
-                                            strength: med.strength,
-                                            manufacturer: med.manufacturer
-                                        });
+                                        setPendingDrug(med);
                                         setShowBatchModal(true);
-                                        console.log('BatchModal should be opening...');
                                     }}
+                                    availableUnits={availableUnits[med.drugId]}
                                 />
                             ))}
                         </div>
@@ -885,14 +1068,21 @@ const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ onSubmit, onCancel,
                     }}
                 />
             )}
+            {showScanner && (
+                <BarcodeScannerModal
+                    onClose={() => setShowScanner(false)}
+                    onScan={handleScan}
+                />
+            )}
         </div>
     );
 };
 
-const MedicationRow: React.FC<MedicationRowProps> = ({ medication, locked, onUpdate, onRemove, onChangeBatch }) => {
+const MedicationRow: React.FC<MedicationRowProps> = ({ medication, locked, onUpdate, onRemove, onChangeBatch, availableUnits }) => {
     const { tempId, name, form, strength, frequencyPerDay, days, quantity, sig, refillsAllowed, batchId, batchNumber, batchCount } = medication;
     const [editingSig, setEditingSig] = React.useState(false);
     const totalDispenses = refillsAllowed + 1;
+    const selectedUnit = medication.unit || medication.displayUnit || 'Tablet';
 
     return (
         <div className="bg-white border border-gray-200 rounded-lg p-3 hover:border-gray-300 transition">
@@ -945,7 +1135,7 @@ const MedicationRow: React.FC<MedicationRowProps> = ({ medication, locked, onUpd
                                 }`}>
                                 <span className="opacity-70">Stock:</span>
                                 <span className="font-bold">{medication.totalStock}</span>
-                                <span className="opacity-70">units</span>
+                                <span className="opacity-70">{formatUnitName(medication.baseUnit || 'Unit')}</span>
                             </div>
                         )}
 
@@ -990,19 +1180,87 @@ const MedicationRow: React.FC<MedicationRowProps> = ({ medication, locked, onUpd
             <div className="flex items-center gap-2 mb-2">
                 <div>
                     <label className="text-[10px] text-gray-500 block mb-0.5">Qty</label>
-                    <input
-                        type="number"
-                        min="1"
-                        value={quantity || ''}
-                        onChange={(e) => {
-                            const val = e.target.value;
-                            // Remove leading zeros and parse
-                            const num = val === '' ? 0 : parseInt(val.replace(/^0+/, '') || '0');
-                            onUpdate(tempId, { quantity: num });
-                        }}
-                        disabled={locked}
-                        className="w-14 px-1.5 py-1 border border-gray-300 rounded text-xs disabled:bg-gray-100"
-                    />
+                    <div className="flex items-center gap-1">
+                        {/* Mixed Unit Input Logic */}
+                        {medication.conversionFactor && medication.conversionFactor > 1 ? (
+                            <div className="flex items-center gap-1 bg-gray-50 p-0.5 rounded border border-gray-200">
+                                <div className="flex flex-col items-center">
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        value={Math.floor(quantity)}
+                                        onChange={(e) => {
+                                            const parentVal = Math.max(0, parseInt(e.target.value) || 0);
+                                            const childVal = Math.round((quantity % 1) * (medication.conversionFactor || 1));
+                                            const newTotal = parentVal + (childVal / (medication.conversionFactor || 1));
+                                            onUpdate(tempId, { quantity: newTotal });
+                                        }}
+                                        disabled={locked}
+                                        className="w-10 px-1 py-0.5 border border-transparent bg-white rounded text-[11px] text-center focus:outline-none focus:ring-1 focus:ring-teal-500"
+                                    />
+                                    <span className="text-[8px] text-gray-400 uppercase font-bold">{formatUnitName(selectedUnit)}</span>
+                                </div>
+                                <span className="text-gray-400 font-bold">+</span>
+                                <div className="flex flex-col items-center">
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        max={(medication.conversionFactor || 1) - 1}
+                                        value={Math.round((quantity % 1) * (medication.conversionFactor || 1))}
+                                        onChange={(e) => {
+                                            const parentVal = Math.floor(quantity);
+                                            const childVal = Math.max(0, parseInt(e.target.value) || 0);
+                                            const newTotal = parentVal + (childVal / (medication.conversionFactor || 1));
+                                            onUpdate(tempId, { quantity: newTotal });
+                                        }}
+                                        disabled={locked}
+                                        className="w-10 px-1 py-0.5 border border-transparent bg-white rounded text-[11px] text-center focus:outline-none focus:ring-1 focus:ring-teal-500"
+                                    />
+                                    <span className="text-[8px] text-gray-400 uppercase font-bold">{formatUnitName(medication.baseUnit || 'Unit')}</span>
+                                </div>
+                            </div>
+                        ) : (
+                            <input
+                                type="number"
+                                step="any"
+                                min="0"
+                                value={quantity || ''}
+                                onChange={(e) => {
+                                    const val = e.target.value;
+                                    const num = val === '' ? 0 : parseFloat(val);
+                                    onUpdate(tempId, { quantity: Math.max(0, num) });
+                                }}
+                                disabled={locked}
+                                className="w-14 px-1.5 py-1 border border-gray-300 rounded text-xs disabled:bg-gray-100"
+                            />
+                        )}
+                        {/* Unit Selector - POS Style */}
+                        {availableUnits && availableUnits.length > 1 ? (
+                            <select
+                                value={selectedUnit}
+                                onChange={(e) => {
+                                    const newUnit = e.target.value;
+                                    const config = availableUnits.find((u: any) => u.unit === newUnit);
+                                    onUpdate(tempId, {
+                                        unit: newUnit,
+                                        conversionFactor: config?.conversionFactor || 1
+                                    });
+                                }}
+                                disabled={locked}
+                                className="px-2 py-1 text-[10px] border border-teal-200 rounded bg-teal-50 text-teal-700 font-medium focus:outline-none focus:ring-2 focus:ring-teal-300 cursor-pointer"
+                            >
+                                {availableUnits.map((u: any) => (
+                                    <option key={u.unit} value={u.unit}>
+                                        {formatUnitName(u.unit)}
+                                    </option>
+                                ))}
+                            </select>
+                        ) : (
+                            <div className="px-2 py-1 text-[10px] border border-gray-200 rounded bg-gray-50 text-gray-600 font-medium">
+                                {formatUnitName(selectedUnit)}
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 <div className="flex-1">
@@ -1031,12 +1289,14 @@ const MedicationRow: React.FC<MedicationRowProps> = ({ medication, locked, onUpd
                     <div className="flex items-center gap-1">
                         <input
                             type="number"
+                            min="1"
                             value={days === 0 ? '' : days}
                             onChange={(e) => {
                                 const val = e.target.value;
-                                // Remove leading zeros
+                                // Remove leading zeros and enforce positive
                                 const cleaned = val.replace(/^0+/, '') || '0';
-                                onUpdate(tempId, { days: parseInt(cleaned) || 0 });
+                                const num = parseInt(cleaned) || 0;
+                                onUpdate(tempId, { days: Math.max(0, num) });
                             }}
                             disabled={locked}
                             className="w-14 px-1.5 py-1 border border-gray-300 rounded text-xs disabled:bg-gray-100"

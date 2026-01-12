@@ -23,7 +23,11 @@ import { inventoryApi } from '@/lib/api/inventory';
 import { useBarcodeScanner } from '@/hooks/useBarcodeScanner';
 // import { useMedicineMaster } from '@/contexts/MedicineMasterContext'; // Removed legacy lookup
 import { scanApi } from '@/lib/api/scan';
+// import { useKeyboardCommand } from '@/hooks/useKeyboardCommand'; // (kept as is)
 import { useKeyboardCommand } from '@/hooks/useKeyboardCommand';
+import dynamic from 'next/dynamic';
+
+const BarcodeScannerModal = dynamic(() => import('@/components/pos/BarcodeScannerModal'), { ssr: false });
 
 export default function NewSalePage() {
     const router = useRouter();
@@ -55,6 +59,8 @@ export default function NewSalePage() {
     const [overallDiscount, setOverallDiscount] = useState<{ type: 'percentage' | 'amount' | null, value: number }>({ type: null, value: 0 });
     const [dispenseFor, setDispenseFor] = useState<any>(null); // Track who medication is dispensed for
     const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+    const [showScanner, setShowScanner] = useState(false);
 
     // Barcode Scanner Integration
     // const { lookupByBarcode } = useMedicineMaster(); // Deprecated
@@ -592,6 +598,10 @@ export default function NewSalePage() {
 
     const handleCustomerSelect = (selectedCustomer: any) => {
         setCustomer(selectedCustomer);
+        // Default Dispense For to "Self" (Patient = Customer)
+        if (selectedCustomer) {
+            setDispenseFor(selectedCustomer);
+        }
         setShowCustomerModal(false);
     };
 
@@ -895,7 +905,29 @@ export default function NewSalePage() {
     };
 
     const removeBasketItem = (index: number) => {
-        setBasketItems(prev => prev.filter((_, i) => i !== index));
+        setBasketItems(prev => {
+            const newItems = prev.filter((_, i) => i !== index);
+            // Auto-unlink prescription if basket becomes empty
+            if (newItems.length === 0 && linkedPrescriptionId) {
+                setLinkedPrescriptionId(undefined);
+                setActivePrescription(null);
+                setDispenseFor(null);
+                // No toast needed as it's an automatic side effect of clearing the list
+            }
+            return newItems;
+        });
+    };
+
+    // Explicitly unlike prescription without clearing basket (for mixed baskets)
+    const handleUnlinkPrescription = () => {
+        setLinkedPrescriptionId(undefined);
+        setActivePrescription(null);
+        setDispenseFor(null);
+
+        // CRITICAL: Clear URL parameters to prevent re-import on refresh
+        window.history.replaceState({}, '', '/pos/new-sale');
+
+        toast.success('Prescription unlinked');
     };
 
     const clearBasket = () => {
@@ -1058,6 +1090,9 @@ export default function NewSalePage() {
             }
 
             // Create sale with required fields (storeId and soldBy added by middleware)
+            // STRICT SANITIZATION: Ensure prescriptionId is undefined if falsy (empty string, null, etc.)
+            const finalPrescriptionId = linkedPrescriptionId || undefined;
+
             const saleData = {
                 patientId: customer?.id || null,
                 invoiceType: invoiceType.toUpperCase(), // Pass invoice type
@@ -1068,7 +1103,8 @@ export default function NewSalePage() {
                 total: Number(totals.total),
                 items,
                 paymentSplits,
-                prescriptionId: linkedPrescriptionId, // Link to prescription if imported
+                prescriptionId: finalPrescriptionId, // Link to prescription if imported
+                dispenseForPatientId: dispenseFor?.id || null, // Persist who it is dispensed for
                 shouldCreateRefill, // Pass the flag to backend
                 invoiceNumber, // Pass the invoice number (manually edited or auto-fetched)
             };
@@ -1079,6 +1115,7 @@ export default function NewSalePage() {
                 itemCount: saleData.items.length,
                 hasCustomer: !!saleData.patientId,
                 hasPrescription: !!saleData.prescriptionId,
+                prescriptionIdValue: saleData.prescriptionId, // Explicitly log value
                 shouldCreateRefill // Add refill creation flag
             });
 
@@ -1158,6 +1195,9 @@ export default function NewSalePage() {
         setLastSaleId(null);
         setSaleId(`S-2025-${Math.floor(Math.random() * 10000).toString().padStart(5, '0')}`);
 
+        // CRITICAL: Clear URL parameters to prevent re-import if user starts new sale after importing
+        window.history.replaceState({}, '', '/pos/new-sale');
+
         // Fetch next invoice number for the new sale
         try {
             const response = await salesApi.getNextInvoiceNumber();
@@ -1199,10 +1239,7 @@ export default function NewSalePage() {
                     {/* Hybrid Context Banner */}
                     <PrescriptionBanner
                         prescription={activePrescription}
-                        onClear={() => {
-                            clearBasket();
-                            toast.success('Unlinked prescription and cleared basket');
-                        }}
+                        onClear={handleUnlinkPrescription}
                     />
 
                     <div data-tour="pos-search">
@@ -1211,6 +1248,7 @@ export default function NewSalePage() {
                             searchFocus={searchFocus}
                             setSearchFocus={setSearchFocus}
                             onManualScan={handleScan}
+                            onScanClick={() => setShowScanner(true)}
                         />
                     </div>
                     <QuickAddGrid onAddProduct={addToBasket} storeId={storeId} />
@@ -1308,6 +1346,12 @@ export default function NewSalePage() {
                     saleData={{ invoiceNo: saleId, total: totals.total, method: 'cash', saleId: lastSaleId }}
                     onNewSale={handleNewSale}
                     onClose={handleNewSale}
+                />
+            )}
+            {showScanner && (
+                <BarcodeScannerModal
+                    onClose={() => setShowScanner(false)}
+                    onScan={handleScan}
                 />
             )}
             {/* Loading Overlay - Scoped and Minimal */}

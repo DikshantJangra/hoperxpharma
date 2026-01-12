@@ -195,7 +195,8 @@ export default function InvoiceTable({ searchQuery, onSelectInvoice, selectedInv
                     paymentStatus: invoice.paymentStatus, // Pass raw payment status too if needed
                     type: invoice.invoiceType === 'GST_INVOICE' ? 'GST' : 'Regular',
                     hasEInvoice: false, // TODO: Add e-invoice support
-                    hasRx: !!invoice.prescriptionId,
+                    // FILTER: Only show Rx link if it's NOT a system-generated "Quick Sale"
+                    hasRx: !!invoice.prescriptionId && invoice.prescription?.notes !== 'Quick Sale',
                     prescriptionId: invoice.prescriptionId,
                     customer: {
                       name: invoice.patient ? `${invoice.patient.firstName} ${invoice.patient.lastName || ''}`.trim() : 'Walk-in Customer',

@@ -153,7 +153,7 @@ export default function SalesChart() {
                     <p className="text-xs text-[#6b7280]">Please wait</p>
                 </div>
             ) : hasData && chartData ? (
-                <div className="flex-1 min-h-[240px]">
+                <div className="w-full h-[260px]">
                     <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={formattedData} margin={{ top: 20, right: 10, left: 0, bottom: 5 }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />

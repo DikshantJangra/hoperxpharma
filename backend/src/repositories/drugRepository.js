@@ -1,4 +1,5 @@
 const prisma = require('../db/prisma');
+const { buildOrderBy } = require('../utils/queryParser');
 
 /**
  * Drug Repository - Data access layer for drug operations
@@ -154,12 +155,14 @@ class DrugRepository {
     /**
      * Find all drugs with pagination
      */
-    async findAllDrugs({ storeId, page = 1, limit = 20, search = '', sortConfig }) {
+    async findAllDrugs({ storeId, page = 1, limit = 20, search = '', sortConfig, ingestionStatus }) {
         if (!storeId) {
             throw new Error('storeId is required for findAllDrugs');
         }
 
-        const skip = (page - 1) * limit;
+        const pageNum = parseInt(page, 10) || 1;
+        const limitNum = parseInt(limit, 10) || 20;
+        const skip = (pageNum - 1) * limitNum;
 
         const where = {
             storeId,
@@ -168,7 +171,8 @@ class DrugRepository {
                     { name: { contains: search, mode: 'insensitive' } },
                     { manufacturer: { contains: search, mode: 'insensitive' } }
                 ]
-            })
+            }),
+            ...(ingestionStatus && { ingestionStatus })
         };
 
         // Build dynamic orderBy
@@ -178,7 +182,7 @@ class DrugRepository {
             prisma.drug.findMany({
                 where,
                 skip,
-                take: limit,
+                take: limitNum,
                 orderBy
             }),
             prisma.drug.count({ where })

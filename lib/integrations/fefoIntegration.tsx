@@ -79,19 +79,18 @@ export function useFEFOBatchSelection() {
         handleBatchSelected,
         FEFOSelectorComponent: showFEFOSelector ? (
             <FEFOBatchSelector
-        drugId= { currentDrug?.drugId || currentDrug?.id}
-    drugName = { currentDrug?.name }
-    quantity = { 1}
-    recommendation = { fefoRecommendation }
-    onSelectBatch = { handleBatchSelected }
-    onCancel = {() => {
-        setShowFEFOSelector(false);
-        setCurrentDrug(null);
-    }
-}
-isOpen = { showFEFOSelector }
-    />
-    ) : null
+                drugId={currentDrug?.drugId || currentDrug?.id}
+                drugName={currentDrug?.name}
+                quantity={1}
+                recommendation={fefoRecommendation!}
+                onSelectBatch={handleBatchSelected}
+                onCancel={() => {
+                    setShowFEFOSelector(false);
+                    setCurrentDrug(null);
+                }}
+                isOpen={showFEFOSelector}
+            />
+        ) : null
   };
 }
 

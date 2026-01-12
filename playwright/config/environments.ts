@@ -30,7 +30,7 @@ const environments: Record<string, Environment> = {
     development: {
         name: 'development',
         baseURL: 'http://localhost:3000',
-        apiURL: 'http://localhost:8000',
+        apiURL: 'http://127.0.0.1:8000',
         databaseURL: process.env.TEST_DATABASE_URL || 'postgresql://dikshantjangra@localhost:5432/hoperxpharma_test',
         auth: {
             testUser: {

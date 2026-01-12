@@ -89,7 +89,7 @@ export default function BarcodeScannerModal({ onClose, onScan, onGenerateInterna
                 videoConstraints: {
                     focusMode: 'continuous',
                     advanced: [{ zoom: 2.0 }]
-                }
+                } as any
             };
 
             await html5QrCode.start(
@@ -156,7 +156,7 @@ export default function BarcodeScannerModal({ onClose, onScan, onGenerateInterna
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm">
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
             <div className="bg-white w-full max-w-md rounded-2xl overflow-hidden shadow-2xl relative">
 
                 {/* Header with Controls */}
@@ -240,9 +240,9 @@ export default function BarcodeScannerModal({ onClose, onScan, onGenerateInterna
                 </div>
 
                 {/* Footer - Instructions + Done Button */}
-                <div className="p-5 bg-gray-50 flex flex-col gap-3">
-                    <div className="text-center mb-1">
-                        <p className="text-sm font-medium text-gray-700">
+                <div className="pt-10 pb-6 px-6 bg-gray-50 flex flex-col gap-4 border-t border-gray-100">
+                    <div className="text-center">
+                        <p className="text-sm font-semibold text-gray-800 tracking-wide">
                             Point camera at barcode. Auto-focus enabled.
                         </p>
                     </div>

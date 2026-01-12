@@ -18,7 +18,7 @@ class DrugService {
             throw ApiError.badRequest('storeId is required');
         }
 
-        const drugs = await drugRepository.searchDrugs(query, storeId, limit);
+        const drugs = await drugRepository.searchDrugs(query, storeId, parseInt(limit, 10) || 20);
 
         // If supplierId provided, filter by supplier's catalog
         // This is a placeholder - enhance when supplier catalog is implemented
@@ -247,6 +247,16 @@ class DrugService {
         cacheService.drug.invalidate(id);
 
         logger.info(`Drug updated: ${drug.name} (ID: ${drug.id})`);
+
+        // Attempt re-mapping if generic name changed or explicitly requested
+        // Safely try auto-map (will skip if already linked)
+        try {
+            if (drugData.genericName) {
+                await saltMappingService.autoMapDrug(drug.id);
+            }
+        } catch (error) {
+            logger.warn(`Auto-map failed during update for drug ${drug.id}`, error);
+        }
 
         return drug;
     }

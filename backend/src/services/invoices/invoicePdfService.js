@@ -159,43 +159,40 @@ function addHeader(doc, invoice) {
         }
     }
 
+    // Render Tax Invoice Label (Right side)
+    const labelX = 400;
+    doc.fontSize(16)
+        .font('Helvetica-Bold')
+        .text('TAX INVOICE', labelX, y, { align: 'right' });
+    const rightSideBottom = doc.y;
+
     // Company name (offset if logo exists)
-    const textX = invoice.logoBuffer ? 110 : 40;
+    const storeInfoX = invoice.logoBuffer ? 110 : 40;
+    const leftColWidth = labelX - storeInfoX - 10;
 
     doc.fontSize(20)
         .font('Helvetica-Bold')
-        .text(store?.name || 'Pharmacy Name', textX, y);
-
-    // TAX INVOICE label
-    doc.fontSize(16)
-        .font('Helvetica-Bold')
-        .text('TAX INVOICE', 400, y, { align: 'right' });
+        .text(store?.name || 'Pharmacy Name', storeInfoX, y, { width: leftColWidth });
 
     // Store details
-    y += 25;
     doc.fontSize(9).font('Helvetica');
 
     if (invoice.storeAddress) {
-        doc.text(invoice.storeAddress, textX, y, { width: 300 });
-        y += 13;
-        if (invoice.storeAddress.length > 60) y += 10;
+        doc.text(invoice.storeAddress, storeInfoX, doc.y, { width: leftColWidth });
     }
 
     if (store?.phoneNumber) {
-        doc.text(`Phone: ${store.phoneNumber}`, textX, y);
-        y += 13;
+        doc.text(`Phone: ${store.phoneNumber}`, storeInfoX, doc.y);
     }
     if (store?.gstin) {
-        doc.text(`GSTIN: ${store.gstin}`, textX, y);
-        y += 13;
+        doc.text(`GSTIN: ${store.gstin}`, storeInfoX, doc.y);
     }
     if (store?.dlNumber) {
-        doc.text(`DL No: ${store.dlNumber}`, textX, y);
-        y += 13;
+        doc.text(`DL No: ${store.dlNumber}`, storeInfoX, doc.y);
     }
 
-    // Ensure we are below the logo
-    y = Math.max(y, 110);
+    // Ensure we are below everything in the header
+    y = Math.max(doc.y, rightSideBottom, 110);
 
     // Line separator
     doc.moveTo(40, y)
@@ -209,34 +206,27 @@ function addHeader(doc, invoice) {
  * Add invoice information
  */
 function addInvoiceInfo(doc, invoice) {
-    const y = 145;
+    let yPos = 145;
+    doc.fontSize(10);
 
-    doc.fontSize(10).font('Helvetica-Bold');
+    const addRow = (label, value, labelX, valueX, currentY) => {
+        doc.font('Helvetica-Bold').text(label, labelX, currentY);
+        doc.font('Helvetica').text(value, valueX, currentY);
+        return doc.y + 3;
+    };
 
-    // Left column
-    doc.text('Invoice Number:', 50, y);
-    doc.font('Helvetica').text(invoice.displayInvoiceNumber, 150, y);
+    let leftY = yPos;
+    let rightY = yPos;
 
-    doc.font('Helvetica-Bold').text('Invoice Date:', 50, y + 15);
-    doc.font('Helvetica').text(formatDate(invoice.invoiceDate), 150, y + 15);
-
-    doc.font('Helvetica-Bold').text('Billing Period:', 50, y + 30);
-    doc.font('Helvetica').text(
-        `${formatDate(invoice.periodStart)} to ${formatDate(invoice.periodEnd)}`,
-        150, y + 30
-    );
+    leftY = addRow('Invoice Number:', invoice.displayInvoiceNumber, 50, 150, leftY);
+    leftY = addRow('Invoice Date:', formatDate(invoice.invoiceDate), 50, 150, leftY);
+    leftY = addRow('Billing Period:', `${formatDate(invoice.periodStart)} to ${formatDate(invoice.periodEnd)}`, 50, 150, leftY);
 
     // Right column
-    doc.font('Helvetica-Bold').text('Status:', 350, y);
-    doc.font('Helvetica').text(invoice.status, 430, y);
+    rightY = addRow('Status:', invoice.status, 350, 460, rightY);
+    rightY = addRow('Payment Status:', invoice.paymentStatus, 350, 460, rightY);
 
-    doc.font('Helvetica-Bold').text('Payment Status:', 350, y + 15);
-    doc.font('Helvetica').text(invoice.paymentStatus, 430, y + 15);
-
-    // Line separator
-    doc.moveTo(50, y + 50)
-        .lineTo(545, y + 50)
-        .stroke();
+    doc.y = Math.max(leftY, rightY) + 20;
 }
 
 /**

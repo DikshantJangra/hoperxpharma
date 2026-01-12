@@ -1,9 +1,10 @@
-'use client';
+"use client";
 
+// Refreshed imports
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import type { ReactNode } from 'react';
 import { useAuthStore } from '@/lib/store/auth-store';
-import { getApiBaseUrl } from '@/lib/config/env';
-import { tokenManager } from '@/lib/api/client';
+import { apiClient } from '@/lib/api/client';
 
 interface Alert {
     id: string;
@@ -53,20 +54,11 @@ interface AlertContextType {
 
 const AlertContext = createContext<AlertContextType | undefined>(undefined);
 
-export function AlertProvider({ children }: { children: React.ReactNode }) {
+export function AlertProvider({ children }: { children: ReactNode }) {
     const [alerts, setAlerts] = useState<Alert[]>([]);
     const [counts, setCounts] = useState<AlertCounts | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [isPanelOpen, setIsPanelOpen] = useState(false);
-
-    // Get API base URL for direct backend access (critical for cross-browser cookie support)
-    const apiBaseUrl = useMemo(() => {
-        try {
-            return getApiBaseUrl();
-        } catch {
-            return '';
-        }
-    }, []);
 
     const unreadCount = alerts.filter(a => a.status === 'NEW').length;
 
@@ -75,77 +67,38 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
     }, []);
 
     const fetchAlerts = useCallback(async () => {
-        if (!apiBaseUrl) return;
         try {
             setIsLoading(true);
-            const token = tokenManager.getAccessToken();
-            const headers: Record<string, string> = {
-                'Content-Type': 'application/json',
-            };
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            }
-            const response = await fetch(`${apiBaseUrl}/alerts?limit=50`, {
-                headers,
-                credentials: 'include',
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                setAlerts(data.data || []);
+            const response = await apiClient.get('/alerts', { params: { limit: 50 } });
+            if (response.success) {
+                setAlerts(response.data || []);
             }
         } catch (error) {
             console.error('Error fetching alerts:', error);
         } finally {
             setIsLoading(false);
         }
-    }, [apiBaseUrl]);
+    }, []);
 
     const fetchCounts = useCallback(async () => {
-        if (!apiBaseUrl) return;
         try {
-            const token = tokenManager.getAccessToken();
-            const headers: Record<string, string> = {
-                'Content-Type': 'application/json',
-            };
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            }
-            const response = await fetch(`${apiBaseUrl}/alerts/counts`, {
-                headers,
-                credentials: 'include',
-            });
-
-            if (response.ok) {
-                const data = await response.json();
-                setCounts(data.data);
+            const response = await apiClient.get('/alerts/counts');
+            if (response.success) {
+                setCounts(response.data);
             }
         } catch (error) {
             console.error('Error fetching alert counts:', error);
         }
-    }, [apiBaseUrl]);
+    }, []);
 
     const refreshAlerts = useCallback(async () => {
         await Promise.all([fetchAlerts(), fetchCounts()]);
     }, [fetchAlerts, fetchCounts]);
 
     const markAsSeen = useCallback(async (id: string) => {
-        if (!apiBaseUrl) return;
         try {
-            const token = tokenManager.getAccessToken();
-            const headers: Record<string, string> = {
-                'Content-Type': 'application/json',
-            };
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            }
-            const response = await fetch(`${apiBaseUrl}/alerts/${id}/seen`, {
-                method: 'PATCH',
-                headers,
-                credentials: 'include',
-            });
-
-            if (response.ok) {
+            const response = await apiClient.patch(`/alerts/${id}/seen`);
+            if (response.success) {
                 // Update local state optimistically
                 setAlerts((prev) =>
                     prev.map((alert) =>
@@ -155,12 +108,13 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
             }
         } catch (error) {
             console.error('Error marking alert as seen:', error);
-            refreshAlerts(); // Revert on error
         }
-    }, [refreshAlerts, apiBaseUrl]);
+    }, []);
 
     const markAllAsSeen = useCallback(async () => {
         const newAlerts = alerts.filter(a => a.status === 'NEW');
+        if (newAlerts.length === 0) return;
+
         // Optimistic update
         setAlerts((prev) =>
             prev.map((alert) =>
@@ -168,122 +122,63 @@ export function AlertProvider({ children }: { children: React.ReactNode }) {
             )
         );
         try {
-            const token = tokenManager.getAccessToken();
-            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            }
-            await Promise.all(newAlerts.map(a =>
-                fetch(`${apiBaseUrl}/alerts/${a.id}/seen`, {
-                    method: 'PATCH',
-                    headers,
-                    credentials: 'include',
-                })
-            ));
+            await Promise.all(newAlerts.map(a => apiClient.patch(`/alerts/${a.id}/seen`)));
         } catch (error) {
             console.error('Error marking all as seen:', error);
-            refreshAlerts(); // Revert on error
+            refreshAlerts();
         }
-    }, [alerts, refreshAlerts, apiBaseUrl]);
+    }, [alerts, refreshAlerts]);
 
     const dismissAlert = useCallback(async (id: string) => {
         // Optimistic update - remove immediately
         setAlerts((prev) => prev.filter((alert) => alert.id !== id));
         try {
-            const token = tokenManager.getAccessToken();
-            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            }
-            await fetch(`${apiBaseUrl}/alerts/${id}/dismiss`, {
-                method: 'PATCH',
-                headers,
-                credentials: 'include',
-            });
+            await apiClient.patch(`/alerts/${id}/dismiss`);
         } catch (error) {
             console.error('Error dismissing alert:', error);
-            refreshAlerts(); // Revert on error
+            refreshAlerts();
         }
-    }, [refreshAlerts, apiBaseUrl]);
+    }, [refreshAlerts]);
 
     const resolveAlert = useCallback(async (id: string) => {
-        if (!apiBaseUrl) return;
         try {
-            const token = tokenManager.getAccessToken();
-            const headers: Record<string, string> = {
-                'Content-Type': 'application/json',
-            };
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            }
-            const response = await fetch(`${apiBaseUrl}/alerts/${id}/resolve`, {
-                method: 'PATCH',
-                headers,
-                credentials: 'include',
-            });
-
-            if (response.ok) {
-                // Remove from local state
+            const response = await apiClient.patch(`/alerts/${id}/resolve`);
+            if (response.success) {
                 setAlerts((prev) => prev.filter((alert) => alert.id !== id));
                 await fetchCounts();
             }
         } catch (error) {
             console.error('Error resolving alert:', error);
         }
-    }, [fetchCounts, apiBaseUrl]);
+    }, [fetchCounts]);
 
     const snoozeAlert = useCallback(async (id: string, until: Date) => {
-        if (!apiBaseUrl) return;
         try {
-            const token = tokenManager.getAccessToken();
-            const headers: Record<string, string> = {
-                'Content-Type': 'application/json',
-            };
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            }
-            const response = await fetch(`${apiBaseUrl}/alerts/${id}/snooze`, {
-                method: 'PATCH',
-                headers,
-                credentials: 'include',
-                body: JSON.stringify({ snoozeUntil: until.toISOString() }),
+            const response = await apiClient.patch(`/alerts/${id}/snooze`, {
+                snoozeUntil: until.toISOString()
             });
-
-            if (response.ok) {
-                // Remove from current view
+            if (response.success) {
                 setAlerts((prev) => prev.filter((alert) => alert.id !== id));
                 await fetchCounts();
             }
         } catch (error) {
             console.error('Error snoozing alert:', error);
         }
-    }, [fetchCounts, apiBaseUrl]);
+    }, [fetchCounts]);
 
     const bulkDismiss = useCallback(async (ids: string[]) => {
-        if (!apiBaseUrl) return;
         try {
-            const token = tokenManager.getAccessToken();
-            const headers: Record<string, string> = {
-                'Content-Type': 'application/json',
-            };
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            }
-            const response = await fetch(`${apiBaseUrl}/alerts/bulk/dismiss`, {
-                method: 'POST',
-                headers,
-                credentials: 'include',
-                body: JSON.stringify({ alertIds: ids }),
+            const response = await apiClient.post('/alerts/bulk/dismiss', {
+                alertIds: ids
             });
-
-            if (response.ok) {
+            if (response.success) {
                 setAlerts((prev) => prev.filter((alert) => !ids.includes(alert.id)));
                 await fetchCounts();
             }
         } catch (error) {
             console.error('Error bulk dismissing:', error);
         }
-    }, [fetchCounts, apiBaseUrl]);
+    }, [fetchCounts]);
 
     const { isAuthenticated } = useAuthStore();
 

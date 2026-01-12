@@ -44,6 +44,7 @@ router.post(
 );
 
 // Session setup endpoint (for OAuth callback)
+// Session setup endpoint (for OAuth callback)
 router.post('/set-session', asyncHandler(async (req, res) => {
     const { accessToken, refreshToken } = req.body;
 
@@ -64,6 +65,7 @@ router.post('/set-session', asyncHandler(async (req, res) => {
             success: false,
             message: 'Invalid tokens'
         });
+    }
     const isProduction = process.env.NODE_ENV === 'production';
 
     // Set refresh token in httpOnly cookie

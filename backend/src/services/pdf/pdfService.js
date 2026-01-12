@@ -248,127 +248,107 @@ class PDFService {
                 // HEADER SECTION
                 // ============================================================
                 let yPos = margin;
+                const rightColWidth = 220; // Increased to 220 for very long invoice numbers
+                const colGap = 15;
+                const leftColMaxX = pageWidth - margin - rightColWidth - colGap;
 
-                // Store Logo (left side)
-                const logoX = margin;
-                let logoEndX = margin;
-
-                if (sale.store?.logoUrl) {
-                    try {
-                        const logoBuffer = await this.fetchImage(sale.store.logoUrl);
-                        if (logoBuffer) {
-                            // Embed Logo
-                            doc.image(logoBuffer, logoX, yPos, {
-                                fit: [60, 60],
-                                align: 'left'
-                            });
-                            logoEndX = margin + 70; // Add space for logo
-                        }
-                    } catch (e) {
-                        logger.warn('Could not load store logo', e.message);
-                    }
-                }
-
-                // Store Name and Details (left side)
-                const storeInfoX = logoEndX + 10;
-                // Reduce store name size slightly if logo is present to fit nicely
-                doc.fontSize(22).fillColor(primaryColor).font('Helvetica-Bold');
-                doc.text(sale.store?.displayName || sale.store?.name || 'Pharmacy Name', storeInfoX, yPos);
-
-                let storeY = yPos + 28;
-                doc.fontSize(9).fillColor(textColor).font('Helvetica');
-
-                // Address on one clean line
-                const addressParts = [
-                    sale.store?.addressLine1,
-                    sale.store?.city,
-                    sale.store?.state,
-                    sale.store?.pinCode
-                ].filter(Boolean);
-                doc.text(addressParts.join(', '), storeInfoX, storeY);
-
-                storeY += 14;
-
-                // Phone number with proper label
-                if (sale.store?.phoneNumber) {
-                    doc.font('Helvetica-Bold').text(`Phone: `, storeInfoX, storeY, { continued: true });
-                    doc.font('Helvetica').text(sale.store.phoneNumber);
-                    storeY += 14;
-                }
-
-                // License and GSTIN - stacked for better readability
-                doc.fontSize(8).fillColor(textLight || textColor);
-                const regLines = [];
-                if (sale.store?.dlNumber) regLines.push(`DL: ${sale.store.dlNumber}`);
-                if (sale.store?.gstin) regLines.push(`GSTIN: ${sale.store.gstin}`);
-                if (sale.store?.pan) regLines.push(`PAN: ${sale.store.pan}`);
-
-                if (regLines.length > 0) {
-                    doc.text(regLines.join('   |   '), storeInfoX, storeY);
-                    storeY += 10;
-                }
-
-                // Track where the Left Side (Store Info) ends
-                const leftSideBottom = storeY;
-
-                // Invoice info (right side)
-                const invoiceX = pageWidth - margin - 150;
+                // QR Code and Invoice info (Render Right side first to know top constraints or just define bounds)
                 let invoiceY = margin;
-
-                // QR Code FIRST (top right corner)
                 const qrSize = 55;
                 const qrX = pageWidth - margin - qrSize;
-                let qrY = invoiceY;
+                const invoiceTextX = pageWidth - margin - rightColWidth;
 
+                // 1. Render QR Code
                 try {
                     const qrCodeDataUrl = await this.generateUPIQRCode(sale.store, sale.total);
                     if (qrCodeDataUrl) {
                         const base64Data = qrCodeDataUrl.replace(/^data:image\/png;base64,/, '');
                         const imgBuffer = Buffer.from(base64Data, 'base64');
-                        doc.image(imgBuffer, qrX, qrY, { width: qrSize, height: qrSize });
+                        doc.image(imgBuffer, qrX, invoiceY, { width: qrSize, height: qrSize });
                         doc.fontSize(6).fillColor(textColor);
-                        doc.text('Scan to Pay', qrX, qrY + qrSize + 2, { width: qrSize, align: 'center' });
+                        doc.text('Scan to Pay', qrX, invoiceY + qrSize + 2, { width: qrSize, align: 'center' });
                     }
                 } catch (qrError) {
                     logger.warn('Could not generate QR code:', qrError.message);
                 }
 
-                // Invoice title and details (to the left of QR)
-                const invoiceTextX = pageWidth - margin - 160;
+                // 2. Render Invoice details (Right top)
+                doc.y = invoiceY;
+                const detailsTextWidth = rightColWidth - (qrSize + 15);
+
                 doc.fontSize(12).fillColor(textColor).font('Helvetica-Bold');
-                doc.text('Invoice', invoiceTextX, invoiceY, { width: 100, align: 'right' });
-                invoiceY += 15;
+                doc.text('Invoice', invoiceTextX, doc.y, { width: detailsTextWidth, align: 'right' });
 
-                // Invoice Number
                 doc.fontSize(9).fillColor(primaryColor).font('Helvetica-Bold');
-                doc.text(sale.invoiceNumber || '-', invoiceTextX, invoiceY, { width: 100, align: 'right' });
-                invoiceY += 12;
+                doc.text(sale.invoiceNumber || '-', invoiceTextX, doc.y, { width: detailsTextWidth, align: 'right' });
 
-                // Payment Method
                 const paymentMethod = sale.paymentSplits?.[0]?.paymentMethod || 'Cash';
                 doc.fontSize(8).font('Helvetica').fillColor(textColor);
-                doc.text(`Payment: ${paymentMethod}`, invoiceTextX, invoiceY, { width: 100, align: 'right' });
-                invoiceY += 10;
+                doc.text(`Payment: ${paymentMethod}`, invoiceTextX, doc.y + 2, { width: detailsTextWidth, align: 'right' });
 
-                // Date/Time
-                doc.text(`${formatDate(sale.createdAt)} ${formatTime(sale.createdAt)}`, invoiceTextX, invoiceY, { width: 100, align: 'right' });
-                invoiceY += 10;
+                doc.text(`${formatDate(sale.createdAt)} ${formatTime(sale.createdAt)}`, invoiceTextX, doc.y, { width: detailsTextWidth, align: 'right' });
+                const rightSideBottom = Math.max(doc.y, margin + qrSize);
 
-                // Track Right Side Bottom
-                let rightSideBottom = Math.max(invoiceY, qrY + qrSize + 15);
+                // 3. Store Info (Left section)
+                doc.y = margin;
+                let logoEndX = margin;
+                if (sale.store?.logoUrl) {
+                    try {
+                        const logoBuffer = await this.fetchImage(sale.store.logoUrl);
+                        if (logoBuffer) {
+                            doc.image(logoBuffer, margin, doc.y, { fit: [60, 60] });
+                            logoEndX = margin + 75;
+                        }
+                    } catch (e) { logger.warn('Could not load store logo'); }
+                }
 
-                // Header separator line
-                yPos = Math.max(leftSideBottom, rightSideBottom) + 10;
+                const storeInfoX = logoEndX;
+                const leftColWidth = leftColMaxX - storeInfoX;
 
+                doc.fontSize(22).fillColor(primaryColor).font('Helvetica-Bold');
+                doc.text(sale.store?.displayName || sale.store?.name || 'Pharmacy Name', storeInfoX, margin, { width: leftColWidth });
+
+                doc.fontSize(9).fillColor(textColor).font('Helvetica');
+                const addressParts = [
+                    sale.store?.addressLine1,
+                    sale.store?.city,
+                    sale.store?.state,
+                    sale.store?.pinCode
+                ].filter(Boolean).join(', ');
+
+                if (addressParts) doc.text(addressParts, storeInfoX, doc.y, { width: leftColWidth });
+
+                if (sale.store?.phoneNumber) {
+                    doc.font('Helvetica-Bold').text(`Phone: `, storeInfoX, doc.y, { continued: true });
+                    doc.font('Helvetica').text(sale.store.phoneNumber);
+                }
+                // Move reg details below the main header row to have more width
+                const currentHeaderBottom = Math.max(doc.y, rightSideBottom);
+                doc.y = currentHeaderBottom + 4;
+
+                doc.fontSize(7.5).fillColor(textLight || textColor).font('Helvetica');
+                const regDetails = [];
+                if (sale.store?.dlNumber) regDetails.push(`DL: ${sale.store.dlNumber}`);
+                if (sale.store?.gstin) regDetails.push(`GSTIN: ${sale.store.gstin}`);
+                if (sale.store?.pan) regDetails.push(`PAN: ${sale.store.pan}`);
+
+                if (regDetails.length > 0) {
+                    doc.text(regDetails.join('   |   '), margin, doc.y, { width: contentWidth, align: 'left' });
+                }
+
+                // 4. Final Header Y
+                yPos = doc.y + 12;
                 doc.moveTo(margin, yPos).lineTo(pageWidth - margin, yPos).strokeColor(primaryColor).lineWidth(1.5).stroke();
                 yPos += 10;
 
                 // ============================================================
                 // PATIENT SECTION
                 // ============================================================
-                doc.fontSize(9).fillColor(textColor);
+                const patientColX = margin;
+                const patientColWidth = (pageWidth - 2 * margin) * 0.7;
+                const refColX = margin + patientColWidth + 10;
+                const refColWidth = pageWidth - margin - refColX;
 
-                // Patient Name and Info
                 const patientName = sale.dispenseForPatient
                     ? `${sale.dispenseForPatient.firstName} ${sale.dispenseForPatient.lastName || ''}`
                     : sale.patient
@@ -378,23 +358,22 @@ class PDFService {
                 const patientGender = sale.dispenseForPatient?.gender?.[0] || sale.patient?.gender?.[0] || '';
                 const patientPhone = sale.dispenseForPatient?.phoneNumber || sale.patient?.phoneNumber || '';
 
-                // Clean patient display on one line
                 let patientText = patientName;
                 if (patientGender) patientText += ` (${patientGender})`;
                 if (patientPhone) patientText += `  |  ${patientPhone}`;
 
-                doc.font('Helvetica-Bold').text('Patient: ', margin, yPos, { continued: true });
+                doc.fontSize(9).fillColor(textColor).font('Helvetica-Bold');
+                doc.text('Patient: ', patientColX, yPos, { continued: true, width: patientColWidth });
                 doc.font('Helvetica').text(patientText);
+                const patientBottom = doc.y;
 
-                // Ref By Doctor (right side)
                 if (sale.doctorName) {
-                    doc.font('Helvetica-Bold').text('Ref. By: ', pageWidth - margin - 150, yPos, { continued: true, width: 150, align: 'right' });
+                    doc.font('Helvetica-Bold').text('Ref. By: ', refColX, yPos, { continued: true, width: refColWidth, align: 'right' });
                     doc.font('Helvetica').text(sale.doctorName);
                 }
+                const refBottom = doc.y;
 
-                yPos += 15;
-
-                // Thin separator
+                yPos = Math.max(patientBottom, refBottom) + 8;
                 doc.moveTo(margin, yPos).lineTo(pageWidth - margin, yPos).strokeColor(borderColor).lineWidth(0.5).stroke();
                 yPos += 8;
 
@@ -403,14 +382,14 @@ class PDFService {
                 // ============================================================
                 const tableTop = yPos;
                 const colWidths = {
-                    sr: 22,
-                    medicines: 130,
-                    hsn: 45,
-                    packing: 40,
-                    batch: 42,
+                    sr: 20,
+                    medicines: 115,
+                    hsn: 40,
+                    packing: 35,
+                    batch: 65,
                     exp: 35,
                     mrp: 45,
-                    qty: 28,
+                    qty: 25,
                     disc: 30,
                     gst: 30,
                     amount: 55
@@ -484,9 +463,20 @@ class PDFService {
                     doc.fontSize(7);
                     colX = margin + 2;
 
+                    // Mark Rx for prescribed medicines
+                    const isPrescribed = item.drug?.requiresPrescription || item.isPrescribed;
+                    const medicineName = isPrescribed ? `Rx ${item.drug?.name || 'Item'}` : (item.drug?.name || 'Item');
+
+                    // Calculate row height based on content
+                    const medHeight = doc.heightOfString(medicineName, { width: colWidths.medicines });
+                    const batchHeight = doc.heightOfString(batchDisplay, { width: colWidths.batch });
+                    const currentRowHeight = Math.max(12, medHeight, batchHeight) + 4; // Padding
+
+                    // Render columns
                     doc.text((index + 1).toString(), colX, yPos, { width: colWidths.sr });
                     colX += colWidths.sr;
-                    doc.text(item.drug?.name || 'Item', colX, yPos, { width: colWidths.medicines });
+
+                    doc.text(medicineName, colX, yPos, { width: colWidths.medicines });
                     colX += colWidths.medicines;
                     doc.text(hsnDisplay, colX, yPos, { width: colWidths.hsn, align: 'center' });
                     colX += colWidths.hsn;
@@ -506,7 +496,7 @@ class PDFService {
                     colX += colWidths.gst;
                     doc.text(formatCurrency(lineTotal), colX, yPos, { width: colWidths.amount, align: 'right' });
 
-                    yPos += 14;
+                    yPos += currentRowHeight;
 
                     // Row separator
                     doc.moveTo(margin, yPos - 2).lineTo(pageWidth - margin, yPos - 2).strokeColor(borderColor).lineWidth(0.3).stroke();
@@ -642,12 +632,14 @@ class PDFService {
 
                 // NET PAYABLE (prominent)
                 doc.moveTo(rightX, rightY - 3).lineTo(rightX + 145, rightY - 3).strokeColor(primaryColor).lineWidth(1.5).stroke();
-                rightY += 8;
-                doc.font('Helvetica-Bold').fontSize(11).fillColor(textColor);
-                doc.text('NET PAYABLE', rightX, rightY, { width: 75 });
+                doc.font('Helvetica-Bold').fontSize(10).fillColor(textColor);
+                doc.text('NET PAYABLE', rightX, rightY + 3);
+
                 doc.fontSize(14).fillColor(primaryColor);
-                doc.text(`Rs. ${formatCurrency(sale.total)}`, rightX + 75, rightY - 2, { width: 70, align: 'right' });
-                rightY += 18;
+                doc.text(`Rs. ${formatCurrency(sale.total)}`, rightX, rightY, { width: 145, align: 'right' });
+
+                // Track where the total ended to avoid overlap with Billed By
+                rightY = Math.max(rightY + 22, doc.y + 10);
 
                 // Total Saving
                 if (totalSaving > 0) {

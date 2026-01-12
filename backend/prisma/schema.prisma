@@ -55,6 +55,7 @@ model User {
   consolidatedInvoicesCreated   ConsolidatedInvoice[]    @relation("ConsolidatedInvoiceCreator")
   consolidatedInvoicesConfirmed ConsolidatedInvoice[]    @relation("ConsolidatedInvoiceConfirmer")
   supplierInvoicePayments       SupplierInvoicePayment[]
+  saltsCreated                  Salt[]                   @relation("SaltCreator")
 
   @@index([email])
   @@index([phoneNumber])
@@ -640,6 +641,9 @@ model Drug {
   unitConfigurations       DrugUnit[]
   locationMappings         LocationMapping[]
   saltLinks                DrugSaltLink[]
+  ingestionStatus          DrugIngestionStatus       @default(ACTIVE)
+  stripImageUrl            String?
+  ocrMetadata              Json?
 
   @@index([name])
   @@index([hsnCode])
@@ -868,6 +872,8 @@ model PrescriptionItem {
   prescriptionId     String
   drugId             String
   quantityPrescribed Int
+  unit               String?
+  conversionFactor   Decimal?        @db.Decimal(10, 2)
   sig                String?
   daysSupply         Int?
   isControlled       Boolean         @default(false)
@@ -928,6 +934,8 @@ model PrescriptionItemVersion {
   drugId                String
   batchId               String?
   quantityPrescribed    Int
+  unit                  String?
+  conversionFactor      Decimal?            @db.Decimal(10, 2)
   sig                   String?
   daysSupply            Int?
   substitutionAllowed   Boolean             @default(true)
@@ -2636,6 +2644,9 @@ model Salt {
   category         String?
   therapeuticClass String?
   highRisk         Boolean        @default(false)
+  aliases          String[]
+  createdById      String?
+  createdBy        User?          @relation("SaltCreator", fields: [createdById], references: [id])
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
   drugSaltLinks    DrugSaltLink[]
@@ -2643,6 +2654,7 @@ model Salt {
   @@index([name])
   @@index([category])
   @@index([highRisk])
+  @@index([createdById])
 }
 
 model DrugSaltLink {
@@ -3156,3 +3168,11 @@ enum EmailStatus {
   PENDING
   BOUNCED
 }
+
+enum DrugIngestionStatus {
+
+  DRAFT
+  SALT_PENDING
+  ACTIVE
+}
+

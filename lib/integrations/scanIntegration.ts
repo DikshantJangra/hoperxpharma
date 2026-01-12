@@ -3,7 +3,7 @@
  * Add this to the existing ProductSearch component's onManualScan handler
  */
 
-import { processBarcodecan } from '@/lib/hooks/usePOSScan';
+import { processBarcodeScan } from '@/lib/hooks/usePOSScan';
 import { scanDataToBasketItem } from '@/lib/hooks/usePOSScan';
 
 // Example enhancement for the ProductSearch component's onManualScan prop:
@@ -13,7 +13,7 @@ export async function handleBarcodeScanned(
     onAddProduct: (product: any) => void
 ) {
     // Call the scan API
-    const scannedData = await processBarcodecan(barcode);
+    const scannedData = await processBarcodeScan(barcode);
 
     if (scannedData) {
         // Convert to basket item format

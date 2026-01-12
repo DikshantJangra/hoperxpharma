@@ -78,6 +78,7 @@ class SaleRepository {
                     prescription: {
                         select: {
                             id: true,
+                            notes: true, // Identify "Quick Sale" auto-generated prescriptions (was instructions)
                         },
                     },
                     items: {

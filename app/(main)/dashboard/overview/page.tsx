@@ -9,6 +9,7 @@ import SalesChart from "@/components/dashboard/overview/SalesChart"
 import AIInsights from "@/components/dashboard/overview/AIInsights"
 import QuickActions from "@/components/dashboard/overview/QuickActions"
 import ActionQueues from "@/components/dashboard/overview/ActionQueues"
+import SaltIntelligenceWidget from "@/components/dashboard/overview/SaltIntelligenceWidget"
 import KeyboardShortcuts from "@/components/dashboard/KeyboardShortcuts"
 import OfflineIndicator from "@/components/dashboard/overview/OfflineIndicator"
 import { useAuthStore } from "@/lib/store/auth-store"
@@ -179,7 +180,8 @@ export default function OverviewPage() {
                     <div className="lg:col-span-2">
                         <ActionQueues />
                     </div>
-                    <div>
+                    <div className="flex flex-col gap-5">
+                        <SaltIntelligenceWidget />
                         <QuickActions />
                     </div>
                 </div>

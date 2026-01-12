@@ -29,7 +29,7 @@ export interface BasketItem {
 /**
  * Process barcode scan using the scan API
  */
-export async function processBarcodeS scan(barcode: string): Promise < ScanProcessResponse | null > {
+export async function processBarcodeScan(barcode: string): Promise<ScanProcessResponse | null> {
     try {
         const batchData = await scanApi.processScan(barcode, 'SALE');
         toast.success(`Scanned: ${batchData.drugName}`);

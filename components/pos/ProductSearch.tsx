@@ -5,8 +5,7 @@ import { FiSearch } from 'react-icons/fi';
 import { BsUpcScan } from 'react-icons/bs';
 import dynamic from 'next/dynamic';
 
-// Dynamic import for the scanner to avoid SSR issues with html5-qrcode
-const BarcodeScannerModal = dynamic(() => import('./BarcodeScannerModal'), { ssr: false });
+// Dynamic import for panels
 const SaltAlternativesPanel = dynamic(() => import('./SaltAlternativesPanel'), { ssr: false });
 import { usePremiumTheme } from '@/lib/hooks/usePremiumTheme';
 import { formatStockQuantity, renderStockQuantity } from '@/lib/utils/stock-display';
@@ -46,17 +45,18 @@ const ProductSkeleton = () => (
   </div>
 )
 
-export default function ProductSearch({ onAddProduct, searchFocus, setSearchFocus, onManualScan }: {
+export default function ProductSearch({ onAddProduct, searchFocus, setSearchFocus, onManualScan, onScanClick }: {
   onAddProduct: (product: any) => void;
   searchFocus?: boolean;
   setSearchFocus?: (focus: boolean) => void;
   onManualScan?: (barcode: string) => void;
+  onScanClick?: () => void;
 }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Product[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
-  const [showScanner, setShowScanner] = useState(false);
+  // Lifted state: showScanner is now handled by parent via onScanClick
   const [selectedForAlternatives, setSelectedForAlternatives] = useState<Product | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const { isPremium } = usePremiumTheme();
@@ -101,25 +101,13 @@ export default function ProductSearch({ onAddProduct, searchFocus, setSearchFocu
         const { inventoryApi } = await import('@/lib/api/inventory');
         console.log('🔍 Calling API...');
         const response = await inventoryApi.searchForPOS(query);
-        console.log('🔍 API Response:', response);
-        console.log('🔍 Response type:', typeof response);
-        console.log('🔍 Response is array?:', Array.isArray(response));
 
-        // Handle both response formats:
-        // 1. Direct array from backend: [{ id, name, ... }]
-        // 2. Wrapped object: { success: true, data: [...] }
         let resultsData: Product[] = [];
 
         if (Array.isArray(response)) {
-          // Direct array response
-          console.log('🔍 Direct array response, using as-is');
           resultsData = response;
         } else if (response && typeof response === 'object' && response.success) {
-          // Wrapped response
-          console.log('🔍 Wrapped response, extracting data');
           resultsData = response.data || [];
-        } else {
-          console.log('🔍 Unknown response format:', response);
         }
 
         console.log('🔍 Setting results:', resultsData.length, 'items');
@@ -203,8 +191,10 @@ export default function ProductSearch({ onAddProduct, searchFocus, setSearchFocu
                 setQuery('');
               }
             } else {
-              // If empty, open Camera Scanner
-              setShowScanner(true);
+              // If empty, trigger parent scanner
+              if (onScanClick) {
+                onScanClick();
+              }
             }
           }}
           className="absolute right-3 top-1/2 -translate-y-1/2 p-2 hover:bg-gray-100 rounded-full transition-colors"
@@ -214,15 +204,7 @@ export default function ProductSearch({ onAddProduct, searchFocus, setSearchFocu
         </button>
       </div>
 
-      {showScanner && onManualScan && (
-        <BarcodeScannerModal
-          onClose={() => setShowScanner(false)}
-          onScan={(code) => {
-            onManualScan(code);
-            setShowScanner(false);
-          }}
-        />
-      )}
+      {/* Internal Modal has been removed */}
 
       {selectedForAlternatives && (
         <SaltAlternativesPanel

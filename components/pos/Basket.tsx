@@ -227,106 +227,156 @@ export default function Basket({ items, onUpdateItem, onRemoveItem, onClear, onE
 
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => onUpdateItem(index, { qty: Math.max(1, item.qty - 1) })}
-                        className="w-7 h-7 flex items-center justify-center border border-[#cbd5e1] rounded hover:bg-[#f8fafc]"
-                      >
-                        <FiMinus className="w-3 h-3" />
-                      </button>
-                      <input
-                        type="number"
-                        value={item.qty}
-                        onChange={(e) => {
-                          const newQty = Math.max(1, parseInt(e.target.value) || 1);
-                          const maxQty = item.stock || item.totalStock || 999;
-                          if (newQty > maxQty) {
-                            toast.error(`Only ${maxQty} ${formatUnitName(selectedUnit)}s available in stock!`);
-                            return;
-                          }
-                          onUpdateItem(index, { qty: newQty });
-                        }}
-                        className="w-12 text-center border border-[#cbd5e1] rounded py-1 text-sm focus:outline-none focus:ring-2 focus:ring-[#0ea5a3]"
-                        max={item.stock || item.totalStock || 999}
-                      />
-                      <button
-                        onClick={() => {
-                          const maxQty = item.stock || item.totalStock || 999;
-                          if (item.qty + 1 > maxQty) {
-                            toast.error(`Only ${maxQty} ${formatUnitName(selectedUnit)}s available in stock!`);
-                            return;
-                          }
-                          onUpdateItem(index, { qty: item.qty + 1 });
-                        }}
-                        className="w-7 h-7 flex items-center justify-center border border-[#cbd5e1] rounded hover:bg-[#f8fafc]"
-                        disabled={item.qty >= (item.stock || item.totalStock || 999)}
-                      >
-                        <FiPlus className="w-3 h-3" />
-                      </button>
-
-                      {/* UNIT SELECTOR */}
-                      {drugUnits === undefined ? (
-                        <span className="px-2 py-1 text-xs border border-gray-100 rounded bg-gray-50 text-gray-400 font-medium animate-pulse select-none" title="Loading alternatives...">
-                          {formatUnitName(selectedUnit)}
-                        </span>
-                      ) : drugUnits.length <= 1 ? (
-                        <span className="px-2 py-1 text-xs border border-gray-200 rounded bg-gray-50 text-gray-600 font-medium" title="Only one unit available">
-                          {formatUnitName(selectedUnit)}
-                        </span>
+                      {/* Mixed Unit Quantity Input */}
+                      {item.conversionFactor && item.conversionFactor > 1 ? (
+                        <div className="flex items-center gap-1 bg-gray-50 p-1 rounded border border-gray-200">
+                          <div className="flex flex-col items-center">
+                            <input
+                              type="number"
+                              min="0"
+                              value={Math.floor(item.qty)}
+                              onChange={(e) => {
+                                const parentVal = Math.max(0, parseInt(e.target.value) || 0);
+                                const childVal = Math.round((item.qty % 1) * (item.conversionFactor || 1));
+                                const newTotal = parentVal + (childVal / (item.conversionFactor || 1));
+                                const maxQty = (item.stock || item.totalStock || 999) / (item.conversionFactor || 1);
+                                if (newTotal > maxQty) {
+                                  toast.error(`Exceeds stock! Max: ${formatStockQuantity(item)}`);
+                                  return;
+                                }
+                                onUpdateItem(index, { qty: newTotal });
+                              }}
+                              className="w-10 px-1 py-0.5 border border-transparent bg-white rounded text-sm text-center focus:outline-none focus:ring-1 focus:ring-[#0ea5a3]"
+                            />
+                            <span className="text-[9px] text-gray-400 uppercase font-bold leading-tight">{formatUnitName(selectedUnit)}</span>
+                          </div>
+                          <span className="text-gray-400 font-bold self-center">+</span>
+                          <div className="flex flex-col items-center">
+                            <input
+                              type="number"
+                              min="0"
+                              max={(item.conversionFactor || 1) - 1}
+                              value={Math.round((item.qty % 1) * (item.conversionFactor || 1))}
+                              onChange={(e) => {
+                                const parentVal = Math.floor(item.qty);
+                                const childVal = Math.max(0, parseInt(e.target.value) || 0);
+                                const newTotal = parentVal + (childVal / (item.conversionFactor || 1));
+                                const maxQty = (item.stock || item.totalStock || 999) / (item.conversionFactor || 1);
+                                if (newTotal > maxQty) {
+                                  toast.error(`Exceeds stock! Max: ${formatStockQuantity(item)}`);
+                                  return;
+                                }
+                                onUpdateItem(index, { qty: newTotal });
+                              }}
+                              className="w-10 px-1 py-0.5 border border-transparent bg-white rounded text-sm text-center focus:outline-none focus:ring-1 focus:ring-[#0ea5a3]"
+                            />
+                            <span className="text-[9px] text-gray-400 uppercase font-bold leading-tight">{formatUnitName(item.baseUnit || 'Unit')}</span>
+                          </div>
+                        </div>
                       ) : (
-                        <select
-                          value={selectedUnit}
-                          onChange={(e) => {
-                            const newUnit = e.target.value;
-                            const unitConfig = drugUnits.find((u: any) => u.unit === newUnit);
-
-                            // Check if changing to this unit makes it identical to ANOTHER item in the basket
-                            const otherItemIndex = items.findIndex((other: any, oIndex: number) =>
-                              oIndex !== index &&
-                              (other.drugId || other.id) === (item.drugId || item.id) &&
-                              other.batchId === item.batchId &&
-                              (other.unit || other.displayUnit || 'unit') === newUnit
-                            );
-
-                            if (otherItemIndex >= 0) {
-                              // Merge this item into the other item
-                              const targetQty = items[otherItemIndex].qty + item.qty;
-                              const targetMax = items[otherItemIndex].stock || items[otherItemIndex].totalStock || 999;
-
-                              if (targetQty > targetMax) {
-                                toast.error(`Merging these items would exceed available stock (${targetMax} ${newUnit}s)`);
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => onUpdateItem(index, { qty: Math.max(1, item.qty - 1) })}
+                            className="w-7 h-7 flex items-center justify-center border border-[#cbd5e1] rounded hover:bg-[#f8fafc]"
+                          >
+                            <FiMinus className="w-3 h-3" />
+                          </button>
+                          <input
+                            type="number"
+                            step="any"
+                            value={item.qty}
+                            onChange={(e) => {
+                              const newQty = Math.max(0, parseFloat(e.target.value) || 0);
+                              const maxQty = item.stock || item.totalStock || 999;
+                              if (newQty > maxQty) {
+                                toast.error(`Only ${maxQty} ${formatUnitName(selectedUnit)}s available in stock!`);
                                 return;
                               }
-
-                              // Remove current item and update the other one
-                              onRemoveItem(index);
-                              onUpdateItem(otherItemIndex, { qty: targetQty });
-                              toast.info(`Merged items under unit: ${formatUnitName(newUnit)}`);
-                            } else {
-                              onUpdateItem(index, {
-                                unit: newUnit,
-                                conversionFactor: unitConfig?.conversionFactor || 1
-                              });
-                            }
-                          }}
-                          className="px-2 py-1 text-xs border border-emerald-200 rounded bg-emerald-50 text-emerald-700 font-medium focus:outline-none focus:ring-2 focus focus:ring-emerald-300 cursor-pointer"
-                          title="Select unit"
-                        >
-                          {drugUnits.map((unitOption: any) => (
-                            <option key={unitOption.unit} value={unitOption.unit}>
-                              {formatUnitName(unitOption.unit)}
-                            </option>
-                          ))}
-                        </select>
+                              onUpdateItem(index, { qty: newQty });
+                            }}
+                            className="w-12 text-center border border-[#cbd5e1] rounded py-1 text-sm focus:outline-none focus:ring-2 focus:ring-[#0ea5a3]"
+                          />
+                          <button
+                            onClick={() => {
+                              const maxQty = item.stock || item.totalStock || 999;
+                              if (item.qty + 1 > maxQty) {
+                                toast.error(`Only ${maxQty} ${formatUnitName(selectedUnit)}s available in stock!`);
+                                return;
+                              }
+                              onUpdateItem(index, { qty: item.qty + 1 });
+                            }}
+                            className="w-7 h-7 flex items-center justify-center border border-[#cbd5e1] rounded hover:bg-[#f8fafc]"
+                            disabled={item.qty >= (item.stock || item.totalStock || 999)}
+                          >
+                            <FiPlus className="w-3 h-3" />
+                          </button>
+                        </div>
                       )}
                     </div>
 
-                    <div className="text-right">
-                      <div className="text-xs text-[#64748b]">
-                        ₹{unitPrice.toFixed(2)} × {item.qty}
-                        {selectedUnit && <span className="ml-1 text-[10px] text-emerald-600">({selectedUnit})</span>}
-                      </div>
-                      <div className="font-semibold text-[#0f172a]">₹{lineTotal.toFixed(2)}</div>
+                    {/* UNIT SELECTOR */}
+                    {drugUnits === undefined ? (
+                      <span className="px-2 py-1 text-xs border border-gray-100 rounded bg-gray-50 text-gray-400 font-medium animate-pulse select-none" title="Loading alternatives...">
+                        {formatUnitName(selectedUnit)}
+                      </span>
+                    ) : drugUnits.length <= 1 ? (
+                      <span className="px-2 py-1 text-xs border border-gray-200 rounded bg-gray-50 text-gray-600 font-medium" title="Only one unit available">
+                        {formatUnitName(selectedUnit)}
+                      </span>
+                    ) : (
+                      <select
+                        value={selectedUnit}
+                        onChange={(e) => {
+                          const newUnit = e.target.value;
+                          const unitConfig = drugUnits.find((u: any) => u.unit === newUnit);
+
+                          // Check if changing to this unit makes it identical to ANOTHER item in the basket
+                          const otherItemIndex = items.findIndex((other: any, oIndex: number) =>
+                            oIndex !== index &&
+                            (other.drugId || other.id) === (item.drugId || item.id) &&
+                            other.batchId === item.batchId &&
+                            (other.unit || other.displayUnit || 'unit') === newUnit
+                          );
+
+                          if (otherItemIndex >= 0) {
+                            // Merge this item into the other item
+                            const targetQty = items[otherItemIndex].qty + item.qty;
+                            const targetMax = items[otherItemIndex].stock || items[otherItemIndex].totalStock || 999;
+
+                            if (targetQty > targetMax) {
+                              toast.error(`Merging these items would exceed available stock (${targetMax} ${newUnit}s)`);
+                              return;
+                            }
+
+                            // Remove current item and update the other one
+                            onRemoveItem(index);
+                            onUpdateItem(otherItemIndex, { qty: targetQty });
+                            toast.info(`Merged items under unit: ${formatUnitName(newUnit)}`);
+                          } else {
+                            onUpdateItem(index, {
+                              unit: newUnit,
+                              conversionFactor: unitConfig?.conversionFactor || 1
+                            });
+                          }
+                        }}
+                        className="px-2 py-1 text-xs border border-emerald-200 rounded bg-emerald-50 text-emerald-700 font-medium focus:outline-none focus:ring-2 focus focus:ring-emerald-300 cursor-pointer"
+                        title="Select unit"
+                      >
+                        {drugUnits.map((unitOption: any) => (
+                          <option key={unitOption.unit} value={unitOption.unit}>
+                            {formatUnitName(unitOption.unit)}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+
+                  <div className="text-right">
+                    <div className="text-xs text-[#64748b]">
+                      ₹{unitPrice.toFixed(2)} × {item.qty}
+                      {selectedUnit && <span className="ml-1 text-[10px] text-emerald-600">({selectedUnit})</span>}
                     </div>
+                    <div className="font-semibold text-[#0f172a]">₹{lineTotal.toFixed(2)}</div>
                   </div>
 
                   {item.discount > 0 && (
@@ -441,21 +491,23 @@ export default function Basket({ items, onUpdateItem, onRemoveItem, onClear, onE
         )}
       </div>
 
-      {items.length > 0 && (
-        <div className={`shrink-0 border-t px-4 py-3 ${isPremium ? 'bg-emerald-50/30 border-emerald-100' : 'bg-white border-[#e2e8f0]'}`}>
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-[#64748b]">Subtotal ({items.length} items)</span>
-            <span className={`font-semibold text-lg ${isPremium ? 'text-emerald-700' : 'text-[#0f172a]'}`}>₹{subtotal.toFixed(2)}</span>
+      {
+        items.length > 0 && (
+          <div className={`shrink-0 border-t px-4 py-3 ${isPremium ? 'bg-emerald-50/30 border-emerald-100' : 'bg-white border-[#e2e8f0]'}`}>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm text-[#64748b]">Subtotal ({items.length} items)</span>
+              <span className={`font-semibold text-lg ${isPremium ? 'text-emerald-700' : 'text-[#0f172a]'}`}>₹{subtotal.toFixed(2)}</span>
+            </div>
+            <button
+              onClick={() => setShowClearDialog(true)}
+              className="w-full py-2 text-sm font-medium text-[#ef4444] border border-[#fecaca] rounded-lg hover:bg-[#fef2f2] flex items-center justify-center gap-1 transition-colors"
+            >
+              <FiTrash className="w-3.5 h-3.5" />
+              <span>Clear Sale</span>
+            </button>
           </div>
-          <button
-            onClick={() => setShowClearDialog(true)}
-            className="w-full py-2 text-sm font-medium text-[#ef4444] border border-[#fecaca] rounded-lg hover:bg-[#fef2f2] flex items-center justify-center gap-1 transition-colors"
-          >
-            <FiTrash className="w-3.5 h-3.5" />
-            <span>Clear Sale</span>
-          </button>
-        </div>
-      )}
+        )
+      }
 
       <ConfirmDialog
         isOpen={showClearDialog}

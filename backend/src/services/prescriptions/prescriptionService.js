@@ -102,7 +102,9 @@ class PrescriptionService {
                             daysSupply: item.daysSupply,
                             substitutionAllowed: item.substitutionAllowed !== false,
                             isControlled: item.isControlled || false,
-                            refillsAllowed: item.refillsAllowed || 0
+                            refillsAllowed: item.refillsAllowed || 0,
+                            unit: item.unit,
+                            conversionFactor: item.conversionFactor
                         }))
                     }
                 }
@@ -231,7 +233,9 @@ class PrescriptionService {
                                 sig: item.sig || null,
                                 substitutionAllowed: item.substitutionAllowed ?? true,
                                 isControlled: item.isControlled ?? false,
-                                refillsAllowed: item.refillsAllowed || 0
+                                refillsAllowed: item.refillsAllowed || 0,
+                                unit: item.unit,
+                                conversionFactor: item.conversionFactor
                             }))
                         }
                     }
@@ -353,7 +357,7 @@ class PrescriptionService {
      */
     async updatePrescriptionStatus(prescriptionId, userId = null) {
         console.log('🔴 [PrescriptionService] updatePrescriptionStatus called:', { prescriptionId, userId });
-        
+
         const prescription = await prisma.prescription.findUnique({
             where: { id: prescriptionId },
             include: { refills: true }
@@ -389,7 +393,7 @@ class PrescriptionService {
         else if (prescription.type === 'ONE_TIME') {
             const hasAnyDispense = prescription.refills?.some(r => Number(r.dispensedQty) > 0);
             console.log('🔴 [PrescriptionService] ONE_TIME prescription - hasAnyDispense:', hasAnyDispense);
-            
+
             if (hasAnyDispense && prescription.status !== 'COMPLETED') {
                 newStatus = 'COMPLETED';
                 statusReason = 'ONE_TIME prescription dispensed';
@@ -399,7 +403,7 @@ class PrescriptionService {
         else {
             const exhausted = await refillService.areAllRefillsExhausted(prescriptionId);
             console.log('🔴 [PrescriptionService] areAllRefillsExhausted:', exhausted);
-            
+
             if (exhausted) {
                 newStatus = 'COMPLETED';
                 statusReason = 'All refills dispensed';
@@ -408,7 +412,7 @@ class PrescriptionService {
             else if (prescription.status === 'VERIFIED') {
                 const hasActivity = prescription.refills?.some(r => Number(r.dispensedQty) > 0);
                 console.log('🔴 [PrescriptionService] hasActivity:', hasActivity);
-                
+
                 if (hasActivity) {
                     newStatus = 'ACTIVE';
                     statusReason = 'Dispensing started';
@@ -420,7 +424,7 @@ class PrescriptionService {
 
         if (newStatus !== prescription.status) {
             console.log('🟢 [PrescriptionService] Status changed! Updating database...');
-            
+
             await prisma.prescription.update({
                 where: { id: prescriptionId },
                 data: { status: newStatus }
@@ -507,7 +511,11 @@ class PrescriptionService {
                     include: {
                         items: {
                             include: {
-                                drug: true,
+                                drug: {
+                                    include: {
+                                        unitConfigurations: true
+                                    }
+                                },
                                 batch: true
                             }
                         }
@@ -520,7 +528,11 @@ class PrescriptionService {
                             include: {
                                 prescriptionItem: {
                                     include: {
-                                        drug: true
+                                        drug: {
+                                            include: {
+                                                unitConfigurations: true
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -644,26 +656,49 @@ class PrescriptionService {
         }
 
         if (search) {
-            where.OR = [
-                { prescriptionNumber: { contains: search, mode: 'insensitive' } },
-                { patient: { firstName: { contains: search, mode: 'insensitive' } } },
-                { patient: { lastName: { contains: search, mode: 'insensitive' } } },
-                { patient: { phoneNumber: { contains: search } } },
-                // Add search by Medication Name (nested relation)
-                {
-                    versions: {
-                        some: {
-                            items: {
+            const searchTerms = search.trim().split(/\s+/);
+
+            if (searchTerms.length > 1) {
+                // Multi-word search (e.g., "John Doe")
+                where.AND = searchTerms.map(term => ({
+                    OR: [
+                        { prescriptionNumber: { contains: term, mode: 'insensitive' } },
+                        { patient: { firstName: { contains: term, mode: 'insensitive' } } },
+                        { patient: { lastName: { contains: term, mode: 'insensitive' } } },
+                        { patient: { phoneNumber: { contains: term } } },
+                        {
+                            versions: {
                                 some: {
-                                    drug: {
-                                        name: { contains: search, mode: 'insensitive' }
+                                    items: {
+                                        some: {
+                                            drug: { name: { contains: term, mode: 'insensitive' } }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    ]
+                }));
+            } else {
+                // Single-word search
+                where.OR = [
+                    { prescriptionNumber: { contains: search, mode: 'insensitive' } },
+                    { patient: { firstName: { contains: search, mode: 'insensitive' } } },
+                    { patient: { lastName: { contains: search, mode: 'insensitive' } } },
+                    { patient: { phoneNumber: { contains: search } } },
+                    {
+                        versions: {
+                            some: {
+                                items: {
+                                    some: {
+                                        drug: { name: { contains: search, mode: 'insensitive' } }
                                     }
                                 }
                             }
                         }
                     }
-                }
-            ];
+                ];
+            }
         }
 
         // Sorting Logic
