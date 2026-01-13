@@ -24,7 +24,7 @@ class SchedulerService {
         // Run every 6 hours: Low stock check
         cron.schedule('0 */6 * * *', async () => {
             logger.debug('Running Low Stock Check');
-            await runLowStockCheck();
+            // await runLowStockCheck();
         });
 
         // Run immediately on startup for testing/dev (optional, maybe controlled by ENV)
