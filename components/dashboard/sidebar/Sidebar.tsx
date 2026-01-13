@@ -128,9 +128,15 @@ function NavItem({ item, isOpen, expanded, onToggle }: any) {
     const { user } = useAuthStore()
 
     // Check if feature is gated
+    // We must call the hook unconditionally to follow Rules of Hooks
+    // Use a safe core feature (POS) as fallback for non-gated items
+    const featureToCheck = item.gatedFeature || 'POS'
+    const accessData = useFeatureAccess(featureToCheck)
+
     const featureAccess = item.gatedFeature
-        ? useFeatureAccess(item.gatedFeature)
+        ? accessData
         : { hasAccess: true, reason: '', upgradePrompt: '', requiredModules: [], isCore: false }
+        
     const isLocked = !featureAccess.hasAccess
 
     const hasSubItems = item.subItems && Array.isArray(item.subItems) && item.subItems.length > 0

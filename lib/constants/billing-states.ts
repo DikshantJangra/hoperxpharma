@@ -334,6 +334,14 @@ export function determineBillingState(subscription: {
 
     // Paid and active (check this FIRST before trial logic)
     if ((statusLower === 'active' || statusLower === 'paid') && !subscription.isTrial) {
+        // Safety check: If expired by more than 24 hours, treat as overdue (frontend enforcement)
+        // This handles cases where backend hasn't updated status yet
+        if (subscription.expiresAt) {
+            const gracePeriod = 24 * 60 * 60 * 1000; // 24 hours
+            if (subscription.expiresAt.getTime() + gracePeriod < now.getTime()) {
+                return BillingState.PAYMENT_OVERDUE;
+            }
+        }
         return BillingState.PAID_ACTIVE;
     }
 
