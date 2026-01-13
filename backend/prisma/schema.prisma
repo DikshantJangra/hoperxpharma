@@ -221,6 +221,9 @@ model Store {
   termsAndConditions  String?
   whatsappMode        String?
   isDemo              Boolean               @default(false)
+  rxNumberCounter     Int                   @default(0)
+  rxNumberFormat      String?               @default("SXXX-PREFIX-NNNNNN")
+  rxNumberPrefix      String?               @default("RX")
   users               StoreUser[]
   licenses            StoreLicense[]
   operatingHours      StoreOperatingHours[]
@@ -254,11 +257,6 @@ model Store {
   emailAccounts       EmailAccount[]
   payments            Payment[]
   marginLedger        MarginLedger[]
-
-  // RX Number Format Configuration
-  rxNumberFormat      String?            @default("SXXX-PREFIX-NNNNNN")
-  rxNumberPrefix      String?            @default("RX")
-  rxNumberCounter     Int                @default(0)
 
   @@index([email])
   @@index([deletedAt])
@@ -635,6 +633,9 @@ model Drug {
   baseUnit                 String?
   displayUnit              String?
   lowStockThresholdBase    Decimal?                  @db.Decimal(12, 3)
+  ingestionStatus          DrugIngestionStatus       @default(ACTIVE)
+  ocrMetadata              Json?
+  stripImageUrl            String?
   hsnCodeRef               HsnCode?                  @relation(fields: [hsnCodeId], references: [id])
   store                    Store                     @relation(fields: [storeId], references: [id], onDelete: Cascade)
   inventory                InventoryBatch[]
@@ -647,9 +648,6 @@ model Drug {
   unitConfigurations       DrugUnit[]
   locationMappings         LocationMapping[]
   saltLinks                DrugSaltLink[]
-  ingestionStatus          DrugIngestionStatus       @default(ACTIVE)
-  stripImageUrl            String?
-  ocrMetadata              Json?
   marginLedger             MarginLedger[]
 
   @@index([name])
@@ -880,12 +878,12 @@ model PrescriptionItem {
   prescriptionId     String
   drugId             String
   quantityPrescribed Int
-  unit               String?
-  conversionFactor   Decimal?        @db.Decimal(10, 2)
   sig                String?
   daysSupply         Int?
   isControlled       Boolean         @default(false)
   batchId            String?
+  conversionFactor   Decimal?        @db.Decimal(10, 2)
+  unit               String?
   prescription       Prescription    @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
   drug               Drug            @relation(fields: [drugId], references: [id])
   batch              InventoryBatch? @relation(fields: [batchId], references: [id])
@@ -942,13 +940,13 @@ model PrescriptionItemVersion {
   drugId                String
   batchId               String?
   quantityPrescribed    Int
-  unit                  String?
-  conversionFactor      Decimal?            @db.Decimal(10, 2)
   sig                   String?
   daysSupply            Int?
   substitutionAllowed   Boolean             @default(true)
   isControlled          Boolean             @default(false)
   refillsAllowed        Int                 @default(0)
+  conversionFactor      Decimal?            @db.Decimal(10, 2)
+  unit                  String?
   prescriptionVersion   PrescriptionVersion @relation(fields: [prescriptionVersionId], references: [id], onDelete: Cascade)
   drug                  Drug                @relation(fields: [drugId], references: [id])
   batch                 InventoryBatch?     @relation(fields: [batchId], references: [id])
@@ -2052,40 +2050,30 @@ model WhatsAppAccount {
 }
 
 model MarginLedger {
-  id         String @id @default(cuid())
-  storeId    String
-  saleId     String
-  saleItemId String
-  batchId    String
-  drugId     String
-
-  // Financials (Per Unit)
-  costPrice    Decimal @db.Decimal(12, 4) // High precision for partials
-  sellingPrice Decimal @db.Decimal(12, 4)
-  taxAmount    Decimal @db.Decimal(10, 2)
-
-  // Totals
-  quantity     Decimal @db.Decimal(10, 2) // Supports partial strips
-  totalCost    Decimal @db.Decimal(12, 2)
-  totalRevenue Decimal @db.Decimal(12, 2)
-  marginAmount Decimal @db.Decimal(12, 2)
-
-  // Meta
-  marginPercent Decimal @db.Decimal(6, 2)
-  isProvisional Boolean @default(false)
-  type          String  @default("SALE") // SALE, RETURN, ADJUSTMENT
+  id            String         @id @default(cuid())
+  storeId       String
+  saleId        String
+  saleItemId    String
+  batchId       String
+  drugId        String
+  costPrice     Decimal        @db.Decimal(12, 4)
+  sellingPrice  Decimal        @db.Decimal(12, 4)
+  taxAmount     Decimal        @db.Decimal(10, 2)
+  quantity      Decimal        @db.Decimal(10, 2)
+  totalCost     Decimal        @db.Decimal(12, 2)
+  totalRevenue  Decimal        @db.Decimal(12, 2)
+  marginAmount  Decimal        @db.Decimal(12, 2)
+  marginPercent Decimal        @db.Decimal(6, 2)
+  isProvisional Boolean        @default(false)
+  type          String         @default("SALE")
   notes         String?
-
-  // Timestamps
-  finalizedAt DateTime @default(now())
-  createdAt   DateTime @default(now())
-
-  // Relations
-  store    Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  drug     Drug           @relation(fields: [drugId], references: [id])
-  batch    InventoryBatch @relation(fields: [batchId], references: [id])
-  sale     Sale           @relation(fields: [saleId], references: [id], onDelete: Cascade)
-  saleItem SaleItem       @relation(fields: [saleItemId], references: [id], onDelete: Cascade)
+  finalizedAt   DateTime       @default(now())
+  createdAt     DateTime       @default(now())
+  store         Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  drug          Drug           @relation(fields: [drugId], references: [id])
+  batch         InventoryBatch @relation(fields: [batchId], references: [id])
+  sale          Sale           @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  saleItem      SaleItem       @relation(fields: [saleItemId], references: [id], onDelete: Cascade)
 
   @@index([storeId, finalizedAt])
   @@index([saleId])
@@ -2697,11 +2685,11 @@ model Salt {
   category         String?
   therapeuticClass String?
   highRisk         Boolean        @default(false)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
   aliases          String[]
   createdById      String?
   createdBy        User?          @relation("SaltCreator", fields: [createdById], references: [id])
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
   drugSaltLinks    DrugSaltLink[]
 
   @@index([name])

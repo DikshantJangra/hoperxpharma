@@ -49,8 +49,7 @@ class PrescriptionService {
                 id: true,
                 rxNumberFormat: true,
                 rxNumberPrefix: true,
-                rxNumberCounter: true,
-                rxYearlyReset: true
+                rxNumberCounter: true
             }
         });
 
@@ -59,28 +58,9 @@ class PrescriptionService {
         }
 
         const format = store.rxNumberFormat || 'RX-NNNNNN';
-        const currentYear = new Date().getFullYear();
 
-        // Check if we need to reset counter (yearly reset logic)
-        let counter = store.rxNumberCounter || 0;
-        if (store.rxYearlyReset) {
-            // Check if last prescription was from previous year
-            const lastRx = await prisma.prescription.findFirst({
-                where: { storeId },
-                orderBy: { createdAt: 'desc' },
-                select: { createdAt: true }
-            });
-
-            if (lastRx) {
-                const lastYear = new Date(lastRx.createdAt).getFullYear();
-                if (lastYear < currentYear) {
-                    counter = 0; // Reset for new year
-                }
-            }
-        }
-
-        // Increment counter
-        const nextCounter = counter + 1;
+        // Increment counter (no yearly reset)
+        const nextCounter = (store.rxNumberCounter || 0) + 1;
 
         // Generate number using format
         const prescriptionNumber = this.parseRxFormat(format, store, nextCounter);
