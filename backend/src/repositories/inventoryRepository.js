@@ -4,6 +4,7 @@ const { buildOrderBy } = require('../utils/queryParser');
 
 const prisma = require('../db/prisma');
 
+
 /**
  * Inventory Repository - Data access layer for inventory operations
  */
