@@ -429,6 +429,69 @@ class InventoryService {
     async getBatchHistory(storeId, drugIds) {
         return await inventoryRepository.getBatchHistoryForDrugs(storeId, drugIds);
     }
+
+    /**
+     * Check if a batch exists for a drug in a store
+     */
+    async checkBatchExists(storeId, drugId, batchNumber) {
+        const batch = await inventoryRepository.findBatchByDrugAndNumber(storeId, drugId, batchNumber);
+
+        if (batch) {
+            return {
+                exists: true,
+                batchId: batch.id,
+                currentStock: batch.quantityInStock,
+                expiry: batch.expiryDate,
+                location: batch.location,
+                mrp: batch.mrp,
+                purchasePrice: batch.purchasePrice,
+                manufacturerBarcode: batch.manufacturerBarcode,
+                internalQR: batch.id,
+                createdAt: batch.createdAt,
+            };
+        }
+
+        return { exists: false };
+    }
+
+    /**
+     * Bulk check batch existence
+     * Returns a map keyed by `${drugId}_${batchNumber}`
+     */
+    async checkBatchesBulk(storeId, items) {
+        const batches = await inventoryRepository.findBatchesBulk(storeId, items);
+
+        // Transform to map for easy frontend lookup
+        const result = {};
+
+        // Helper key generator
+        const getKey = (drugId, batchNumber) => `${drugId}_${batchNumber}`;
+
+        // Populate found batches
+        batches.forEach(batch => {
+            const key = getKey(batch.drugId, batch.batchNumber);
+            result[key] = {
+                exists: true,
+                batchId: batch.id,
+                currentStock: batch.quantityInStock,
+                expiry: batch.expiryDate,
+                location: batch.location,
+                mrp: batch.mrp,
+                manufacturerBarcode: batch.manufacturerBarcode,
+                internalQR: batch.id // Using batch ID as QR content
+            };
+        });
+
+        // Add 'exists: false' for items not found (implicit in frontend usage, but explicit here is clearer)
+        items.forEach(item => {
+            const key = getKey(item.drugId, item.batchNumber);
+            if (!result[key]) {
+                result[key] = { exists: false };
+            }
+        });
+
+        return result;
+    }
 }
 
 module.exports = new InventoryService();

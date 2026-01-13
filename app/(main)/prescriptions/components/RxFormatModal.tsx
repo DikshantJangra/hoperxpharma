@@ -12,43 +12,59 @@ interface RxFormatModalProps {
 }
 
 export default function RxFormatModal({ currentFormat, currentPrefix, onSave, onClose }: RxFormatModalProps) {
-    const [format, setFormat] = useState(currentFormat || 'RX-NNNNNN');
+    const [format, setFormat] = useState(currentFormat || 'SXXX-PREFIX-NNNNNN');
     const [prefix, setPrefix] = useState(currentPrefix || 'RX');
-    const [yearlyReset, setYearlyReset] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
-
+    const [customFormat, setCustomFormat] = useState('');
     const templates = [
-        { label: 'Simple Sequential', value: 'RX-NNNNNN', example: 'RX-000047' },
-        { label: 'Year-Based', value: 'PREFIX-YYYY-NNNNNN', example: 'RX-2026-000047' },
-        { label: 'Store-Based', value: 'SXXX-PREFIX-NNNNNN', example: 'S012-RX-000047', desc: 'SXXX = Store ID' },
-        { label: 'Custom', value: 'custom', example: 'Define your own pattern' }
+        { label: 'Store-Based (Default)', value: 'SXXX-PREFIX-NNNNNN', example: 'S012-RX-000047', desc: 'Recommended' },
+        { label: 'Year-Based', value: 'PREFIX-YYYY-SXXX-NNNNNN', example: 'RX-2026-S012-000047' },
+        { label: 'Simple Sequential', value: 'PREFIX-SXXX-NNNNNN', example: 'RX-S012-000047' },
+        { label: 'Custom Pattern', value: 'custom', example: 'Use tokens below' }
     ];
 
     const getPreview = () => {
-        if (format === 'custom') return 'Enter custom format...';
-
-        // Mock preview
-        const mockStore = { id: '123store456', rxNumberPrefix: prefix };
+        const mockStore = { id: '123store456' };
         const mockCounter = 48;
         const year = new Date().getFullYear();
+        const month = (new Date().getMonth() + 1).toString().padStart(2, '0');
 
-        return format
-            .replace('YYYY', year.toString())
-            .replace('YY', year.toString().slice(-2))
-            .replace(/N+/g, (match) => mockCounter.toString().padStart(match.length, '0'))
-            .replace('SXXX', mockStore.id.slice(-3))
-            .replace('PREFIX', prefix);
+        const formatToUse = format === 'custom' ? customFormat : format;
+        if (!formatToUse) return 'Enter pattern...';
+
+        // Replace all tokens with actual values
+        let preview = formatToUse;
+
+        // Replace braced tokens first
+        preview = preview.replace(/\{PREFIX\}/g, prefix);
+        preview = preview.replace(/\{YYYY\}/g, year.toString());
+        preview = preview.replace(/\{YY\}/g, year.toString().slice(-2));
+        preview = preview.replace(/\{MM\}/g, month);
+        preview = preview.replace(/\{NNNNNN\}/g, mockCounter.toString().padStart(6, '0'));
+        preview = preview.replace(/\{SXXX\}/g, mockStore.id.slice(-3));
+
+        // Then replace non-braced tokens
+        preview = preview.replace(/PREFIX/g, prefix);
+        preview = preview.replace(/YYYY/g, year.toString());
+        preview = preview.replace(/YY/g, year.toString().slice(-2));
+        preview = preview.replace(/MM/g, month);
+        preview = preview.replace(/N{6,}/g, (match) => mockCounter.toString().padStart(match.length, '0'));
+        preview = preview.replace(/N+/g, (match) => mockCounter.toString().padStart(match.length, '0'));
+        preview = preview.replace(/SXXX/g, mockStore.id.slice(-3));
+
+        return preview;
     };
 
     const handleSave = async () => {
-        if (!format || format === 'custom') {
+        const finalFormat = format === 'custom' ? customFormat : format;
+        if (!finalFormat) {
             toast.error('Please select or define a format');
             return;
         }
 
         setIsSaving(true);
         try {
-            await onSave({ format, prefix, yearlyReset });
+            await onSave({ format: finalFormat, prefix, yearlyReset: false });
             toast.success('RX number format updated');
             onClose();
         } catch (error: any) {
@@ -94,18 +110,29 @@ export default function RxFormatModal({ currentFormat, currentPrefix, onSave, on
 
                     {/* Custom Format Input */}
                     {format === 'custom' && (
-                        <div>
+                        <div onClick={(e) => e.stopPropagation()}>
                             <label className="block text-xs font-medium text-gray-700 mb-1">
                                 Custom Format Pattern
                             </label>
                             <input
                                 type="text"
-                                placeholder="e.g., PREFIX-YYYY-NNNNNN"
-                                className="w-full px-3 py-2 border rounded  text-sm font-mono"
-                                onChange={(e) => setFormat(e.target.value)}
+                                value={customFormat}
+                                placeholder="e.g., {PREFIX}-{YYYY}-{NNNNNN}"
+                                className="w-full px-3 py-2 border rounded text-sm font-mono focus:ring-2 focus:ring-teal-500 focus:border-teal-500"
+                                onChange={(e) => setCustomFormat(e.target.value)}
+                                onClick={(e) => e.stopPropagation()}
+                                autoFocus
                             />
-                            <div className="text-xs text-gray-500 mt-1">
-                                Tokens: YYYY (year), NNNNNN (counter), PREFIX (from below), SXXX (store ID)
+                            <div className="text-xs text-gray-500 mt-2 space-y-1">
+                                <div className="font-medium">Available Tokens:</div>
+                                <div className="grid grid-cols-2 gap-1">
+                                    <span>• <code className="bg-gray-100 px-1 rounded">{'{PREFIX}'}</code> = RX</span>
+                                    <span>• <code className="bg-gray-100 px-1 rounded">{'{YYYY}'}</code> = 2026</span>
+                                    <span>• <code className="bg-gray-100 px-1 rounded">{'{YY}'}</code> = 26</span>
+                                    <span>• <code className="bg-gray-100 px-1 rounded">{'{MM}'}</code> = 01</span>
+                                    <span>• <code className="bg-gray-100 px-1 rounded">{'{SXXX}'}</code> = Store ID</span>
+                                    <span>• <code className="bg-gray-100 px-1 rounded">{'{NNNNNN}'}</code> = 000048</span>
+                                </div>
                             </div>
                         </div>
                     )}
@@ -124,19 +151,6 @@ export default function RxFormatModal({ currentFormat, currentPrefix, onSave, on
                             maxLength={10}
                         />
                     </div>
-
-                    {/* Yearly Reset Option */}
-                    <label className="flex items-center gap-2 p-3 border rounded cursor-pointer hover:bg-gray-50">
-                        <input
-                            type="checkbox"
-                            checked={yearlyReset}
-                            onChange={(e) => setYearlyReset(e.target.checked)}
-                        />
-                        <div className="flex-1">
-                            <div className="font-medium text-sm">Reset counter yearly</div>
-                            <div className="text-xs text-gray-500">Counter resets to 1 each January</div>
-                        </div>
-                    </label>
 
                     {/* Preview */}
                     <div className="p-3 bg-blue-50 rounded border border-blue-200">

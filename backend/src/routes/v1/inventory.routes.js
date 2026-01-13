@@ -29,15 +29,23 @@ router.delete('/drugs/:id', requirePharmacist, auditLogger.logActivity('DRUG_DEL
 /**
  * Batch routes (require store access)
  */
+// IMPORTANT: Specific routes must come BEFORE parameterized routes
+// Check if batch exists (for receiving visual indicators)
+router.get('/batches/check', requireStoreAccess, inventoryController.checkBatch);
+
+// Bulk check batch existence (for initial load)
+router.post('/batches/check-bulk', requireStoreAccess, inventoryController.checkBatchesBulk);
+
+// Batch history for smart suggest
+router.post('/batches/history', inventoryController.getBatchHistory);
+
+// Now the parameterized routes
 router.get('/batches', requireStoreAccess, validate(inventoryQuerySchema, 'query'), inventoryController.getBatches);
 router.get('/batches/:id', inventoryController.getBatchById);
 router.post('/batches', requireStoreAccess, validate(batchCreateSchema), auditLogger.logActivity('BATCH_CREATED', 'batch'), inventoryController.createBatch);
 router.put('/batches/:id', requirePharmacist, validate(batchUpdateSchema), auditLogger.logActivity('BATCH_UPDATED', 'batch'), inventoryController.updateBatch);
 router.delete('/batches/:id', requirePharmacist, auditLogger.logActivity('BATCH_DELETED', 'batch'), inventoryController.deleteBatch);
 router.patch('/batches/:id/location', requirePharmacist, auditLogger.logActivity('BATCH_LOCATION_UPDATED', 'batch'), inventoryController.updateBatchLocation);
-
-// Batch history for smart suggest
-router.post('/batches/history', inventoryController.getBatchHistory);
 
 /**
  * Drug-specific batch routes

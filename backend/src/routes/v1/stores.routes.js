@@ -34,4 +34,9 @@ router.get('/subscriptions/plans', storeController.getPlans);
 router.get('/:storeId/subscription', storeController.getStoreSubscription);
 router.get('/:storeId/subscription/usage', storeController.getUsage);
 
+/**
+ * RX Number Format
+ */
+router.patch('/:id/rx-format', storeController.updateRxFormat);
+
 module.exports = router;

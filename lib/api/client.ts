@@ -79,97 +79,91 @@ let isRefreshing = false;
 let refreshPromise: Promise<void> | null = null;
 let lastRefreshAttempt = 0;
 let lastSuccessfulRefresh = 0;
-const REFRESH_COOLDOWN = 10000; // 10 second cooldown between refresh attempts
-const MIN_TOKEN_LIFETIME = 60000; // Don't refresh if token was refreshed less than 1 minute ago
+let consecutiveFailures = 0;
+let circuitBreakerOpen = false;
+const REFRESH_COOLDOWN = 5000;
+const MIN_TOKEN_LIFETIME = 120000; // 2 minutes
+const MAX_CONSECUTIVE_FAILURES = 3;
+const CIRCUIT_BREAKER_RESET = 60000;
 
 async function refreshTokenIfNeeded(): Promise<void> {
-    const now = Date.now();
-    
-    // CRITICAL: If a refresh is already in progress, wait for it
+    // CRITICAL: If already refreshing, ALL callers must wait for the same promise
     if (isRefreshing && refreshPromise) {
         return refreshPromise;
     }
 
-    // Prevent refresh spam - enforce cooldown
+    const now = Date.now();
+
+    // Circuit breaker
+    if (circuitBreakerOpen) {
+        if (now - lastRefreshAttempt > CIRCUIT_BREAKER_RESET) {
+            circuitBreakerOpen = false;
+            consecutiveFailures = 0;
+        } else {
+            throw new Error('Circuit breaker open - too many refresh failures');
+        }
+    }
+
+    // Aggressive cooldown to prevent spam
     if (now - lastRefreshAttempt < REFRESH_COOLDOWN) {
         return;
     }
 
-    // Don't refresh if we just refreshed successfully
-    if (now - lastSuccessfulRefresh < MIN_TOKEN_LIFETIME) {
+    // Stop if too many failures
+    if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+        circuitBreakerOpen = true;
+        tokenManager.clearTokens();
+        throw new Error('Max refresh failures reached');
+    }
+
+    // Don't refresh if we just did
+    if (lastSuccessfulRefresh > 0 && now - lastSuccessfulRefresh < MIN_TOKEN_LIFETIME) {
         return;
     }
 
     const token = tokenManager.getAccessToken();
-
-    // If no token in memory, try to refresh from httpOnly cookie (only once on page load)
-    if (!token) {
-        isRefreshing = true;
-        lastRefreshAttempt = now;
-        refreshPromise = (async () => {
-            try {
-                const response = await fetch(`${config.baseURL}/auth/refresh`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                });
-
-                if (!response.ok) {
-                    return;
-                }
-
-                const data = await response.json();
-                if (data?.data?.accessToken) {
-                    tokenManager.saveTokens(data.data.accessToken, data.data.refreshToken);
-                    lastSuccessfulRefresh = Date.now();
-                }
-            } catch (error) {
-                // Silently fail on initial load
-            } finally {
-                isRefreshing = false;
-                refreshPromise = null;
-            }
-        })();
-
-        return refreshPromise;
+    if (token && !isTokenExpiringSoon(token)) {
+        return;
     }
 
-    // If token exists but expiring soon, refresh it
-    if (isTokenExpiringSoon(token)) {
-        isRefreshing = true;
-        lastRefreshAttempt = now;
-        refreshPromise = (async () => {
-            try {
-                const response = await fetch(`${config.baseURL}/auth/refresh`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    credentials: 'include',
-                });
+    // Lock BEFORE creating promise
+    isRefreshing = true;
+    lastRefreshAttempt = now;
 
-                if (!response.ok) {
-                    const errorData = await response.json().catch(() => ({}));
-                    throw new Error(errorData.message || 'Token refresh failed');
-                }
+    refreshPromise = (async () => {
+        try {
+            const response = await fetch(`${config.baseURL}/auth/refresh`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+            });
 
-                const data = await response.json();
-                if (data?.data?.accessToken) {
-                    tokenManager.saveTokens(data.data.accessToken, data.data.refreshToken);
-                    lastSuccessfulRefresh = Date.now();
-                }
-            } catch (error: any) {
-                if (error.message.includes('Unauthorized') ||
-                    error.message.includes('unauthenticated') ||
-                    error.message.includes('expired')) {
-                    handleRefreshError(error);
-                }
-            } finally {
-                isRefreshing = false;
-                refreshPromise = null;
+            if (!response.ok) {
+                consecutiveFailures++;
+                throw new Error(`Refresh failed: ${response.status}`);
             }
-        })();
 
-        return refreshPromise;
-    }
+            const data = await response.json();
+            if (data?.data?.accessToken) {
+                tokenManager.saveTokens(data.data.accessToken, data.data.refreshToken);
+                lastSuccessfulRefresh = Date.now();
+                consecutiveFailures = 0;
+            }
+        } catch (error: any) {
+            consecutiveFailures++;
+            if (error.message?.includes('Unauthorized') ||
+                error.message?.includes('unauthenticated') ||
+                error.message?.includes('expired')) {
+                handleRefreshError(error);
+            }
+            throw error;
+        } finally {
+            isRefreshing = false;
+            refreshPromise = null;
+        }
+    })();
+
+    return refreshPromise;
 }
 
 // Helper to handle unauthorized errors during refresh
@@ -190,10 +184,16 @@ async function baseFetch(
     endpoint: string,
     options: RequestInit & { responseType?: 'json' | 'blob'; timeout?: number } = {}
 ): Promise<any> {
-    // Auto-refresh token if needed (except for auth endpoints)
-    // CRITICAL: Exclude /auth/refresh to prevent infinite loops
-    if (!endpoint.includes('/auth/login') && !endpoint.includes('/auth/register') && !endpoint.includes('/auth/refresh')) {
-        await refreshTokenIfNeeded();
+    // CRITICAL: Only refresh for non-auth endpoints AND only if we have a token
+    const shouldRefresh = !endpoint.includes('/auth/') && tokenManager.getAccessToken();
+    
+    if (shouldRefresh) {
+        try {
+            await refreshTokenIfNeeded();
+        } catch (error) {
+            // If refresh fails, continue with request - it will fail with 401 if needed
+            console.warn('Token refresh failed, continuing with request:', error);
+        }
     }
 
     const url = `${config.baseURL}${endpoint}`;

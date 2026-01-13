@@ -332,14 +332,18 @@ export default function NewPurchaseOrderPage() {
                                         </div>
                                         <div>
                                             <label className="block text-xs font-medium text-[#64748b] mb-1">GST %</label>
-                                            <input
-                                                type="number"
+                                            <select
                                                 value={item.gstRate}
-                                                onChange={(e) => updateItem(index, 'gstRate', e.target.value)}
-                                                min="0"
-                                                max="100"
+                                                onChange={(e) => updateItem(index, 'gstRate', Number(e.target.value))}
                                                 className="w-full px-2 py-1.5 text-sm border border-[#cbd5e1] rounded focus:outline-none focus:ring-2 focus:ring-[#0ea5a3]"
-                                            />
+                                                required
+                                            >
+                                                <option value={0}>0%</option>
+                                                <option value={5}>5%</option>
+                                                <option value={12}>12%</option>
+                                                <option value={18}>18%</option>
+                                                <option value={28}>28%</option>
+                                            </select>
                                         </div>
                                         <div>
                                             <label className="block text-xs font-medium text-[#64748b] mb-1">Total</label>
@@ -397,10 +401,19 @@ export default function NewPurchaseOrderPage() {
                         <button
                             type="submit"
                             disabled={isSubmitting}
-                            className="px-4 py-2 bg-[#0ea5a3] text-white rounded-lg hover:bg-[#0d9391] flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="px-4 py-2 bg-[#0ea5a3] text-white rounded-lg hover:bg-[#0d9391] flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                         >
-                            <FiSave className="w-4 h-4" />
-                            {isSubmitting ? 'Creating...' : 'Create Purchase Order'}
+                            {isSubmitting ? (
+                                <>
+                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                                    Sending PO...
+                                </>
+                            ) : (
+                                <>
+                                    <FiSave className="w-4 h-4" />
+                                    Create & Send PO
+                                </>
+                            )}
                         </button>
                     </div>
                 </form>

@@ -9,10 +9,25 @@ import { formatStockQuantity } from '@/lib/utils/stock-display';
 interface MedicationsTabProps {
   prescription: any;
   onUpdate: () => void;
+  isLoading?: boolean;
 }
 
-export default function MedicationsTab({ prescription, onUpdate }: MedicationsTabProps) {
+export default function MedicationsTab({ prescription, onUpdate, isLoading = false }: MedicationsTabProps) {
   const medications = prescription?.items || [];
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <Card>
+        <CardContent className="p-8">
+          <div className="flex flex-col items-center justify-center space-y-4">
+            <div className="w-8 h-8 border-4 border-teal-600 border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-gray-500">Loading medications...</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (medications.length === 0) {
     return (
@@ -55,20 +70,12 @@ export default function MedicationsTab({ prescription, onUpdate }: MedicationsTa
               <div>
                 <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Quantity Prescribed</label>
                 <p className="text-sm font-semibold text-gray-900 mt-1">
-                  {(() => {
-                    const qty = medication.quantityPrescribed || medication.quantity || 0;
-                    const conversionFactor = medication.drug?.conversionFactor || medication.conversionFactor;
-                    const baseUnit = medication.drug?.baseUnit || medication.baseUnit || 'Unit';
-                    const displayUnit = medication.unit || medication.drug?.displayUnit || medication.drug?.unit || 'Unit';
-
-                    if (conversionFactor && conversionFactor > 1 && qty % 1 !== 0) {
-                      // Mixed units: e.g., "3 Strips, 5 Tablets"
-                      const parentQty = Math.floor(qty);
-                      const childQty = Math.round((qty % 1) * conversionFactor);
-                      return `${parentQty} ${displayUnit}${parentQty !== 1 ? 's' : ''}, ${childQty} ${baseUnit}${childQty !== 1 ? 's' : ''}`;
-                    }
-                    return `${qty} ${displayUnit}${qty !== 1 ? 's' : ''}`;
-                  })()}
+                  {formatStockQuantity({
+                    quantityInStock: medication.quantityPrescribed || medication.quantity || 0,
+                    baseUnit: medication.drug?.baseUnit || medication.baseUnit || 'Tablet',
+                    displayUnit: medication.unit || medication.drug?.displayUnit || 'Strip',
+                    conversionFactor: medication.conversionFactor || medication.drug?.conversionFactor || 1
+                  })}
                 </p>
               </div>
 
@@ -144,7 +151,7 @@ export default function MedicationsTab({ prescription, onUpdate }: MedicationsTa
                     <p className="font-medium text-gray-900 mt-1">{medication.drug.manufacturer}</p>
                   </div>
                 )}
-                {medication.drug.requiresPrescription !== undefined && (
+                {medication.drug?.requiresPrescription !== undefined && (
                   <div>
                     <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Requires Prescription</label>
                     <p className="font-medium text-gray-900 mt-1">{medication.drug.requiresPrescription ? 'Yes' : 'No'}</p>

@@ -4,8 +4,12 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { tokenManager } from '@/lib/api/client';
 import ReceivingTable from '@/components/grn/ReceivingTable';
+import ModernReceivingTable from '@/components/grn/ModernReceivingTable';
+import POSummaryCard from '@/components/grn/POSummaryCard';
+import LiveSummaryPanel from '@/components/grn/LiveSummaryPanel';
 import CompletionSummary from '@/components/grn/CompletionSummary';
 import AttachmentUploader from '@/components/orders/AttachmentUploader';
+import CompactAttachmentUploader from '@/components/grn/CompactAttachmentUploader';
 import ValidationModal from '@/components/grn/ValidationModal';
 import StatusConfirmationModal from '@/components/grn/StatusConfirmationModal';
 import { HiOutlineArrowLeft, HiOutlineCheck, HiOutlineXMark } from 'react-icons/hi2';
@@ -23,14 +27,17 @@ export default function ReceiveShipmentPage() {
     const [saving, setSaving] = useState(false);
     const [autoSaving, setAutoSaving] = useState(false);
     const [completing, setCompleting] = useState(false);
+    const [canceling, setCanceling] = useState(false);
     const [grn, setGrn] = useState<any>(null);
     const [po, setPO] = useState<any>(null);
     const [showSummary, setShowSummary] = useState(false);
     const [lastSaved, setLastSaved] = useState<Date | null>(null);
     const [isAutoSaving, setIsAutoSaving] = useState(false); // Track if ANY item is currently saving
+    const [isFlushing, setIsFlushing] = useState(false); // Track if we're flushing pending updates before completion
     const [validationErrors, setValidationErrors] = useState<any[]>([]);
     const [showValidationModal, setShowValidationModal] = useState(false);
     const [showStatusModal, setShowStatusModal] = useState(false);
+    const [useModernUI, setUseModernUI] = useState(true); // Toggle for new UI
 
     // Invoice details
     const [invoiceNo, setInvoiceNo] = useState('');
@@ -61,18 +68,16 @@ export default function ReceiveShipmentPage() {
         }
     }, [grn]);
 
-    // DISABLED: Auto-save - only save when user clicks "Save Draft" button
-    /*
+    // Auto-save every 45 seconds to prevent data loss if browser crashes
     useEffect(() => {
         if (!grn) return;
 
         const autoSaveInterval = setInterval(() => {
             handleSaveDraft(true);
-        }, 30000); // 30 seconds
+        }, 45000); // 45 seconds
 
         return () => clearInterval(autoSaveInterval);
     }, [grn, invoiceNo, invoiceDate, notes]);
-    */
 
     // DISABLED: Background sync was causing items to re-order
     // The optimistic updates + debounced API calls are sufficient
@@ -355,10 +360,100 @@ export default function ReceiveShipmentPage() {
                 await Promise.all(childIds.map(childId => updateSingleItem(childId, childUpdates)));
             }
 
-        }, 1500);
+        }, 800); // Reduced from 1500ms for better UX
 
         // Store the new timeout for this specific item
         updateTimeoutsRef.current.set(itemId, newTimeout);
+    };
+
+    /**
+     * CRITICAL FIX: Flush all pending updates before completion
+     * This prevents data loss when users click "Receive Shipment" immediately after editing
+     */
+    const flushPendingUpdates = async (): Promise<boolean> => {
+        // If nothing pending, return immediately
+        if (pendingUpdatesRef.current.size === 0 && updateTimeoutsRef.current.size === 0) {
+            return true;
+        }
+
+        setIsFlushing(true);
+        toast.info('Saving pending changes...', { duration: 2000 });
+
+        try {
+            // 1. Cancel all debounce timeouts to prevent duplicate saves
+            updateTimeoutsRef.current.forEach(timeout => clearTimeout(timeout));
+            updateTimeoutsRef.current.clear();
+
+            // 2. Get current state snapshot from ref (has latest optimistic updates)
+            const snapshot = grnRef.current;
+            if (!snapshot || !snapshot.items) {
+                return true;
+            }
+
+            // 3. Collect all items that need saving (both pending and all items to ensure consistency)
+            const itemsToSave = snapshot.items.flatMap((item: any) => {
+                // Include children if item is split
+                if (item.isSplit && item.children) {
+                    return item.children;
+                }
+                return [item];
+            });
+
+            // 4. Save all items with their current state
+            const numericFields = ['receivedQty', 'freeQty', 'unitPrice', 'discountPercent', 'gstPercent', 'mrp'];
+
+            const savePromises = itemsToSave.map(async (item: any) => {
+                if (!item || !item.id) return true;
+
+                try {
+                    // Build complete update payload from current state
+                    const payload: any = {};
+
+                    // Include all fields that might have pending changes
+                    if (item.receivedQty !== undefined) payload.receivedQty = parseInt(item.receivedQty) || 0;
+                    if (item.freeQty !== undefined) payload.freeQty = parseInt(item.freeQty) || 0;
+                    if (item.batchNumber) payload.batchNumber = item.batchNumber;
+                    if (item.expiryDate) payload.expiryDate = item.expiryDate;
+                    if (item.mrp !== undefined && item.mrp !== null && item.mrp !== '') {
+                        payload.mrp = parseFloat(item.mrp) || 0;
+                    }
+                    if (item.unitPrice !== undefined) payload.unitPrice = parseFloat(item.unitPrice) || 0;
+                    if (item.discountPercent !== undefined) payload.discountPercent = parseFloat(item.discountPercent) || 0;
+                    if (item.gstPercent !== undefined) payload.gstPercent = parseFloat(item.gstPercent) || 0;
+                    if (item.discountType) payload.discountType = item.discountType;
+                    if (item.location) payload.location = item.location;
+                    if (item.manufacturerBarcode) payload.manufacturerBarcode = item.manufacturerBarcode;
+
+                    await grnApi.updateItem(snapshot.id, item.id, payload);
+                    return true;
+                } catch (error) {
+                    console.error(`Error flushing item ${item.id}:`, error);
+                    return false;
+                }
+            });
+
+            const results = await Promise.all(savePromises);
+            const allSucceeded = results.every(r => r === true);
+
+            // 5. Clear pending trackers
+            pendingUpdatesRef.current.clear();
+            setIsAutoSaving(false);
+            setLastSaved(new Date());
+
+            if (allSucceeded) {
+                toast.success('All changes saved!', { duration: 1500 });
+            } else {
+                toast.warning('Some changes may not have saved. Please verify.');
+            }
+
+            return allSucceeded;
+        } catch (error) {
+            console.error('Error flushing pending updates:', error);
+            toast.error('Failed to save pending changes');
+            return false;
+        } finally {
+            setIsFlushing(false);
+        }
     };
 
     // Calculate detailed totals from items (client-side calculation)
@@ -687,7 +782,19 @@ export default function ReceiveShipmentPage() {
         return { totalOrdered, totalReceived };
     };
 
-    const handleCompleteClick = () => {
+    const handleCompleteClick = async () => {
+        // CRITICAL FIX: Check for pending updates and flush them first
+        if (pendingUpdatesRef.current.size > 0 || updateTimeoutsRef.current.size > 0 || isAutoSaving) {
+            toast.info('Saving your changes first...', { duration: 2000 });
+            const flushSuccess = await flushPendingUpdates();
+            if (!flushSuccess) {
+                toast.error('Failed to save changes. Please try again.');
+                return;
+            }
+            // Small delay to ensure state is consistent
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
         // Validate before showing barcode enrollment
         const errors = validateGRN();
         if (errors.length > 0) {
@@ -729,22 +836,16 @@ export default function ReceiveShipmentPage() {
             return;
         }
 
+        setCanceling(true);
         try {
-            const token = tokenManager.getAccessToken();
-
-            // Send invoice data even when cancelling so it's preserved
-            const payload: any = {};
-            if (invoiceNo) payload.supplierInvoiceNo = invoiceNo;
-            if (invoiceDate) payload.supplierInvoiceDate = new Date(invoiceDate).toISOString();
-            if (notes) payload.notes = notes;
-
-            await grnApi.discardDraft(grn.id, payload);
-
+            await grnApi.discardDraft(grn.id, {});
             toast.success('Draft discarded successfully');
-            router.push('/orders/pending');
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error cancelling GRN:', error);
-            toast.error('Failed to discard draft');
+            toast.warning('Could not delete draft, but navigating away');
+        } finally {
+            // Always navigate away regardless of API success/failure
+            router.push('/orders/pending');
         }
     };
 
@@ -771,229 +872,258 @@ export default function ReceiveShipmentPage() {
     }
 
     return (
-        <div className="p-6">
-            {/* Header */}
-            <div className="mb-6">
-                <button
-                    onClick={() => {
-                        if (confirm('Do you want to discard this draft? Click OK to Discard (Delete), Cancel to Keep Draft.')) {
-                            handleCancel(true);
-                        } else {
-                            router.push('/orders/pending');
-                        }
-                    }}
-                    className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
-                >
-                    <HiOutlineArrowLeft className="h-5 w-5" />
-                    Back to Pending Orders
-                </button>
+        <div className="min-h-screen bg-gray-50">
+            <div className="max-w-[1920px] mx-auto">
+                {/* Header */}
+                <div className="bg-white border-b border-gray-200 px-4 py-3 sticky top-0 z-10 shadow-sm">
+                    <button
+                        onClick={() => {
+                            if (confirm('Do you want to discard this draft? Click OK to Discard (Delete), Cancel to Keep Draft.')) {
+                                handleCancel(true);
+                            } else {
+                                router.push('/orders/pending');
+                            }
+                        }}
+                        className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-2 text-sm"
+                    >
+                        <HiOutlineArrowLeft className="h-4 w-4" />
+                        Back to Pending Orders
+                    </button>
 
-                <div className="flex items-center justify-between">
-                    <div>
-                        <h1 className="text-2xl font-bold text-gray-900">Receive Shipment</h1>
-                        <p className="text-sm text-gray-500 mt-1">
-                            PO: {po.poNumber} | Supplier: {po.supplier.name} | Received By: {grn.receivedByUser ? `${grn.receivedByUser.firstName} ${grn.receivedByUser.lastName}` : grn.receivedBy || 'Unknown'}
-                        </p>
-                    </div>
-                    {/* New Auto-Save Status Indicator */}
-                    <div className={`transition-all duration-300 px-4 py-2 rounded-full flex items-center gap-2 ${isAutoSaving
-                            ? 'bg-blue-100 text-blue-700'
-                            : lastSaved
-                                ? 'bg-emerald-100 text-emerald-700'
-                                : 'opacity-0'
+                    <div className="flex items-center justify-between">
+                        <div>
+                            <h1 className="text-xl font-bold text-gray-900">Receive Shipment</h1>
+                            <p className="text-xs text-gray-500 mt-0.5">
+                                PO: {po.poNumber} | Supplier: {po.supplier.name}
+                            </p>
+                        </div>
+                        
+                        {/* Auto-Save Status */}
+                        <div className={`transition-all duration-300 px-3 py-1.5 rounded-full flex items-center gap-2 text-sm ${
+                            isAutoSaving
+                                ? 'bg-blue-100 text-blue-700'
+                                : lastSaved
+                                    ? 'bg-emerald-100 text-emerald-700'
+                                    : 'opacity-0'
                         }`}>
-                        {isAutoSaving ? (
-                            <>
-                                <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-                                <span className="text-sm font-medium">Saving...</span>
-                            </>
+                            {isAutoSaving ? (
+                                <>
+                                    <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                                    <span className="text-xs font-medium">Saving...</span>
+                                </>
+                            ) : (
+                                <>
+                                    <HiOutlineCheck className="w-4 h-4" />
+                                    <span className="text-xs font-medium">Saved</span>
+                                </>
+                            )}
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex items-center gap-2">
+                            <button
+                                onClick={() => handleCancel(false)}
+                                disabled={completing || canceling || saving}
+                                className="px-3 py-1.5 border border-gray-300 rounded text-red-600 hover:bg-red-50 flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                            >
+                                {canceling ? (
+                                    <>
+                                        <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                                        Discarding...
+                                    </>
+                                ) : (
+                                    <>
+                                        <HiOutlineXMark className="h-4 w-4" />
+                                        Discard
+                                    </>
+                                )}
+                            </button>
+                            <button
+                                onClick={() => handleSaveDraft(false)}
+                                disabled={saving || autoSaving || completing}
+                                className="px-3 py-1.5 border border-emerald-600 text-emerald-600 rounded hover:bg-emerald-50 flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                            >
+                                {saving ? 'Saving...' : 'Save Draft'}
+                            </button>
+                            <button
+                                onClick={handleCompleteClick}
+                                disabled={saving || completing || isFlushing || isAutoSaving}
+                                className="px-3 py-1.5 bg-emerald-600 text-white rounded hover:bg-emerald-700 flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                            >
+                                {isFlushing ? (
+                                    <>
+                                        <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                                        Saving changes...
+                                    </>
+                                ) : saving || completing ? (
+                                    <>
+                                        <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
+                                        Completing...
+                                    </>
+                                ) : (
+                                    <>
+                                        <HiOutlineCheck className="h-4 w-4" />
+                                        Complete Receiving
+                                    </>
+                                )}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                {/* 2-Column Layout */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 p-4">
+                    {/* Main Content - Full Width */}
+                    <div className="lg:col-span-9 space-y-4">
+                        {/* Compact Invoice Details & Documents */}
+                        <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                                {/* Invoice Details - 2/3 width */}
+                                <div className="lg:col-span-2">
+                                    <h2 className="text-base font-semibold text-gray-900 mb-3">Invoice Details</h2>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="block text-xs font-medium text-gray-700 mb-1">
+                                                Supplier Invoice Number *
+                                            </label>
+                                            <input
+                                                type="text"
+                                                value={invoiceNo}
+                                                onChange={(e) => setInvoiceNo(e.target.value)}
+                                                onKeyDown={(e) => {
+                                                    if (e.key === '/') e.stopPropagation();
+                                                }}
+                                                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                                                placeholder="INV/2024/001"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-medium text-gray-700 mb-1">
+                                                Invoice Date *
+                                            </label>
+                                            <input
+                                                type="date"
+                                                value={invoiceDate}
+                                                onChange={(e) => setInvoiceDate(e.target.value)}
+                                                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="mt-3">
+                                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                                            Notes
+                                        </label>
+                                        <textarea
+                                            value={notes}
+                                            onChange={(e) => setNotes(e.target.value)}
+                                            rows={2}
+                                            className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                                            placeholder="Any additional notes..."
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Documents - 1/3 width */}
+                                <div className="lg:col-span-1">
+                                    <CompactAttachmentUploader
+                                        poId={grn?.id}
+                                        attachments={grn?.attachments || []}
+                                        apiEndpoint="grn-attachments"
+                                        onUpload={(attachment) => {
+                                            setGrn((prev: any) => ({
+                                                ...prev,
+                                                attachments: [...(prev.attachments || []), attachment]
+                                            }));
+                                        }}
+                                        onRemove={(attachmentId) => {
+                                            setGrn((prev: any) => ({
+                                                ...prev,
+                                                attachments: (prev.attachments || []).filter((att: any) => att.id !== attachmentId)
+                                            }));
+                                        }}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Minimal UI Toggle */}
+                        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <h3 className="text-sm font-medium text-gray-900">Receiving Interface</h3>
+                                </div>
+                                <div className="flex items-center gap-1 bg-gray-100 rounded p-0.5">
+                                    <button
+                                        onClick={() => setUseModernUI(true)}
+                                        className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                                            useModernUI 
+                                                ? 'bg-white text-blue-600 shadow-sm' 
+                                                : 'text-gray-600 hover:text-gray-900'
+                                        }`}
+                                    >
+                                        Cards
+                                    </button>
+                                    <button
+                                        onClick={() => setUseModernUI(false)}
+                                        className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                                            !useModernUI 
+                                                ? 'bg-white text-blue-600 shadow-sm' 
+                                                : 'text-gray-600 hover:text-gray-900'
+                                        }`}
+                                    >
+                                        Table
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Receiving Interface */}
+                        {useModernUI ? (
+                            <ModernReceivingTable
+                                items={grn.items}
+                                poItems={po?.items || []}
+                                onItemUpdate={handleItemUpdate}
+                                onBatchSplit={handleBatchSplit}
+                            />
                         ) : (
-                            <>
-                                <HiOutlineCheck className="w-5 h-5" />
-                                <span className="text-sm font-medium">Saved</span>
-                            </>
+                            <ReceivingTable
+                                items={grn.items}
+                                poItems={po?.items || []}
+                                discrepancies={grn.discrepancies || []}
+                                onItemUpdate={handleItemUpdate}
+                                onBatchSplit={handleBatchSplit}
+                                onDiscrepancy={handleDiscrepancy}
+                                onDeleteBatch={handleDeleteBatch}
+                            />
                         )}
                     </div>
 
-                    <div className="flex items-center gap-3">
-                        <button
-                            onClick={() => handleCancel(false)}
-                            disabled={completing}
-                            className="px-4 py-2 border border-gray-300 rounded-lg text-red-600 hover:bg-red-50 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            <HiOutlineXMark className="h-5 w-5" />
-                            Discard Draft
-                        </button>
-                        <button
-                            onClick={() => handleSaveDraft(false)}
-                            disabled={saving || autoSaving || completing}
-                            className="px-4 py-2 border border-emerald-600 text-emerald-600 rounded-lg hover:bg-emerald-50 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            {saving ? 'Saving...' : 'Save Draft'}
-                        </button>
-                        <button
-                            onClick={handleCompleteClick}
-                            disabled={saving || completing}
-                            className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            <HiOutlineCheck className="h-5 w-5" />
-                            {saving || completing ? 'Completing...' : 'Complete Receiving'}
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            {/* Invoice Details */}
-            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mb-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Invoice Details</h2>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Supplier Invoice Number
-                        </label>
-                        <input
-                            type="text"
-                            value={invoiceNo}
-                            onChange={(e) => setInvoiceNo(e.target.value)}
-                            onKeyDown={(e) => {
-                                // Prevent slash from triggering search hotkey
-                                if (e.key === '/') {
-                                    e.stopPropagation();
-                                }
-                            }}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                            placeholder="INV/2024/001"
+                    {/* Right Sidebar - PO Summary + Progress */}
+                    <div className="lg:col-span-3 space-y-3">
+                        <POSummaryCard
+                            poNumber={po.poNumber}
+                            supplierName={po.supplier.name}
+                            orderDate={po.createdAt}
+                            totalItems={grn.items.filter((i: any) => !i.isSplit).length}
                         />
-                    </div>
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                            Invoice Date
-                        </label>
-                        <input
-                            type="date"
-                            value={invoiceDate}
-                            onChange={(e) => setInvoiceDate(e.target.value)}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                        <LiveSummaryPanel
+                            totalItems={grn.items.filter((i: any) => !i.isSplit).length}
+                            verifiedItems={grn.items.filter((i: any) => !i.isSplit && i.receivedQty > 0 && i.batchNumber && i.batchNumber !== 'TBD').length}
+                            totalValue={calculatedTotals.totalAmount}
+                            showFinancials={true}
                         />
                     </div>
                 </div>
-                <div className="mt-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Notes
-                    </label>
-                    <textarea
-                        value={notes}
-                        onChange={(e) => setNotes(e.target.value)}
-                        rows={2}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
-                        placeholder="Any additional notes about this shipment..."
-                    />
-                </div>
-            </div>
 
-            {/* Invoice Attachments */}
-            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mb-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">Invoice & Documents</h2>
-                <AttachmentUploader
-                    poId={grn?.id}
-                    attachments={grn?.attachments || []}
-                    apiEndpoint="grn-attachments"
-                    onUpload={(attachment) => {
-                        // Update GRN with new attachment
-                        setGrn((prev: any) => ({
-                            ...prev,
-                            attachments: [...(prev.attachments || []), attachment]
-                        }));
-                    }}
-                    onRemove={(attachmentId) => {
-                        // Remove attachment from GRN
-                        setGrn((prev: any) => ({
-                            ...prev,
-                            attachments: (prev.attachments || []).filter((att: any) => att.id !== attachmentId)
-                        }));
-                    }}
-                />
-            </div>
-
-            {/* Receiving Table */}
-            <ReceivingTable
-                items={grn.items}
-                poItems={po?.items || []}
-                discrepancies={grn.discrepancies || []}
-                onItemUpdate={handleItemUpdate}
-                onBatchSplit={handleBatchSplit}
-                onDiscrepancy={handleDiscrepancy}
-                onDeleteBatch={handleDeleteBatch}
-            />
-
-            {/* Itemized Bill Preview Panel */}
-            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 mt-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4 border-b pb-2">Itemized Bill Breakdown</h2>
-                <div className="overflow-x-auto border border-gray-200 rounded-lg mb-6">
-                    <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                            <tr>
-                                <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item Details</th>
-                                <th scope="col" className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Batch Info</th>
-                                <th scope="col" className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Qty</th>
-                                <th scope="col" className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Free</th>
-                                <th scope="col" className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Rate</th>
-                                <th scope="col" className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Gross</th>
-                                <th scope="col" className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Discount</th>
-                                <th scope="col" className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Taxable</th>
-                                <th scope="col" className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">GST Data</th>
-                                <th scope="col" className="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Net Amount</th>
-                            </tr>
-                        </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
-                            {calculatedTotals.rows.map((row) => (
-                                <tr key={row.id} className="hover:bg-gray-50">
-                                    <td className="px-3 py-2 whitespace-nowrap text-sm font-medium text-gray-900">
-                                        {getDrugName(row.drugId)}
-                                    </td>
-                                    <td className="px-3 py-2 whitespace-nowrap text-xs text-gray-500">
-                                        <div>#{row.batchNumber}</div>
-                                        <div className="text-gray-400">Exp: {row.expiryDate ? (() => {
-                                            const date = new Date(row.expiryDate);
-                                            if (date.getFullYear() === 1970) return '-';
-                                            return `${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
-                                        })() : '-'}</div>
-                                    </td>
-                                    <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-700 text-right">{row.receivedQty}</td>
-                                    <td className="px-3 py-2 whitespace-nowrap text-sm text-emerald-600 text-right font-medium">{row.freeQty > 0 ? `+${row.freeQty}` : '-'}</td>
-                                    <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-700 text-right">₹{formatCurrency(row.unitPrice)}</td>
-                                    <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-700 text-right">₹{formatCurrency(row.gross)}</td>
-                                    <td className="px-3 py-2 whitespace-nowrap text-sm text-red-600 text-right">
-                                        <div>-₹{formatCurrency(row.discount)}</div>
-                                        <div className="text-xs text-red-400">({row.discountPercent}%)</div>
-                                    </td>
-                                    <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-900 font-medium text-right">₹{formatCurrency(row.taxable)}</td>
-                                    <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500 text-right">
-                                        <div>₹{formatCurrency(row.tax)}</div>
-                                        <div className="text-xs text-gray-400">({row.gstPercent}%)</div>
-                                    </td>
-                                    <td className="px-3 py-2 whitespace-nowrap text-sm font-bold text-gray-900 text-right">₹{formatCurrency(row.total)}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                        <tfoot className="bg-gray-50 font-semibold">
-                            <tr>
-                                <td colSpan={7} className="px-3 py-2 text-right text-gray-900">Total Taxable Value</td>
-                                <td className="px-3 py-2 text-right text-gray-900">₹{formatCurrency(calculatedTotals.taxableAmount)}</td>
-                                <td className="px-3 py-2 text-right text-gray-900">₹{formatCurrency(calculatedTotals.taxAmount)}</td>
-                                <td className="px-3 py-2 text-right text-emerald-700">₹{formatCurrency(calculatedTotals.totalAmount)}</td>
-                            </tr>
-                        </tfoot>
-                    </table>
-                </div>
-
-                <h2 className="text-lg font-semibold text-gray-900 mb-4 border-b pb-2">Payment Breakdown & Tax Analysis</h2>
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    {/* Left Side: Tax Breakdown Table */}
-                    <div>
-                        <h3 className="text-sm font-medium text-gray-700 mb-3 uppercase tracking-wider">GST Breakdown</h3>
-                        <div className="overflow-hidden border border-gray-200 rounded-lg">
+                {/* Financial Breakdown - Full Width */}
+                <div className="px-4 pb-4">
+                    <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+                        <h2 className="text-base font-semibold text-gray-900 mb-3 border-b pb-2">Financial Summary</h2>
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                            {/* Left Side: Tax Breakdown Table */}
+                            <div>
+                                <h3 className="text-sm font-medium text-gray-700 mb-3 uppercase tracking-wider">GST Breakdown</h3>
+                                <div className="overflow-hidden border border-gray-200 rounded-lg">
                             <table className="min-w-full divide-y divide-gray-200">
                                 <thead className="bg-gray-50">
                                     <tr>
@@ -1072,8 +1202,9 @@ export default function ReceiveShipmentPage() {
                             </div>
                         </div>
                     </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
 
             {showSummary && (
                 <CompletionSummary
@@ -1098,15 +1229,13 @@ export default function ReceiveShipmentPage() {
                     errors={validationErrors}
                     onClose={() => setShowValidationModal(false)}
                 />
-
             )}
-
 
             {/* Status Confirmation Modal */}
             {showStatusModal && (() => {
                 const { totalOrdered, totalReceived } = calculateTotals();
                 const recommendedStatus = calculateRecommendedStatus();
-                const hasShortages = totalReceived !== totalOrdered; // Mismatch in EITHER direction
+                const hasShortages = totalReceived !== totalOrdered;
 
                 return (
                     <StatusConfirmationModal
@@ -1124,7 +1253,7 @@ export default function ReceiveShipmentPage() {
                     />
                 );
             })()}
-
+            </div>
         </div>
     );
 }

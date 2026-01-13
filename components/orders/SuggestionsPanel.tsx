@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { SuggestedItem, POLine } from '@/types/po';
-import { HiOutlineChevronDown, HiOutlineChevronUp, HiOutlineSearch, HiOutlineDocumentDuplicate, HiOutlineCloudUpload, HiOutlineDownload, HiOutlineCheckCircle, HiOutlineClock, HiOutlineBookOpen } from 'react-icons/hi';
+import { HiOutlineChevronDown, HiOutlineChevronUp, HiOutlineSearch, HiOutlineDocumentDuplicate, HiOutlineCloudUpload, HiOutlineDownload, HiOutlineCheckCircle, HiOutlineClock, HiOutlineBookOpen, HiOutlineRefresh } from 'react-icons/hi';
 import { HiOutlinePlus, HiOutlineExclamationTriangle } from 'react-icons/hi2';
 import { apiClient } from '@/lib/api/client';
 import toast from 'react-hot-toast';
@@ -12,9 +12,10 @@ interface SuggestionsPanelProps {
   isLoading?: boolean;
   onAddItem: (item: Partial<POLine>) => void;
   storeId: string;
+  onRefresh?: () => void;
 }
 
-export default function SuggestionsPanel({ suggestions, isLoading = false, onAddItem, storeId }: SuggestionsPanelProps) {
+export default function SuggestionsPanel({ suggestions, isLoading = false, onAddItem, storeId, onRefresh }: SuggestionsPanelProps) {
   // Debug: Check if description is present and if loading matches expectations
   console.log('SuggestionsPanel Render:', { count: suggestions.length, isLoading, firstItem: suggestions[0] });
 
@@ -179,10 +180,33 @@ export default function SuggestionsPanel({ suggestions, isLoading = false, onAdd
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         <div className="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
           <h3 className="text-sm font-semibold text-gray-900">Smart Suggestions</h3>
-          {suggestions.length === 0 && <span className="flex items-center gap-1 text-xs text-green-600 font-medium"><HiOutlineCheckCircle className="w-4 h-4" /> Healthy</span>}
+          <div className="flex items-center gap-2">
+            {onRefresh && (
+              <button
+                onClick={onRefresh}
+                disabled={isLoading}
+                className="p-1 text-gray-400 hover:text-blue-600 disabled:opacity-50 transition-colors"
+                title="Refresh suggestions"
+              >
+                <HiOutlineRefresh className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+              </button>
+            )}
+            {isLoading ? (
+              <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+            ) : suggestions.length === 0 ? (
+              <span className="flex items-center gap-1 text-xs text-green-600 font-medium">
+                <HiOutlineCheckCircle className="w-4 h-4" /> Healthy
+              </span>
+            ) : null}
+          </div>
         </div>
 
-        {suggestions.length > 0 ? (
+        {isLoading ? (
+          <div className="p-8 text-center space-y-3">
+            <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
+            <p className="text-sm text-gray-500">Analyzing inventory...</p>
+          </div>
+        ) : suggestions.length > 0 ? (
           <div>
             {lowStockItems.length > 0 && (
               <div>

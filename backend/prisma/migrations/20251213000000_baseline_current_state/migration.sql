@@ -1,0 +1,1 @@
+-- Baseline migration: All schema changes already applied to database via db push

@@ -69,6 +69,7 @@ export default function PrescriptionsListPage() {
 
     // Cache for details to prevent re-fetching
     const [detailsCache, setDetailsCache] = useState<Record<string, any>>({});
+    const [isLoadingDetails, setIsLoadingDetails] = useState(false);
 
     useEffect(() => {
         fetchPrescriptions();
@@ -224,6 +225,7 @@ export default function PrescriptionsListPage() {
         if (!selectedId) return;
 
         try {
+            setIsLoadingDetails(true);
             const response = await prescriptionApi.getPrescriptionById(selectedId);
             if (response.success && response.data) {
                 // Update in cache
@@ -240,6 +242,8 @@ export default function PrescriptionsListPage() {
             console.error('[Prescription] Failed to refresh after update:', error);
             // On error, do a full refetch as fallback
             fetchPrescriptions();
+        } finally {
+            setIsLoadingDetails(false);
         }
     };
 
@@ -604,7 +608,11 @@ export default function PrescriptionsListPage() {
                                     </TabsList>
 
                                     <TabsContent value="medications" className="p-6 mt-0">
-                                        <MedicationsTab prescription={selectedRx} onUpdate={handleLocalUpdate} />
+                                        <MedicationsTab
+                                            prescription={selectedRx}
+                                            onUpdate={handleLocalUpdate}
+                                            isLoading={isLoadingDetails}
+                                        />
                                     </TabsContent>
 
                                     <TabsContent value="refills" className="p-6 mt-0">

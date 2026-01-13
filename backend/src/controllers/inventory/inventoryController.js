@@ -234,6 +234,40 @@ const getBatchesWithSuppliers = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Check if a batch exists (for receiving visual indicators)
+ */
+const checkBatch = asyncHandler(async (req, res) => {
+    const { drugId, batchNumber } = req.query;
+    const storeId = req.user?.primaryStoreId || req.storeId;
+
+    if (!drugId || !batchNumber) {
+        return res.status(400).json(ApiResponse.error('drugId and batchNumber are required'));
+    }
+
+    const result = await inventoryService.checkBatchExists(storeId, drugId, batchNumber);
+
+    // Always return 200 success - exists:false just means it's a new batch (not an error)
+    return res.json(ApiResponse.success(result, result.exists ? 'Batch found in inventory' : 'New batch'));
+});
+
+/**
+ * Bulk check a list of batches
+ * Body: { items: [{ drugId, batchNumber }] }
+ */
+const checkBatchesBulk = asyncHandler(async (req, res) => {
+    const { items } = req.body;
+    const storeId = req.user?.primaryStoreId || req.storeId;
+
+    if (!items || !Array.isArray(items)) {
+        return res.status(400).json(ApiResponse.error('Items array is required'));
+    }
+
+    const result = await inventoryService.checkBatchesBulk(storeId, items);
+
+    return res.json(ApiResponse.success(result, 'Bulk check complete'));
+});
+
+/**
  * Get batch history for smart suggest
  */
 const getBatchHistory = asyncHandler(async (req, res) => {
@@ -267,4 +301,6 @@ module.exports = {
     updateBatchLocation,
     getBatchesWithSuppliers,
     getBatchHistory,
+    checkBatch,
+    checkBatchesBulk,
 };

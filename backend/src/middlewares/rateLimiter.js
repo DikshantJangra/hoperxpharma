@@ -125,35 +125,32 @@ const authLimiter = rateLimit({
 /**
  * Refresh token rate limiter (lenient for legitimate use)
  * Refresh tokens are called frequently by frontend
+ * CRITICAL: Always enforce to prevent infinite loops
  */
 const refreshLimiter = rateLimit({
-    windowMs: 60 * 1000, // 1 minute
-    max: 10, // 10 refresh attempts per minute (reasonable for legitimate use)
+    windowMs: 10 * 1000, // 10 seconds
+    max: 2, // Max 2 refresh requests per 10 seconds (prevents loops)
     validate: { trustProxy: false },
-    skip: (req) => {
-        // Skip rate limiting for localhost in development
-        const isDev = process.env.NODE_ENV !== 'production';
-        const isLocalhost = req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1';
-        return isDev && isLocalhost;
-    },
+    skip: () => false, // NEVER skip - always enforce
     message: {
         success: false,
         message: 'Too many refresh requests, please try again later',
-        retryAfter: 60
+        retryAfter: 10
     },
     store: redisClient ? new RedisStore({
         client: redisClient,
         prefix: 'rl:refresh:'
     }) : undefined,
     handler: (req, res) => {
-        logger.warn('Refresh rate limit exceeded', {
+        logger.error('⚠️ REFRESH RATE LIMIT EXCEEDED - Possible infinite loop detected', {
             ip: req.ip,
-            path: req.path
+            path: req.path,
+            userAgent: req.headers['user-agent']
         });
         res.status(429).json({
             success: false,
             message: 'Too many refresh requests. Please slow down.',
-            retryAfter: 60
+            retryAfter: 10
         });
     }
 });

@@ -3,10 +3,16 @@ import React, { useState } from 'react';
 import { HiOutlineCheck, HiOutlineExclamationCircle, HiOutlineArrowUp, HiOutlineCog, HiOutlineExclamationTriangle, HiOutlineTrash, HiOutlineQrCode } from 'react-icons/hi2';
 import BatchSplitModal from './BatchSplitModal';
 import DiscrepancyHandler from './DiscrepancyHandler';
+import BatchSelector from './BatchSelector';
+import BatchStatusBadge from './BatchStatusBadge';
+import BatchInfoPanel from './BatchInfoPanel';
 import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation';
 import { scanApi } from '@/lib/api/scan';
+import { inventoryApi } from '@/lib/api/inventory';
 import { toast } from 'sonner';
 import dynamic from 'next/dynamic';
+import { QRCodeSVG } from 'qrcode.react';
+import Barcode from 'react-barcode';
 
 const BarcodeScannerModal = dynamic(() => import('@/components/pos/BarcodeScannerModal'), { ssr: false });
 
@@ -32,40 +38,73 @@ export default function ReceivingTable({ items, poItems, discrepancies = [], onI
     const [scanningItem, setScanningItem] = useState<string | null>(null);
     // Store batch history: drugId -> [{batchNumber, barcode}]
     const [batchHistory, setBatchHistory] = useState<Record<string, Array<{ batchNumber: string; barcode: string }>>>({});
+    // Store inventory status: itemId -> {exists, currentStock, expiry, location, mrp}
+    const [inventoryStatus, setInventoryStatus] = useState<Record<string, any>>({});
+    // Debounce timer for inventory checks
+    const inventoryCheckTimeouts = React.useRef<Map<string, NodeJS.Timeout>>(new Map());
 
     const { handleKeyDown } = useKeyboardNavigation();
 
-    // Fetch batch history on mount
+    // Fetch batch history on mount and cleanup on unmount
     React.useEffect(() => {
         const loadHistory = async () => {
             const drugIds = Array.from(new Set(items.map(i => i.drugId)));
             if (drugIds.length === 0) return;
 
             try {
-                // Use fetch directly or valid API client
-                // Assuming we have an inventoryApi or similar
-                const token = localStorage.getItem('accessToken');
-                const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/api/v1/inventory/batches/history`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
-                    },
-                    body: JSON.stringify({ drugIds })
-                });
+                // Use apiClient for proper authentication
+                const { apiClient } = await import('@/lib/api/client');
+                const response = await apiClient.post('/inventory/batches/history', { drugIds });
 
-                if (response.ok) {
-                    const result = await response.json();
-                    if (result.success) {
-                        setBatchHistory(result.data);
-                    }
+                if (response.success) {
+                    setBatchHistory(response.data);
                 }
             } catch (err) {
                 console.error('Failed to load batch history', err);
             }
+
+            // Initial inventory status check for all items using bulk endpoint
+            // This ensures badges show up immediately for pre-filled or resumed drafts with O(1) efficiency
+            try {
+                const itemsToCheck = items
+                    .filter(item => item.batchNumber && item.batchNumber !== 'TBD' && item.batchNumber.length > 1)
+                    .map(item => ({ drugId: item.drugId, batchNumber: item.batchNumber }));
+
+                if (itemsToCheck.length > 0) {
+                    const result = await inventoryApi.checkBatchesBulk(itemsToCheck);
+
+                    if (result.success) {
+                        const bulkStatus = result.data;
+                        const newStatusMap: Record<string, any> = {};
+
+                        // Map bulk results back to item IDs
+                        items.forEach(item => {
+                            if (item.batchNumber) {
+                                const key = `${item.drugId}_${item.batchNumber}`;
+                                if (bulkStatus[key]) {
+                                    newStatusMap[item.id] = bulkStatus[key];
+                                }
+                            }
+                        });
+
+                        setInventoryStatus(prev => ({
+                            ...prev,
+                            ...newStatusMap
+                        }));
+                    }
+                }
+            } catch (err) {
+                console.error('Failed initial bulk inventory check', err);
+            }
         };
 
         loadHistory();
+
+        // Cleanup: Clear all pending debounce timeouts on unmount
+        return () => {
+            inventoryCheckTimeouts.current.forEach(timeout => clearTimeout(timeout));
+            inventoryCheckTimeouts.current.clear();
+        };
     }, [items.length]); // Run once or when items list significantly changes (initially)
 
     // 1. DUPLICATE CHECK LOGIC
@@ -141,27 +180,70 @@ export default function ReceivingTable({ items, poItems, discrepancies = [], onI
         return `${poItem.drug.name}${poItem.drug.strength ? ` ${poItem.drug.strength}` : ''}`;
     };
 
+    /**
+     * Check if batch exists in inventory (debounced)
+     */
+    const checkBatchInInventory = (itemId: string, drugId: string, batchNumber: string) => {
+        // Clear existing timeout for this item
+        const existing = inventoryCheckTimeouts.current.get(itemId);
+        if (existing) clearTimeout(existing);
+
+        // Only check if batch number is meaningful (not empty or 'TBD')
+        if (!batchNumber || batchNumber === 'TBD' || batchNumber.length < 2) {
+            setInventoryStatus(prev => {
+                const updated = { ...prev };
+                delete updated[itemId];
+                return updated;
+            });
+            return;
+        }
+
+        // Set new timeout
+        const timeout = setTimeout(async () => {
+            try {
+                const result = await inventoryApi.checkBatch(drugId, batchNumber);
+                if (result.success) {
+                    // Set inventory status for both exists and doesn't exist cases
+                    setInventoryStatus(prev => ({
+                        ...prev,
+                        [itemId]: result.data || { exists: false }
+                    }));
+                }
+            } catch (error) {
+                console.error('Failed to check batch in inventory:', error);
+                // On error, assume new batch (don't block user)
+                setInventoryStatus(prev => ({
+                    ...prev,
+                    [itemId]: { exists: false }
+                }));
+            }
+        }, 500); // 500ms debounce
+
+        inventoryCheckTimeouts.current.set(itemId, timeout);
+    };
+
     const handleFieldUpdate = (itemId: string, field: string, value: any) => {
-        // Smart Barcode Sync:
-        // If updating batch number, check if we have a known barcode for this batch in history
-        if (field === 'batchNumber' && typeof value === 'string' && value.length > 2) {
-            const item = items.find(i => i.id === itemId);
-            if (item) {
+        const item = items.find(i => i.id === itemId);
+        if (!item) return;
+
+        // Prepare updates object
+        const updates: any = { [field]: value };
+
+        // INVENTORY STATUS CHECK: When batch number changes
+        if (field === 'batchNumber' && typeof value === 'string') {
+            checkBatchInInventory(itemId, item.drugId, value);
+
+            // Smart Barcode Sync: Auto-fill or clear barcode based on history
+            if (value.length > 2) {
                 const history = batchHistory[item.drugId];
                 if (history) {
                     const match = history.find(h => h.batchNumber.toLowerCase() === value.toLowerCase());
                     if (match && match.barcode) {
-                        // Found a match! Auto-fill barcode if currently empty or different
-                        // We update both fields
-                        const updates: any = {
-                            [field]: value,
-                            manufacturerBarcode: match.barcode
-                        };
-                        onItemUpdate(itemId, updates);
-                        return;
+                        // Found a match! Auto-fill barcode
+                        updates.manufacturerBarcode = match.barcode;
                     } else {
                         // NO MATCH for this new batch.
-                        // Check if the CURRENT barcode belongs to a DIFFERENT batch in history (i.e. it's the "old" one)
+                        // Check if the CURRENT barcode belongs to a DIFFERENT batch in history
                         const currentBarcode = item.manufacturerBarcode;
                         if (currentBarcode) {
                             const belongsToOther = history.some(h =>
@@ -170,14 +252,8 @@ export default function ReceivingTable({ items, poItems, discrepancies = [], onI
                             );
 
                             if (belongsToOther) {
-                                // The current barcode belongs to a different batch in history, so it's likely incorrect for this new batch.
-                                // Clear it so user knows to scan/enter the correct one.
-                                const updates: any = {
-                                    [field]: value,
-                                    manufacturerBarcode: ''
-                                };
-                                onItemUpdate(itemId, updates);
-                                return;
+                                // Clear incorrect barcode
+                                updates.manufacturerBarcode = '';
                             }
                         }
                     }
@@ -185,10 +261,7 @@ export default function ReceivingTable({ items, poItems, discrepancies = [], onI
             }
         }
 
-        const updates: any = {
-            [field]: value
-        };
-
+        // Single atomic update to parent
         onItemUpdate(itemId, updates);
     };
 
@@ -218,7 +291,7 @@ export default function ReceivingTable({ items, poItems, discrepancies = [], onI
                             <th className="px-4 py-3 text-center text-xs font-medium text-gray-700 uppercase tracking-wider">
                                 Free
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
+                            <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider w-48">
                                 Batch No
                             </th>
                             <th className="px-4 py-3 text-left text-xs font-medium text-gray-700 uppercase tracking-wider">
@@ -260,53 +333,88 @@ export default function ReceivingTable({ items, poItems, discrepancies = [], onI
                             return (
                                 <React.Fragment key={item.id}>
                                     {/* Parent Row */}
-                                    <tr className={`${isParent ? 'bg-blue-50 font-medium' : 'hover:bg-gray-50'}`}>
-                                        <td className="px-2 py-3">
+                                    <tr className={`${isParent ? 'bg-blue-50 font-medium' : 'hover:bg-gray-50'} relative`}>
+                                        <td className="px-2 py-3 relative">
+                                            {/* TOP-LEFT "IN STOCK" STICKER - Positioned absolutely on the row */}
+                                            {!isParent && inventoryStatus[item.id]?.exists && inventoryStatus[item.id]?.currentStock && (
+                                                <div className="absolute -top-2 -left-2 z-20 transform -rotate-3 animate-in fade-in slide-in-from-left-2 duration-300">
+                                                    <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white px-2 py-1 rounded shadow-lg border-2 border-white">
+                                                        <div className="flex items-center gap-1">
+                                                            <span className="text-[8px] font-bold">📦 STOCK</span>
+                                                            <span className="text-[8px] font-semibold bg-white/20 px-1 py-0.5 rounded">
+                                                                {inventoryStatus[item.id].currentStock}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* TOP-LEFT STATUS STICKERS */}
+                                            {!isParent && (
+                                                <div className="absolute -top-1 -left-1 z-10 flex flex-col gap-1">
+                                                    {(() => {
+                                                        const status = inventoryStatus[item.id];
+                                                        const scanned = item.manufacturerBarcode;
+                                                        const stored = status?.manufacturerBarcode;
+                                                        const hasInternalQR = status?.internalQRCode;
+
+                                                        if (status?.exists) {
+                                                            // Check if barcode verification is needed
+                                                            if (scanned && stored) {
+                                                                if (scanned === stored) {
+                                                                    return (
+                                                                        <span className="px-1.5 py-0.5 text-[9px] bg-emerald-600 text-white rounded font-bold shadow-sm uppercase tracking-wide">
+                                                                            VERIFIED
+                                                                        </span>
+                                                                    );
+                                                                } else {
+                                                                    return (
+                                                                        <span className="px-1.5 py-0.5 text-[9px] bg-red-600 text-white rounded font-bold shadow-sm uppercase tracking-wide flex items-center gap-1">
+                                                                            MISMATCH
+                                                                        </span>
+                                                                    );
+                                                                }
+                                                            }
+                                                            // Show STOCKED for both manufacturer barcode and internal QR
+                                                            return (
+                                                                <span className="px-1.5 py-0.5 text-[9px] bg-blue-600 text-white rounded font-bold shadow-sm uppercase tracking-wide">
+                                                                    STOCKED
+                                                                </span>
+                                                            );
+                                                        } else if (status?.exists === false && item.batchNumber && item.batchNumber !== 'TBD') {
+                                                            return (
+                                                                <span className="px-1.5 py-0.5 text-[9px] bg-green-600 text-white rounded font-bold shadow-sm uppercase tracking-wide">
+                                                                    NEW
+                                                                </span>
+                                                            );
+                                                        }
+                                                        return null;
+                                                    })()}
+                                                </div>
+                                            )}
+
                                             {/* Barcode Input / Scan Trigger */}
                                             {isParent ? (
                                                 <div className="flex justify-center">
                                                     <span className="text-gray-400">-</span>
                                                 </div>
                                             ) : (
-                                                <div className="flex items-center gap-1">
+                                                <div className="flex items-center justify-center">
                                                     <button
                                                         onClick={() => setScanningItem(item.id)}
                                                         className={`p-1.5 rounded-md transition-colors ${item.manufacturerBarcode
                                                             ? 'text-emerald-600 bg-emerald-50 hover:bg-emerald-100'
                                                             : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
                                                             }`}
-                                                        title="Scan Barcode"
+                                                        title={item.manufacturerBarcode ? `Barcode: ${item.manufacturerBarcode}` : "Scan Barcode"}
                                                     >
                                                         <HiOutlineQrCode className="w-5 h-5" />
                                                     </button>
-                                                    {/* Optional: Small input if they want to type? 
-                                                         User said "keep the BarCode icon before items". 
-                                                         Let's just keep the icon trigger for now, 
-                                                         or maybe a very small input field? 
-                                                         "Move it to the place where ... verified ... is written"
-                                                         Let's assume they want to SCAN primarily.
-                                                         If I put an input, it takes space. 
-                                                         Let's put a small input that expands or just an icon that opens scanner?
-                                                         "what if I scan the same barcode ... in frontend for all" implies manual entry/rapid scanning might be used.
-                                                         Let's add a small input field hidden/visible?
-                                                         Actually, standard usage: Click icon -> Scan. 
-                                                         Or focus field -> Scan.
-                                                         Let's make the barcode editable via a small input next to icon.
-                                                     */}
-                                                    <input
-                                                        type="text"
-                                                        value={item.manufacturerBarcode || ''}
-                                                        onChange={(e) => handleBarcodeChange(item.id, e.target.value)}
-                                                        className={`w-24 text-xs px-1 py-1 border rounded ${item.manufacturerBarcode ? 'border-emerald-300 bg-emerald-50' : 'border-gray-300'
-                                                            }`}
-                                                        placeholder="Barcode..."
-                                                    />
                                                 </div>
                                             )}
                                         </td>
                                         <td className="px-4 py-3">
                                             <div className="text-sm font-medium text-gray-900">
-                                                {isParent && '📦 '}
                                                 {getDrugName(item.drugId)}
                                                 {isParent && <span className="ml-2 text-xs text-blue-600">(Split into {item.children?.length || 0} batches)</span>}
                                             </div>
@@ -343,17 +451,47 @@ export default function ReceivingTable({ items, poItems, discrepancies = [], onI
                                             />
                                         </td>
                                         <td className="px-4 py-3">
+                                            <div className="space-y-2">
+                                                <input
+                                                    type="text"
+                                                    value={item.batchNumber || ''}
+                                                    onChange={(e) => handleFieldUpdate(item.id, 'batchNumber', e.target.value)}
+                                                    placeholder="Batch #"
+                                                    disabled={isParent}
+                                                    className="w-full min-w-[180px] px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-gray-100"
+                                                />
 
-                                            <input
-                                                type="text"
-                                                value={item.batchNumber || ''}
-                                                onChange={(e) => handleFieldUpdate(item.id, 'batchNumber', e.target.value)}
-                                                onFocus={(e) => e.target.select()}
-                                                className="w-32 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm"
-                                                placeholder="Batch No"
-                                            // Batch number editing enabled for parent to propagate
-                                            />
+                                                {/* Show QR Code Panel for existing batches */}
+                                                {!isParent && inventoryStatus[item.id]?.exists && (
+                                                    <BatchInfoPanel
+                                                        inventoryStatus={inventoryStatus[item.id]}
+                                                        showDetails={true}
+                                                    />
+                                                )}
 
+                                                {/* Prompt to link internal QR for existing batches without internal QR */}
+                                                {!isParent && inventoryStatus[item.id]?.exists &&
+                                                    inventoryStatus[item.id]?.manufacturerBarcode &&
+                                                    !inventoryStatus[item.id]?.internalQR &&
+                                                    !inventoryStatus[item.id]?.internalQRCode && (
+                                                        <div className="p-2 bg-blue-50 border border-blue-200 rounded text-xs">
+                                                            <p className="text-blue-800 font-medium">⚠️ Internal QR Missing</p>
+                                                            <p className="text-blue-600 text-[10px] mt-1">
+                                                                This batch has manufacturer barcode but no internal QR. Link will be created upon completion.
+                                                            </p>
+                                                        </div>
+                                                    )}
+
+                                                {/* Prompt to create QR for new batches */}
+                                                {!isParent && inventoryStatus[item.id]?.exists === false && item.batchNumber && item.batchNumber !== 'TBD' && (
+                                                    <div className="p-2 bg-amber-50 border border-amber-200 rounded text-xs">
+                                                        <p className="text-amber-800 font-medium">New batch detected</p>
+                                                        <p className="text-amber-600 text-[10px] mt-1">
+                                                            Internal QR code will be generated automatically upon completion
+                                                        </p>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </td>
                                         <td className="px-4 py-3">
                                             <input
@@ -646,7 +784,7 @@ export default function ReceivingTable({ items, poItems, discrepancies = [], onI
                                                         value={child.batchNumber || ''}
                                                         onChange={(e) => handleFieldUpdate(child.id, 'batchNumber', e.target.value)}
                                                         onFocus={(e) => e.target.select()}
-                                                        className="w-28 px-2 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm"
+                                                        className="w-full min-w-[180px] px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm"
                                                         placeholder="Batch #"
                                                     />
                                                 </td>
@@ -885,27 +1023,15 @@ export default function ReceivingTable({ items, poItems, discrepancies = [], onI
             )}
 
             {/* Barcode Scanner Modal */}
+            {/* Barcode Scanner Modal */}
             {scanningItem && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-                    <div className="bg-white rounded-lg shadow-xl max-w-lg w-full overflow-hidden relative">
-                        <button
-                            onClick={() => setScanningItem(null)}
-                            className="absolute top-2 right-2 p-2 hover:bg-gray-100 rounded-full"
-                        >
-                            <HiOutlineTrash className="w-5 h-5 text-gray-500" />
-                        </button>
-                        <div className="p-4">
-                            <h3 className="text-lg font-semibold mb-4">Scan Barcode</h3>
-                            <BarcodeScannerModal
-                                onClose={() => setScanningItem(null)}
-                                onScan={(code) => {
-                                    handleBarcodeChange(scanningItem, code);
-                                    setScanningItem(null); // Close after successful scan
-                                }}
-                            />
-                        </div>
-                    </div>
-                </div>
+                <BarcodeScannerModal
+                    onClose={() => setScanningItem(null)}
+                    onScan={(code) => {
+                        handleBarcodeChange(scanningItem, code);
+                        setScanningItem(null); // Close after successful scan
+                    }}
+                />
             )}
         </div>
 

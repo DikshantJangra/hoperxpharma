@@ -17,14 +17,24 @@ class PrescriptionService {
      */
     parseRxFormat(format, store, counter) {
         const year = new Date().getFullYear();
+        const month = (new Date().getMonth() + 1).toString().padStart(2, '0');
         const storeId = store.id.slice(-3); // Last 3 chars
         const prefix = store.rxNumberPrefix || 'RX';
 
         return format
+            // Handle braced tokens first
+            .replace(/\{YYYY\}/g, year.toString())
+            .replace(/\{YY\}/g, year.toString().slice(-2))
+            .replace(/\{MM\}/g, month)
+            .replace(/\{NNNNNN\}/g, counter.toString().padStart(6, '0'))
+            .replace(/\{SXXX\}/g, storeId)
+            .replace(/\{PREFIX\}/g, prefix)
+            // Then handle non-braced tokens
             .replace('YYYY', year.toString())
             .replace('YY', year.toString().slice(-2))
+            .replace('MM', month)
             .replace(/N+/g, (match) => counter.toString().padStart(match.length, '0'))
-            .replace('STORE', storeId)
+            .replace('SXXX', storeId)
             .replace('PREFIX', prefix);
     }
 
@@ -446,12 +456,29 @@ class PrescriptionService {
             newStatus = 'EXPIRED';
             statusReason = 'Prescription expired';
         }
+        // For prescriptions with 0 refills (one-time dispense), check if sale exists
+        else if (prescription.totalRefills === 0) {
+            const hasSale = await prisma.sale.findFirst({
+                where: { prescriptionId: prescriptionId },
+                select: { id: true }
+            });
+            console.log('🔴 [PrescriptionService] Zero refills prescription - hasSale:', !!hasSale);
+
+            if (hasSale && prescription.status !== 'COMPLETED') {
+                newStatus = 'COMPLETED';
+                statusReason = 'Prescription dispensed (no refills)';
+            }
+        }
         // For ONE_TIME prescriptions, mark as COMPLETED after first dispense
         else if (prescription.type === 'ONE_TIME') {
-            const hasAnyDispense = prescription.refills?.some(r => Number(r.dispensedQty) > 0);
-            console.log('🔴 [PrescriptionService] ONE_TIME prescription - hasAnyDispense:', hasAnyDispense);
+            // Check if there's a sale linked to this prescription
+            const hasSale = await prisma.sale.findFirst({
+                where: { prescriptionId: prescriptionId },
+                select: { id: true }
+            });
+            console.log('🔴 [PrescriptionService] ONE_TIME prescription - hasSale:', !!hasSale);
 
-            if (hasAnyDispense && prescription.status !== 'COMPLETED') {
+            if (hasSale && prescription.status !== 'COMPLETED') {
                 newStatus = 'COMPLETED';
                 statusReason = 'ONE_TIME prescription dispensed';
             }

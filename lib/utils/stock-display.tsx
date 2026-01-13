@@ -47,19 +47,22 @@ export function formatStockQuantity(
     // Use baseUnitQuantity if available, otherwise fall back to quantityInStock or totalStock
     const baseQuantity = batch.baseUnitQuantity ?? batch.quantityInStock ?? batch.totalStock ?? 0;
 
-    // Get unit information
+    // Get unit information - support both nested and flat structures
     const baseUnit = batch.drug?.baseUnit || batch.baseUnit || 'unit';
-    const displayUnit = batch.drug?.displayUnit || batch.displayUnit || baseUnit;
+    const displayUnit = batch.drug?.displayUnit || batch.displayUnit || batch.unit || baseUnit;
 
-    // Get conversion factor
-    let conversionFactor = 1;
+    // Get conversion factor - support multiple structures
+    let conversionFactor = batch.conversionFactor || batch.conversion || 1;
     if (batch.drug?.unitConfigurations) {
         const config = batch.drug.unitConfigurations.find(
             (c: any) => c.parentUnit === displayUnit && c.childUnit === baseUnit
         );
         if (config) conversionFactor = Number(config.conversion) || 1;
-    } else if (batch.conversion) {
-        conversionFactor = Number(batch.conversion) || 1;
+    } else if (batch.unitConfigurations) {
+        const config = batch.unitConfigurations.find(
+            (c: any) => c.parentUnit === displayUnit && c.childUnit === baseUnit
+        );
+        if (config) conversionFactor = Number(config.conversion) || 1;
     }
 
     if (!showUnit) {
@@ -104,21 +107,24 @@ export function renderStockQuantity(
     const {
         className = "font-medium text-gray-900",
         unitClassName = "text-[10px] sm:text-xs text-gray-400 font-normal ml-0.5 uppercase tracking-tight",
-        forceBoth = true // Default to true for inventory views as per user request
+        forceBoth = true
     } = options;
 
     const baseQuantity = batch.baseUnitQuantity ?? batch.quantityInStock ?? batch.totalStock ?? 0;
     const baseUnit = batch.drug?.baseUnit || batch.baseUnit || 'unit';
-    const displayUnit = batch.drug?.displayUnit || batch.displayUnit || baseUnit;
+    const displayUnit = batch.drug?.displayUnit || batch.displayUnit || batch.unit || baseUnit;
 
-    let conversionFactor = 1;
+    let conversionFactor = batch.conversionFactor || batch.conversion || 1;
     if (batch.drug?.unitConfigurations) {
         const config = batch.drug.unitConfigurations.find(
             (c: any) => c.parentUnit === displayUnit && c.childUnit === baseUnit
         );
         if (config) conversionFactor = Number(config.conversion) || 1;
-    } else if (batch.conversion) {
-        conversionFactor = Number(batch.conversion) || 1;
+    } else if (batch.unitConfigurations) {
+        const config = batch.unitConfigurations.find(
+            (c: any) => c.parentUnit === displayUnit && c.childUnit === baseUnit
+        );
+        if (config) conversionFactor = Number(config.conversion) || 1;
     }
 
     const formattedBaseUnit = formatUnitName(baseUnit);

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { FiSearch, FiX, FiCheck, FiLock, FiEdit, FiTag, FiChevronDown, FiAlertCircle, FiPaperclip, FiFile } from 'react-icons/fi';
+import { FiSearch, FiX, FiCheck, FiLock, FiEdit, FiTag, FiChevronDown, FiAlertCircle, FiPaperclip, FiFile, FiSettings } from 'react-icons/fi';
 import { RiCapsuleLine } from 'react-icons/ri';
 import { inventoryApi } from '@/lib/api/inventory';
 import PatientSearchSelect from '@/components/prescriptions/PatientSearchSelect';
@@ -14,6 +14,7 @@ import { scanApi } from '@/lib/api/scan';
 import { useBarcodeScanner } from '@/hooks/useBarcodeScanner';
 import { BsUpcScan } from 'react-icons/bs';
 import SmartQuantityInput from '@/components/common/SmartQuantityInput';
+import RxFormatModal from './RxFormatModal';
 
 const BarcodeScannerModal = dynamic(() => import('@/components/pos/BarcodeScannerModal'), { ssr: false });
 
@@ -106,6 +107,7 @@ const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ onSubmit, onCancel,
     const [editingMedIndex, setEditingMedIndex] = useState<number | null>(null);
     const [availableUnits, setAvailableUnits] = useState<Record<string, any[]>>({});
     const [showScanner, setShowScanner] = useState(false);
+    const [showRxFormatModal, setShowRxFormatModal] = useState(false);
 
     const patientLocked = medications.length > 0;
 
@@ -1040,6 +1042,15 @@ const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ onSubmit, onCancel,
                                 Cancel
                             </button>
                             <div className="flex items-center gap-3">
+                                {/* RX Format Settings Gear Icon */}
+                                <button
+                                    onClick={() => setShowRxFormatModal(true)}
+                                    className="p-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-600 hover:text-gray-900"
+                                    title="Configure RX Number Format"
+                                    type="button"
+                                >
+                                    <FiSettings className="w-4 h-4" />
+                                </button>
                                 <button
                                     onClick={handleSaveDraft}
                                     disabled={isSubmitting || status === 'VERIFIED'}
@@ -1077,6 +1088,33 @@ const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ onSubmit, onCancel,
                     }}
                 />
             )}
+
+            {/* RX Format Modal */}
+            {showRxFormatModal && (
+                <RxFormatModal
+                    currentFormat={undefined}
+                    currentPrefix={undefined}
+                    onSave={async (config) => {
+                        const { apiClient } = await import('@/lib/api/client');
+                        try {
+                            const storeResponse = await apiClient.get('/stores/me');
+                            const store = storeResponse.data;
+
+                            if (!store?.id) {
+                                throw new Error('Store not found');
+                            }
+
+                            await apiClient.patch(`/stores/${store.id}/rx-format`, config);
+                        } catch (error) {
+                            console.error('Failed to update RX format:', error);
+                            throw error;
+                        }
+                    }}
+                    onClose={() => setShowRxFormatModal(false)}
+                />
+            )}
+
+            {/* Scanner Modal */}
             {showScanner && (
                 <BarcodeScannerModal
                     onClose={() => setShowScanner(false)}

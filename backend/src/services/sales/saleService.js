@@ -323,7 +323,18 @@ class SaleService {
 
             logger.info('createQuickSale: Sale created successfully', { saleId: result.sale.id, invoiceNumber });
 
-            // 8. Track loyalty event (async)
+            // 8. Update prescription status if linked
+            if (saleData.prescriptionId) {
+                try {
+                    const prescriptionService = require('../prescriptions/prescriptionService');
+                    await prescriptionService.updatePrescriptionStatus(saleData.prescriptionId, userId);
+                    logger.info(`Prescription ${saleData.prescriptionId} status updated after sale`);
+                } catch (error) {
+                    logger.error('Failed to update prescription status after sale:', error);
+                }
+            }
+
+            // 9. Track loyalty event (async)
             if (actualPatientId) {
                 loyaltyService.processPurchase(
                     result.sale.id,

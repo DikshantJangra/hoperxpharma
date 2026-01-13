@@ -374,33 +374,21 @@ export default function Basket({ items, onUpdateItem, onRemoveItem, onClear, onE
                       </div>
 
                       {/* Stock Info */}
-                      <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs text-[#64748b]">Available Stock</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="bg-gray-50 px-3 py-2 rounded border border-gray-100 flex items-center justify-between w-full">
-                            <span className="text-xs text-[#64748b]">Available Stock</span>
-                            <span className="text-xs font-semibold text-[#0f172a]">
-                              {(() => {
-                                const stock = item.stock || item.totalStock || 0;
-                                if (!item.conversionFactor || item.conversionFactor <= 1) {
-                                  return `${stock} ${formatUnitName(item.baseUnit || 'Unit')}`;
-                                }
-                                const strips = Math.floor(stock / item.conversionFactor);
-                                const tabs = stock % item.conversionFactor;
-                                return (
-                                  <span>
-                                    {strips > 0 && `${strips} ${formatUnitName(item.displayUnit || 'Strip')}${strips > 1 ? 's' : ''}`}
-                                    {strips > 0 && tabs > 0 && ' + '}
-                                    {tabs > 0 && `${tabs} ${formatUnitName(item.baseUnit || 'Tab')}${tabs > 1 ? 's' : ''}`}
-                                    {strips === 0 && tabs === 0 && '0'}
-                                  </span>
-                                );
-                              })()}
-                            </span>
-                          </div>
-                        </div>
+                      <div className="bg-gray-50 px-3 py-2 rounded border border-gray-100 flex items-center justify-between w-full">
+                        <span className="text-xs text-[#64748b]">Available Stock</span>
+                        <span className="text-xs font-semibold text-[#0f172a]">
+                          {renderStockQuantity({
+                            quantityInStock: item.stock || item.totalStock || 0,
+                            baseUnit: item.baseUnit,
+                            displayUnit: item.displayUnit || item.unit,
+                            drug: {
+                              baseUnit: item.baseUnit,
+                              displayUnit: item.displayUnit || item.unit,
+                              unitConfigurations: item.unitConfigurations
+                            },
+                            conversion: item.conversionFactor
+                          }, { forceBoth: true })}
+                        </span>
                       </div>
                       {item.qty > (item.stock || item.totalStock || 0) && (
                         <div className="text-xs text-[#ef4444] mt-1">

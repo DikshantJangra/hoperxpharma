@@ -256,10 +256,9 @@ model Store {
   marginLedger        MarginLedger[]
 
   // RX Number Format Configuration
-  rxNumberFormat  String? @default("RX-NNNNNN")
-  rxNumberPrefix  String? @default("RX")
-  rxNumberCounter Int     @default(0)
-  rxYearlyReset   Boolean @default(false)
+  rxNumberFormat      String?            @default("SXXX-PREFIX-NNNNNN")
+  rxNumberPrefix      String?            @default("RX")
+  rxNumberCounter     Int                @default(0)
 
   @@index([email])
   @@index([deletedAt])

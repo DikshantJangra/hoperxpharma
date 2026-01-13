@@ -1,8 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
-import { HiOutlineXMark, HiOutlinePlus, HiOutlineTrash } from 'react-icons/hi2';
+import React, { useState, useEffect, useRef } from 'react';
+import { HiOutlineXMark, HiOutlinePlus, HiOutlineTrash, HiChevronDown, HiChevronUp } from 'react-icons/hi2';
 import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation';
+import { inventoryApi } from '@/lib/api/inventory';
+import { QRCodeSVG } from 'qrcode.react';
+import Barcode from 'react-barcode';
 
 interface BatchSplitModalProps {
     item: any;
@@ -13,6 +16,9 @@ interface BatchSplitModalProps {
 
 export default function BatchSplitModal({ item, drugName, onSplit, onClose }: BatchSplitModalProps) {
     const [attemptedSubmit, setAttemptedSubmit] = useState(false);
+    const [batchStatus, setBatchStatus] = useState<Record<number, any>>({});
+    const [expandedBatchInfo, setExpandedBatchInfo] = useState<Record<number, boolean>>({});
+    const batchCheckTimeouts = useRef<Map<number, NodeJS.Timeout>>(new Map());
     const [splits, setSplits] = useState([
         {
             receivedQty: Math.floor(item.receivedQty / 2),
@@ -44,6 +50,52 @@ export default function BatchSplitModal({ item, drugName, onSplit, onClose }: Ba
 
     // Enable enhanced keyboard navigation
     const { handleKeyDown } = useKeyboardNavigation();
+
+    // Cleanup timeouts on unmount
+    useEffect(() => {
+        return () => {
+            batchCheckTimeouts.current.forEach(timeout => clearTimeout(timeout));
+            batchCheckTimeouts.current.clear();
+        };
+    }, []);
+
+    // Check if batch exists in inventory (debounced)
+    const checkBatchInInventory = (index: number, batchNumber: string) => {
+        // Clear existing timeout for this split
+        const existing = batchCheckTimeouts.current.get(index);
+        if (existing) clearTimeout(existing);
+
+        // Only check if batch number is meaningful
+        if (!batchNumber || batchNumber === 'TBD' || batchNumber.length < 2) {
+            setBatchStatus(prev => {
+                const updated = { ...prev };
+                delete updated[index];
+                return updated;
+            });
+            return;
+        }
+
+        // Set new timeout
+        const timeout = setTimeout(async () => {
+            try {
+                const result = await inventoryApi.checkBatch(item.drugId, batchNumber);
+                if (result.success) {
+                    setBatchStatus(prev => ({
+                        ...prev,
+                        [index]: result.data || { exists: false }
+                    }));
+                }
+            } catch (error) {
+                console.error('Failed to check batch in inventory:', error);
+                setBatchStatus(prev => ({
+                    ...prev,
+                    [index]: { exists: false }
+                }));
+            }
+        }, 500); // 500ms debounce
+
+        batchCheckTimeouts.current.set(index, timeout);
+    };
 
     const totalQty = splits.reduce((sum, split) => sum + parseInt(split.receivedQty.toString()), 0);
     const totalFreeQty = splits.reduce((sum, split) => sum + parseInt(split.freeQty.toString()), 0);
@@ -99,6 +151,18 @@ export default function BatchSplitModal({ item, drugName, onSplit, onClose }: Ba
         const newSplits = [...splits];
         newSplits[index] = { ...newSplits[index], [field]: value };
         setSplits(newSplits);
+
+        // Check inventory when batch number changes
+        if (field === 'batchNumber' && typeof value === 'string') {
+            checkBatchInInventory(index, value);
+        }
+    };
+
+    const toggleBatchInfo = (index: number) => {
+        setExpandedBatchInfo(prev => ({
+            ...prev,
+            [index]: !prev[index]
+        }));
     };
 
     const handleSplit = () => {
@@ -206,17 +270,133 @@ export default function BatchSplitModal({ item, drugName, onSplit, onClose }: Ba
                                             min="0"
                                         />
                                     </div>
-                                    <div className="col-span-2 sm:col-span-1">
+                                    <div className="col-span-2">
                                         <label className="block text-sm font-medium text-gray-700 mb-1">
                                             Batch Number *
                                         </label>
-                                        <input
-                                            type="text"
-                                            value={split.batchNumber}
-                                            onChange={(e) => updateSplit(index, 'batchNumber', e.target.value)}
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
-                                            placeholder="e.g., A2X9"
-                                        />
+                                        <div className="space-y-2">
+                                            <div className="flex items-center gap-2">
+                                                <input
+                                                    type="text"
+                                                    value={split.batchNumber}
+                                                    onChange={(e) => updateSplit(index, 'batchNumber', e.target.value)}
+                                                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
+                                                    placeholder="e.g., A2X9"
+                                                />
+                                                {/* Status Badge */}
+                                                {batchStatus[index] && (
+                                                    <span className={`text-xs px-2 py-1 rounded-full font-medium whitespace-nowrap ${
+                                                        batchStatus[index].exists 
+                                                            ? 'bg-blue-100 text-blue-700' 
+                                                            : 'bg-green-100 text-green-700'
+                                                    }`}>
+                                                        {batchStatus[index].exists ? '📦 Stocked' : '✨ New'}
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            {/* Show QR/Barcode Panel for existing batches */}
+                                            {batchStatus[index]?.exists && (
+                                                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 p-3">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => toggleBatchInfo(index)}
+                                                        className="flex items-center justify-between w-full text-sm text-blue-800 font-medium mb-2"
+                                                    >
+                                                        <span className="flex items-center gap-1">
+                                                            <span>📋</span>
+                                                            <span>Existing Batch Details</span>
+                                                        </span>
+                                                        {expandedBatchInfo[index] ? <HiChevronUp className="w-4 h-4" /> : <HiChevronDown className="w-4 h-4" />}
+                                                    </button>
+
+                                                    {expandedBatchInfo[index] && (
+                                                        <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                                                            <div className="flex gap-3 items-start flex-wrap">
+                                                                {/* Internal QR Code */}
+                                                                {(batchStatus[index].internalQR || batchStatus[index].internalQRCode || batchStatus[index].batchId) && (
+                                                                    <div className="flex flex-col items-center bg-white p-2 rounded border border-gray-200">
+                                                                        <div className="text-[9px] text-gray-500 mb-1 font-medium">Internal QR</div>
+                                                                        <QRCodeSVG
+                                                                            value={batchStatus[index].internalQR || batchStatus[index].internalQRCode || batchStatus[index].batchId || ''}
+                                                                            size={60}
+                                                                            className="border p-1"
+                                                                            level="M"
+                                                                        />
+                                                                    </div>
+                                                                )}
+
+                                                                {/* Manufacturer Barcode */}
+                                                                {batchStatus[index].manufacturerBarcode && (
+                                                                    <div className="flex-1 min-w-[180px] bg-white p-2 rounded border border-gray-200">
+                                                                        <div className="text-[9px] text-gray-500 mb-1 font-medium">Manufacturer Barcode</div>
+                                                                        <div className="font-mono text-xs text-gray-900 mb-1">
+                                                                            {batchStatus[index].manufacturerBarcode}
+                                                                        </div>
+                                                                        <div className="overflow-hidden">
+                                                                            <Barcode
+                                                                                value={batchStatus[index].manufacturerBarcode}
+                                                                                width={1}
+                                                                                height={20}
+                                                                                displayValue={false}
+                                                                                margin={0}
+                                                                            />
+                                                                        </div>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+
+                                                            {/* Batch Details */}
+                                                            <div className="grid grid-cols-2 gap-2 text-xs bg-white p-2 rounded border border-gray-200">
+                                                                <div className="flex flex-col">
+                                                                    <span className="text-gray-500 font-medium">Location</span>
+                                                                    <span className="text-gray-900">{batchStatus[index].location || 'Not set'}</span>
+                                                                </div>
+                                                                <div className="flex flex-col">
+                                                                    <span className="text-gray-500 font-medium">Current MRP</span>
+                                                                    <span className="text-gray-900 font-semibold">₹{batchStatus[index].mrp}</span>
+                                                                </div>
+                                                                <div className="flex flex-col">
+                                                                    <span className="text-gray-500 font-medium">Expiry</span>
+                                                                    <span className="text-gray-900">
+                                                                        {batchStatus[index].expiry ? new Date(batchStatus[index].expiry).toLocaleDateString('en-GB', {
+                                                                            day: '2-digit',
+                                                                            month: 'short',
+                                                                            year: '2-digit'
+                                                                        }) : 'N/A'}
+                                                                    </span>
+                                                                </div>
+                                                                <div className="flex flex-col">
+                                                                    <span className="text-gray-500 font-medium">Current Stock</span>
+                                                                    <span className="text-blue-600 font-bold">{batchStatus[index].currentStock} units</span>
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Auto-fill suggestion */}
+                                                            {batchStatus[index].manufacturerBarcode && !split.manufacturerBarcode && (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => updateSplit(index, 'manufacturerBarcode', batchStatus[index].manufacturerBarcode)}
+                                                                    className="w-full text-xs bg-blue-600 text-white px-3 py-1.5 rounded hover:bg-blue-700 transition-colors"
+                                                                >
+                                                                    ✨ Use Existing Barcode: {batchStatus[index].manufacturerBarcode}
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            {/* New batch indicator */}
+                                            {batchStatus[index]?.exists === false && split.batchNumber && split.batchNumber !== 'TBD' && (
+                                                <div className="p-2 bg-amber-50 border border-amber-200 rounded text-xs">
+                                                    <p className="text-amber-800 font-medium">✨ New batch detected</p>
+                                                    <p className="text-amber-600 text-[10px] mt-1">
+                                                        Internal QR code will be generated automatically upon completion
+                                                    </p>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                     <div className="col-span-2 sm:col-span-1">
                                         <label className="block text-sm font-medium text-gray-700 mb-1">

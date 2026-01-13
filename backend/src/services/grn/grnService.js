@@ -474,9 +474,22 @@ class GRNService {
                 throw ApiError.badRequest(`${drugName}: Expiry date is required`);
             }
 
+            // VALIDATION FIX: Check expiry date is in the future
+            const expiryDate = new Date(item.expiryDate);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            if (expiryDate < today) {
+                throw ApiError.badRequest(`${drugName}: Expiry date must be in the future (got: ${item.expiryDate})`);
+            }
+
             if (!item.mrp || item.mrp === 0) {
                 throw ApiError.badRequest(`${drugName}: MRP is required`);
             }
+        }
+
+        // VALIDATION FIX: Invoice details are required for completion
+        if (!supplierInvoiceNo || supplierInvoiceNo.trim() === '') {
+            throw ApiError.badRequest('Supplier invoice number is required');
         }
 
         // Update invoice details if provided

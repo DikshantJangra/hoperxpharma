@@ -5,7 +5,17 @@ let prisma = null;
 function getPrismaClient() {
     if (!prisma) {
         prisma = new PrismaClient({
-            log: ['error', 'warn']
+            log: ['error', 'warn'],
+            datasources: {
+                db: {
+                    url: process.env.DATABASE_URL
+                }
+            }
+        });
+
+        // Handle connection errors gracefully
+        prisma.$on('error', (e) => {
+            console.error('[Prisma] Connection error:', e);
         });
     }
     return prisma;

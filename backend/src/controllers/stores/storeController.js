@@ -150,6 +150,23 @@ const processSignatureUpload = asyncHandler(async (req, res) => {
     res.status(response.statusCode).json(response);
 });
 
+/**
+ * Update RX number format settings
+ */
+const updateRxFormat = asyncHandler(async (req, res) => {
+    const { format, prefix, yearlyReset } = req.body;
+    const storeId = req.params.id;
+
+    const store = await storeService.updateStore(storeId, {
+        rxNumberFormat: format,
+        rxNumberPrefix: prefix,
+        rxYearlyReset: yearlyReset
+    }, req.user.id);
+
+    const response = ApiResponse.success(store, 'RX format updated successfully');
+    res.status(response.statusCode).json(response);
+});
+
 module.exports = {
     getMyStore,
     getUserStores,
@@ -163,4 +180,5 @@ module.exports = {
     processLogoUpload,
     requestSignatureUpload,
     processSignatureUpload,
+    updateRxFormat,
 };

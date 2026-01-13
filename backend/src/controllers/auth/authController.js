@@ -223,7 +223,11 @@ const refresh = asyncHandler(async (req, res) => {
         throw ApiError.unauthorized('Refresh token is required');
     }
 
-    logger.info('Processing token refresh request');
+    // CRITICAL: Log to detect infinite loops
+    const userAgent = req.headers['user-agent'];
+    const ip = req.ip;
+    logger.info('Processing token refresh request', { ip, userAgent: userAgent?.substring(0, 50) });
+    
     const tokens = await authService.refreshToken(refreshToken);
 
     // Determine production mode for cookie security

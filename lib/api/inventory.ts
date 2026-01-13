@@ -197,6 +197,48 @@ export const inventoryApi = {
     },
 
     /**
+     * Check if a batch exists for a drug (for receiving visual indicators)
+     */
+    async checkBatch(drugId: string, batchNumber: string) {
+        const response = await apiClient.get(
+            `/inventory/batches/check?drugId=${encodeURIComponent(drugId)}&batchNumber=${encodeURIComponent(batchNumber)}`
+        );
+        return response.data;
+    },
+
+    /**
+     * Check multiple batches at once (for initial load)
+     * Returns a map keyed by `${drugId}_${batchNumber}` with batch status
+     */
+    async checkBatchesBulk(items: Array<{ drugId: string, batchNumber: string }>) {
+        try {
+            // Validate input
+            if (!items || items.length === 0) {
+                return { success: true, data: {} };
+            }
+
+            // Filter out invalid items
+            const validItems = items.filter(item => 
+                item.drugId && 
+                item.batchNumber && 
+                item.batchNumber !== 'TBD' && 
+                item.batchNumber.length > 1
+            );
+
+            if (validItems.length === 0) {
+                return { success: true, data: {} };
+            }
+
+            const response = await apiClient.post('/inventory/batches/check-bulk', { items: validItems });
+            return response.data;
+        } catch (error) {
+            console.error('Bulk batch check failed:', error);
+            // Return empty result on error to avoid blocking UI
+            return { success: false, data: {}, error: 'Network error' };
+        }
+    },
+
+    /**
      * Get available units for a drug
      */
     async getDrugUnits(drugId: string) {

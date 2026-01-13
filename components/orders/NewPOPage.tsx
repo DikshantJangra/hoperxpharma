@@ -307,6 +307,10 @@ export default function NewPOPage({ storeId, poId }: NewPOPageProps) {
                 isLoading={suggestionsLoading}
                 onAddItem={addLine}
                 storeId={storeId}
+                onRefresh={() => {
+                  setSuggestionsLoading(true);
+                  loadSuggestions().finally(() => setSuggestionsLoading(false));
+                }}
               />
             </div>
           </div>

@@ -699,7 +699,12 @@ export default function NewSalePage() {
                                 qty: qtyToTake,
                                 discount: 0,
                                 gstRate: Number(item.drug.gstRate) || 5,
-                                type: 'RX'
+                                type: 'RX',
+                                baseUnit: item.drug.baseUnit,
+                                displayUnit: item.drug.displayUnit,
+                                unit: item.unit || item.drug.displayUnit,
+                                conversionFactor: item.conversionFactor || item.drug.conversionFactor || 1,
+                                unitConfigurations: item.drug.unitConfigurations
                             });
 
                             if (qtyToTake < (Number(item.quantityPrescribed) || 1)) {
@@ -735,7 +740,12 @@ export default function NewSalePage() {
                                     qty: qtyToTake,
                                     discount: 0,
                                     gstRate: Number(item.drug.gstRate) || 5,
-                                    type: 'RX'
+                                    type: 'RX',
+                                    baseUnit: item.drug.baseUnit,
+                                    displayUnit: item.drug.displayUnit,
+                                    unit: item.unit || item.drug.displayUnit,
+                                    conversionFactor: item.conversionFactor || item.drug.conversionFactor || 1,
+                                    unitConfigurations: item.drug.unitConfigurations
                                 });
 
                                 if (qtyToTake < (Number(item.quantityPrescribed) || 1)) {
@@ -795,7 +805,12 @@ export default function NewSalePage() {
                                         qty: qtyToTake,
                                         discount: 0,
                                         gstRate: Number(item.drug.gstRate) || 5,
-                                        type: 'RX'
+                                        type: 'RX',
+                                        baseUnit: item.drug.baseUnit,
+                                        displayUnit: item.drug.displayUnit,
+                                        unit: item.unit || item.drug.displayUnit,
+                                        conversionFactor: item.conversionFactor || item.drug.conversionFactor || 1,
+                                        unitConfigurations: item.drug.unitConfigurations
                                     });
 
                                     // ... substitution tracking ...
@@ -834,7 +849,12 @@ export default function NewSalePage() {
                                     qty: Number(item.quantityPrescribed) || 1, // Show requested
                                     discount: 0,
                                     gstRate: Number(item.drug.gstRate) || 5,
-                                    type: 'RX'
+                                    type: 'RX',
+                                    baseUnit: item.drug.baseUnit,
+                                    displayUnit: item.drug.displayUnit,
+                                    unit: item.unit || item.drug.displayUnit,
+                                    conversionFactor: item.conversionFactor || item.drug.conversionFactor || 1,
+                                    unitConfigurations: item.drug.unitConfigurations
                                 });
                                 missingBatches.push(`${item.drug?.name} (Out of Stock)`);
                             } else {
@@ -887,7 +907,7 @@ export default function NewSalePage() {
                         }
                     );
                 } else {
-                    toast.success(`✅ Imported ${newItems.length} items with prescribed batches`);
+                    // No substitutions or issues - silent success
                 }
             } else {
                 toast.warning('No available batches found for prescription items');

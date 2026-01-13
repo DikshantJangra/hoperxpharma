@@ -606,10 +606,40 @@ class GRNRepository {
 
     /**
      * Delete GRN (Hard Delete)
+     * Must delete children first due to Restrict constraint
      */
     async deleteGRN(grnId) {
-        return await prisma.goodsReceivedNote.delete({
-            where: { id: grnId }
+        return await prisma.$transaction(async (tx) => {
+            // 1. Delete all child GRN items first (those with parentItemId)
+            await tx.gRNItem.deleteMany({
+                where: {
+                    grnId,
+                    parentItemId: { not: null }
+                }
+            });
+
+            // 2. Delete all parent GRN items (those without parentItemId)
+            await tx.gRNItem.deleteMany({
+                where: {
+                    grnId,
+                    parentItemId: null
+                }
+            });
+
+            // 3. Delete discrepancies (if any)
+            await tx.gRNDiscrepancy.deleteMany({
+                where: { grnId }
+            });
+
+            // 4. Delete attachments (handled by Cascade, but explicit for clarity)
+            await tx.gRNAttachment.deleteMany({
+                where: { grnId }
+            });
+
+            // 5. Finally delete the GRN itself
+            return await tx.goodsReceivedNote.delete({
+                where: { id: grnId }
+            });
         });
     }
 

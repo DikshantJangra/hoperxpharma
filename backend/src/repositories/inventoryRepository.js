@@ -550,6 +550,101 @@ SUM(ib."quantityInStock" * ib."purchasePrice") as "totalValue",
     }
 
     /**
+     * Find a specific batch by drug and batch number
+     */
+    async findBatchByDrugAndNumber(storeId, drugId, batchNumber) {
+        const batch = await prisma.inventoryBatch.findFirst({
+            where: {
+                storeId,
+                drugId,
+                batchNumber,
+                deletedAt: null
+            },
+            select: {
+                id: true,
+                batchNumber: true,
+                quantityInStock: true,
+                expiryDate: true,
+                location: true,
+                mrp: true,
+                purchasePrice: true,
+                createdAt: true,
+            }
+        });
+
+        if (!batch) return null;
+
+        // Fetch barcode if exists
+        const barcodeEntry = await prisma.barcodeRegistry.findFirst({
+            where: { batchId: batch.id }
+        });
+
+        return {
+            ...batch,
+            manufacturerBarcode: barcodeEntry?.barcode || null
+        };
+    }
+
+    /**
+     * Bulk find batches for multiple items at once
+     * Returns array of found batches with barcodes
+     * OPTIMIZED: Single query with JOIN to avoid N+1 problem
+     */
+    async findBatchesBulk(storeId, items) {
+        if (!items || items.length === 0) return [];
+
+        try {
+            // items is array of { drugId, batchNumber }
+            const batches = await prisma.inventoryBatch.findMany({
+                where: {
+                    storeId,
+                    deletedAt: null,
+                    OR: items.map(item => ({
+                        drugId: item.drugId,
+                        batchNumber: item.batchNumber
+                    }))
+                },
+                select: {
+                    id: true,
+                    drugId: true,
+                    batchNumber: true,
+                    quantityInStock: true,
+                    expiryDate: true,
+                    location: true,
+                    mrp: true,
+                    createdAt: true,
+                }
+            });
+
+            if (batches.length === 0) return [];
+
+            // OPTIMIZED: Fetch all barcodes in a single query instead of N+1
+            const batchIds = batches.map(b => b.id);
+            const barcodes = await prisma.barcodeRegistry.findMany({
+                where: {
+                    batchId: { in: batchIds }
+                },
+                select: {
+                    batchId: true,
+                    barcode: true
+                }
+            });
+
+            // Create a map for O(1) lookup
+            const barcodeMap = new Map(barcodes.map(b => [b.batchId, b.barcode]));
+
+            // Map barcodes to batches efficiently
+            return batches.map(batch => ({
+                ...batch,
+                manufacturerBarcode: barcodeMap.get(batch.id) || null
+            }));
+        } catch (error) {
+            logger.error('Error in findBatchesBulk:', error);
+            throw error;
+        }
+    }
+
+    /**
      * Get batch history for specific drugs (for smart suggest)
      */
     async getBatchHistoryForDrugs(storeId, drugIds) {
