@@ -498,18 +498,21 @@ export default function NewSalePage() {
         }
 
         // Determine initial unit - use the one on product if set, otherwise displayUnit
-        const initialUnit = product.unit || product.displayUnit || 'unit';
+        // NORMALIZE unit to prevent case mismatch or 'null' vs 'undefined' issues
+        const initialUnit = (product.unit || product.displayUnit || 'unit').toLowerCase();
 
         setBasketItems(prev => {
             // Check if item with same Drug ID AND Batch ID AND Unit exists
-            const existingIndex = prev.findIndex(item =>
-                item.id === product.id &&
-                item.batchId === targetBatchId &&
-                (item.unit || item.displayUnit || 'unit') === initialUnit
-            );
+            const existingIndex = prev.findIndex(item => {
+                const itemUnit = (item.unit || item.displayUnit || 'unit').toLowerCase();
+                return item.id === product.id &&
+                    item.batchId === targetBatchId &&
+                    itemUnit === initialUnit;
+            });
 
             if (existingIndex >= 0) {
                 // Update existing item quantity
+                console.log(`📦 Merging item: ${product.name} (Batch: ${targetBatchId}) - Old Qty: ${prev[existingIndex].qty}`);
                 const newItems = [...prev];
                 newItems[existingIndex] = {
                     ...newItems[existingIndex],
@@ -520,10 +523,11 @@ export default function NewSalePage() {
             }
 
             // Add new item
+            console.log(`📦 Adding NEW item: ${product.name} (Batch: ${targetBatchId})`);
             return [...prev, {
                 ...product,
                 batchId: product.batchId || targetBatchId,
-                unit: initialUnit,
+                unit: initialUnit, // Store normalized unit
                 qty: 1,
                 gstRate: product.gstRate ? Number(product.gstRate) : 5
             }];

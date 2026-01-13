@@ -163,115 +163,134 @@ const getAggregatedMargin = async (storeId, startDate, endDate) => {
 /**
  * Calculate provisional margin for a list of items (e.g. from POS basket).
  * Does NOT save to database.
- * @param {Array} items - List of items with batchId, quantity, price, discount
- * @returns {Promise<Object>} - Aggregated margin stats
+ * 
+ * CRITICAL ASSUMPTIONS:
+ * - item.price is the price PER SOLD UNIT (e.g. if selling "Tablet", price is per tablet = ₹2)
+ * - item.qty is the quantity IN THE SOLD UNIT (e.g. "5" tablets)
+ * - batch.purchasePrice is per BATCH/PACK UNIT (e.g. per Strip = ₹78)
+ * - tabletsPerStrip tells us how many BASE units are in one BATCH unit (e.g. 10 tablets per strip)
+ * 
+ * Example:
+ * - Selling: 1 Tablet at ₹2/tablet
+ * - Batch: Strip costs ₹78, contains 10 tablets
+ * - Revenue = 1 × ₹2 = ₹2
+ * - Cost = (₹78 / 10) × 1 = ₹7.8
+ * - Margin = ₹2 - ₹7.8 = -₹5.8 (LOSS)
+ * 
+ * @param {Array} items - List of items with { batchId, qty, unit, price, discount, gstRate, conversionFactor }
+ * @returns {Promise<Object>} - { totalMargin, totalRevenue, totalCost, netMarginPercent }
  */
 async function calculateProvisionalMargin(items) {
     let totalRevenue = new Decimal(0);
     let totalCost = new Decimal(0);
 
     for (const item of items) {
+        console.log(`\n=== Processing Item ===`);
+        console.log(`Full item object:`, JSON.stringify(item, null, 2));
+        console.log(`Qty: ${item.qty}, Unit: ${item.unit}, Price: ${item.price}`);
+
         // Fetch batch details for cost
         const batch = await prisma.inventoryBatch.findUnique({
             where: { id: item.batchId },
             include: { drug: true }
         });
 
-        if (!batch) continue;
-
-        // Calculate Cost Per Unit
-        // Handle partial strips if applicable
-        let costPerUnit = new Decimal(batch.purchasePrice);
-
-        // If batch is a strip but item is sold as tablets (partial unit logic)
-        // Note: item.conversionFactor should be passed from frontend if possible, 
-        // effectively we need to know if we are selling base units or pack units.
-        // For simplicity in provisional:
-        // If batch.tabletsPerStrip > 1, assume purchasePrice is per strip.
-        // We need to know if 'item.quantity' is in strips or tablets.
-        // The frontend 'item' usually has 'unit' or 'conversionFactor'.
-
-        // Use logic similar to calculateAndRecordSaleMargin but adapted for raw input
-        const tabletsPerStrip = batch.tabletsPerStrip || 1;
-        const conversionFactor = item.conversionFactor || 1; // 1 means same unit as batch (usually) or handled by frontend
-
-        // Detailed Logic:
-        // Batch Price is usually for the 'Pack' (e.g. Strip of 10).
-        // If we are selling loose tablets, the quantity will be e.g. 5, and conversionFactor might be 1 (if UI handles it) 
-        // OR quantity is 0.5 (if UI handles it as fraction of strip).
-        // Let's rely on costPerUnit derivation:
-
-        // If we're selling in base units (tablets) but purchased in packs (strips):
-        if (item.isBaseUnit && tabletsPerStrip > 1) {
-            costPerUnit = costPerUnit.div(tabletsPerStrip);
-        } else if (conversionFactor > 1 && tabletsPerStrip > 1) {
-            // Selling a strip, bought a strip. Cost is purchasePrice.
+        if (!batch) {
+            console.log(`Batch ${item.batchId} not found, skipping`);
+            continue;
         }
 
-        // To be safe and consistent with SaleService, let's look at how we handled partials there.
-        // In marginService.calculateAndRecordSaleMargin, we checked saleItem.isPartialSale.
+        // ============================================
+        // STEP 1: CALCULATE REVENUE
+        // ============================================
+        // Problem: Frontend doesn't send 'price' field, only 'mrp'
+        // Solution: Derive actual selling price from MRP and conversionFactor
 
-        // For Estimate: We'll calculate cost proportional to the fraction of the pack being sold.
-        // The safest way: Calculate Cost of 1 BASE UNIT (tablet).
-        // Then multiply by total BASE UNITS being sold.
+        let sellingPrice;
+        const conversionFactor = item.conversionFactor || 1;
 
-        const costPerBaseUnit = new Decimal(batch.purchasePrice).div(tabletsPerStrip);
-
-        // Total Base Units Sold:
-        // If item.unit is 'Strip', quantity is 2 -> 2 * 10 = 20 base units.
-        // If item.unit is 'Tablet', quantity is 5 -> 5 * 1 = 5 base units.
-
-        const totalBaseUnits = new Decimal(item.qty).mul(conversionFactor > 1 ? conversionFactor : 1);
-
-        // Wait, if conversionFactor is 1, it might be a Strip (if displayUnit == baseUnit).
-        // Actually, let's simplify: 
-        // Cost = (PurchasePrice / UnitSize) * QuantitySoldNormalized
-
-        // If the item quantity is in 'Strips' (standard), cost is PurchasePrice * Qty.
-        // If the item quantity is in 'Tablets' (partial), we need to normalize.
-        // In the Basket, 'item.qty' is the user decision. 'item.conversionFactor' tells us relation to base.
-
-        // Let's try:
-        // Total Cost for Line = (Batch Purchase Price / Batch Size) * (Qty * Batch Size / Unit Size ???)
-
-        // Simpler approach used in sales:
-        // purchasePrice is for 1 'Unit' stored in InventoryBatch (usually a Strip).
-        // If we sell 0.5 Strips, cost is purchasePrice * 0.5.
-        // If we sell 2 Strips, cost is purchasePrice * 2.
-
-        // If the frontend passes 'qty' properly normalized to the Batch's unit, we are good.
-        // But frontend 'qty' might be in tablets.
-        // Let's assume the frontend passes `unit` and we can infer.
-
-        let quantityInBatchUnits = new Decimal(item.qty);
-
-        // If selling in base unit (e.g. Tablet) but batch is in packs (Strip)
-        if (item.unit !== batch.unit && item.unit === batch.baseUnit) {
-            quantityInBatchUnits = quantityInBatchUnits.div(tabletsPerStrip);
+        if (item.price) {
+            sellingPrice = new Decimal(item.price);
+        } else if (item.mrp && conversionFactor > 1) {
+            // No price provided. Calculate per-tablet price from MRP
+            // MRP is for the pack (strip). Divide by conversionFactor to get per-tablet price
+            sellingPrice = new Decimal(item.mrp).div(conversionFactor);
+            console.log(`💰 Price derived: MRP ${item.mrp} ÷ ${conversionFactor} = ${sellingPrice}`);
+        } else {
+            sellingPrice = new Decimal(item.mrp || 0);
         }
 
-        const lineCost = new Decimal(batch.purchasePrice).mul(quantityInBatchUnits);
-
-        // Revenue
-        // We need tax-exclusive revenue for margin
-        // Revenue = (Price * Qty) - Discount
-        // Tax = Revenue * (GSTRate / 100) -> Wait, Price usually includes Tax in India (MRP).
-        // NetSellingPrice = (Price - Discount) / (1 + GST/100)
-
-        const sellingPrice = new Decimal(item.price || item.mrp); // unit price
-        const discount = new Decimal(item.discount || 0); // total discount for line
-
+        const discount = new Decimal(item.discount || 0);
         const grossRevenue = sellingPrice.mul(item.qty).minus(discount);
 
         const gstRate = new Decimal(item.gstRate || 0);
         const taxableAmount = grossRevenue.div(new Decimal(1).plus(gstRate.div(100)));
 
+        console.log(`Revenue: Price=${sellingPrice}, Qty=${item.qty}, Gross=${grossRevenue}, Taxable=${taxableAmount}`);
+
+        // ============================================
+        // STEP 2: CALCULATE COST
+        // ============================================
+        // batch.purchasePrice is per BATCH UNIT (usually Strip)
+        // We need to convert item.qty (in sold units) to batch units
+
+        // Determine pack size
+        let packSize = batch.tabletsPerStrip || item.tabletsPerStrip || 1;
+        if (packSize === 1 && item.conversionFactor && item.conversionFactor > 1) {
+            packSize = item.conversionFactor;
+        }
+        console.log(`Pack size: ${packSize}`);
+
+        // Determine if we're selling in base units (tablets) or pack units (strips)
+        const drug = batch.drug || {};
+        const normalizeString = (s) => (s || '').toLowerCase().trim();
+        const itemUnit = normalizeString(item.unit);
+        const baseUnit = normalizeString(drug.baseUnit);
+
+
+        // CRITICAL: If we derived the price from MRP/conversionFactor,
+        // it PROVES we're selling in base units, regardless of 'unit' field
+        const isDerivedPrice = !item.price && item.mrp && conversionFactor > 1;
+
+        const isBaseUnitSale = isDerivedPrice ||
+            (itemUnit === baseUnit) ||
+            (itemUnit.includes('tab')) ||
+            (itemUnit.includes('cap')) ||
+            (itemUnit.includes('pill')) ||
+            (itemUnit.includes('ml'));
+
+        let quantityInPackUnits;
+
+        if (isBaseUnitSale && packSize > 1) {
+            // Selling tablets, but batch price is per strip
+            // Convert: 5 tablets / 10 tablets per strip = 0.5 strips
+            quantityInPackUnits = new Decimal(item.qty).div(packSize);
+            console.log(`Base unit sale detected. Qty ${item.qty} ${item.unit} = ${quantityInPackUnits} packs`);
+        } else {
+            // Selling in pack units (strips) or packSize is 1 (no conversion needed)
+            quantityInPackUnits = new Decimal(item.qty);
+            console.log(`Pack unit sale. Qty ${item.qty} ${item.unit} = ${quantityInPackUnits} packs`);
+        }
+
+        const lineCost = new Decimal(batch.purchasePrice).mul(quantityInPackUnits);
+        console.log(`Cost: ${batch.purchasePrice} × ${quantityInPackUnits} = ${lineCost}`);
+
+        // ============================================
+        // STEP 3: ACCUMULATE
+        // ============================================
         totalCost = totalCost.plus(lineCost);
         totalRevenue = totalRevenue.plus(taxableAmount);
+
+        console.log(`Running totals: Cost=${totalCost}, Revenue=${totalRevenue}, Margin=${totalRevenue.minus(totalCost)}`);
     }
 
     const marginAmount = totalRevenue.minus(totalCost);
     const marginPercent = totalRevenue.equals(0) ? new Decimal(0) : marginAmount.div(totalRevenue).mul(100);
+
+    console.log(`\n=== FINAL RESULT ===`);
+    console.log(`Total Revenue: ${totalRevenue}`);
+    console.log(`Total Cost: ${totalCost}`);
+    console.log(`Margin: ${marginAmount} (${marginPercent}%)`);
 
     return {
         totalMargin: marginAmount.toNumber(),

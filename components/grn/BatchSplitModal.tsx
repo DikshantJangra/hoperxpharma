@@ -235,27 +235,18 @@ export default function BatchSplitModal({ item, drugName, onSplit, onClose }: Ba
                                             Expiry (MM/YYYY) *
                                         </label>
                                         <input
-
                                             defaultValue={split.expiryDate ? (() => {
                                                 const date = new Date(split.expiryDate);
                                                 const year = date.getFullYear();
-                                                // Treat 1970 (epoch/invalid dates) as empty
                                                 if (year === 1970) return '';
                                                 return `${String(date.getMonth() + 1).padStart(2, '0')}/${year}`;
                                             })() : ''}
                                             onInput={(e) => {
                                                 const inputType = (e.nativeEvent as any).inputType;
-                                                // Prevent auto-fill on backspaces
-                                                if (inputType && inputType.startsWith('delete')) {
-                                                    return;
-                                                }
+                                                if (inputType && inputType.startsWith('delete')) return;
 
                                                 let value = e.currentTarget.value.replace(/[^0-9/]/g, '');
 
-                                                // Smart month formatting:
-                                                // - If first digit is 2, auto-format to "02/" immediately
-                                                // - If first digit is > 2, auto-format to "0X/"
-                                                // - If first digit is 0 or 1, wait for second digit
                                                 if (value.length === 1 && !value.includes('/')) {
                                                     const firstDigit = parseInt(value);
                                                     if (firstDigit === 2) {
@@ -267,18 +258,13 @@ export default function BatchSplitModal({ item, drugName, onSplit, onClose }: Ba
                                                         e.currentTarget.value = value;
                                                         return;
                                                     }
-                                                    // For 0 or 1, just continue (wait for second digit)
                                                 }
 
-                                                // Add slash after valid 2-digit month
                                                 if (value.length === 2 && !value.includes('/')) {
                                                     const month = parseInt(value);
-                                                    if (month > 12) {
-                                                        value = '12';
-                                                    }
+                                                    if (month > 12) value = '12';
                                                     value = value + '/';
                                                 }
-                                                // Insert slash after MM if user types more
                                                 else if (value.length > 2 && !value.includes('/')) {
                                                     const monthPart = value.substring(0, 2);
                                                     const month = parseInt(monthPart);
@@ -289,7 +275,6 @@ export default function BatchSplitModal({ item, drugName, onSplit, onClose }: Ba
                                                     }
                                                 }
 
-                                                // Limit year to 4 digits
                                                 if (value.includes('/')) {
                                                     const parts = value.split('/');
                                                     if (parts[1] && parts[1].length > 4) {
@@ -298,7 +283,6 @@ export default function BatchSplitModal({ item, drugName, onSplit, onClose }: Ba
                                                     }
                                                 }
 
-                                                // Limit to MM/YYYY format (7 chars)
                                                 if (value.length > 7) {
                                                     value = value.substring(0, 7);
                                                 }
@@ -307,8 +291,6 @@ export default function BatchSplitModal({ item, drugName, onSplit, onClose }: Ba
                                             }}
                                             onBlur={(e) => {
                                                 let value = e.currentTarget.value.trim();
-
-                                                // Only save if we have a complete MM/YYYY format with 4-digit year
                                                 if (value && value.match(/^(0?[1-9]|1[0-2])\/(\d{4})$/)) {
                                                     const [month, year] = value.split('/');
                                                     const paddedMonth = month.padStart(2, '0');
@@ -317,7 +299,6 @@ export default function BatchSplitModal({ item, drugName, onSplit, onClose }: Ba
                                                     e.currentTarget.value = `${paddedMonth}/${year}`;
                                                     updateSplit(index, 'expiryDate', fullDate);
                                                 }
-                                                // If incomplete (e.g., "12/" or "12/20"), don't save - just leave it in the field
                                             }}
                                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500"
                                             placeholder="MM/YYYY (e.g., 12/2027)"

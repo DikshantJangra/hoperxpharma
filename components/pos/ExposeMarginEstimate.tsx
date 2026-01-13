@@ -18,11 +18,7 @@ export default function ExposeMarginEstimate({ items }: ExposeMarginEstimateProp
     const [loading, setLoading] = useState(false);
     const [show, setShow] = useState(false);
 
-    // Only render for Owner/Admin
-    if (!user || !['OWNER', 'ADMIN'].includes(user.role)) return null;
 
-    // Don't show if basket is empty
-    if (!items || items.length === 0) return null;
 
     // Auto-update when items change, but only if visible
     useEffect(() => {
@@ -40,7 +36,48 @@ export default function ExposeMarginEstimate({ items }: ExposeMarginEstimateProp
         if (!show) setShow(true);
 
         try {
-            const stats = await salesLedgerApi.estimateMargin(items);
+            // Sanitize payload: Ensure Price and Unit are correct
+            // The Basket often stores 'qty' in Base Units (Tablets), but 'unit' might default to 'Strip'.
+            // We need to calculate the REAL unit price (Per Tablet) if that's what's being sold.
+
+            const payload = items.map(item => {
+                // 1. Derive Price: If lineTotal exists, use that to get per-qty price. 
+                // This is the safest way to get the actual "Selling Price Per 1 Qty".
+                // e.g. LineTotal ₹2, Qty 1 -> Price ₹2.
+                // e.g. LineTotal ₹22, Qty 11 -> Price ₹2.
+                let effectivePrice = item.price;
+                if (!effectivePrice && item.lineTotal && item.qty) {
+                    effectivePrice = item.lineTotal / item.qty;
+                }
+
+                // Debug logging
+                console.log('🔍 Margin Estimate Item:', {
+                    price: item.price,
+                    lineTotal: item.lineTotal,
+                    qty: item.qty,
+                    effectivePrice,
+                    unit: item.unit
+                });
+
+                // 2. Derive Unit:
+                // If item.unit is 'Strip' but Qty is 1, and Price is small, it's likely a Tablet?
+                // Actually, let's just pass what we have. My backend rewrite is smarter now.
+                // But passing the correct price is CRITICAL.
+
+                return {
+                    batchId: item.batchId,
+                    qty: item.qty,
+                    unit: item.unit || item.displayUnit, // Pass what we have
+                    price: effectivePrice, // <--- CRITICAL FIX
+                    mrp: item.mrp,
+                    discount: item.discount,
+                    gstRate: item.gstRate,
+                    conversionFactor: item.conversionFactor,
+                    tabletsPerStrip: item.tabletsPerStrip // Pass if available
+                };
+            });
+
+            const stats = await salesLedgerApi.estimateMargin(payload);
             setMarginStats(stats);
         } catch (e) {
             if (!silent) toast.error('Failed to estimate margin');
@@ -49,6 +86,10 @@ export default function ExposeMarginEstimate({ items }: ExposeMarginEstimateProp
             setLoading(false);
         }
     };
+
+    // Only render for Owner/Admin and if items exist
+    if (!user || !['OWNER', 'ADMIN'].includes(user.role)) return null;
+    if (!items || items.length === 0) return null;
 
     if (!show) {
         return (

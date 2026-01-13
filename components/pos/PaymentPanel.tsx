@@ -836,7 +836,7 @@ export default function PaymentPanel({
               </button>
             ))}
           </div>
-          {/* Provisional Profit Check (Owner Only) - Placed at bottom of scrollable area */}
+          {/* Provisional Profit Check (Owner Only) - Hidden below scroll (Confidential) */}
           <ExposeMarginEstimate items={basketItems} />
         </div>
       </div>

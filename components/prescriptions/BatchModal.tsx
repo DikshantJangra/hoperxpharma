@@ -39,7 +39,7 @@ export default function BatchModal({ onClose }: { onClose: () => void }) {
                 {batch.recommended && <div className="text-xs font-bold text-green-600 mb-1">Recommended</div>}
                 <div className="font-semibold text-gray-800">Batch #{batch.id}</div>
                 <div className="text-sm text-gray-600 mt-2">Qty: <span className="font-medium text-gray-800">{batch.qty}</span></div>
-                <div className="text-sm text-gray-600">Expiry: <span className={`font-medium ${new Date(batch.expiry) < new Date() ? 'text-red-600' : 'text-gray-800'}`}>{batch.expiry}</span></div>
+                <div className="text-sm text-gray-600">Expiry: <span className={`font-medium ${new Date(batch.expiry).getTime() < Date.now() ? 'text-red-600' : 'text-gray-800'}`}>{batch.expiry}</span></div>
                 <div className="text-sm text-gray-600">MRP: <span className="font-medium text-gray-800">${batch.mrp.toFixed(2)}</span></div>
                 <div className="text-sm text-gray-600">Location: <span className="font-medium text-gray-800">{batch.location}</span></div>
               </div>
