@@ -6,7 +6,7 @@
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
 
-const TEST_EMAIL = 'hoperxpharma@gmail.com';
+const TEST_EMAIL = 'dikshantjangra1@gmail.com';
 
 async function cleanupTestSubscription() {
     console.log(`\n🧹 Starting cleanup for ${TEST_EMAIL}...\n`);

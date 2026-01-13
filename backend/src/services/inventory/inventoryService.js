@@ -342,93 +342,65 @@ class InventoryService {
      * Search drugs for POS with stock availability
      */
     async searchDrugsForPOS(storeId, searchTerm) {
-        const drugs = await inventoryRepository.searchDrugsWithStock(storeId, searchTerm);
+        try {
+            logger.info('🔍 Service: Searching drugs for POS:', { storeId, searchTerm });
 
-        // Enhance with batch information
-        const drugsWithBatches = await Promise.all(
-            drugs.map(async (drug) => {
-                const batches = await inventoryRepository.findBatchesForDispense(storeId, drug.id, 1000);
+            // Search drugs that belong to this store
+            const drugs = await inventoryRepository.searchDrugsWithStock(storeId, searchTerm);
+            logger.info('🔍 Service: Found drugs count:', drugs.length);
 
-                const totalStock = batches.reduce((sum, b) => sum + b.quantityInStock, 0);
-                const batchCount = batches.length;
+            // Process drugs to flatten structure and add conversion factor
+            const results = drugs.map(drug => {
+                try {
+                    // Find conversion factor for displayUnit -> baseUnit
+                    let conversion = 1;
+                    if (drug.unitConfigurations && drug.unitConfigurations.length > 0) {
+                        const config = drug.unitConfigurations.find(
+                            c => c.parentUnit === drug.displayUnit && c.childUnit === drug.baseUnit
+                        );
+                        if (config) {
+                            conversion = Number(config.conversion);
+                        }
+                    }
 
-                // Get the batch with nearest expiry (FEFO) that has stock
-                let primaryBatch = batches.find(b => b.quantityInStock > 0);
+                    // Calculate total stock
+                    const totalStock = drug.inventory ? drug.inventory.reduce((sum, batch) => sum + batch.quantityInStock, 0) : 0;
 
-                // Fallback: If no stock, use any batch just to get the MRP (required for UI)
-                if (!primaryBatch && batches.length > 0) {
-                    primaryBatch = batches[0];
-                }
+                    // Identify primary batch (FEFO) - Repo returns sorted by expiry
+                    const primaryBatch = drug.inventory && drug.inventory.length > 0 ? drug.inventory[0] : null;
 
-                // If absolutely no batch found (new drug never stocked), we might skip or return with 0 MRP
-                // But for "Aerotide", we likely have OOS batches.
-                if (!primaryBatch || !primaryBatch.mrp) {
-                    // If we really want to show it, we can return defaults, but let's log warns
-                    logger.warn(`Drug ${drug.name} has no valid batch with MRP`);
-                    // return null; // Previously we skipped
-
-                    // NEW: Return drug even without batch/MRP so we can find substitutes
                     return {
                         id: drug.id,
                         name: drug.name,
                         strength: drug.strength,
                         form: drug.form,
                         manufacturer: drug.manufacturer,
-                        totalStock: 0,
-                        batchCount: 0,
-                        mrp: 0,     // No MRP available
-                        batchId: null,
-                        batchNumber: null,
-                        expiryDate: null,
-                        gstRate: drug.gstRate,
-                        batchList: []
+                        mrp: primaryBatch ? Number(primaryBatch.mrp) : 0,
+                        totalStock,
+                        batchCount: drug.inventory ? drug.inventory.length : 0,
+                        gstRate: Number(drug.gstRate),
+                        requiresPrescription: drug.requiresPrescription,
+                        baseUnit: drug.baseUnit,
+                        displayUnit: drug.displayUnit,
+                        unitConfigurations: drug.unitConfigurations,
+                        conversionFactor: conversion,
+                        // Primary Batch Details (for FEFO auto-selection)
+                        batchId: primaryBatch ? primaryBatch.id : null,
+                        batchNumber: primaryBatch ? primaryBatch.batchNumber : null,
+                        expiryDate: primaryBatch ? primaryBatch.expiryDate : null,
+                        location: primaryBatch ? primaryBatch.location : null
                     };
+                } catch (innerError) {
+                    logger.error('❌ Error processing drug:', { drugId: drug.id, error: innerError.message });
+                    return null;
                 }
+            }).filter(item => item !== null);
 
-                // Find conversion factor for displayUnit -> baseUnit
-                let conversion = 1;
-                if (drug.unitConfigurations && drug.unitConfigurations.length > 0) {
-                    const config = drug.unitConfigurations.find(
-                        c => c.parentUnit === drug.displayUnit && c.childUnit === drug.baseUnit
-                    );
-                    if (config) {
-                        conversion = Number(config.conversion);
-                    }
-                }
-
-                return {
-                    id: drug.id,
-                    name: drug.name,
-                    strength: drug.strength,
-                    form: drug.form,
-                    manufacturer: drug.manufacturer,
-                    baseUnit: drug.baseUnit,
-                    displayUnit: drug.displayUnit,
-                    conversion: conversion,
-                    totalStock,
-                    batchCount,
-                    mrp: Number(primaryBatch.mrp),
-                    batchId: primaryBatch.id,
-                    batchNumber: primaryBatch.batchNumber,
-                    expiryDate: primaryBatch.expiryDate,
-                    gstRate: drug.gstRate,
-                    unitConfigurations: drug.unitConfigurations,
-                    batchList: batches.map(b => ({
-                        id: b.id,
-                        batchNumber: b.batchNumber,
-                        quantityInStock: b.quantityInStock,
-                        expiryDate: b.expiryDate,
-                        mrp: b.mrp,
-                        conversion: conversion // Pass it down to batch level if needed
-                    }))
-                };
-            })
-        );
-
-        // Filter out only null entries (drugs with no batches or invalid MRP)
-        // IMPORTANT: We now include out-of-stock items (totalStock = 0) so that
-        // the POS can show "Find Substitute" button for salt-based alternatives
-        return drugsWithBatches.filter(d => d !== null);
+            return results;
+        } catch (error) {
+            logger.error('❌ Service: Error in searchDrugsForPOS:', error);
+            throw error; // Re-throw so controller sends 500
+        }
     }
 
     /**

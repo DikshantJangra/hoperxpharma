@@ -448,7 +448,16 @@ SUM(ib."quantityInStock" * ib."purchasePrice") as "totalValue",
             take: 20,
             orderBy: { name: 'asc' },
             include: {
-                unitConfigurations: true
+                unitConfigurations: true,
+                inventory: {
+                    where: {
+                        quantityInStock: { gt: 0 },
+                        deletedAt: null
+                    },
+                    orderBy: {
+                        expiryDate: 'asc'
+                    }
+                }
             }
         });
 
