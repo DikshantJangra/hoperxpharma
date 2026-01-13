@@ -92,8 +92,8 @@ export default function OverviewTab({ prescription }: OverviewTabProps) {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Patient Information */}
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-3 mb-6">
+          <CardContent className="p-6 space-y-6">
+            <div className="flex items-center gap-3">
               <div className="p-2 bg-blue-50 rounded-lg">
                 <FiUser className="h-5 w-5 text-blue-600" />
               </div>
@@ -138,8 +138,8 @@ export default function OverviewTab({ prescription }: OverviewTabProps) {
 
         {/* Prescription Details */}
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-3 mb-6">
+          <CardContent className="p-6 space-y-6">
+            <div className="flex items-center gap-3">
               <div className="p-2 bg-green-50 rounded-lg">
                 <FiFileText className="h-5 w-5 text-green-600" />
               </div>
@@ -193,8 +193,8 @@ export default function OverviewTab({ prescription }: OverviewTabProps) {
         {/* Prescriber Information */}
         {prescriber && (
           <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center gap-3 mb-6">
+            <CardContent className="p-6 space-y-6">
+              <div className="flex items-center gap-3">
                 <div className="p-2 bg-purple-50 rounded-lg">
                   <FiMapPin className="h-5 w-5 text-purple-600" />
                 </div>
@@ -205,7 +205,10 @@ export default function OverviewTab({ prescription }: OverviewTabProps) {
                 <div>
                   <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Name</label>
                   <p className="text-base font-semibold text-gray-900 mt-1">
-                    Dr. {prescriber?.name || 'Unknown Prescriber'}
+                    {prescriber?.name || prescriber?.firstName ?
+                      `${prescriber.name || `Dr. ${prescriber.firstName} ${prescriber.lastName || ''}`.trim()}`
+                      : 'Unknown Prescriber'
+                    }
                   </p>
                 </div>
 
@@ -234,8 +237,8 @@ export default function OverviewTab({ prescription }: OverviewTabProps) {
 
         {/* Refill Information */}
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-3 mb-4">
+          <CardContent className="p-6 space-y-6">
+            <div className="flex items-center gap-3">
               <FiRefreshCw className="h-5 w-5 text-teal-600" />
               <h3 className="text-lg font-semibold">Refill Information</h3>
             </div>
@@ -292,8 +295,8 @@ export default function OverviewTab({ prescription }: OverviewTabProps) {
       {/* Clinical Notes */}
       {clinicalNotes && (
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-3 mb-4">
+          <CardContent className="p-6 space-y-6">
+            <div className="flex items-center gap-3">
               <FiAlertCircle className="h-5 w-5 text-orange-600" />
               <h3 className="text-lg font-semibold">Clinical Notes</h3>
             </div>
@@ -307,8 +310,8 @@ export default function OverviewTab({ prescription }: OverviewTabProps) {
 
       {/* Metadata */}
       <Card>
-        <CardContent className="p-6">
-          <div className="flex items-center gap-3 mb-4">
+        <CardContent className="p-6 space-y-6">
+          <div className="flex items-center gap-3">
             <FiTag className="h-5 w-5 text-gray-600" />
             <h3 className="text-lg font-semibold">Metadata</h3>
           </div>

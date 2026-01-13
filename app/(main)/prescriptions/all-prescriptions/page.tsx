@@ -179,25 +179,67 @@ export default function PrescriptionsListPage() {
 
         try {
             setIsDeleting(true);
-            const response = await prescriptionApi.deletePrescription(itemToDelete);
-            if (response.success) {
-                toast.success('Prescription deleted successfully');
-                if (selectedId === itemToDelete) {
-                    setSelectedId(null);
-                    setRightPanel('empty');
-                }
-                fetchPrescriptions();
+
+            // Optimistic update - remove from UI immediately
+            const previousPrescriptions = [...prescriptions];
+            setPrescriptions(prev => prev.filter(p => p.id !== itemToDelete));
+
+            // Clear selection if deleting current item
+            if (selectedId === itemToDelete) {
+                setSelectedId(null);
+                setRightPanel('empty');
             }
+
             setDeleteModalOpen(false);
+            const deletingId = itemToDelete;
             setItemToDelete(null);
+
+            // Perform delete in background
+            const response = await prescriptionApi.deletePrescription(deletingId);
+
+            if (!response.success) {
+                // Rollback on error
+                setPrescriptions(previousPrescriptions);
+                toast.error('Failed to delete prescription');
+            } else {
+                toast.success('Prescription deleted successfully');
+                // Update pagination count
+                setPagination(prev => ({ ...prev, total: prev.total - 1 }));
+            }
         } catch (error: any) {
             console.error('Delete error:', error);
             const message = error.message === 'Failed to fetch'
                 ? 'Network error: Could not connect to server'
                 : (error.response?.data?.message || 'Failed to delete prescription');
             toast.error(message);
+            // Refetch to restore accurate state
+            fetchPrescriptions();
         } finally {
             setIsDeleting(false);
+        }
+    };
+
+    // Local update helper - fetches updated prescription and updates cache/list without full refetch
+    const handleLocalUpdate = async () => {
+        if (!selectedId) return;
+
+        try {
+            const response = await prescriptionApi.getPrescriptionById(selectedId);
+            if (response.success && response.data) {
+                // Update in cache
+                setDetailsCache(prev => ({ ...prev, [selectedId]: response.data }));
+
+                // Update in list
+                setPrescriptions(prev =>
+                    prev.map(p => p.id === selectedId ? response.data : p)
+                );
+
+                toast.success('Updated successfully');
+            }
+        } catch (error) {
+            console.error('[Prescription] Failed to refresh after update:', error);
+            // On error, do a full refetch as fallback
+            fetchPrescriptions();
         }
     };
 
@@ -365,7 +407,7 @@ export default function PrescriptionsListPage() {
                                                     </span>
                                                     <span className="flex items-center gap-1">
                                                         <FiUser className="w-3 h-3" />
-                                                        {rx.prescriber?.firstName ? `Dr. ${rx.prescriber.firstName}` : 'Walk-in'}
+                                                        {rx.prescriber ? (rx.prescriber.name || `Dr. ${rx.prescriber.firstName || 'Unknown'}`) : 'No Prescriber'}
                                                     </span>
                                                     {rx.items && rx.items.length > 0 && (
                                                         <span className="px-1.5 py-0.5 bg-gray-100 rounded text-xs font-medium">
@@ -562,11 +604,11 @@ export default function PrescriptionsListPage() {
                                     </TabsList>
 
                                     <TabsContent value="medications" className="p-6 mt-0">
-                                        <MedicationsTab prescription={selectedRx} onUpdate={fetchPrescriptions} />
+                                        <MedicationsTab prescription={selectedRx} onUpdate={handleLocalUpdate} />
                                     </TabsContent>
 
                                     <TabsContent value="refills" className="p-6 mt-0">
-                                        <RefillsTab prescription={selectedRx} onUpdate={fetchPrescriptions} />
+                                        <RefillsTab prescription={selectedRx} onUpdate={handleLocalUpdate} />
                                     </TabsContent>
 
                                     <TabsContent value="overview" className="p-6 mt-0">
@@ -578,7 +620,7 @@ export default function PrescriptionsListPage() {
                                     </TabsContent>
 
                                     <TabsContent value="documents" className="p-6 mt-0">
-                                        <DocumentsTab prescription={selectedRx} onUpdate={fetchPrescriptions} />
+                                        <DocumentsTab prescription={selectedRx} onUpdate={handleLocalUpdate} />
                                     </TabsContent>
                                 </Tabs>
                             </div>

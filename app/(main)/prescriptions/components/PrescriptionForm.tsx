@@ -13,6 +13,7 @@ import dynamic from 'next/dynamic';
 import { scanApi } from '@/lib/api/scan';
 import { useBarcodeScanner } from '@/hooks/useBarcodeScanner';
 import { BsUpcScan } from 'react-icons/bs';
+import SmartQuantityInput from '@/components/common/SmartQuantityInput';
 
 const BarcodeScannerModal = dynamic(() => import('@/components/pos/BarcodeScannerModal'), { ssr: false });
 
@@ -609,8 +610,16 @@ const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ onSubmit, onCancel,
             formData.append('totalRefills', totalRefills.toString());
             formData.append('status', 'DRAFT');
 
-            const response = await onSubmit(formData);
-            toast.success('Draft saved successfully!');
+            const response = await onSubmit(formData) as any;
+
+            if (response?.success && response.data?.id) {
+                setEditingPrescriptionId(response.data.id);
+                // Also update the browser URL silently if possible or just rely on state
+                // Ideally we'd replace the route, but sticking to state fix for now
+                toast.success('Draft saved successfully!');
+            } else {
+                toast.success('Draft saved successfully!');
+            }
             setStatus('DRAFT');
         } catch (error) {
             toast.error('Failed to save draft');
@@ -1181,59 +1190,17 @@ const MedicationRow: React.FC<MedicationRowProps> = ({ medication, locked, onUpd
                 <div>
                     <label className="text-[10px] text-gray-500 block mb-0.5">Qty</label>
                     <div className="flex items-center gap-1">
-                        {/* Mixed Unit Input Logic */}
-                        {medication.conversionFactor && medication.conversionFactor > 1 ? (
-                            <div className="flex items-center gap-1 bg-gray-50 p-0.5 rounded border border-gray-200">
-                                <div className="flex flex-col items-center">
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        value={Math.floor(quantity)}
-                                        onChange={(e) => {
-                                            const parentVal = Math.max(0, parseInt(e.target.value) || 0);
-                                            const childVal = Math.round((quantity % 1) * (medication.conversionFactor || 1));
-                                            const newTotal = parentVal + (childVal / (medication.conversionFactor || 1));
-                                            onUpdate(tempId, { quantity: newTotal });
-                                        }}
-                                        disabled={locked}
-                                        className="w-10 px-1 py-0.5 border border-transparent bg-white rounded text-[11px] text-center focus:outline-none focus:ring-1 focus:ring-teal-500"
-                                    />
-                                    <span className="text-[8px] text-gray-400 uppercase font-bold">{formatUnitName(selectedUnit)}</span>
-                                </div>
-                                <span className="text-gray-400 font-bold">+</span>
-                                <div className="flex flex-col items-center">
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        max={(medication.conversionFactor || 1) - 1}
-                                        value={Math.round((quantity % 1) * (medication.conversionFactor || 1))}
-                                        onChange={(e) => {
-                                            const parentVal = Math.floor(quantity);
-                                            const childVal = Math.max(0, parseInt(e.target.value) || 0);
-                                            const newTotal = parentVal + (childVal / (medication.conversionFactor || 1));
-                                            onUpdate(tempId, { quantity: newTotal });
-                                        }}
-                                        disabled={locked}
-                                        className="w-10 px-1 py-0.5 border border-transparent bg-white rounded text-[11px] text-center focus:outline-none focus:ring-1 focus:ring-teal-500"
-                                    />
-                                    <span className="text-[8px] text-gray-400 uppercase font-bold">{formatUnitName(medication.baseUnit || 'Unit')}</span>
-                                </div>
-                            </div>
-                        ) : (
-                            <input
-                                type="number"
-                                step="any"
-                                min="0"
-                                value={quantity || ''}
-                                onChange={(e) => {
-                                    const val = e.target.value;
-                                    const num = val === '' ? 0 : parseFloat(val);
-                                    onUpdate(tempId, { quantity: Math.max(0, num) });
-                                }}
-                                disabled={locked}
-                                className="w-14 px-1.5 py-1 border border-gray-300 rounded text-xs disabled:bg-gray-100"
-                            />
-                        )}
+                        {/* Smart Quantity Input */}
+                        <SmartQuantityInput
+                            value={quantity}
+                            onChange={(newQty) => onUpdate(tempId, { quantity: newQty })}
+                            conversionFactor={medication.conversionFactor}
+                            baseUnitName={medication.baseUnit || 'Unit'}
+                            stripUnitName={selectedUnit} // Correctly passes "Strip" or whatever unit is selected
+                            maxQuantity={medication.totalStock}
+                            disabled={locked}
+                            compact={true}
+                        />
                         {/* Unit Selector - POS Style */}
                         {availableUnits && availableUnits.length > 1 ? (
                             <select

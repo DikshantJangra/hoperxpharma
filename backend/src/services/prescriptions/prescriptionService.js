@@ -12,19 +12,76 @@ const dispenseService = require('./dispenseService');
  */
 class PrescriptionService {
     /**
-     * Generate unique prescription number for a store
+     * Parse RX number format with tokens
+     * Tokens: YYYY (year), YY (short year), NNNNNN (counter), STORE (store ID), PREFIX (custom prefix)
+     */
+    parseRxFormat(format, store, counter) {
+        const year = new Date().getFullYear();
+        const storeId = store.id.slice(-3); // Last 3 chars
+        const prefix = store.rxNumberPrefix || 'RX';
+
+        return format
+            .replace('YYYY', year.toString())
+            .replace('YY', year.toString().slice(-2))
+            .replace(/N+/g, (match) => counter.toString().padStart(match.length, '0'))
+            .replace('STORE', storeId)
+            .replace('PREFIX', prefix);
+    }
+
+    /**
+     * Generate unique prescription number for a store (with customizable format)
      */
     async generatePrescriptionNumber(storeId) {
-        const lastRx = await prisma.prescription.findFirst({
-            where: { storeId },
-            orderBy: { createdAt: 'desc' },
-            select: { prescriptionNumber: true }
+        // Fetch store config
+        const store = await prisma.store.findUnique({
+            where: { id: storeId },
+            select: {
+                id: true,
+                rxNumberFormat: true,
+                rxNumberPrefix: true,
+                rxNumberCounter: true,
+                rxYearlyReset: true
+            }
         });
 
-        const lastNumber = lastRx?.prescriptionNumber?.match(/\d+$/)?.[0] || '0';
-        const nextNumber = (parseInt(lastNumber) + 1).toString().padStart(6, '0');
+        if (!store) {
+            throw new Error('Store not found');
+        }
 
-        return `RX${nextNumber}`;
+        const format = store.rxNumberFormat || 'RX-NNNNNN';
+        const currentYear = new Date().getFullYear();
+
+        // Check if we need to reset counter (yearly reset logic)
+        let counter = store.rxNumberCounter || 0;
+        if (store.rxYearlyReset) {
+            // Check if last prescription was from previous year
+            const lastRx = await prisma.prescription.findFirst({
+                where: { storeId },
+                orderBy: { createdAt: 'desc' },
+                select: { createdAt: true }
+            });
+
+            if (lastRx) {
+                const lastYear = new Date(lastRx.createdAt).getFullYear();
+                if (lastYear < currentYear) {
+                    counter = 0; // Reset for new year
+                }
+            }
+        }
+
+        // Increment counter
+        const nextCounter = counter + 1;
+
+        // Generate number using format
+        const prescriptionNumber = this.parseRxFormat(format, store, nextCounter);
+
+        // Update store counter
+        await prisma.store.update({
+            where: { id: storeId },
+            data: { rxNumberCounter: nextCounter }
+        });
+
+        return prescriptionNumber;
     }
 
     /**

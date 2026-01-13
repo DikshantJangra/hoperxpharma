@@ -4,6 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { FiClock, FiInfo, FiPackage, FiCalendar, FiMapPin, FiHash } from 'react-icons/fi';
 import { RiCapsuleFill } from 'react-icons/ri';
+import { formatStockQuantity } from '@/lib/utils/stock-display';
 
 interface MedicationsTabProps {
   prescription: any;
@@ -29,8 +30,8 @@ export default function MedicationsTab({ prescription, onUpdate }: MedicationsTa
     <div className="space-y-4">
       {medications.map((medication: any, index: number) => (
         <Card key={medication.id || index}>
-          <CardContent className="p-6">
-            <div className="flex items-start justify-between mb-6">
+          <CardContent className="p-6 space-y-6">
+            <div className="flex items-start justify-between">
               <div className="flex items-center gap-3">
                 <div className="p-2 bg-blue-50 rounded-lg">
                   <RiCapsuleFill className="h-5 w-5 text-blue-600" />
@@ -53,7 +54,22 @@ export default function MedicationsTab({ prescription, onUpdate }: MedicationsTa
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
               <div>
                 <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Quantity Prescribed</label>
-                <p className="text-sm font-semibold text-gray-900 mt-1">{medication.quantityPrescribed || medication.quantity || 0} units</p>
+                <p className="text-sm font-semibold text-gray-900 mt-1">
+                  {(() => {
+                    const qty = medication.quantityPrescribed || medication.quantity || 0;
+                    const conversionFactor = medication.drug?.conversionFactor || medication.conversionFactor;
+                    const baseUnit = medication.drug?.baseUnit || medication.baseUnit || 'Unit';
+                    const displayUnit = medication.unit || medication.drug?.displayUnit || medication.drug?.unit || 'Unit';
+
+                    if (conversionFactor && conversionFactor > 1 && qty % 1 !== 0) {
+                      // Mixed units: e.g., "3 Strips, 5 Tablets"
+                      const parentQty = Math.floor(qty);
+                      const childQty = Math.round((qty % 1) * conversionFactor);
+                      return `${parentQty} ${displayUnit}${parentQty !== 1 ? 's' : ''}, ${childQty} ${baseUnit}${childQty !== 1 ? 's' : ''}`;
+                    }
+                    return `${qty} ${displayUnit}${qty !== 1 ? 's' : ''}`;
+                  })()}
+                </p>
               </div>
 
               <div>
@@ -99,7 +115,14 @@ export default function MedicationsTab({ prescription, onUpdate }: MedicationsTa
                       <FiPackage className="h-3 w-3" />
                       Stock Available
                     </label>
-                    <p className="text-sm font-medium text-gray-900 mt-1">{medication.batch.quantityInStock} units</p>
+                    <p className="text-sm font-medium text-gray-900 mt-1">
+                      {formatStockQuantity({
+                        quantityInStock: medication.batch.quantityInStock,
+                        baseUnit: medication.drug?.baseUnit || medication.baseUnit,
+                        displayUnit: medication.drug?.displayUnit || medication.drug?.unit,
+                        conversionFactor: medication.drug?.conversionFactor || medication.conversionFactor
+                      })}
+                    </p>
                   </div>
                   <div>
                     <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide flex items-center gap-1">
