@@ -12,6 +12,7 @@ router.use(authenticate);
  * Salt search and retrieval routes (available to all authenticated users)
  */
 router.get('/search', saltController.searchSalts);
+router.get('/find/:name', saltController.findByNameOrAlias);
 router.get('/', saltController.getAllSalts);
 
 
@@ -29,6 +30,12 @@ router.get('/:id', saltController.getSaltById);
 router.post('/', requireAdmin, saltController.createSalt);
 router.put('/:id', requireAdmin, saltController.updateSalt);
 router.delete('/:id', requireAdmin, saltController.deleteSalt);
+
+/**
+ * Alias management routes (require admin role)
+ */
+router.post('/:id/aliases', requireAdmin, saltController.addAlias);
+router.delete('/:id/aliases/:alias', requireAdmin, saltController.removeAlias);
 
 /**
  * Drug-Salt mapping routes

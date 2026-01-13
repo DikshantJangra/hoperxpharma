@@ -10,29 +10,60 @@ import { toast } from 'sonner';
 
 export default function SaltIntelligenceWidget() {
     const router = useRouter();
-    const [stats, setStats] = useState({ pending: 0, active: 0 });
+    const [stats, setStats] = useState({ 
+        pending: 0, 
+        active: 0,
+        unmappedCount: 0,
+        recentlyAdded: 0 
+    });
     const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         const fetchStats = async () => {
             try {
-                // We rely on the /drugs endpoint filtering we added
-                // Fetch pending count
-                const pendingRes = await apiClient.get('/drugs', { params: { ingestionStatus: 'SALT_PENDING', limit: 1 } });
-                // Fetch active count (optional, just for show)
-                // const activeRes = await apiClient.get('/drugs', { params: { ingestionStatus: 'ACTIVE', limit: 1 } });
+                setError(null);
+                
+                // Get storeId from user data
+                const userStr = localStorage.getItem('user');
+                if (!userStr) {
+                    console.log('No user data found');
+                    setLoading(false);
+                    return;
+                }
 
-                // If API returns paginated response with 'total' or 'totalDocs'
-                const pendingTotal = pendingRes.data.data?.total || pendingRes.data.total || 0;
+                const user = JSON.parse(userStr);
+                const storeId = user.storeId;
 
-                setStats({ pending: pendingTotal, active: 0 });
-            } catch (error) {
+                if (!storeId) {
+                    console.log('No storeId found in user data');
+                    setLoading(false);
+                    return;
+                }
+
+                // Call the salt-intelligence stats endpoint
+                const response = await apiClient.get(`/salt-intelligence/stats?storeId=${storeId}`);
+                
+                if (response.data) {
+                    setStats({
+                        pending: response.data.pendingCount || 0,
+                        active: response.data.activeCount || 0,
+                        unmappedCount: response.data.unmappedCount || 0,
+                        recentlyAdded: response.data.recentlyAdded || 0
+                    });
+                }
+            } catch (error: any) {
                 console.error("Failed to fetch salt stats", error);
+                setError('Failed to load stats');
             } finally {
                 setLoading(false);
             }
         };
         fetchStats();
+        
+        // Auto-refresh every 5 minutes
+        const interval = setInterval(fetchStats, 5 * 60 * 1000);
+        return () => clearInterval(interval);
     }, []);
 
     return (
@@ -43,39 +74,85 @@ export default function SaltIntelligenceWidget() {
                         <FaFlask className="text-blue-500" />
                         <h3>Salt Intelligence</h3>
                     </div>
-                    {stats.pending > 0 && (
+                    {stats.unmappedCount > 0 && (
                         <Badge variant="destructive" className="animate-pulse">
-                            Action Needed
+                            {stats.unmappedCount} Pending
                         </Badge>
                     )}
                 </div>
 
-                <div className="mt-4 space-y-1">
-                    <p className="text-3xl font-bold text-slate-900">
-                        {loading ? '...' : stats.pending}
-                    </p>
-                    <p className="text-sm text-slate-500">
-                        Unmapped Medicines
-                    </p>
-                </div>
+                {loading ? (
+                    <div className="mt-4 space-y-2">
+                        <div className="h-8 bg-gray-200 rounded animate-pulse w-20"></div>
+                        <div className="h-4 bg-gray-200 rounded animate-pulse w-32"></div>
+                    </div>
+                ) : error ? (
+                    <div className="mt-4">
+                        <p className="text-sm text-red-600">{error}</p>
+                    </div>
+                ) : (
+                    <>
+                        <div className="mt-4 space-y-1">
+                            <p className="text-3xl font-bold text-slate-900">
+                                {stats.unmappedCount}
+                            </p>
+                            <p className="text-sm text-slate-500">
+                                Medicines Need Review
+                            </p>
+                        </div>
+
+                        {/* Quick Stats Grid */}
+                        <div className="mt-4 grid grid-cols-3 gap-2 pt-3 border-t border-slate-200">
+                            <div className="text-center">
+                                <p className="text-xs text-slate-500">Pending</p>
+                                <p className="text-lg font-semibold text-orange-600">{stats.pending}</p>
+                            </div>
+                            <div className="text-center">
+                                <p className="text-xs text-slate-500">Active</p>
+                                <p className="text-lg font-semibold text-green-600">{stats.active}</p>
+                            </div>
+                            <div className="text-center">
+                                <p className="text-xs text-slate-500">Recent</p>
+                                <p className="text-lg font-semibold text-blue-600">{stats.recentlyAdded}</p>
+                            </div>
+                        </div>
+                    </>
+                )}
             </div>
 
             <div className="mt-6 space-y-2">
-                <Button
-                    variant="default"
-                    className="w-full bg-blue-600 hover:bg-blue-700 justify-between"
-                    onClick={() => router.push('/inventory/maintenance')}
-                    disabled={loading || stats.pending === 0}
-                >
-                    <span className="flex items-center"><FaExclamationTriangle className="mr-2" /> Fix Pending</span>
-                    <span className="bg-blue-800 text-xs px-2 py-0.5 rounded-full">{stats.pending}</span>
-                </Button>
+                {stats.unmappedCount > 0 ? (
+                    <Button
+                        variant="default"
+                        className="w-full bg-blue-600 hover:bg-blue-700 justify-between"
+                        onClick={() => router.push('/inventory/maintenance')}
+                        disabled={loading}
+                    >
+                        <span className="flex items-center">
+                            <FaExclamationTriangle className="mr-2" /> 
+                            Fix Pending
+                        </span>
+                        <span className="bg-blue-800 text-xs px-2 py-0.5 rounded-full">
+                            {stats.unmappedCount}
+                        </span>
+                    </Button>
+                ) : (
+                    <Button
+                        variant="outline"
+                        className="w-full justify-center text-green-600 border-green-600 hover:bg-green-50"
+                        disabled
+                    >
+                        <FaCheckDouble className="mr-2" /> 
+                        All Medicines Mapped
+                    </Button>
+                )}
                 <Button
                     variant="outline"
-                    className="w-full justify-start text-slate-600"
+                    className="w-full justify-start text-slate-600 hover:bg-slate-50"
                     onClick={() => router.push('/inventory/ingest')}
                 >
-                    <FaCheckDouble className="mr-2" /> Ingest New
+                    <FaFlask className="mr-2" /> 
+                    Add New Medicine
                 </Button>
             </div>
         </Card>

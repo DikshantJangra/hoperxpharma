@@ -249,14 +249,29 @@ class SaleService {
             // 1. Get or create patient (outside transaction - can be cached)
             let actualPatientId = patientId;
             if (!actualPatientId) {
-                const walkInPatient = await prisma.patient.create({
-                    data: {
+                // Find or create a single walk-in patient per store (reuse existing)
+                let walkInPatient = await prisma.patient.findFirst({
+                    where: {
                         storeId: saleInfo.storeId,
-                        firstName: 'Walk-in',
-                        lastName: 'Customer',
-                        phoneNumber: `WALKIN-${Date.now()}`
+                        phoneNumber: 'WALKIN-CUSTOMER',
+                        deletedAt: null
                     }
                 });
+
+                if (!walkInPatient) {
+                    walkInPatient = await prisma.patient.create({
+                        data: {
+                            storeId: saleInfo.storeId,
+                            firstName: 'Walk-in',
+                            lastName: 'Customer',
+                            phoneNumber: 'WALKIN-CUSTOMER'
+                        }
+                    });
+                    logger.info('Created new walk-in patient', { patientId: walkInPatient.id, storeId: saleInfo.storeId });
+                } else {
+                    logger.info('Reusing existing walk-in patient', { patientId: walkInPatient.id, storeId: saleInfo.storeId });
+                }
+                
                 actualPatientId = walkInPatient.id;
             }
 

@@ -1,294 +1,155 @@
 const logger = require('../config/logger');
 
-// Redis client instance (lazy-loaded)
-let redisClient = null;
-let Redis = null;
-
-// Initialize Redis if enabled
-const initRedis = () => {
-    const isRedisEnabled = process.env.REDIS_ENABLED === 'true';
-    const redisUrl = process.env.REDIS_URL;
-
-    if (!isRedisEnabled || !redisUrl) {
-        logger.debug('Redis caching disabled or not configured. Using in-memory cache fallback.');
-        return null;
-    }
-
-    try {
-        Redis = require('redis');
-        redisClient = Redis.createClient({
-            url: redisUrl,
-            socket: {
-                reconnectStrategy: (retries) => {
-                    if (retries > 10) {
-                        logger.error('Redis reconnection failed after 10 attempts');
-                        return new Error('Redis unavailable');
-                    }
-                    return retries * 100;
-                }
-            }
-        });
-
-        redisClient.on('error', (err) => {
-            logger.error('Redis error:', err);
-        });
-
-        redisClient.on('connect', () => {
-            logger.info('Redis cache connected successfully');
-        });
-
-        redisClient.connect().catch((err) => {
-            logger.error('Failed to connect to Redis:', err);
-            redisClient = null;
-        });
-
-        return redisClient;
-    } catch (error) {
-        logger.warn('Redis packages not installed. Using in-memory cache.');
-        return null;
-    }
-};
-
 /**
- * Cache Service
- * Provides unified caching interface with Redis (if available) or in-memory fallback
+ * Simple in-memory cache with TTL support
+ * Can be replaced with Redis in production
  */
 class CacheService {
     constructor() {
-        this.memoryCache = new Map();
-        this.memoryExpiry = new Map();
-        this.client = null;
-        this.isRedisAvailable = false;
-
-        // Initialize Redis on construction
-        this.init();
-    }
-
-    async init() {
-        this.client = initRedis();
-        this.isRedisAvailable = this.client !== null;
-
-        // Cleanup expired memory cache entries every minute
-        const cleanupInterval = setInterval(() => this.cleanupMemoryCache(), 60000);
-        if (cleanupInterval.unref) cleanupInterval.unref();
-    }
-
-    cleanupMemoryCache() {
-        const now = Date.now();
-        for (const [key, expiry] of this.memoryExpiry.entries()) {
-            if (expiry && expiry < now) {
-                this.memoryCache.delete(key);
-                this.memoryExpiry.delete(key);
-            }
-        }
+        this.cache = new Map();
+        this.ttls = new Map();
+        
+        // Cleanup expired entries every 5 minutes
+        this.cleanupInterval = setInterval(() => {
+            this.cleanup();
+        }, 5 * 60 * 1000);
     }
 
     /**
      * Get value from cache
+     * @param {string} key - Cache key
+     * @returns {*} Cached value or null if not found/expired
      */
-    async get(key) {
-        try {
-            if (this.isRedisAvailable && this.client) {
-                const value = await this.client.get(key);
-                return value ? JSON.parse(value) : null;
-            }
-
-            // Fallback to memory cache
-            const expiry = this.memoryExpiry.get(key);
-            if (expiry && expiry < Date.now()) {
-                this.memoryCache.delete(key);
-                this.memoryExpiry.delete(key);
+    get(key) {
+        // Check if key exists and is not expired
+        if (this.cache.has(key)) {
+            const expiresAt = this.ttls.get(key);
+            
+            if (expiresAt && Date.now() > expiresAt) {
+                // Expired, remove it
+                this.cache.delete(key);
+                this.ttls.delete(key);
+                logger.debug(`Cache expired: ${key}`);
                 return null;
             }
-            return this.memoryCache.get(key) || null;
-        } catch (error) {
-            logger.error(`Cache get error for key ${key}:`, error);
-            return null;
+            
+            logger.debug(`Cache hit: ${key}`);
+            return this.cache.get(key);
         }
+        
+        logger.debug(`Cache miss: ${key}`);
+        return null;
     }
 
     /**
-     * Set value in cache with optional TTL (in seconds)
+     * Set value in cache with TTL
+     * @param {string} key - Cache key
+     * @param {*} value - Value to cache
+     * @param {number} ttlSeconds - Time to live in seconds (default: 3600 = 1 hour)
      */
-    async set(key, value, ttlSeconds = 300) {
-        try {
-            if (this.isRedisAvailable && this.client) {
-                await this.client.setEx(key, ttlSeconds, JSON.stringify(value));
-                return true;
-            }
-
-            // Fallback to memory cache
-            this.memoryCache.set(key, value);
-            if (ttlSeconds) {
-                this.memoryExpiry.set(key, Date.now() + (ttlSeconds * 1000));
-            }
-            return true;
-        } catch (error) {
-            logger.error(`Cache set error for key ${key}:`, error);
-            return false;
+    set(key, value, ttlSeconds = 3600) {
+        this.cache.set(key, value);
+        
+        if (ttlSeconds > 0) {
+            const expiresAt = Date.now() + (ttlSeconds * 1000);
+            this.ttls.set(key, expiresAt);
         }
+        
+        logger.debug(`Cache set: ${key} (TTL: ${ttlSeconds}s)`);
     }
 
     /**
      * Delete value from cache
+     * @param {string} key - Cache key
      */
-    async del(key) {
-        try {
-            if (this.isRedisAvailable && this.client) {
-                await this.client.del(key);
-            }
-            this.memoryCache.delete(key);
-            this.memoryExpiry.delete(key);
-            return true;
-        } catch (error) {
-            logger.error(`Cache delete error for key ${key}:`, error);
-            return false;
+    delete(key) {
+        const existed = this.cache.has(key);
+        this.cache.delete(key);
+        this.ttls.delete(key);
+        
+        if (existed) {
+            logger.debug(`Cache deleted: ${key}`);
         }
+        
+        return existed;
     }
 
     /**
-     * Delete multiple keys matching pattern
+     * Delete all keys matching a pattern
+     * @param {string} pattern - Pattern to match (supports wildcards with *)
      */
-    async delPattern(pattern) {
-        try {
-            if (this.isRedisAvailable && this.client) {
-                const keys = await this.client.keys(pattern);
-                if (keys.length > 0) {
-                    await this.client.del(keys);
-                }
+    deletePattern(pattern) {
+        const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$');
+        let deletedCount = 0;
+        
+        for (const key of this.cache.keys()) {
+            if (regex.test(key)) {
+                this.cache.delete(key);
+                this.ttls.delete(key);
+                deletedCount++;
             }
-
-            // Fallback: delete from memory cache
-            for (const key of this.memoryCache.keys()) {
-                if (this.matchPattern(key, pattern)) {
-                    this.memoryCache.delete(key);
-                    this.memoryExpiry.delete(key);
-                }
-            }
-            return true;
-        } catch (error) {
-            logger.error(`Cache delete pattern error for ${pattern}:`, error);
-            return false;
         }
+        
+        if (deletedCount > 0) {
+            logger.debug(`Cache pattern deleted: ${pattern} (${deletedCount} keys)`);
+        }
+        
+        return deletedCount;
     }
 
     /**
-     * Simple pattern matching for memory cache (supports * wildcard)
+     * Clear all cache entries
      */
-    matchPattern(str, pattern) {
-        const regexPattern = pattern.replace(/\*/g, '.*');
-        return new RegExp(`^${regexPattern}$`).test(str);
+    clear() {
+        const size = this.cache.size;
+        this.cache.clear();
+        this.ttls.clear();
+        logger.info(`Cache cleared: ${size} entries removed`);
     }
 
     /**
-     * Check if key exists
+     * Remove expired entries
      */
-    async exists(key) {
-        try {
-            if (this.isRedisAvailable && this.client) {
-                return await this.client.exists(key) === 1;
+    cleanup() {
+        const now = Date.now();
+        let cleanedCount = 0;
+        
+        for (const [key, expiresAt] of this.ttls.entries()) {
+            if (now > expiresAt) {
+                this.cache.delete(key);
+                this.ttls.delete(key);
+                cleanedCount++;
             }
-            return this.memoryCache.has(key);
-        } catch (error) {
-            logger.error(`Cache exists error for key ${key}:`, error);
-            return false;
+        }
+        
+        if (cleanedCount > 0) {
+            logger.debug(`Cache cleanup: ${cleanedCount} expired entries removed`);
         }
     }
 
     /**
      * Get cache statistics
+     * @returns {Object} Cache stats
      */
-    async getStats() {
-        try {
-            if (this.isRedisAvailable && this.client) {
-                const info = await this.client.info('stats');
-                return {
-                    type: 'redis',
-                    connected: true,
-                    info: info
-                };
-            }
-
-            return {
-                type: 'memory',
-                connected: true,
-                size: this.memoryCache.size,
-                keys: Array.from(this.memoryCache.keys())
-            };
-        } catch (error) {
-            logger.error('Error getting cache stats:', error);
-            return { type: 'unknown', connected: false };
-        }
+    getStats() {
+        return {
+            size: this.cache.size,
+            keys: Array.from(this.cache.keys())
+        };
     }
 
     /**
-     * Clear all cache
+     * Shutdown cache service
      */
-    async flush() {
-        try {
-            if (this.isRedisAvailable && this.client) {
-                await this.client.flushDb();
-            }
-            this.memoryCache.clear();
-            this.memoryExpiry.clear();
-            logger.info('Cache flushed successfully');
-            return true;
-        } catch (error) {
-            logger.error('Error flushing cache:', error);
-            return false;
+    shutdown() {
+        if (this.cleanupInterval) {
+            clearInterval(this.cleanupInterval);
+            this.cleanupInterval = null;
         }
+        this.clear();
+        logger.info('Cache service shutdown');
     }
-
-    /**
-     * Disconnect Redis client
-     */
-    async disconnect() {
-        if (this.client) {
-            await this.client.quit();
-            this.client = null;
-            this.isRedisAvailable = false;
-        }
-    }
-
-    // ======================
-    // Application-specific cache helpers
-    // ======================
-
-    /**
-     * Cache key generators
-     */
-    keys = {
-        storeSettings: (storeId) => `store:${storeId}:settings`,
-        storeFeatures: (storeId) => `store:${storeId}:features`,
-        businessTypeFeatures: (businessType) => `businessType:${businessType}:features`,
-        userPermissions: (userId) => `user:${userId}:permissions`,
-        taxSlab: (id) => `taxSlab:${id}`,
-        hsnCode: (code) => `hsn:${code}`,
-        drugInfo: (drugId) => `drug:${drugId}:info`,
-    };
-
-    /**
-     * Invalidation patterns
-     */
-    invalidate = {
-        storeData: async (storeId) => {
-            await this.delPattern(`store:${storeId}:*`);
-            logger.info(`Invalidated cache for store: ${storeId}`);
-        },
-        userData: async (userId) => {
-            await this.delPattern(`user:${userId}:*`);
-            logger.info(`Invalidated cache for user: ${userId}`);
-        },
-        allFeatures: async () => {
-            await this.delPattern('*:features');
-            logger.info('Invalidated all feature caches');
-        },
-        gstData: async () => {
-            await this.delPattern('taxSlab:*');
-            await this.delPattern('hsn:*');
-            logger.info('Invalidated GST cache');
-        }
-    };
 }
 
+// Export singleton instance
 module.exports = new CacheService();

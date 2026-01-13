@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
     "type-check": "tsc --noEmit --pretty",
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
@@ -26,6 +28,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.946.0",
     "@aws-sdk/s3-request-presigner": "^3.946.0",
+    "@google/generative-ai": "^0.24.1",
     "@prisma/client": "6.18.0",
     "axios": "^1.13.2",
     "bcrypt": "^6.0.0",
@@ -74,8 +77,11 @@
   },
   "devDependencies": {
     "@types/bcrypt": "^6.0.0",
+    "@types/jest": "^30.0.0",
     "@types/node": "^20.19.25",
     "eslint": "^9.39.1",
+    "fast-check": "^4.5.3",
+    "jest": "^30.2.0",
     "prisma": "6.18.0",
     "ts-node": "^10.9.2",
     "typescript": "^5.3.3"

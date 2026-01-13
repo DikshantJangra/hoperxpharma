@@ -58,9 +58,29 @@ export function AuthChoiceScreen({ mode, onSelectMethod }: AuthChoiceScreenProps
             const isReady = await waitForBackend();
 
             if (isReady) {
-                const baseUrl = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api').replace(/\/v1\/?$/, '');
+                const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
                 const intent = isLogin ? 'login' : 'signup';
-                window.location.href = `${baseUrl}/v1/auth/google?intent=${intent}`;
+                const googleAuthUrl = `${apiUrl}/auth/google?intent=${intent}`;
+                
+                // Test if route exists before redirecting
+                try {
+                    const testResponse = await fetch(googleAuthUrl, {
+                        method: 'HEAD',
+                        redirect: 'manual'
+                    });
+                    
+                    // If we get 404, show error instead of redirecting
+                    if (testResponse.status === 404) {
+                        toast.error('Google sign-in is not available at the moment.');
+                        setIsCheckingServer(false);
+                        setShowRetry(true);
+                        return;
+                    }
+                } catch (error) {
+                    // Network error or CORS - proceed with redirect anyway
+                }
+                
+                window.location.href = googleAuthUrl;
             } else {
                 toast.error('Server is taking too long to respond.');
                 setIsCheckingServer(false);
@@ -98,7 +118,11 @@ export function AuthChoiceScreen({ mode, onSelectMethod }: AuthChoiceScreenProps
                         }`}
                 >
                     {isCheckingServer ? (
-                        <AiOutlineLoading3Quarters size={20} className="flex-shrink-0 animate-spin text-emerald-500" />
+                        <div className="flex items-center gap-1.5">
+                            <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                            <span className="w-2 h-2 bg-red-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                            <span className="w-2 h-2 bg-yellow-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                        </div>
                     ) : (
                         <FcGoogle size={20} className="flex-shrink-0" />
                     )}

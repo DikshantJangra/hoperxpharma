@@ -12,6 +12,7 @@
     "generate:client": "prisma generate --schema=./backend/prisma/schema.prisma"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@headlessui/react": "^2.2.9",
     "@heroicons/react": "^2.0.18",
     "@hookform/resolvers": "^5.2.2",

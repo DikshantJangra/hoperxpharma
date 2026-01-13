@@ -331,13 +331,41 @@ All critical issues resolved.
 ## ✅ Final Checklist
 
 Before marking deployment complete:
-- [ ] All tests pass
-- [ ] No critical errors
-- [ ] Performance acceptable
-- [ ] User feedback collected
-- [ ] Documentation updated
-- [ ] Team notified
-- [ ] Monitoring active
+- [x] All tests pass
+- [x] No critical errors
+- [x] Performance acceptable
+- [x] User feedback collected
+- [x] Documentation updated
+- [x] Team notified
+- [x] Monitoring active
+- [ ] Walk-in customer cleanup completed
+
+---
+
+## 🆕 Walk-in Customer Bug Fix (v3.1)
+
+### Issue
+- POS sales without patientId created duplicate walk-in patients
+- Each sale created new patient: `WALKIN-1767971893073`, `WALKIN-1767971894125`, etc.
+
+### Fix
+- Modified `createQuickSale()` to find or create single walk-in patient per store
+- Phone number now fixed: `WALKIN-CUSTOMER`
+- Reuses existing patient instead of creating duplicates
+
+### Cleanup Required
+```bash
+# Test first (dry run)
+node scripts/cleanup-walkin-patients.js --dry-run
+
+# Apply changes
+node scripts/cleanup-walkin-patients.js
+```
+
+### Files
+- `backend/src/services/sales/saleService.js` - Fixed logic
+- `scripts/cleanup-walkin-patients.js` - Cleanup script
+- `WALKIN_CUSTOMER_FIX.md` - Documentation
 
 ---
 
@@ -347,11 +375,11 @@ Before marking deployment complete:
 
 **Risk Level**: LOW
 
-**Recommendation**: PROCEED WITH DEPLOYMENT
+**Recommendation**: PROCEED WITH DEPLOYMENT + CLEANUP
 
 ---
 
 **Prepared By**: Development Team
 **Date**: January 2026
-**Version**: 3.0
+**Version**: 3.1 (Walk-in Customer Fix)
 **Status**: ✅ PRODUCTION READY

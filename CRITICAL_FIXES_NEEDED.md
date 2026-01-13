@@ -284,23 +284,36 @@ Completion: Flush all pending → Atomic transaction
 
 **All Critical Issues**: ✅ RESOLVED
 
-**Remaining Work**: None (all P1 items complete)
+**Remaining Work**: Walk-in Customer Cleanup (script ready)
 
 **Recommendation**: DEPLOY TO PRODUCTION
 
 ---
 
-## 📞 SUPPORT
+## 🆕 LATEST FIX: Walk-in Customer Bug (January 2026)
 
-If issues arise:
-1. Check browser console for errors
-2. Verify network requests in DevTools
-3. Check backend logs for API errors
-4. Review `INVENTORY_AUDIT_PART1_GROUND_TRUTH.md`
-5. Test in incognito mode (clear cache)
+### Issue
+- Every POS sale without patientId created duplicate walk-in patients
+- Database filled with `WALKIN-1767971893073`, `WALKIN-1767971894125`, etc.
+
+### Solution
+- ✅ Fixed `createQuickSale()` to find or create single walk-in patient per store
+- ✅ Created cleanup script to remove existing duplicates
+- ✅ Added logging for debugging
+
+### Files
+- `backend/src/services/sales/saleService.js` - Fixed logic
+- `scripts/cleanup-walkin-patients.js` - Cleanup script
+- `WALKIN_CUSTOMER_FIX.md` - Full documentation
+
+### Deployment
+1. Deploy code changes
+2. Run: `node scripts/cleanup-walkin-patients.js --dry-run`
+3. Run: `node scripts/cleanup-walkin-patients.js`
+4. Monitor logs
 
 ---
 
 **Last Updated**: January 2026
-**Version**: 3.0 (Production Ready)
+**Version**: 3.1 (Walk-in Customer Fix)
 **Status**: ✅ ALL SYSTEMS GO

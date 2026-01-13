@@ -355,6 +355,27 @@ disabled={saving || completing || isFlushing || isAutoSaving}
 
 ---
 
-**Version**: 3.0 (Production Ready)
+## 🆕 LATEST FIX: Walk-in Customer Bug (January 2026)
+
+### Issue Fixed
+- **Bug**: Every POS sale without patientId created a NEW walk-in patient with unique timestamp
+- **Impact**: Database bloat with duplicate patients (`WALKIN-1767971893073`, `WALKIN-1767971894125`, etc.)
+- **Solution**: Find or create a SINGLE walk-in patient per store and reuse it
+- **Status**: ✅ FIXED
+
+### Files Modified
+- `backend/src/services/sales/saleService.js` - Fixed walk-in patient creation logic
+- `scripts/cleanup-walkin-patients.js` - Cleanup script for existing duplicates
+- `WALKIN_CUSTOMER_FIX.md` - Detailed documentation
+
+### Action Required
+1. Deploy code changes
+2. Run cleanup script: `node scripts/cleanup-walkin-patients.js --dry-run` (test first)
+3. Run cleanup script: `node scripts/cleanup-walkin-patients.js` (apply changes)
+4. Monitor logs for "Reusing existing walk-in patient"
+
+---
+
+**Version**: 3.1 (Walk-in Customer Fix)
 **Date**: January 2026
 **Status**: ✅ ALL SYSTEMS GO

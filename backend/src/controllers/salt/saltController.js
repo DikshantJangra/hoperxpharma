@@ -7,19 +7,90 @@ const ApiError = require('../../utils/ApiError');
 
 /**
  * Search salts by name or category
+ * Enhanced with alias matching
  * @route GET /api/v1/salt/search
  */
 exports.searchSalts = async (req, res, next) => {
     try {
-        const { q, category, highRisk, limit = 50 } = req.query;
+        const { q, category, highRisk, limit = 50, includeAliases = 'true' } = req.query;
 
         const where = {};
 
         if (q) {
-            where.name = {
-                contains: q,
-                mode: 'insensitive'
-            };
+            const searchQuery = q.toLowerCase().trim();
+            
+            if (includeAliases === 'true') {
+                // Search in both name and aliases
+                where.OR = [
+                    {
+                        name: {
+                            contains: q,
+                            mode: 'insensitive'
+                        }
+                    }
+                ];
+
+                // Use raw SQL for case-insensitive alias search
+                const aliasResults = await prisma.$queryRaw`
+                    SELECT * FROM "Salt"
+                    WHERE EXISTS (
+                        SELECT 1 FROM unnest(aliases) AS alias
+                        WHERE LOWER(alias) LIKE ${`%${searchQuery}%`}
+                    )
+                    ${category ? prisma.Prisma.sql`AND category = ${category}` : prisma.Prisma.empty}
+                    ${highRisk !== undefined ? prisma.Prisma.sql`AND "highRisk" = ${highRisk === 'true'}` : prisma.Prisma.empty}
+                    ORDER BY name ASC
+                    LIMIT ${parseInt(limit)}
+                `;
+
+                // Also get name matches
+                const nameResults = await prisma.salt.findMany({
+                    where: {
+                        name: {
+                            contains: q,
+                            mode: 'insensitive'
+                        },
+                        ...(category && { category }),
+                        ...(highRisk !== undefined && { highRisk: highRisk === 'true' })
+                    },
+                    take: parseInt(limit),
+                    orderBy: { name: 'asc' },
+                    include: {
+                        _count: {
+                            select: { drugSaltLinks: true }
+                        }
+                    }
+                });
+
+                // Merge and deduplicate results
+                const allResults = [...nameResults];
+                const existingIds = new Set(nameResults.map(s => s.id));
+
+                for (const aliasResult of aliasResults) {
+                    if (!existingIds.has(aliasResult.id)) {
+                        // Add count for alias results
+                        const count = await prisma.drugSaltLink.count({
+                            where: { saltId: aliasResult.id }
+                        });
+                        allResults.push({
+                            ...aliasResult,
+                            _count: { drugSaltLinks: count }
+                        });
+                        existingIds.add(aliasResult.id);
+                    }
+                }
+
+                return res.json({
+                    success: true,
+                    data: allResults.slice(0, parseInt(limit))
+                });
+            } else {
+                // Name-only search
+                where.name = {
+                    contains: q,
+                    mode: 'insensitive'
+                };
+            }
         }
 
         if (category) {
@@ -238,6 +309,193 @@ exports.deleteSalt = async (req, res, next) => {
         res.json({
             success: true,
             message: 'Salt deleted successfully'
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * Add alias to salt
+ * @route POST /api/v1/salt/:id/aliases
+ */
+exports.addAlias = async (req, res, next) => {
+    try {
+        const { id } = req.params;
+        const { alias } = req.body;
+
+        if (!alias || alias.trim().length < 2) {
+            throw ApiError.badRequest('Alias must be at least 2 characters');
+        }
+
+        const salt = await prisma.salt.findUnique({
+            where: { id }
+        });
+
+        if (!salt) {
+            throw ApiError.notFound('Salt not found');
+        }
+
+        // Check if alias already exists for this salt
+        const normalizedAlias = alias.toLowerCase().trim();
+        const existingAliases = salt.aliases.map(a => a.toLowerCase());
+
+        if (existingAliases.includes(normalizedAlias)) {
+            throw ApiError.conflict('This alias already exists for this salt');
+        }
+
+        // Check if alias conflicts with other salt names or aliases
+        const conflictBySaltName = await prisma.salt.findFirst({
+            where: {
+                name: {
+                    equals: alias,
+                    mode: 'insensitive'
+                },
+                id: { not: id }
+            }
+        });
+
+        if (conflictBySaltName) {
+            throw ApiError.conflict(
+                `Alias "${alias}" conflicts with existing salt name "${conflictBySaltName.name}"`
+            );
+        }
+
+        // Check for alias conflicts using raw SQL
+        const conflictByAlias = await prisma.$queryRaw`
+            SELECT * FROM "Salt"
+            WHERE id != ${id}
+            AND EXISTS (
+                SELECT 1 FROM unnest(aliases) AS existing_alias
+                WHERE LOWER(existing_alias) = ${normalizedAlias}
+            )
+            LIMIT 1
+        `;
+
+        if (conflictByAlias.length > 0) {
+            throw ApiError.conflict(
+                `Alias "${alias}" already used by salt "${conflictByAlias[0].name}"`
+            );
+        }
+
+        // Add alias
+        const updatedSalt = await prisma.salt.update({
+            where: { id },
+            data: {
+                aliases: {
+                    push: alias.trim()
+                }
+            }
+        });
+
+        res.json({
+            success: true,
+            data: updatedSalt,
+            message: 'Alias added successfully'
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * Remove alias from salt
+ * @route DELETE /api/v1/salt/:id/aliases/:alias
+ */
+exports.removeAlias = async (req, res, next) => {
+    try {
+        const { id, alias } = req.params;
+
+        const salt = await prisma.salt.findUnique({
+            where: { id }
+        });
+
+        if (!salt) {
+            throw ApiError.notFound('Salt not found');
+        }
+
+        const updatedAliases = salt.aliases.filter(
+            a => a.toLowerCase() !== decodeURIComponent(alias).toLowerCase()
+        );
+
+        if (updatedAliases.length === salt.aliases.length) {
+            throw ApiError.notFound('Alias not found for this salt');
+        }
+
+        const updatedSalt = await prisma.salt.update({
+            where: { id },
+            data: {
+                aliases: updatedAliases
+            }
+        });
+
+        res.json({
+            success: true,
+            data: updatedSalt,
+            message: 'Alias removed successfully'
+        });
+    } catch (error) {
+        next(error);
+    }
+};
+
+/**
+ * Find salt by name or alias
+ * @route GET /api/v1/salt/find/:name
+ */
+exports.findByNameOrAlias = async (req, res, next) => {
+    try {
+        const { name } = req.params;
+        const normalizedName = name.toLowerCase().trim();
+
+        // Try exact name match first
+        let salt = await prisma.salt.findFirst({
+            where: {
+                name: {
+                    equals: name,
+                    mode: 'insensitive'
+                }
+            },
+            include: {
+                _count: {
+                    select: { drugSaltLinks: true }
+                }
+            }
+        });
+
+        // If not found, search in aliases
+        if (!salt) {
+            const results = await prisma.$queryRaw`
+                SELECT * FROM "Salt"
+                WHERE EXISTS (
+                    SELECT 1 FROM unnest(aliases) AS alias
+                    WHERE LOWER(alias) = ${normalizedName}
+                )
+                LIMIT 1
+            `;
+
+            if (results.length > 0) {
+                salt = results[0];
+                // Add count
+                const count = await prisma.drugSaltLink.count({
+                    where: { saltId: salt.id }
+                });
+                salt._count = { drugSaltLinks: count };
+            }
+        }
+
+        if (!salt) {
+            return res.json({
+                success: true,
+                data: null,
+                message: 'Salt not found'
+            });
+        }
+
+        res.json({
+            success: true,
+            data: salt,
+            message: 'Salt found'
         });
     } catch (error) {
         next(error);
