@@ -27,7 +27,8 @@ export async function GET(request: NextRequest) {
 
     console.log('[Substitutes API] Fetching for drugId:', drugId, 'storeId:', storeId);
     
-    const response = await fetch(`${process.env.BACKEND_URL}/api/v1/substitutes?${params}`);
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:8000';
+    const response = await fetch(`${backendUrl}/api/v1/substitutes?${params}`);
     
     if (!response.ok) {
       const errorText = await response.text();

@@ -14,8 +14,9 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:8000';
     const response = await fetch(
-      `${process.env.BACKEND_URL}/api/v1/substitutes?drugId=${drugId}&storeId=${storeId}&includePartialMatches=${includePartialMatches}`
+      `${backendUrl}/api/v1/substitutes?drugId=${drugId}&storeId=${storeId}&includePartialMatches=${includePartialMatches}`
     );
     
     const data = await response.json();

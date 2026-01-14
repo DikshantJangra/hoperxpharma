@@ -325,6 +325,118 @@ router.get('/:id', async (req, res, next) => {
 });
 
 /**
+ * GET /api/v1/drugs/:id/units
+ * Get available units for a drug
+ */
+router.get('/:id/units', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    // Get drug with unit configurations (relation) and batches for tabletsPerStrip
+    const drug = await prisma.drug.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        name: true,
+        baseUnit: true,
+        displayUnit: true,
+        unitConfigurations: {
+          select: {
+            id: true,
+            baseUnit: true,
+            parentUnit: true,
+            childUnit: true,
+            conversion: true,
+            isDefault: true,
+          },
+        },
+        inventory: {
+          where: { deletedAt: null },
+          select: { tabletsPerStrip: true },
+          take: 1,
+        },
+      },
+    });
+
+    if (!drug) {
+      throw ApiError.notFound('Drug not found');
+    }
+
+    // Build units array
+    const units = [];
+
+    // Determine display and base units
+    const displayUnit = drug.displayUnit || 'Strip';
+    const baseUnit = drug.baseUnit || 'Tablet';
+    
+    // Get conversion factor from:
+    // 1. DrugUnit configurations (if exists)
+    // 2. InventoryBatch.tabletsPerStrip (if exists)
+    // 3. Default to 10
+    let conversionFactor = 10;
+    
+    // Check DrugUnit configurations first
+    if (drug.unitConfigurations && drug.unitConfigurations.length > 0) {
+      const defaultConfig = drug.unitConfigurations.find(c => c.isDefault) || drug.unitConfigurations[0];
+      conversionFactor = Number(defaultConfig.conversion) || 10;
+    } 
+    // Fallback to batch tabletsPerStrip
+    else if (drug.inventory && drug.inventory.length > 0 && drug.inventory[0].tabletsPerStrip) {
+      conversionFactor = drug.inventory[0].tabletsPerStrip;
+    }
+
+    // Add display unit (primary selling unit, e.g., Strip)
+    units.push({
+      name: displayUnit,
+      unit: displayUnit,
+      isDefault: true,
+      isBase: displayUnit === baseUnit,
+      conversionFactor: 1, // Display unit is the reference (1 Strip = 1 Strip)
+    });
+
+    // Add base unit if different from display unit
+    if (baseUnit !== displayUnit) {
+      units.push({
+        name: baseUnit,
+        unit: baseUnit,
+        isDefault: false,
+        isBase: true,
+        conversionFactor: conversionFactor, // e.g., 10 Tablets = 1 Strip
+      });
+    }
+
+    // Add any additional unit configurations from DrugUnit relation
+    if (drug.unitConfigurations && Array.isArray(drug.unitConfigurations)) {
+      drug.unitConfigurations.forEach((config) => {
+        const unitName = config.childUnit || config.parentUnit;
+        // Avoid duplicates
+        if (unitName && !units.find(u => u.unit === unitName)) {
+          units.push({
+            name: unitName,
+            unit: unitName,
+            isDefault: config.isDefault || false,
+            isBase: unitName === baseUnit,
+            conversionFactor: Number(config.conversion || 1),
+          });
+        }
+      });
+    }
+
+    res.json({
+      drugId: drug.id,
+      drugName: drug.name,
+      baseUnit,
+      displayUnit,
+      conversionFactor,
+      units,
+    });
+  } catch (error) {
+    console.error('[Drug Units] Error:', error);
+    next(error);
+  }
+});
+
+/**
  * PUT /api/v1/drugs/:id/composition
  * Update drug composition (salt links)
  */
@@ -395,11 +507,11 @@ router.put('/:id/composition', async (req, res, next) => {
       }
     }
 
-    // Update drug status - ACTIVE if has composition, PENDING if cleared
+    // Update drug status - ACTIVE if has composition, SALT_PENDING if cleared
     const updatedDrug = await prisma.drug.update({
       where: { id },
       data: {
-        ingestionStatus: saltLinks.length > 0 ? 'ACTIVE' : 'PENDING',
+        ingestionStatus: saltLinks.length > 0 ? 'ACTIVE' : 'SALT_PENDING',
         updatedAt: new Date(),
       },
       include: {

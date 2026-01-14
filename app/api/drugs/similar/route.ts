@@ -1,9 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-/**
- * GET /api/drugs/similar
- * Find medicines with similar names that have composition data
- */
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
@@ -18,7 +14,8 @@ export async function GET(request: NextRequest) {
     params.append('name', name);
     params.append('limit', limit);
 
-    const response = await fetch(`${process.env.BACKEND_URL}/api/v1/drugs/similar?${params}`);
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:8000';
+    const response = await fetch(`${backendUrl}/api/v1/drugs/similar?${params}`);
     
     if (!response.ok) {
       const errorText = await response.text();

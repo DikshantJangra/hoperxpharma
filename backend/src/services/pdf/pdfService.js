@@ -661,7 +661,7 @@ class PDFService {
                 doc.moveTo(margin, finalY).lineTo(pageWidth - margin, finalY).strokeColor(borderColor).lineWidth(0.5).stroke();
 
                 doc.fontSize(10).fillColor(textColor).font('Helvetica');
-                const footerText = sale.store?.settings?.footerText || 'Thank you for choosing us!';
+                const footerText = sale.store?.settings?.footerText || sale.storeSettings?.footerText || 'Thank you for choosing us!';
                 doc.text(footerText, margin, finalY + 10, { width: contentWidth, align: 'center' });
 
                 doc.end();

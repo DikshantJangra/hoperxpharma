@@ -28,6 +28,7 @@ export default function ReceivingCard({
 }: ReceivingCardProps) {
     const [showPricing, setShowPricing] = useState(false);
     const [showBatchInfo, setShowBatchInfo] = useState(false);
+    const [expiryInput, setExpiryInput] = useState('');
 
     const handleReceivedChange = (value: string) => {
         const qty = value === '' ? 0 : parseInt(value);
@@ -291,17 +292,56 @@ export default function ReceivingCard({
                                     <label className="block text-sm text-gray-600 mb-1">Expiry (MM/YYYY) *</label>
                                     <input
                                         type="text"
-                                        value={item.expiryDate ? (() => {
+                                        value={expiryInput !== '' ? expiryInput : (item.expiryDate ? (() => {
                                             const date = new Date(item.expiryDate);
-                                            if (date.getFullYear() === 1970) return '';
+                                            if (isNaN(date.getTime()) || date.getFullYear() === 1970) return '';
                                             return `${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
-                                        })() : ''}
+                                        })() : '')}
                                         onChange={(e) => {
-                                            const value = e.target.value;
+                                            let value = e.target.value;
+                                            
+                                            // Auto-format: add slash after 2 digits
+                                            if (value.length === 2 && !value.includes('/') && expiryInput.length < 2) {
+                                                value = value + '/';
+                                            }
+                                            
+                                            // Only allow valid characters (digits and one slash)
+                                            if (!/^[\d\/]*$/.test(value)) return;
+                                            if ((value.match(/\//g) || []).length > 1) return;
+                                            if (value.length > 7) return;
+                                            
+                                            setExpiryInput(value);
+                                            
+                                            // Check if complete MM/YYYY format
                                             if (value.match(/^(0?[1-9]|1[0-2])\/(\d{4})$/)) {
                                                 const [month, year] = value.split('/');
-                                                const lastDay = new Date(parseInt(year), parseInt(month), 0).getDate();
-                                                handleFieldChange('expiryDate', `${year}-${month.padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`);
+                                                const monthNum = parseInt(month);
+                                                const yearNum = parseInt(year);
+                                                
+                                                // Validate year is reasonable (not too far in past or future)
+                                                if (yearNum >= 2020 && yearNum <= 2050) {
+                                                    const lastDay = new Date(yearNum, monthNum, 0).getDate();
+                                                    handleFieldChange('expiryDate', `${year}-${month.padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`);
+                                                }
+                                            }
+                                        }}
+                                        onBlur={() => {
+                                            // On blur, if we have a valid date saved, clear the input to show formatted value
+                                            if (item.expiryDate) {
+                                                const date = new Date(item.expiryDate);
+                                                if (!isNaN(date.getTime()) && date.getFullYear() !== 1970) {
+                                                    setExpiryInput('');
+                                                }
+                                            }
+                                        }}
+                                        onFocus={(e) => {
+                                            // On focus, if there's a saved date, populate the input for editing
+                                            if (item.expiryDate && expiryInput === '') {
+                                                const date = new Date(item.expiryDate);
+                                                if (!isNaN(date.getTime()) && date.getFullYear() !== 1970) {
+                                                    setExpiryInput(`${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`);
+                                                    e.target.select();
+                                                }
                                             }
                                         }}
                                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"

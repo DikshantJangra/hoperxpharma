@@ -35,21 +35,51 @@ class DrugService {
         }
 
         try {
+            // Process salt links - find or create salts by name if saltId not provided
+            const processedSaltLinks = [];
+            for (const link of saltLinks) {
+                let saltId = link.saltId;
+                
+                // If no saltId but has name, find or create the salt
+                if (!saltId && link.name) {
+                    let salt = await prisma.salt.findFirst({
+                        where: { name: { equals: link.name.trim(), mode: 'insensitive' } }
+                    });
+                    
+                    if (!salt) {
+                        salt = await prisma.salt.create({
+                            data: {
+                                name: link.name.trim(),
+                                aliases: [],
+                                createdById: userId !== 'system' ? userId : null
+                            }
+                        });
+                        logger.info(`Created new salt: ${salt.name} (${salt.id})`);
+                    }
+                    
+                    saltId = salt.id;
+                }
+                
+                if (saltId) {
+                    processedSaltLinks.push({
+                        saltId,
+                        strengthValue: link.strengthValue ? Number(link.strengthValue) : null,
+                        strengthUnit: link.strengthUnit || null,
+                        role: link.role || 'PRIMARY',
+                        order: link.order || processedSaltLinks.length
+                    });
+                }
+            }
+
             const drug = await prisma.drug.create({
                 data: {
                     storeId,
                     name,
-                    ingestionStatus,
+                    ingestionStatus: processedSaltLinks.length > 0 ? 'ACTIVE' : 'SALT_PENDING',
                     ...otherData,
-                    saltLinks: {
-                        create: saltLinks.map((link, index) => ({
-                            saltId: link.saltId,
-                            strengthValue: link.strengthValue,
-                            strengthUnit: link.strengthUnit,
-                            role: link.role || 'PRIMARY',
-                            order: index
-                        }))
-                    }
+                    saltLinks: processedSaltLinks.length > 0 ? {
+                        create: processedSaltLinks
+                    } : undefined
                 },
                 include: {
                     saltLinks: {
@@ -61,16 +91,16 @@ class DrugService {
             });
 
             // Log creation if salt links were provided
-            if (saltLinks.length > 0) {
+            if (processedSaltLinks.length > 0) {
                 await auditService.logCreation({
                     drugId: drug.id,
                     userId,
-                    newValue: saltLinks,
+                    newValue: processedSaltLinks,
                     wasAutoMapped: false
                 });
             }
 
-            logger.info(`Drug created: ${drug.id} with status ${ingestionStatus}`);
+            logger.info(`Drug created: ${drug.id} with status ${drug.ingestionStatus}`);
             return drug;
         } catch (error) {
             logger.error(`Failed to create drug:`, error);

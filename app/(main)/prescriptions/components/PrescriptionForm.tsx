@@ -176,7 +176,8 @@ const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ onSubmit, onCancel,
                 await Promise.all(missingIds.map(async (id) => {
                     try {
                         const res = await inventoryApi.getDrugUnits(id);
-                        const unitList = res.data?.units || res.units || [];
+                        // API returns { drugId, drugName, baseUnit, displayUnit, conversionFactor, units }
+                        const unitList = res?.units || [];
                         // Transform API units to our UI format
                         const formattedUnits = unitList.map((u: any) => ({
                             unit: u.name || u.unit,

@@ -11,6 +11,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { FiLoader, FiUpload, FiCamera, FiPlus, FiTrash2, FiCheckCircle, FiX } from 'react-icons/fi';
 import AdvancedCamera from '@/components/camera/AdvancedCamera';
 import SaltSuggestions from './SaltSuggestions';
+import { useAuthStore } from '@/lib/store/auth-store';
 
 interface SaltEntry {
   id: string;
@@ -37,13 +38,13 @@ interface IngestModalProps {
 }
 
 export default function IngestModal({ isOpen, onClose, onSuccess, returnPath }: IngestModalProps) {
+  const { primaryStore } = useAuthStore();
   const [image, setImage] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
   const [ocrConfidence, setOcrConfidence] = useState(0);
   const [salts, setSalts] = useState<SaltEntry[]>([]);
   const [showCamera, setShowCamera] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const [storeId, setStoreId] = useState<string>('');
   const [formData, setFormData] = useState<MedicineFormData>({
     name: '',
     manufacturer: '',
@@ -54,18 +55,8 @@ export default function IngestModal({ isOpen, onClose, onSuccess, returnPath }: 
   const [errors, setErrors] = useState<string[]>([]);
   const [success, setSuccess] = useState(false);
 
-  // Get storeId from localStorage
-  React.useEffect(() => {
-    const userStr = localStorage.getItem('user');
-    if (userStr) {
-      try {
-        const user = JSON.parse(userStr);
-        setStoreId(user.storeId || '');
-      } catch (error) {
-        console.error('[IngestModal] Failed to parse user data:', error);
-      }
-    }
-  }, []);
+  // Get storeId from auth store
+  const storeId = primaryStore?.id || '';
 
   // Handle image upload
   const handleImageUpload = useCallback(async (file: File) => {

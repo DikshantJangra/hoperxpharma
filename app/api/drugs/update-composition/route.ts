@@ -38,7 +38,8 @@ export async function POST(request: NextRequest) {
 
     console.log('[Update Composition] Updating drug:', drugId, 'with salts:', saltLinks.length > 0 ? saltLinks : '(clearing composition)');
 
-    const response = await fetch(`${process.env.BACKEND_URL}/api/v1/drugs/${drugId}/composition`, {
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:8000';
+    const response = await fetch(`${backendUrl}/api/v1/drugs/${drugId}/composition`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ saltLinks }),

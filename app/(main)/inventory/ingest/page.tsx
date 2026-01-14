@@ -11,6 +11,7 @@ import { Card } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { FiLoader, FiUpload, FiCamera, FiPlus, FiTrash2, FiCheckCircle } from 'react-icons/fi';
 import AdvancedCamera from '@/components/camera/AdvancedCamera';
+import { useAuthStore } from '@/lib/store/auth-store';
 
 interface SaltEntry {
   id: string;
@@ -31,12 +32,12 @@ interface MedicineFormData {
 
 export default function IngestionPage() {
   const router = useRouter();
+  const { primaryStore } = useAuthStore();
   const [image, setImage] = useState<string | null>(null);
   const [processing, setProcessing] = useState(false);
   const [ocrConfidence, setOcrConfidence] = useState(0);
   const [salts, setSalts] = useState<SaltEntry[]>([]);
   const [showCamera, setShowCamera] = useState(false);
-  const [storeId, setStoreId] = useState<string>('');
   const [formData, setFormData] = useState<MedicineFormData>({
     name: '',
     manufacturer: '',
@@ -47,19 +48,8 @@ export default function IngestionPage() {
   const [errors, setErrors] = useState<string[]>([]);
   const [success, setSuccess] = useState(false);
 
-  // Get storeId from localStorage
-  React.useEffect(() => {
-    const userStr = localStorage.getItem('user');
-    if (userStr) {
-      try {
-        const user = JSON.parse(userStr);
-        setStoreId(user.storeId || '');
-        console.log('[Ingest] Store ID loaded:', user.storeId);
-      } catch (error) {
-        console.error('[Ingest] Failed to parse user data:', error);
-      }
-    }
-  }, []);
+  // Get storeId from auth store
+  const storeId = primaryStore?.id || '';
 
   // Handle image upload
   const handleImageUpload = useCallback(async (file: File) => {

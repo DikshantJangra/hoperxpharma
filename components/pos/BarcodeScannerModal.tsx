@@ -18,6 +18,7 @@ interface CameraDevice {
 
 export default function BarcodeScannerModal({ onClose, onScan, onGenerateInternal }: BarcodeScannerModalProps) {
     const scannerRef = useRef<Html5Qrcode | null>(null);
+    const isStoppingRef = useRef(false);
     const [isScanning, setIsScanning] = useState(false);
     const [cameras, setCameras] = useState<CameraDevice[]>([]);
     const [selectedCameraId, setSelectedCameraId] = useState<string | null>(null);
@@ -138,7 +139,9 @@ export default function BarcodeScannerModal({ onClose, onScan, onGenerateInterna
     };
 
     const stopScanner = async () => {
+        if (isStoppingRef.current) return;
         if (scannerRef.current && scannerRef.current.isScanning) {
+            isStoppingRef.current = true;
             try {
                 await scannerRef.current.stop();
                 await scannerRef.current.clear();
@@ -146,13 +149,16 @@ export default function BarcodeScannerModal({ onClose, onScan, onGenerateInterna
                 setIsScanning(false);
             } catch (err) {
                 console.error("Failed to stop scanner", err);
+            } finally {
+                isStoppingRef.current = false;
             }
         }
     };
 
-    const handleCameraChange = (cameraId: string) => {
-        setSelectedCameraId(cameraId);
+    const handleCameraChange = async (cameraId: string) => {
         setShowCameraSelector(false);
+        await stopScanner();
+        setSelectedCameraId(cameraId);
     };
 
     return (
@@ -171,13 +177,15 @@ export default function BarcodeScannerModal({ onClose, onScan, onGenerateInterna
                     </div>
                     <div className="flex gap-2">
                         {/* Camera Selector - Always show */}
-                        <button
-                            onClick={() => setShowCameraSelector(!showCameraSelector)}
-                            className="p-2 bg-white/20 hover:bg-white/30 rounded-full transition-colors relative"
-                            title="Camera Settings"
-                            disabled={cameras.length === 0}
-                        >
-                            <IoSettings className="w-5 h-5 text-white" />
+                        <div className="relative">
+                            <button
+                                onClick={() => setShowCameraSelector(!showCameraSelector)}
+                                className="p-2 bg-white/20 hover:bg-white/30 rounded-full transition-colors"
+                                title="Camera Settings"
+                                disabled={cameras.length === 0}
+                            >
+                                <IoSettings className="w-5 h-5 text-white" />
+                            </button>
                             {showCameraSelector && cameras.length > 0 && (
                                 <div className="absolute top-12 right-0 bg-white rounded-lg shadow-xl p-2 w-64 z-10">
                                     <div className="text-sm font-medium text-gray-700 px-3 py-2">
@@ -197,7 +205,7 @@ export default function BarcodeScannerModal({ onClose, onScan, onGenerateInterna
                                     ))}
                                 </div>
                             )}
-                        </button>
+                        </div>
                         {/* Close */}
                         <button
                             onClick={() => { stopScanner(); onClose(); }}

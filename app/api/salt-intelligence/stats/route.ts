@@ -12,10 +12,11 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'storeId is required' }, { status: 400 });
     }
 
-    const backendUrl = `${process.env.BACKEND_URL}/api/v1/salt-intelligence/stats?storeId=${storeId}`;
-    console.log('[API /salt-intelligence/stats] Calling backend:', backendUrl);
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:8000';
+    const apiUrl = `${backendUrl}/api/v1/salt-intelligence/stats?storeId=${storeId}`;
+    console.log('[API /salt-intelligence/stats] Calling backend:', apiUrl);
 
-    const response = await fetch(backendUrl);
+    const response = await fetch(apiUrl);
     
     console.log('[API /salt-intelligence/stats] Backend response status:', response.status);
     

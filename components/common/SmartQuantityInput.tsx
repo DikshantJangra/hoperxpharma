@@ -22,38 +22,22 @@ export default function SmartQuantityInput({
     disabled = false,
     compact = false
 }: SmartQuantityInputProps) {
+    // Use effective conversion factor (default to 10 if not set, for display purposes)
+    const effectiveConversionFactor = conversionFactor && conversionFactor > 1 ? conversionFactor : 10;
+    
     // Derived state for display
-    const currentStrips = Math.floor(value / conversionFactor);
+    const currentStrips = Math.floor(value / effectiveConversionFactor);
     // Use Math.round to handle floating point errors when dealing with decimals
-    const currentRemainder = Math.round((value % conversionFactor) * 100) / 100;
+    const currentRemainder = Math.round((value % effectiveConversionFactor) * 100) / 100;
 
-    // If conversion factor is 1 or less, just show a simple input
-    if (!conversionFactor || conversionFactor <= 1) {
-        return (
-            <div className="flex items-center gap-1">
-                <input
-                    type="number"
-                    min="0"
-                    max={maxQuantity}
-                    value={value || ''}
-                    onChange={(e) => {
-                        const val = e.target.value;
-                        const num = val === '' ? 0 : parseFloat(val);
-                        if (maxQuantity !== undefined && num > maxQuantity) return;
-                        onChange(Math.max(0, num));
-                    }}
-                    disabled={disabled}
-                    className={`border border-gray-300 rounded text-center focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:bg-gray-100 ${compact ? 'w-16 h-7 text-xs' : 'w-full px-2 py-1.5 text-sm'}`}
-                    placeholder="0"
-                />
-                {!compact && <span className="text-xs text-gray-500">{formatUnitName(baseUnitName)}</span>}
-            </div>
-        );
-    }
+    // Determine display unit names
+    const displayStripUnit = stripUnitName || 'Strip';
+    const displayBaseUnit = baseUnitName || 'Tablet';
 
     const handleStripsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const newStrips = Math.max(0, parseInt(e.target.value) || 0);
-        const newTotal = (newStrips * conversionFactor) + currentRemainder;
+        const newTotal = (newStrips * effectiveConversionFactor) + currentRemainder;
+        if (maxQuantity !== undefined && newTotal > maxQuantity) return;
         onChange(newTotal);
     };
 
@@ -62,7 +46,8 @@ export default function SmartQuantityInput({
         const newRemainder = val === '' ? 0 : parseFloat(val);
 
         // AUTO-ROLLOVER LOGIC:
-        const newTotal = (currentStrips * conversionFactor) + Math.max(0, newRemainder);
+        const newTotal = (currentStrips * effectiveConversionFactor) + Math.max(0, newRemainder);
+        if (maxQuantity !== undefined && newTotal > maxQuantity) return;
         onChange(newTotal);
     };
 
@@ -82,7 +67,7 @@ export default function SmartQuantityInput({
                         placeholder="0"
                     />
                 </div>
-                {!compact && <span className="text-[10px] text-gray-400 mt-0.5 font-medium uppercase">{formatUnitName(stripUnitName)}</span>}
+                {!compact && <span className="text-[10px] text-gray-400 mt-0.5 font-medium uppercase">{formatUnitName(displayStripUnit)}</span>}
             </div>
 
             {/* SEPARATOR */}
@@ -94,6 +79,7 @@ export default function SmartQuantityInput({
                     <input
                         type="number"
                         min="0"
+                        max={effectiveConversionFactor - 1}
                         value={currentRemainder === 0 ? '' : currentRemainder}
                         onChange={handleRemainderChange}
                         disabled={disabled}
@@ -102,13 +88,13 @@ export default function SmartQuantityInput({
                         placeholder="0"
                     />
                 </div>
-                {!compact && <span className="text-[10px] text-gray-400 mt-0.5 font-medium uppercase">{formatUnitName(baseUnitName)}</span>}
+                {!compact && <span className="text-[10px] text-gray-400 mt-0.5 font-medium uppercase">{formatUnitName(displayBaseUnit)}</span>}
             </div>
 
             {/* Total Hint (Only in non-compact mode or on hover) */}
             {!compact && value > 0 && (
                 <div className="ml-2 text-xs text-gray-400 mb-4">
-                    = {value} {formatUnitName(baseUnitName)}
+                    = {value} {formatUnitName(displayBaseUnit)}
                 </div>
             )}
         </div>

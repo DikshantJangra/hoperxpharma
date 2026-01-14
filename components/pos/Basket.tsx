@@ -86,7 +86,8 @@ export default function Basket({ items, onUpdateItem, onRemoveItem, onClear, onE
 
           try {
             const res = await inventoryApi.getDrugUnits(drugId);
-            const unitList = res.data?.units || res.units || [];
+            // API returns { drugId, drugName, baseUnit, displayUnit, conversionFactor, units }
+            const unitList = res?.units || [];
             fetchedUnits[drugId] = unitList;
           } catch (error) {
             console.error(`💊 Basket - Failed to load units for ${drugId}`, error);

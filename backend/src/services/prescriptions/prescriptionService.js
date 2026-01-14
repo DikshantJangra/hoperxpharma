@@ -57,7 +57,7 @@ class PrescriptionService {
             throw new Error('Store not found');
         }
 
-        const foxrmat = store.rxNumberFormat || 'RX-NNNNNN';
+        const format = store.rxNumberFormat || 'RX-NNNNNN';
 
         // Increment counter (no yearly reset)
         const nextCounter = (store.rxNumberCounter || 0) + 1;

@@ -15,7 +15,8 @@ export async function POST(request: NextRequest) {
     const base64Image = buffer.toString('base64');
 
     // Call backend OCR service
-    const response = await fetch(`${process.env.BACKEND_URL}/api/v1/ocr/extract`, {
+    const backendUrl = process.env.NEXT_PUBLIC_API_URL?.replace('/api/v1', '') || 'http://localhost:8000';
+    const response = await fetch(`${backendUrl}/api/v1/ocr/extract`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

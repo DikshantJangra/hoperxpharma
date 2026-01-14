@@ -52,17 +52,18 @@ export function formatStockQuantity(
     const displayUnit = batch.drug?.displayUnit || batch.displayUnit || batch.unit || baseUnit;
 
     // Get conversion factor - support multiple structures
-    let conversionFactor = batch.conversionFactor || batch.conversion || 1;
+    // Default to 10 if no conversion factor found (consistent with SmartQuantityInput)
+    let conversionFactor = batch.conversionFactor || batch.conversion || 10;
     if (batch.drug?.unitConfigurations) {
         const config = batch.drug.unitConfigurations.find(
             (c: any) => c.parentUnit === displayUnit && c.childUnit === baseUnit
         );
-        if (config) conversionFactor = Number(config.conversion) || 1;
+        if (config) conversionFactor = Number(config.conversion) || 10;
     } else if (batch.unitConfigurations) {
         const config = batch.unitConfigurations.find(
             (c: any) => c.parentUnit === displayUnit && c.childUnit === baseUnit
         );
-        if (config) conversionFactor = Number(config.conversion) || 1;
+        if (config) conversionFactor = Number(config.conversion) || 10;
     }
 
     if (!showUnit) {
@@ -114,17 +115,18 @@ export function renderStockQuantity(
     const baseUnit = batch.drug?.baseUnit || batch.baseUnit || 'unit';
     const displayUnit = batch.drug?.displayUnit || batch.displayUnit || batch.unit || baseUnit;
 
-    let conversionFactor = batch.conversionFactor || batch.conversion || 1;
+    // Default to 10 if no conversion factor found (consistent with SmartQuantityInput)
+    let conversionFactor = batch.conversionFactor || batch.conversion || 10;
     if (batch.drug?.unitConfigurations) {
         const config = batch.drug.unitConfigurations.find(
             (c: any) => c.parentUnit === displayUnit && c.childUnit === baseUnit
         );
-        if (config) conversionFactor = Number(config.conversion) || 1;
+        if (config) conversionFactor = Number(config.conversion) || 10;
     } else if (batch.unitConfigurations) {
         const config = batch.unitConfigurations.find(
             (c: any) => c.parentUnit === displayUnit && c.childUnit === baseUnit
         );
-        if (config) conversionFactor = Number(config.conversion) || 1;
+        if (config) conversionFactor = Number(config.conversion) || 10;
     }
 
     const formattedBaseUnit = formatUnitName(baseUnit);

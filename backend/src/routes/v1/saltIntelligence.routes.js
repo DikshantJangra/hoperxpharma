@@ -28,12 +28,12 @@ router.get('/stats', async (req, res, next) => {
         },
       }),
 
-      // Pending (PENDING status OR no composition)
+      // Pending (DRAFT, SALT_PENDING status OR no composition)
       prisma.drug.count({
         where: {
           storeId,
           OR: [
-            { ingestionStatus: 'PENDING' },
+            { ingestionStatus: 'DRAFT' },
             { ingestionStatus: 'SALT_PENDING' },
             { saltLinks: { none: {} } },
           ],

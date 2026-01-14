@@ -649,7 +649,7 @@ class SaleRepository {
                     where: { storeId }
                 });
 
-                const format = settings?.invoiceFormat || 'INV/{YYYY}/{SEQ:4}';
+                const format = settings?.invoiceFormat || 'INV-{YY}{MM}-{SEQ:4}';
                 const now = new Date();
                 const year = now.getFullYear().toString();
                 const yearShort = year.slice(-2);

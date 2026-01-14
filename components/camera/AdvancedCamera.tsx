@@ -50,11 +50,6 @@ export default function AdvancedCamera({ onCapture, onClose, title = 'Capture Im
           facingMode,
           width: { ideal: 3840, min: 1920 }, // 4K ideal, 1080p minimum
           height: { ideal: 2160, min: 1080 },
-          // Auto-focus settings for better OCR accuracy
-          focusMode: 'continuous',
-          focusDistance: 0, // Auto-focus
-          whiteBalanceMode: 'continuous',
-          exposureMode: 'continuous',
         },
       };
 
@@ -113,8 +108,24 @@ export default function AdvancedCamera({ onCapture, onClose, title = 'Capture Im
     }
   };
 
-  const switchCamera = () => {
-    stopCamera();
+  const switchCamera = async () => {
+    // Stop current stream completely
+    if (stream) {
+      stream.getTracks().forEach(track => {
+        track.stop();
+      });
+      setStream(null);
+    }
+    
+    // Clear video source
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
+    }
+    
+    // Small delay to ensure cleanup
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
+    // Switch facing mode
     setFacingMode(prev => prev === 'user' ? 'environment' : 'user');
   };
 
