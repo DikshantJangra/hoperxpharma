@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FiSearch, FiUpload, FiDownload } from 'react-icons/fi';
+import { FiSearch, FiUpload, FiDownload, FiPlus } from 'react-icons/fi';
 import { BsQrCodeScan } from 'react-icons/bs';
 import BatchFilters from '@/components/inventory/batches/BatchFilters';
 import BatchTable from '@/components/inventory/batches/BatchTable';
 import BatchDetailDrawer from '@/components/inventory/batches/BatchDetailDrawer';
+import IngestModal from '@/components/inventory/IngestModal';
 
 export default function BatchesPage() {
   const [selectedBatch, setSelectedBatch] = useState<any>(null);
@@ -13,6 +14,7 @@ export default function BatchesPage() {
   const [batches, setBatches] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState<any>(null);
+  const [showIngestModal, setShowIngestModal] = useState(false);
 
   const fetchBatches = async () => {
     setIsLoading(true);
@@ -91,6 +93,13 @@ export default function BatchesPage() {
             <p className="text-sm text-[#64748b]">Inventory › Batches</p>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowIngestModal(true)}
+              className="px-3 py-2 bg-[#0ea5a3] text-white rounded-lg hover:bg-[#0d9491] flex items-center gap-2 text-sm"
+            >
+              <FiPlus className="w-4 h-4" />
+              Add Medicine
+            </button>
             <button onClick={fetchBatches} className="px-3 py-2 border border-[#cbd5e1] rounded-lg hover:bg-[#f8fafc] flex items-center gap-2 text-sm" disabled={isLoading}>
               <FiDownload className="w-4 h-4" />
               {isLoading ? 'Refreshing...' : 'Refresh'}
@@ -172,6 +181,16 @@ export default function BatchesPage() {
           />
         )}
       </div>
+
+      {/* Ingest Modal */}
+      <IngestModal
+        isOpen={showIngestModal}
+        onClose={() => setShowIngestModal(false)}
+        onSuccess={() => {
+          fetchBatches();
+          setShowIngestModal(false);
+        }}
+      />
     </div>
   );
 }

@@ -38,20 +38,21 @@ Extract ALL information from this medicine strip/package image in a structured f
 - "Each capsule contains: Omeprazole USP 20mg"
 - "Contains: Paracetamol 500mg + Caffeine 65mg"
 - "Active Ingredients: Cetirizine Hydrochloride IP 10mg"
+- "Cholecalciferol (Vit D3) I.P. 6,00,000 I.U."
 
 **STRENGTH UNITS YOU MIGHT SEE:**
 - mg (milligrams) - most common
 - mcg or µg (micrograms)
 - g or gm (grams)
-- IU (International Units) - for vitamins
+- IU or I.U. (International Units) - for vitamins like D3, A, E
 - % w/w (weight by weight) - for creams/ointments
 - % w/v (weight by volume) - for liquids
 - mg/ml or mg/5ml - for syrups/suspensions
 
 **PHARMACOPOEIA STANDARDS:**
-- IP (Indian Pharmacopoeia)
-- BP (British Pharmacopoeia)
-- USP (United States Pharmacopoeia)
+- IP or I.P. (Indian Pharmacopoeia)
+- BP or B.P. (British Pharmacopoeia)
+- USP or U.S.P. (United States Pharmacopoeia)
 
 **MEDICINE FORMS:**
 - Tablet, Film Coated Tablet, Enteric Coated Tablet
@@ -67,27 +68,41 @@ Extract and return information in this EXACT format:
 MEDICINE_NAME: [brand name - usually prominent at top]
 MANUFACTURER: [company name]
 FORM: [type from list above]
-COMPOSITION: [ingredient 1 with standard] [strength with unit], [ingredient 2] [strength], ...
+COMPOSITION: [ingredient name] [strength][unit]
+
+**COMPOSITION FORMATTING RULES:**
+1. Write ONLY the active ingredient name followed by strength and unit
+2. Remove "I.P.", "B.P.", "U.S.P." from the composition output
+3. Convert Indian number format (6,00,000) to standard format (600000)
+4. For IU units, write as: "Cholecalciferol 600000 IU" (NOT "6,00,000 I.U.")
+5. Include alternate names in parentheses: "Cholecalciferol (Vit D3) 600000 IU"
+6. For multiple ingredients, separate with comma: "Paracetamol 500mg, Caffeine 65mg"
+7. Do NOT include "q.s.", "Oily base", or inactive ingredients
 
 **EXAMPLES:**
+MEDICINE_NAME: Avcal-D3
+MANUFACTURER: Arvincare
+FORM: Injection
+COMPOSITION: Cholecalciferol (Vit D3) 600000 IU
+
 MEDICINE_NAME: Crocin 500
 MANUFACTURER: GlaxoSmithKline Pharmaceuticals Ltd
 FORM: Tablet
-COMPOSITION: Paracetamol IP 500mg
+COMPOSITION: Paracetamol 500mg
 
 MEDICINE_NAME: Combiflam
 MANUFACTURER: Sanofi India Limited
 FORM: Film Coated Tablet
-COMPOSITION: Ibuprofen IP 400mg, Paracetamol IP 325mg
+COMPOSITION: Ibuprofen 400mg, Paracetamol 325mg
 
 MEDICINE_NAME: Amoxyclav 625
 MANUFACTURER: Alkem Laboratories
 FORM: Film Coated Tablet
-COMPOSITION: Amoxicillin IP 500mg, Clavulanic Acid IP 125mg
+COMPOSITION: Amoxicillin 500mg, Clavulanic Acid 125mg
 
 **IMPORTANT RULES:**
 1. Keep the EXACT format with colons and line breaks
-2. For composition, include pharmacopoeia standard (IP/BP/USP) if visible
+2. DO NOT include pharmacopoeia standards (IP/BP/USP) in composition
 3. Include ALL active ingredients with their strengths
 4. Use commas to separate multiple ingredients
 5. If any field is not clearly visible, write "NOT_FOUND"

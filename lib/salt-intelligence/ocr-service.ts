@@ -128,14 +128,19 @@ export class SaltOCRService {
       }
       console.log('[OCR] Image validation passed');
 
-      // Convert image to base64
-      console.log('[OCR] Converting image to base64...');
-      const base64Image = await this.imageToBase64(imageSource);
+      // Preprocess image for better OCR accuracy
+      console.log('[OCR] Preprocessing image (contrast, brightness, sharpening)...');
+      const preprocessedImage = await this.preprocessImage(imageSource);
+      console.log('[OCR] Preprocessing complete');
+
+      // Convert preprocessed image to base64
+      console.log('[OCR] Converting preprocessed image to base64...');
+      const base64Image = await this.imageToBase64(preprocessedImage);
       console.log('[OCR] Conversion complete, calling backend API...');
 
       // Call backend OCR API
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
-      const response = await fetch(`${backendUrl}/api/v1/ocr/extract`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+      const response = await fetch(`${apiUrl}/ocr/extract`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -203,6 +208,127 @@ export class SaltOCRService {
         composition: null,
       };
     }
+  }
+
+  /**
+   * Preprocess image for better OCR accuracy
+   * Applies contrast enhancement, brightness adjustment, and sharpening
+   * @private
+   */
+  private static async preprocessImage(imageSource: File | Blob): Promise<Blob> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const url = URL.createObjectURL(imageSource);
+
+      img.onload = () => {
+        try {
+          // Create canvas for image processing
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          
+          if (!ctx) {
+            URL.revokeObjectURL(url);
+            reject(new Error('Could not get canvas context'));
+            return;
+          }
+
+          // Set canvas size to image size
+          canvas.width = img.width;
+          canvas.height = img.height;
+
+          // Draw original image
+          ctx.drawImage(img, 0, 0);
+
+          // Get image data for processing
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const data = imageData.data;
+
+          console.log('[OCR] Preprocessing image:', {
+            width: canvas.width,
+            height: canvas.height,
+            originalSize: imageSource.size
+          });
+
+          // Apply image enhancements for better OCR
+          // 1. Increase contrast (makes text stand out)
+          const contrastFactor = 1.3; // 30% more contrast
+          const contrastIntercept = 128 * (1 - contrastFactor);
+
+          // 2. Increase brightness slightly
+          const brightnessFactor = 1.1; // 10% brighter
+
+          // 3. Apply sharpening kernel
+          const sharpenKernel = [
+            0, -1, 0,
+            -1, 5, -1,
+            0, -1, 0
+          ];
+
+          // Create a copy for sharpening
+          const originalData = new Uint8ClampedArray(data);
+
+          // Process each pixel
+          for (let i = 0; i < data.length; i += 4) {
+            // Apply contrast and brightness to RGB channels
+            data[i] = Math.min(255, Math.max(0, data[i] * contrastFactor * brightnessFactor + contrastIntercept));     // R
+            data[i + 1] = Math.min(255, Math.max(0, data[i + 1] * contrastFactor * brightnessFactor + contrastIntercept)); // G
+            data[i + 2] = Math.min(255, Math.max(0, data[i + 2] * contrastFactor * brightnessFactor + contrastIntercept)); // B
+            // Alpha channel (i + 3) remains unchanged
+          }
+
+          // Apply sharpening (convolution)
+          const width = canvas.width;
+          const height = canvas.height;
+          
+          for (let y = 1; y < height - 1; y++) {
+            for (let x = 1; x < width - 1; x++) {
+              for (let c = 0; c < 3; c++) { // RGB channels only
+                let sum = 0;
+                for (let ky = -1; ky <= 1; ky++) {
+                  for (let kx = -1; kx <= 1; kx++) {
+                    const pixelIndex = ((y + ky) * width + (x + kx)) * 4 + c;
+                    const kernelIndex = (ky + 1) * 3 + (kx + 1);
+                    sum += originalData[pixelIndex] * sharpenKernel[kernelIndex];
+                  }
+                }
+                const pixelIndex = (y * width + x) * 4 + c;
+                data[pixelIndex] = Math.min(255, Math.max(0, sum));
+              }
+            }
+          }
+
+          // Put processed image data back
+          ctx.putImageData(imageData, 0, 0);
+
+          console.log('[OCR] Image preprocessing complete (contrast, brightness, sharpening applied)');
+
+          // Convert canvas to blob
+          canvas.toBlob(
+            (blob) => {
+              URL.revokeObjectURL(url);
+              if (blob) {
+                console.log('[OCR] Preprocessed image size:', Math.round(blob.size / 1024) + 'KB');
+                resolve(blob);
+              } else {
+                reject(new Error('Failed to create blob from processed image'));
+              }
+            },
+            'image/jpeg',
+            0.95
+          );
+        } catch (error) {
+          URL.revokeObjectURL(url);
+          reject(error);
+        }
+      };
+
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error('Failed to load image for preprocessing'));
+      };
+
+      img.src = url;
+    });
   }
 
   /**

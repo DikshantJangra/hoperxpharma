@@ -19,23 +19,8 @@ export interface ParsingOptions {
 }
 
 export class RegexMatcher {
-  // Enhanced regex patterns - tried in order
-  private static readonly PATTERNS = {
-    // "Paracetamol (500mg)" or "Paracetamol (500 mg)"
-    parenthesized: /^(.+?)\s*\(\s*([\d\.]+)\s*([a-zA-Z\/%]+)\s*\)$/,
-    
-    // "Paracetamol IP 500mg" or "Paracetamol BP 500 mg"
-    withSuffix: /^(.+?)\s+(IP|BP|USP)\s+([\d\.]+)\s*([a-zA-Z\/%]+)$/i,
-    
-    // "Paracetamol 500mg" or "Paracetamol 500 mg"
-    spaced: /^(.+?)\s+([\d\.]+)\s*([a-zA-Z\/%]+)$/,
-    
-    // "Paracetamol" (name only, no strength)
-    nameOnly: /^(.+?)$/,
-  };
-
   // Common delimiters for multi-salt compositions
-  private static readonly DELIMITERS = /\s*[+\/&,]\s*/;
+  private static readonly DELIMITERS = /\s*[+&]\s*|\s*,\s*(?![0-9])/;
 
   // Composition keywords for filtering OCR text
   private static readonly COMPOSITION_KEYWORDS = [
@@ -61,10 +46,14 @@ export class RegexMatcher {
       return [];
     }
 
-    // Normalize whitespace
-    const normalized = composition.trim().replace(/\s+/g, ' ');
+    // Normalize whitespace and clean up
+    let normalized = composition.trim().replace(/\s+/g, ' ');
+    
+    // Remove common prefixes
+    normalized = normalized.replace(/^(composition:?\s*|contains:?\s*|each\s+\w+\s+contains:?\s*)/i, '');
 
     // Split by delimiters to handle multi-salt compositions
+    // Be careful not to split on commas within numbers like "6,00,000"
     const parts = normalized.split(this.DELIMITERS);
 
     // Parse each part
@@ -76,62 +65,143 @@ export class RegexMatcher {
   }
 
   /**
-   * Parse a single salt component
+   * Parse a single salt component with enhanced pattern matching
    * @private
    */
   private static parseSingleComponent(
     text: string,
     order: number
   ): ExtractedComponent | null {
-    if (!text) {
+    if (!text || text.length < 2) {
       return null;
     }
 
-    // Try each pattern in order
-    for (const [patternName, pattern] of Object.entries(this.PATTERNS)) {
-      const match = text.match(pattern);
-
-      if (match) {
-        if (patternName === 'parenthesized') {
-          return this.buildComponent(
-            match[1],
-            match[2],
-            match[3],
-            text,
-            'HIGH'
-          );
-        } else if (patternName === 'withSuffix') {
-          // Extract name without suffix (IP/BP/USP)
-          return this.buildComponent(
-            match[1],
-            match[3],
-            match[4],
-            text,
-            'HIGH'
-          );
-        } else if (patternName === 'spaced') {
-          return this.buildComponent(
-            match[1],
-            match[2],
-            match[3],
-            text,
-            'HIGH'
-          );
-        } else if (patternName === 'nameOnly') {
-          // Name only, no strength
-          return this.buildComponent(
-            match[1],
-            null,
-            null,
-            text,
-            'MEDIUM'
-          );
-        }
-      }
+    // Clean up the text
+    let cleanText = text.trim();
+    
+    // Skip if it's just numbers or units
+    if (/^[\d\s,\.]+$/.test(cleanText) || /^(mg|mcg|g|ml|iu|%|w\/w|w\/v)$/i.test(cleanText)) {
+      return null;
     }
 
-    // No pattern matched
-    return this.buildComponent(text, null, null, text, 'LOW');
+    // Try to extract using enhanced patterns
+    const extracted = this.extractSaltInfo(cleanText);
+    
+    if (extracted) {
+      return this.buildComponent(
+        extracted.name,
+        extracted.strength,
+        extracted.unit,
+        text,
+        extracted.confidence
+      );
+    }
+
+    // Fallback: treat entire text as name
+    return this.buildComponent(cleanText, null, null, text, 'LOW');
+  }
+
+  /**
+   * Extract salt name, strength, and unit from text
+   * Handles complex Indian pharmaceutical formats
+   * @private
+   */
+  private static extractSaltInfo(text: string): {
+    name: string;
+    strength: string | null;
+    unit: string | null;
+    confidence: 'HIGH' | 'MEDIUM' | 'LOW';
+  } | null {
+    // Pattern 1: Handle IU format with Indian number system (e.g., "6,00,000 I.U." or "600000 IU")
+    // Example: "Cholecalciferol (Vit D3) I.P. 6,00,000 I.U. (15 mg.)"
+    const iuPattern = /^(.+?)\s+([\d,]+)\s*I\.?U\.?\s*(?:\([\d\.]+\s*mg\.?\))?$/i;
+    let match = text.match(iuPattern);
+    if (match) {
+      const name = this.cleanSaltName(match[1]);
+      const strengthStr = match[2].replace(/,/g, ''); // Remove commas from Indian number format
+      return { name, strength: strengthStr, unit: 'IU', confidence: 'HIGH' };
+    }
+
+    // Pattern 2: Handle format with parenthesized alternate name and strength at end
+    // Example: "Cholecalciferol (Vit D3) I.P. 600000 IU"
+    const altNamePattern = /^(.+?\s*\([^)]+\))\s*(?:I\.?P\.?|B\.?P\.?|U\.?S\.?P\.?)?\s*([\d,\.]+)\s*([a-zA-Z\/%\.]+)$/i;
+    match = text.match(altNamePattern);
+    if (match) {
+      const name = this.cleanSaltName(match[1]);
+      const strengthStr = match[2].replace(/,/g, '');
+      const unit = this.normalizeUnit(match[3]);
+      return { name, strength: strengthStr, unit, confidence: 'HIGH' };
+    }
+
+    // Pattern 3: Standard format with IP/BP/USP suffix
+    // Example: "Paracetamol IP 500mg" or "Amoxicillin BP 250 mg"
+    const standardPattern = /^(.+?)\s+(?:I\.?P\.?|B\.?P\.?|U\.?S\.?P\.?)\s*([\d,\.]+)\s*([a-zA-Z\/%]+)$/i;
+    match = text.match(standardPattern);
+    if (match) {
+      const name = this.cleanSaltName(match[1]);
+      const strengthStr = match[2].replace(/,/g, '');
+      const unit = this.normalizeUnit(match[3]);
+      return { name, strength: strengthStr, unit, confidence: 'HIGH' };
+    }
+
+    // Pattern 4: Name with strength in parentheses
+    // Example: "Paracetamol (500mg)" or "Caffeine (65 mg)"
+    const parenPattern = /^(.+?)\s*\(\s*([\d,\.]+)\s*([a-zA-Z\/%]+)\s*\)$/;
+    match = text.match(parenPattern);
+    if (match) {
+      const name = this.cleanSaltName(match[1]);
+      const strengthStr = match[2].replace(/,/g, '');
+      const unit = this.normalizeUnit(match[3]);
+      return { name, strength: strengthStr, unit, confidence: 'HIGH' };
+    }
+
+    // Pattern 5: Simple format - name followed by strength and unit
+    // Example: "Paracetamol 500mg" or "Caffeine 65 mg"
+    const simplePattern = /^(.+?)\s+([\d,\.]+)\s*([a-zA-Z\/%]+)$/;
+    match = text.match(simplePattern);
+    if (match) {
+      const name = this.cleanSaltName(match[1]);
+      const strengthStr = match[2].replace(/,/g, '');
+      const unit = this.normalizeUnit(match[3]);
+      return { name, strength: strengthStr, unit, confidence: 'HIGH' };
+    }
+
+    // Pattern 6: Percentage format for creams/ointments
+    // Example: "Diclofenac Sodium 1% w/w"
+    const percentPattern = /^(.+?)\s+([\d\.]+)\s*%\s*(w\/w|w\/v)?$/i;
+    match = text.match(percentPattern);
+    if (match) {
+      const name = this.cleanSaltName(match[1]);
+      const unit = match[3] ? `% ${match[3]}` : '%';
+      return { name, strength: match[2], unit, confidence: 'HIGH' };
+    }
+
+    // Pattern 7: Liquid format (mg/ml or mg/5ml)
+    // Example: "Amoxicillin 250mg/5ml"
+    const liquidPattern = /^(.+?)\s+([\d,\.]+)\s*([a-zA-Z]+)\s*\/\s*([\d]*\s*[a-zA-Z]+)$/i;
+    match = text.match(liquidPattern);
+    if (match) {
+      const name = this.cleanSaltName(match[1]);
+      const strengthStr = match[2].replace(/,/g, '');
+      const unit = `${match[3]}/${match[4]}`;
+      return { name, strength: strengthStr, unit, confidence: 'HIGH' };
+    }
+
+    // Pattern 8: Name only with IP/BP/USP (no strength)
+    const nameOnlyWithStdPattern = /^(.+?)\s+(?:I\.?P\.?|B\.?P\.?|U\.?S\.?P\.?)$/i;
+    match = text.match(nameOnlyWithStdPattern);
+    if (match) {
+      const name = this.cleanSaltName(match[1]);
+      return { name, strength: null, unit: null, confidence: 'MEDIUM' };
+    }
+
+    // No pattern matched - return name only
+    const cleanedName = this.cleanSaltName(text);
+    if (cleanedName.length >= 2) {
+      return { name: cleanedName, strength: null, unit: null, confidence: 'LOW' };
+    }
+
+    return null;
   }
 
   /**
@@ -170,19 +240,30 @@ export class RegexMatcher {
   private static cleanSaltName(name: string): string {
     let cleaned = name.trim();
 
-    // Remove IP/BP/USP suffixes if present
-    cleaned = cleaned.replace(/\s+(IP|BP|USP)$/i, '');
+    // Remove IP/BP/USP suffixes if present at the end
+    cleaned = cleaned.replace(/\s+(I\.?P\.?|B\.?P\.?|U\.?S\.?P\.?)\s*$/i, '');
+
+    // Remove "q.s." or "q.s" (quantum satis - as much as needed)
+    cleaned = cleaned.replace(/\s*q\.?s\.?\s*$/i, '');
+
+    // Remove trailing periods
+    cleaned = cleaned.replace(/\.\s*$/, '');
 
     // Normalize whitespace
     cleaned = cleaned.replace(/\s+/g, ' ');
 
-    // Remove special characters at start/end
-    cleaned = cleaned.replace(/^[^\w]+|[^\w]+$/g, '');
+    // Remove special characters at start/end (but keep parentheses for alternate names)
+    cleaned = cleaned.replace(/^[^\w(]+|[^\w)]+$/g, '');
 
-    // Capitalize first letter of each word
+    // Capitalize first letter of each word (but preserve parenthesized content)
     cleaned = cleaned
       .split(' ')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .map(word => {
+        if (word.startsWith('(')) {
+          return '(' + word.slice(1).charAt(0).toUpperCase() + word.slice(2).toLowerCase();
+        }
+        return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+      })
       .join(' ');
 
     return cleaned;
@@ -194,6 +275,9 @@ export class RegexMatcher {
    */
   private static normalizeUnit(unit: string): string {
     let normalized = unit.trim().toLowerCase();
+    
+    // Remove trailing periods
+    normalized = normalized.replace(/\.$/, '');
 
     // Handle common variations
     const unitMap: Record<string, string> = {
@@ -202,21 +286,25 @@ export class RegexMatcher {
       'milligram': 'mg',
       'milligrams': 'mg',
       'gm': 'g',
+      'g': 'g',
       'gram': 'g',
       'grams': 'g',
       'ml': 'ml',
       'milliliter': 'ml',
       'milliliters': 'ml',
       'mcg': 'mcg',
+      'µg': 'mcg',
       'microgram': 'mcg',
       'micrograms': 'mcg',
       'iu': 'IU',
+      'i.u': 'IU',
+      'i.u.': 'IU',
       'units': 'IU',
       '%': '%',
       'percent': '%',
     };
 
-    return unitMap[normalized] || normalized;
+    return unitMap[normalized] || unit.trim();
   }
 
   /**
@@ -226,7 +314,7 @@ export class RegexMatcher {
   private static calculateConfidence(
     component: ExtractedComponent
   ): 'HIGH' | 'MEDIUM' | 'LOW' {
-    const hasName = component.name && component.name.length > 0;
+    const hasName = component.name && component.name.length > 2;
     const hasStrength = component.strengthValue !== null && component.strengthValue > 0;
     const hasUnit = component.strengthUnit !== null && component.strengthUnit.length > 0;
 
@@ -283,7 +371,8 @@ export class RegexMatcher {
       if (component.strengthValue <= 0) {
         errors.push('Strength value must be greater than 0');
       }
-      if (component.strengthValue > 10000) {
+      // Allow high values for IU (vitamins can have 600000 IU)
+      if (component.strengthValue > 10000000) {
         errors.push('Warning: Strength value seems unusually high');
       }
       if (!component.strengthUnit) {

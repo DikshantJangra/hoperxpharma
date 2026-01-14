@@ -11,6 +11,7 @@ interface WidgetData {
   pendingCount: number;
   activeCount: number;
   recentlyAdded: number;
+  noCompositionCount: number;
   oldestPending?: {
     drugId: string;
     name: string;
@@ -33,6 +34,7 @@ export default function SaltIntelligenceWidget({
     pendingCount: 0,
     activeCount: 0,
     recentlyAdded: 0,
+    noCompositionCount: 0,
   });
   const [loading, setLoading] = useState(true);
 
@@ -134,7 +136,13 @@ export default function SaltIntelligenceWidget({
         </div>
 
         {/* Status Breakdown */}
-        <div className="grid grid-cols-3 gap-2 pt-3 border-t">
+        <div className="grid grid-cols-4 gap-2 pt-3 border-t">
+          <div className="text-center">
+            <div className="text-xs text-gray-600">No Salt</div>
+            <div className="text-lg font-semibold text-red-600">
+              {data.noCompositionCount}
+            </div>
+          </div>
           <div className="text-center">
             <div className="text-xs text-gray-600">Pending</div>
             <div className="text-lg font-semibold text-orange-600">

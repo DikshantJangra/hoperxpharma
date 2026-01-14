@@ -36,6 +36,7 @@ export default function IngestionPage() {
   const [ocrConfidence, setOcrConfidence] = useState(0);
   const [salts, setSalts] = useState<SaltEntry[]>([]);
   const [showCamera, setShowCamera] = useState(false);
+  const [storeId, setStoreId] = useState<string>('');
   const [formData, setFormData] = useState<MedicineFormData>({
     name: '',
     manufacturer: '',
@@ -45,6 +46,20 @@ export default function IngestionPage() {
   });
   const [errors, setErrors] = useState<string[]>([]);
   const [success, setSuccess] = useState(false);
+
+  // Get storeId from localStorage
+  React.useEffect(() => {
+    const userStr = localStorage.getItem('user');
+    if (userStr) {
+      try {
+        const user = JSON.parse(userStr);
+        setStoreId(user.storeId || '');
+        console.log('[Ingest] Store ID loaded:', user.storeId);
+      } catch (error) {
+        console.error('[Ingest] Failed to parse user data:', error);
+      }
+    }
+  }, []);
 
   // Handle image upload
   const handleImageUpload = useCallback(async (file: File) => {
@@ -82,7 +97,7 @@ export default function IngestionPage() {
           setErrors(['Could not extract composition automatically. Please add salts manually below.']);
         } else {
           setOcrConfidence(result.confidence);
-          
+
           // Auto-fill medicine details from OCR
           if (result.medicineName || result.manufacturer || result.form) {
             setFormData(prev => ({
@@ -92,7 +107,7 @@ export default function IngestionPage() {
               form: result.form || prev.form,
             }));
           }
-          
+
           // Convert extracted salts to salt entries
           const saltEntries: SaltEntry[] = result.extractedSalts.map((salt, index) => ({
             id: `salt-${index}`,
@@ -101,7 +116,7 @@ export default function IngestionPage() {
             strengthUnit: salt.strengthUnit,
             confidence: salt.confidence,
           }));
-          
+
           if (saltEntries.length > 0) {
             setSalts(saltEntries);
             setErrors([]); // Clear any previous errors
@@ -138,7 +153,7 @@ export default function IngestionPage() {
   const handleCameraPhoto = (photoDataUrl: string) => {
     setShowCamera(false);
     setImage(photoDataUrl);
-    
+
     // Convert data URL to blob for OCR processing
     fetch(photoDataUrl)
       .then(res => res.blob())
@@ -214,14 +229,14 @@ export default function IngestionPage() {
     try {
       setProcessing(true);
 
-      // Get storeId from localStorage (same pattern as other pages)
-      const storeId = localStorage.getItem('primaryStore');
-      
+      // Check if store is selected
       if (!storeId) {
-        setErrors(['Store not found. Please select a store first.']);
+        setErrors(['Store not found. Please log in again or select a store.']);
         setProcessing(false);
         return;
       }
+
+      console.log('[Ingest] Submitting medicine with storeId:', storeId);
 
       // Submit to API
       const response = await fetch('/api/drugs', {
@@ -252,7 +267,7 @@ export default function IngestionPage() {
 
       setSuccess(true);
       setTimeout(() => {
-        router.push('/inventory');
+        router.push('/inventory/stock');
       }, 2000);
     } catch (error) {
       console.error('Submit error:', error);
@@ -280,7 +295,7 @@ export default function IngestionPage() {
       {/* Header with breadcrumb */}
       <div className="mb-6">
         <button
-          onClick={() => router.push('/inventory')}
+          onClick={() => router.push('/inventory/stock')}
           className="text-sm text-gray-600 hover:text-gray-900 mb-2 flex items-center gap-1"
         >
           ← Back to Inventory
@@ -342,7 +357,7 @@ export default function IngestionPage() {
                     <FiUpload className="mr-2 h-4 w-4" />
                     Upload
                   </Button>
-                  <Button 
+                  <Button
                     variant="outline"
                     size="sm"
                     onClick={handleCameraCapture}
@@ -563,11 +578,11 @@ export default function IngestionPage() {
 
       {/* Actions */}
       <div className="flex justify-end gap-3 mt-6 pb-6">
-        <Button variant="outline" onClick={() => router.push('/inventory')}>
+        <Button variant="outline" onClick={() => router.push('/inventory/stock')}>
           Cancel
         </Button>
-        <Button 
-          onClick={handleSubmit} 
+        <Button
+          onClick={handleSubmit}
           disabled={processing}
           className="bg-[#0ea5a3] hover:bg-[#0d9491]"
         >

@@ -11,14 +11,14 @@
 
 import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
-import { FiMinus, FiPlus, FiX, FiTag, FiChevronDown, FiPercent, FiTrash, FiAlertCircle, FiPackage } from 'react-icons/fi';
+import { FiMinus, FiPlus, FiX, FiTag, FiChevronDown, FiPercent, FiTrash, FiAlertCircle, FiPackage, FiRefreshCw } from 'react-icons/fi';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import { usePremiumTheme } from '@/lib/hooks/usePremiumTheme';
 import { formatUnitName, formatStockQuantity, renderStockQuantity } from '@/lib/utils/stock-display';
 import { useAuthStore } from '@/lib/store/auth-store';
 import SmartQuantityInput from '@/components/common/SmartQuantityInput';
 
-export default function Basket({ items, onUpdateItem, onRemoveItem, onClear, onEditBatch }: any) {
+export default function Basket({ items, onUpdateItem, onRemoveItem, onClear, onEditBatch, onFindSubstitute }: any) {
   const [expandedItem, setExpandedItem] = useState<number | null>(null);
   const [showClearDialog, setShowClearDialog] = useState(false);
   const { isPremium } = usePremiumTheme();
@@ -394,6 +394,17 @@ export default function Basket({ items, onUpdateItem, onRemoveItem, onClear, onE
                         <div className="text-xs text-[#ef4444] mt-1">
                           ⚠️ Quantity exceeds available stock!
                         </div>
+                      )}
+
+                      {/* Find Substitute Button */}
+                      {onFindSubstitute && (
+                        <button
+                          onClick={() => onFindSubstitute(item, index)}
+                          className="w-full mt-2 py-2 text-sm font-medium text-[#0ea5a3] border border-[#0ea5a3] rounded-lg hover:bg-[#0ea5a3]/10 flex items-center justify-center gap-2 transition-colors"
+                        >
+                          <FiRefreshCw className="w-4 h-4" />
+                          Find Substitute (Same Composition)
+                        </button>
                       )}
                     </div>
                   )}

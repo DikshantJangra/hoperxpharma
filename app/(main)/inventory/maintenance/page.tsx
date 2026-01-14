@@ -3,326 +3,325 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card } from '@/components/ui/card';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { FiLoader, FiSave, FiFilter, FiSearch } from 'react-icons/fi';
+import { FiLoader, FiSearch, FiCamera, FiEdit2, FiChevronLeft, FiCheck, FiAlertCircle } from 'react-icons/fi';
 import { useAuthStore } from '@/lib/store/auth-store';
+import CompositionEditModal from '@/components/inventory/CompositionEditModal';
+import { toast } from 'sonner';
+
+interface SaltEntry {
+  id: string;
+  name: string;
+  strengthValue: number | null;
+  strengthUnit: string | null;
+  confidence: 'HIGH' | 'MEDIUM' | 'LOW';
+}
+
+interface SaltLink {
+  salt: { id: string; name: string };
+  strengthValue: number;
+  strengthUnit: string;
+}
 
 interface DrugRow {
   id: string;
   name: string;
   manufacturer: string;
-  composition: string;
+  saltLinks: SaltLink[];
   ingestionStatus: string;
   createdAt: Date;
-  daysPending: number;
-  isEditing: boolean;
-  pendingChanges?: any;
 }
 
-export default function BulkCorrectionPage() {
+export default function SaltMaintenancePage() {
   const { primaryStore } = useAuthStore();
   const [drugs, setDrugs] = useState<DrugRow[]>([]);
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [filters, setFilters] = useState({
-    status: 'SALT_PENDING',
-    search: '',
-    manufacturer: '',
-  });
-  const [pendingChanges, setPendingChanges] = useState<Map<string, any>>(new Map());
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterMode, setFilterMode] = useState<'pending' | 'all' | 'complete'>('pending');
+  const [editModalDrug, setEditModalDrug] = useState<DrugRow | null>(null);
 
   useEffect(() => {
     if (primaryStore?.id) {
       loadDrugs();
     }
-  }, [filters, primaryStore?.id]);
+  }, [filterMode, primaryStore?.id]);
+
+  // Debounced search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (primaryStore?.id) {
+        loadDrugs();
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const loadDrugs = async () => {
-    if (!primaryStore?.id) {
-      console.log('Waiting for store data...');
-      setLoading(false);
-      return;
-    }
+    if (!primaryStore?.id) return;
 
     setLoading(true);
     try {
-      const storeId = primaryStore.id;
-
       const params = new URLSearchParams();
-      params.append('storeId', storeId);
-      if (filters.status) params.append('status', filters.status);
-      if (filters.search) params.append('search', filters.search);
-      if (filters.manufacturer) params.append('manufacturer', filters.manufacturer);
+      params.append('storeId', primaryStore.id);
+      if (searchQuery) params.append('search', searchQuery);
+      
+      // Filter by composition status
+      if (filterMode === 'pending') {
+        params.append('hasComposition', 'false');
+      } else if (filterMode === 'complete') {
+        params.append('hasComposition', 'true');
+      }
 
       const response = await fetch(`/api/drugs/bulk?${params}`);
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch drugs: ${response.status}`);
-      }
-      
-      const data = await response.json();
+      if (!response.ok) throw new Error('Failed to fetch');
 
-      // Ensure data is an array
+      const data = await response.json();
       const drugsArray = Array.isArray(data) ? data : [];
 
-      const rows: DrugRow[] = drugsArray.map((drug: any) => ({
+      setDrugs(drugsArray.map((drug: any) => ({
         id: drug.id,
         name: drug.name,
         manufacturer: drug.manufacturer || '',
-        composition: formatComposition(drug.saltLinks),
+        saltLinks: drug.saltLinks || [],
         ingestionStatus: drug.ingestionStatus,
         createdAt: new Date(drug.createdAt),
-        daysPending: calculateDaysPending(drug.createdAt),
-        isEditing: false,
-      }));
-
-      setDrugs(rows);
+      })));
     } catch (error) {
       console.error('Failed to load drugs:', error);
+      toast.error('Failed to load medicines');
       setDrugs([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const formatComposition = (saltLinks: any[]) => {
-    if (!saltLinks || saltLinks.length === 0) return 'No composition';
-    return saltLinks
-      .map((link) => `${link.salt.name} ${link.strengthValue}${link.strengthUnit}`)
-      .join(' + ');
+  const formatComposition = (saltLinks: SaltLink[]) => {
+    if (!saltLinks || saltLinks.length === 0) return null;
+    return saltLinks.map((link) => 
+      `${link.salt.name} ${link.strengthValue}${link.strengthUnit}`
+    ).join(' + ');
   };
 
-  const calculateDaysPending = (createdAt: string) => {
-    const created = new Date(createdAt);
-    const now = new Date();
-    const diff = now.getTime() - created.getTime();
-    return Math.floor(diff / (1000 * 60 * 60 * 24));
-  };
+  const handleSaveComposition = async (drugId: string, salts: SaltEntry[]) => {
+    // Frontend validation
+    const invalidSalts = salts.filter(salt => {
+      if (!salt.name || salt.name.trim().length < 2) return true;
+      if (salt.strengthValue === null || salt.strengthValue <= 0) return true;
+      if (!salt.strengthUnit || salt.strengthUnit.trim().length === 0) return true;
+      return false;
+    });
 
-  const toggleEdit = (drugId: string) => {
-    setDrugs(
-      drugs.map((drug) =>
-        drug.id === drugId ? { ...drug, isEditing: !drug.isEditing } : drug
-      )
-    );
-  };
-
-  const updateComposition = (drugId: string, newComposition: string) => {
-    const changes = new Map(pendingChanges);
-    changes.set(drugId, { composition: newComposition });
-    setPendingChanges(changes);
-  };
-
-  const handleBatchSave = async () => {
-    if (pendingChanges.size === 0) {
-      return;
+    if (invalidSalts.length > 0) {
+      toast.error('Please fill all fields: Name (min 2 chars), Strength (> 0), and Unit are required');
+      throw new Error('Validation failed');
     }
 
-    const confirmed = window.confirm(
-      `Save ${pendingChanges.size} changes? This will update salt mappings for selected medicines.`
-    );
-
-    if (!confirmed) return;
-
-    setSaving(true);
     try {
-      const updates = Array.from(pendingChanges.entries()).map(([drugId, changes]) => ({
-        drugId,
-        ...changes,
-      }));
-
-      const response = await fetch('/api/drugs/bulk-update', {
+      const response = await fetch('/api/drugs/update-composition', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ updates }),
+        body: JSON.stringify({
+          drugId,
+          saltLinks: salts.map((salt, index) => ({
+            name: salt.name.trim(),
+            strengthValue: salt.strengthValue,
+            strengthUnit: salt.strengthUnit?.trim(),
+            order: index,
+          })),
+        }),
       });
 
+      const result = await response.json();
+
       if (!response.ok) {
-        throw new Error('Failed to save changes');
+        toast.error(result.error || 'Failed to update composition');
+        throw new Error(result.error || 'Failed to update');
       }
 
-      const result = await response.json();
-      alert(`Successfully updated ${result.successful} medicines`);
-
-      setPendingChanges(new Map());
+      toast.success('Composition saved successfully');
       loadDrugs();
-    } catch (error) {
-      alert('Failed to save changes. Please try again.');
-    } finally {
-      setSaving(false);
+    } catch (error: any) {
+      if (error.message !== 'Validation failed') {
+        console.error('Failed to save composition:', error);
+      }
+      throw error;
     }
   };
 
-  const getStatusBadgeColor = (status: string) => {
-    switch (status) {
-      case 'ACTIVE':
-        return 'bg-green-100 text-green-800';
-      case 'SALT_PENDING':
-        return 'bg-orange-100 text-orange-800';
-      case 'DRAFT':
-        return 'bg-gray-100 text-gray-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
+  const pendingCount = drugs.filter(d => !d.saltLinks || d.saltLinks.length === 0).length;
+  const completeCount = drugs.filter(d => d.saltLinks && d.saltLinks.length > 0).length;
 
-  const getPriorityHighlight = (daysPending: number) => {
-    if (daysPending > 7) {
-      return 'border-l-4 border-red-500 bg-red-50';
-    }
-    return '';
-  };
+  if (!primaryStore?.id) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <FiLoader className="h-8 w-8 animate-spin text-[#0ea5a3]" />
+      </div>
+    );
+  }
 
   return (
-    <div className="container mx-auto p-4 max-w-7xl">
-      {!primaryStore?.id ? (
-        <div className="flex justify-center items-center py-12">
-          <div className="text-center">
-            <FiLoader className="h-8 w-8 animate-spin text-blue-600 mx-auto mb-4" />
-            <p className="text-gray-600">Loading store data...</p>
-          </div>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <div className="bg-white border-b sticky top-0 z-10">
+        <div className="max-w-4xl mx-auto px-4 py-4">
+          <button
+            onClick={() => window.location.href = '/inventory/stock'}
+            className="text-sm text-gray-500 hover:text-gray-900 flex items-center gap-1 mb-3"
+          >
+            <FiChevronLeft className="w-4 h-4" />
+            Back to Inventory
+          </button>
+          
+          <h1 className="text-2xl font-semibold text-gray-900">Salt Composition</h1>
+          <p className="text-sm text-gray-500 mt-1">Add or edit salt compositions for your medicines</p>
         </div>
-      ) : (
-        <>
-          <div className="flex justify-between items-center mb-6">
-            <h1 className="text-3xl font-bold">Bulk Salt Correction</h1>
-            {pendingChanges.size > 0 && (
-          <Button onClick={handleBatchSave} disabled={saving}>
-            {saving ? (
-              <>
-                <FiLoader className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <FiSave className="mr-2 h-4 w-4" />
-                Save {pendingChanges.size} Changes
-              </>
+      </div>
+
+      <div className="max-w-4xl mx-auto px-4 py-6">
+        {/* Filter Tabs */}
+        <div className="flex gap-2 mb-6">
+          <button
+            onClick={() => setFilterMode('pending')}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+              filterMode === 'pending'
+                ? 'bg-orange-100 text-orange-700 ring-2 ring-orange-200'
+                : 'bg-white text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            Pending
+            {filterMode === 'pending' && drugs.length > 0 && (
+              <span className="ml-2 bg-orange-200 text-orange-800 px-2 py-0.5 rounded-full text-xs">
+                {drugs.length}
+              </span>
             )}
-          </Button>
+          </button>
+          <button
+            onClick={() => setFilterMode('complete')}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+              filterMode === 'complete'
+                ? 'bg-green-100 text-green-700 ring-2 ring-green-200'
+                : 'bg-white text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            Complete
+          </button>
+          <button
+            onClick={() => setFilterMode('all')}
+            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+              filterMode === 'all'
+                ? 'bg-gray-200 text-gray-800 ring-2 ring-gray-300'
+                : 'bg-white text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            All
+          </button>
+        </div>
+
+        {/* Search */}
+        <div className="relative mb-6">
+          <FiSearch className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+          <Input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search medicines..."
+            className="pl-12 h-12 text-base bg-white border-gray-200 rounded-xl"
+          />
+        </div>
+
+        {/* Results */}
+        {loading ? (
+          <div className="flex flex-col items-center justify-center py-20">
+            <FiLoader className="h-8 w-8 animate-spin text-[#0ea5a3] mb-4" />
+            <p className="text-gray-500">Loading medicines...</p>
+          </div>
+        ) : drugs.length === 0 ? (
+          <div className="text-center py-20">
+            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <FiCheck className="w-8 h-8 text-gray-400" />
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-1">
+              {filterMode === 'pending' ? 'All caught up!' : 'No medicines found'}
+            </h3>
+            <p className="text-gray-500 text-sm">
+              {filterMode === 'pending' 
+                ? 'All medicines have their compositions set'
+                : 'Try adjusting your search or filters'}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {drugs.map((drug) => {
+              const composition = formatComposition(drug.saltLinks);
+              const hasSalts = drug.saltLinks && drug.saltLinks.length > 0;
+
+              return (
+                <div
+                  key={drug.id}
+                  className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition-shadow"
+                >
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-medium text-gray-900 truncate">{drug.name}</h3>
+                      <p className="text-sm text-gray-500 truncate">{drug.manufacturer || 'Unknown manufacturer'}</p>
+                      
+                      {hasSalts ? (
+                        <div className="mt-2 flex items-center gap-2">
+                          <FiCheck className="w-4 h-4 text-green-500 shrink-0" />
+                          <p className="text-sm text-green-700 truncate">{composition}</p>
+                        </div>
+                      ) : (
+                        <div className="mt-2 flex items-center gap-2">
+                          <FiAlertCircle className="w-4 h-4 text-orange-500 shrink-0" />
+                          <p className="text-sm text-orange-600">No composition set</p>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex gap-2 shrink-0">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setEditModalDrug(drug)}
+                        className="h-9 px-3"
+                      >
+                        <FiCamera className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setEditModalDrug(drug)}
+                        className="h-9 px-3"
+                      >
+                        <FiEdit2 className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
 
-      {/* Filters */}
-      <Card className="p-4 mb-6">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Status</label>
-            <select
-              value={filters.status}
-              onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-              className="w-full border rounded-md p-2"
-            >
-              <option value="">All</option>
-              <option value="SALT_PENDING">Salt Pending</option>
-              <option value="ACTIVE">Active</option>
-              <option value="DRAFT">Draft</option>
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">Search</label>
-            <div className="relative">
-              <FiSearch className="absolute left-2 top-2.5 h-4 w-4 text-gray-400" />
-              <Input
-                value={filters.search}
-                onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-                placeholder="Medicine name..."
-                className="pl-8"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium mb-1">Manufacturer</label>
-            <Input
-              value={filters.manufacturer}
-              onChange={(e) => setFilters({ ...filters, manufacturer: e.target.value })}
-              placeholder="Filter by manufacturer..."
-            />
-          </div>
-
-          <div className="flex items-end">
-            <Button variant="outline" onClick={loadDrugs}>
-              <FiFilter className="mr-2 h-4 w-4" />
-              Apply Filters
-            </Button>
-          </div>
-        </div>
-      </Card>
-
-      {/* Results */}
-      {loading ? (
-        <div className="flex justify-center py-12">
-          <FiLoader className="h-8 w-8 animate-spin text-blue-600" />
-        </div>
-      ) : drugs.length === 0 ? (
-        <Card className="p-12 text-center">
-          <p className="text-gray-500">No medicines found matching your filters.</p>
-        </Card>
-      ) : (
-        <div className="space-y-3">
-          {drugs.map((drug) => (
-            <Card
-              key={drug.id}
-              className={`p-4 ${getPriorityHighlight(drug.daysPending)}`}
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="font-semibold text-lg">{drug.name}</h3>
-                    <span
-                      className={`text-xs px-2 py-1 rounded ${getStatusBadgeColor(
-                        drug.ingestionStatus
-                      )}`}
-                    >
-                      {drug.ingestionStatus}
-                    </span>
-                    {drug.daysPending > 7 && (
-                      <span className="text-xs px-2 py-1 rounded bg-red-100 text-red-800">
-                        {drug.daysPending} days pending
-                      </span>
-                    )}
-                  </div>
-
-                  <p className="text-sm text-gray-600 mb-2">
-                    Manufacturer: {drug.manufacturer || 'Unknown'}
-                  </p>
-
-                  {drug.isEditing ? (
-                    <div className="mt-3">
-                      <label className="block text-sm font-medium mb-1">
-                        Composition
-                      </label>
-                      <Input
-                        value={pendingChanges.get(drug.id)?.composition || drug.composition}
-                        onChange={(e) => updateComposition(drug.id, e.target.value)}
-                        placeholder="e.g., Paracetamol 500mg + Caffeine 65mg"
-                      />
-                    </div>
-                  ) : (
-                    <p className="text-sm">
-                      <span className="font-medium">Composition:</span> {drug.composition}
-                    </p>
-                  )}
-                </div>
-
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => toggleEdit(drug.id)}
-                  >
-                    {drug.isEditing ? 'Cancel' : 'Edit'}
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          ))}
-        </div>
-      )}
-      </>
+      {/* Composition Edit Modal */}
+      {editModalDrug && (
+        <CompositionEditModal
+          isOpen={!!editModalDrug}
+          onClose={() => setEditModalDrug(null)}
+          onSave={handleSaveComposition}
+          drug={{
+            id: editModalDrug.id,
+            name: editModalDrug.name,
+            manufacturer: editModalDrug.manufacturer,
+          }}
+          existingSalts={editModalDrug.saltLinks?.map((link, i) => ({
+            id: `existing-${i}`,
+            name: link.salt.name,
+            strengthValue: link.strengthValue,
+            strengthUnit: link.strengthUnit,
+            confidence: 'HIGH' as const,
+          }))}
+          storeId={primaryStore?.id || ''}
+        />
       )}
     </div>
   );

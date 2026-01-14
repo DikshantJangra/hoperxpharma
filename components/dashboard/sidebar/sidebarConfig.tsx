@@ -115,12 +115,13 @@ export const sidebarConfig: SidebarSection[] = [
             {
                 icon: <MdInventory size={18} />,
                 label: "Inventory",
+                path: "/inventory/stock", // Default landing - hub page
                 requiredPermission: "inventory.read",
                 subItems: [
-                    { label: "Stock", path: "/inventory/stock", requiredPermission: "inventory.read" },
+                    { label: "Overview", path: "/inventory/stock", requiredPermission: "inventory.read" },
+                    { label: "Maintenance", path: "/inventory/maintenance", requiredPermission: "inventory.read" },
                     { label: "Batches", path: "/inventory/batches", requiredPermission: "inventory.read" },
-                    { label: "Expiry", path: "/inventory/expiry", requiredPermission: "inventory.read" },
-                    { label: "Forecast", path: "/inventory/forecast", requiredPermission: "inventory.read" }
+                    { label: "Expiry", path: "/inventory/expiry", requiredPermission: "inventory.read" }
                 ]
             },
             {

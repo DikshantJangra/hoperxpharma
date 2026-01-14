@@ -12,19 +12,19 @@ const router = express.Router();
 router.get('/stats', async (req, res, next) => {
   try {
     const { storeId } = req.query;
+    console.log('[SaltIntelligence Stats] Request received for storeId:', storeId);
 
     if (!storeId) {
       throw ApiError.badRequest('storeId is required');
     }
 
-    // Get counts by status
-    const [unmappedCount, pendingCount, activeCount, recentlyAdded, oldestPending] = await Promise.all([
+    // Get counts by status and composition
+    const [unmappedCount, pendingCount, activeCount, recentlyAdded, oldestPending, noCompositionCount] = await Promise.all([
       // Unmapped (SALT_PENDING + DRAFT)
       prisma.drug.count({
         where: {
           storeId,
           ingestionStatus: { in: ['SALT_PENDING', 'DRAFT'] },
-          deletedAt: null,
         },
       }),
 
@@ -33,7 +33,6 @@ router.get('/stats', async (req, res, next) => {
         where: {
           storeId,
           ingestionStatus: 'SALT_PENDING',
-          deletedAt: null,
         },
       }),
 
@@ -42,7 +41,6 @@ router.get('/stats', async (req, res, next) => {
         where: {
           storeId,
           ingestionStatus: 'ACTIVE',
-          deletedAt: null,
         },
       }),
 
@@ -53,7 +51,6 @@ router.get('/stats', async (req, res, next) => {
           createdAt: {
             gte: new Date(Date.now() - 24 * 60 * 60 * 1000),
           },
-          deletedAt: null,
         },
       }),
 
@@ -62,7 +59,6 @@ router.get('/stats', async (req, res, next) => {
         where: {
           storeId,
           ingestionStatus: 'SALT_PENDING',
-          deletedAt: null,
         },
         orderBy: {
           createdAt: 'asc',
@@ -73,13 +69,31 @@ router.get('/stats', async (req, res, next) => {
           createdAt: true,
         },
       }),
+
+      // No composition (no saltLinks)
+      prisma.drug.count({
+        where: {
+          storeId,
+          saltLinks: { none: {} },
+        },
+      }),
     ]);
+
+    console.log('[SaltIntelligence Stats] Query results:', {
+      unmappedCount,
+      pendingCount,
+      activeCount,
+      recentlyAdded,
+      noCompositionCount,
+      oldestPending: oldestPending ? oldestPending.name : null
+    });
 
     const stats = {
       unmappedCount,
       pendingCount,
       activeCount,
       recentlyAdded,
+      noCompositionCount,
       oldestPending: oldestPending
         ? {
             drugId: oldestPending.id,
@@ -91,8 +105,10 @@ router.get('/stats', async (req, res, next) => {
         : null,
     };
 
+    console.log('[SaltIntelligence Stats] Sending response:', JSON.stringify(stats));
     res.json(stats);
   } catch (error) {
+    console.error('[SaltIntelligence Stats] Error:', error);
     next(error);
   }
 });

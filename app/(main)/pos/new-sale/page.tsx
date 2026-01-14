@@ -19,6 +19,7 @@ import PrescriptionBanner from '@/components/pos/PrescriptionBanner';
 import { salesApi, Sale } from '@/lib/api/sales';
 import { prescriptionApi } from '@/lib/api/prescriptions';
 import PrescriptionImportModal from '@/components/pos/PrescriptionImportModal';
+import SubstituteFinder from '@/components/pos/SubstituteFinder';
 import { inventoryApi } from '@/lib/api/inventory';
 import { useBarcodeScanner } from '@/hooks/useBarcodeScanner';
 // import { useMedicineMaster } from '@/contexts/MedicineMasterContext'; // Removed legacy lookup
@@ -61,6 +62,9 @@ export default function NewSalePage() {
     const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
 
     const [showScanner, setShowScanner] = useState(false);
+    const [showSubstituteFinder, setShowSubstituteFinder] = useState(false);
+    const [substituteForItem, setSubstituteForItem] = useState<any>(null);
+    const [substituteItemIndex, setSubstituteItemIndex] = useState<number | null>(null);
 
     // Barcode Scanner Integration
     // const { lookupByBarcode } = useMedicineMaster(); // Deprecated
@@ -539,6 +543,52 @@ export default function NewSalePage() {
         setPendingProduct(item);
         setEditingBasketItemIndex(index);
         setShowBatchModal(true);
+    };
+
+    // Handle finding substitute medicines with same composition
+    const handleFindSubstitute = (item: any, index: number) => {
+        const drugId = item.drugId || item.id;
+        if (!drugId) {
+            toast.error('Cannot find substitutes: Drug ID missing');
+            return;
+        }
+        setSubstituteForItem(item);
+        setSubstituteItemIndex(index);
+        setShowSubstituteFinder(true);
+    };
+
+    // Handle selecting a substitute from the finder
+    const handleSubstituteSelect = (drug: any, batch: any) => {
+        if (substituteItemIndex === null) return;
+
+        // Replace the item in basket with the substitute
+        const newItem = {
+            id: drug.id,
+            drugId: drug.id,
+            name: drug.name,
+            manufacturer: drug.manufacturer,
+            batchId: batch.id,
+            batchNumber: batch.batchNumber,
+            expiryDate: batch.expiryDate,
+            stock: batch.currentQuantity,
+            mrp: batch.mrp,
+            qty: basketItems[substituteItemIndex].qty, // Keep same quantity
+            discount: 0,
+            gstRate: drug.gstRate || 5,
+            type: 'RX',
+            saltLinks: drug.saltLinks,
+        };
+
+        setBasketItems(prev => {
+            const newItems = [...prev];
+            newItems[substituteItemIndex] = newItem;
+            return newItems;
+        });
+
+        toast.success(`Replaced with ${drug.name}`);
+        setShowSubstituteFinder(false);
+        setSubstituteForItem(null);
+        setSubstituteItemIndex(null);
     };
 
     const handleBatchSelect = (batch: any) => {
@@ -1284,6 +1334,7 @@ export default function NewSalePage() {
                             onRemoveItem={removeBasketItem}
                             onClear={clearBasket}
                             onEditBatch={handleEditBatch}
+                            onFindSubstitute={handleFindSubstitute}
                         />
                     </div>
                 </div>
@@ -1376,6 +1427,19 @@ export default function NewSalePage() {
                 <BarcodeScannerModal
                     onClose={() => setShowScanner(false)}
                     onScan={handleScan}
+                />
+            )}
+            {showSubstituteFinder && substituteForItem && (
+                <SubstituteFinder
+                    drugId={substituteForItem.drugId || substituteForItem.id}
+                    drugName={substituteForItem.name}
+                    storeId={storeId}
+                    onSelect={handleSubstituteSelect}
+                    onClose={() => {
+                        setShowSubstituteFinder(false);
+                        setSubstituteForItem(null);
+                        setSubstituteItemIndex(null);
+                    }}
                 />
             )}
             {/* Loading Overlay - Scoped and Minimal */}

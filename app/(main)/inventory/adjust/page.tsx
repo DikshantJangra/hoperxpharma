@@ -11,6 +11,16 @@ export default function AdjustPage() {
 
   return (
     <div className="h-full flex flex-col bg-[#f8fafc]">
+      {/* Breadcrumb */}
+      <div className="bg-white px-4 pt-4">
+        <button
+          onClick={() => window.location.href = '/inventory/stock'}
+          className="text-sm text-gray-600 hover:text-gray-900 flex items-center gap-1"
+        >
+          ← Back to Inventory
+        </button>
+      </div>
+
       {/* Header */}
       <div className="bg-white border-b border-[#e2e8f0]">
         <div className="flex items-center justify-between p-4 pb-0">
@@ -41,21 +51,19 @@ export default function AdjustPage() {
         <div className="flex border-b border-[#e2e8f0] px-4">
           <button
             onClick={() => setActiveTab('new')}
-            className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === 'new'
+            className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'new'
                 ? 'border-[#0ea5a3] text-[#0ea5a3]'
                 : 'border-transparent text-[#64748b] hover:text-[#0f172a]'
-            }`}
+              }`}
           >
             New Adjustment
           </button>
           <button
             onClick={() => setActiveTab('past')}
-            className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
-              activeTab === 'past'
+            className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === 'past'
                 ? 'border-[#0ea5a3] text-[#0ea5a3]'
                 : 'border-transparent text-[#64748b] hover:text-[#0f172a]'
-            }`}
+              }`}
           >
             Past Adjustments
           </button>

@@ -13,6 +13,22 @@ export default function InventoryPage() {
     const [items, setItems] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
+
+    // Redirect base /inventory to /inventory/stock (preserve filtered views for dashboard alerts)
+    useEffect(() => {
+        if (!filter) {
+            router.replace('/inventory/stock');
+        }
+    }, [filter, router]);
+
+    // If no filter and redirecting, show loading state
+    if (!filter) {
+        return (
+            <div className="p-6 flex items-center justify-center h-64">
+                <div className="text-gray-500">Redirecting...</div>
+            </div>
+        );
+    }
     const [showAddModal, setShowAddModal] = useState(false);
 
     const getTitle = () => {
@@ -154,10 +170,10 @@ export default function InventoryPage() {
         // Default render
         return items.map((drug: any) => {
             const isPending = drug.ingestionStatus === 'SALT_PENDING' || drug.ingestionStatus === 'DRAFT';
-            
+
             return (
-                <tr 
-                    key={drug.id} 
+                <tr
+                    key={drug.id}
                     className={`border-b border-[#e2e8f0] hover:bg-[#f8fafc] ${isPending ? 'bg-orange-50' : ''}`}
                 >
                     <td className="px-4 py-3 text-sm text-[#0f172a]">
@@ -213,7 +229,7 @@ export default function InventoryPage() {
                             <p className="text-sm text-gray-600 mb-6">
                                 Choose how you'd like to add a new medicine to your inventory
                             </p>
-                            
+
                             <div className="space-y-3">
                                 {/* Scan Strip Option */}
                                 <button

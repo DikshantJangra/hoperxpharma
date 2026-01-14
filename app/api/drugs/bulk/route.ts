@@ -6,6 +6,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status');
     const search = searchParams.get('search');
     const manufacturer = searchParams.get('manufacturer');
+    const hasComposition = searchParams.get('hasComposition');
 
     // Get storeId from user data (should be in localStorage on client, but we need it here)
     // For now, we'll get it from the request or use a default approach
@@ -30,6 +31,7 @@ export async function GET(request: NextRequest) {
     if (status) params.append('status', status);
     if (search) params.append('search', search);
     if (manufacturer) params.append('manufacturer', manufacturer);
+    if (hasComposition) params.append('hasComposition', hasComposition);
 
     console.log('Fetching drugs from backend:', `${process.env.BACKEND_URL}/api/v1/drugs/bulk?${params}`);
     
