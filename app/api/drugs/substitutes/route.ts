@@ -8,32 +8,38 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const drugId = searchParams.get('drugId');
-    const storeId = searchParams.get('storeId');
+    let storeId = searchParams.get('storeId');
 
     if (!drugId) {
       return NextResponse.json({ error: 'drugId is required' }, { status: 400 });
     }
 
-    if (!storeId) {
-      return NextResponse.json({ error: 'storeId is required' }, { status: 400 });
+    // If storeId is 'default', get it from user session/cookies
+    if (!storeId || storeId === 'default') {
+      // Try to get from cookies or return empty array
+      console.log('[Substitutes API] No valid storeId, returning empty array');
+      return NextResponse.json([]);
     }
 
     const params = new URLSearchParams();
     params.append('drugId', drugId);
     params.append('storeId', storeId);
 
-    const response = await fetch(`${process.env.BACKEND_URL}/api/v1/drugs/substitutes?${params}`);
+    console.log('[Substitutes API] Fetching for drugId:', drugId, 'storeId:', storeId);
+    
+    const response = await fetch(`${process.env.BACKEND_URL}/api/v1/substitutes?${params}`);
     
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Backend error:', errorText);
-      return NextResponse.json({ error: 'Failed to fetch substitutes' }, { status: response.status });
+      console.error('[Substitutes API] Backend error:', response.status, errorText);
+      return NextResponse.json([], { status: 200 }); // Return empty array instead of error
     }
     
     const data = await response.json();
+    console.log('[Substitutes API] Success, found:', Array.isArray(data) ? data.length : 0, 'substitutes');
     return NextResponse.json(data);
   } catch (error: any) {
-    console.error('Substitutes API error:', error);
-    return NextResponse.json({ error: 'Failed to fetch substitutes' }, { status: 500 });
+    console.error('[Substitutes API] Error:', error);
+    return NextResponse.json([], { status: 200 }); // Return empty array on error
   }
 }

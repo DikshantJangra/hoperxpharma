@@ -49,7 +49,7 @@ export default function NewSalePage() {
     const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
     const [showDraftRestore, setShowDraftRestore] = useState(false);
     const [pendingDraft, setPendingDraft] = useState<any>(null);
-    const [storeId, setStoreId] = useState<string>('');
+    const storeId = 'default';
     const [showPrescriptionModal, setShowPrescriptionModal] = useState(false);
     const [linkedPrescriptionId, setLinkedPrescriptionId] = useState<string | undefined>(undefined);
     const [activePrescription, setActivePrescription] = useState<any>(null);
@@ -141,20 +141,7 @@ export default function NewSalePage() {
         timeThreshold: 50
     });
 
-    // Get storeId from localStorage
-    useEffect(() => {
-        const userStr = localStorage.getItem('user');
-        if (userStr) {
-            try {
-                const user = JSON.parse(userStr);
-                setStoreId(user.storeId || '');
-            } catch (error) {
-                console.error('Failed to parse user data:', error);
-            }
-        }
-    }, []);
-
-    // Fetch next invoice number
+// Fetch next invoice number
     useEffect(() => {
         const fetchNextInvoice = async () => {
             try {

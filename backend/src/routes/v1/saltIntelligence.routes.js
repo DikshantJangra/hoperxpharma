@@ -20,27 +20,32 @@ router.get('/stats', async (req, res, next) => {
 
     // Get counts by status and composition
     const [unmappedCount, pendingCount, activeCount, recentlyAdded, oldestPending, noCompositionCount] = await Promise.all([
-      // Unmapped (SALT_PENDING + DRAFT)
+      // Unmapped (no composition - no saltLinks)
       prisma.drug.count({
         where: {
           storeId,
-          ingestionStatus: { in: ['SALT_PENDING', 'DRAFT'] },
+          saltLinks: { none: {} },
         },
       }),
 
-      // Pending
+      // Pending (PENDING status OR no composition)
       prisma.drug.count({
         where: {
           storeId,
-          ingestionStatus: 'SALT_PENDING',
+          OR: [
+            { ingestionStatus: 'PENDING' },
+            { ingestionStatus: 'SALT_PENDING' },
+            { saltLinks: { none: {} } },
+          ],
         },
       }),
 
-      // Active
+      // Active (has composition)
       prisma.drug.count({
         where: {
           storeId,
           ingestionStatus: 'ACTIVE',
+          saltLinks: { some: {} },
         },
       }),
 
@@ -54,11 +59,11 @@ router.get('/stats', async (req, res, next) => {
         },
       }),
 
-      // Oldest pending
+      // Oldest pending (no composition)
       prisma.drug.findFirst({
         where: {
           storeId,
-          ingestionStatus: 'SALT_PENDING',
+          saltLinks: { none: {} },
         },
         orderBy: {
           createdAt: 'asc',
@@ -70,7 +75,7 @@ router.get('/stats', async (req, res, next) => {
         },
       }),
 
-      // No composition (no saltLinks)
+      // No composition (no saltLinks) - same as unmapped
       prisma.drug.count({
         where: {
           storeId,

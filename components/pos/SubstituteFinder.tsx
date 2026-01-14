@@ -21,17 +21,19 @@ interface Batch {
 }
 
 interface SubstituteDrug {
-  id: string;
+  drugId: string;
   name: string;
   manufacturer: string;
-  saltLinks: Array<{
-    salt: { name: string };
+  form: string;
+  mrp: number;
+  availableStock: number;
+  matchType: 'EXACT' | 'PARTIAL';
+  matchScore: number;
+  salts: Array<{
+    saltName: string;
     strengthValue: number;
     strengthUnit: string;
   }>;
-  batches: Batch[];
-  totalStock: number;
-  lowestPrice: number | null;
 }
 
 interface SubstituteResponse {
@@ -67,34 +69,75 @@ export default function SubstituteFinder({
   const [selectedDrug, setSelectedDrug] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchSubstitutes();
+    console.log('[SubstituteFinder] Component mounted with:', { drugId, drugName, storeId });
+    if (storeId) {
+      fetchSubstitutes();
+    } else {
+      console.error('[SubstituteFinder] No storeId provided!');
+      setError('Store ID is missing');
+      setLoading(false);
+    }
   }, [drugId, storeId]);
 
   const fetchSubstitutes = async () => {
+    console.log('[SubstituteFinder] fetchSubstitutes called');
+    
+    if (!storeId) {
+      console.error('[SubstituteFinder] No storeId!');
+      setError('Store ID is required');
+      setLoading(false);
+      return;
+    }
+
+    console.log('[SubstituteFinder] Starting fetch for drugId:', drugId, 'storeId:', storeId);
     setLoading(true);
     setError(null);
 
     try {
-      const response = await fetch(
-        `/api/drugs/substitutes?drugId=${encodeURIComponent(drugId)}&storeId=${encodeURIComponent(storeId)}`
-      );
+      const url = `/api/drugs/substitutes?drugId=${encodeURIComponent(drugId)}&storeId=${encodeURIComponent(storeId)}`;
+      console.log('[SubstituteFinder] Fetching from:', url);
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+      
+      const response = await fetch(url, { signal: controller.signal });
+      clearTimeout(timeoutId);
+      
+      console.log('[SubstituteFinder] Response received:', response.status, response.statusText);
 
       if (!response.ok) {
-        throw new Error('Failed to fetch substitutes');
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('[SubstituteFinder] Error response:', errorData);
+        throw new Error(errorData.error || 'Failed to fetch substitutes');
       }
 
       const result = await response.json();
-      setData(result);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load substitutes');
+      console.log('[SubstituteFinder] Success, received data:', result);
+      
+      const transformedData = {
+        original: { id: drugId, name: drugName, manufacturer: '', composition: [] },
+        substitutes: Array.isArray(result) ? result : [],
+        totalFound: Array.isArray(result) ? result.length : 0,
+        message: Array.isArray(result) && result.length === 0 ? 'No substitutes found' : undefined
+      };
+      
+      setData(transformedData);
+    } catch (err: any) {
+      console.error('[SubstituteFinder] Fetch error:', err);
+      if (err.name === 'AbortError') {
+        setError('Request timeout - please try again');
+      } else {
+        setError(err instanceof Error ? err.message : 'Failed to load substitutes');
+      }
     } finally {
       setLoading(false);
+      console.log('[SubstituteFinder] Fetch complete');
     }
   };
 
-  const formatComposition = (saltLinks: SubstituteDrug['saltLinks']) => {
-    return saltLinks
-      .map(link => `${link.salt.name} ${link.strengthValue}${link.strengthUnit}`)
+  const formatComposition = (salts: SubstituteDrug['salts']) => {
+    return salts
+      .map(salt => `${salt.saltName} ${salt.strengthValue}${salt.strengthUnit}`)
       .join(' + ');
   };
 
@@ -171,76 +214,62 @@ export default function SubstituteFinder({
 
                   {data.substitutes.map((drug) => (
                     <Card
-                      key={drug.id}
+                      key={drug.drugId}
                       className={`p-4 cursor-pointer transition-all ${
-                        selectedDrug === drug.id
+                        selectedDrug === drug.drugId
                           ? 'ring-2 ring-[#0ea5a3] bg-teal-50'
                           : 'hover:shadow-md'
                       }`}
-                      onClick={() => setSelectedDrug(selectedDrug === drug.id ? null : drug.id)}
+                      onClick={() => setSelectedDrug(selectedDrug === drug.drugId ? null : drug.drugId)}
                     >
                       <div className="flex justify-between items-start">
                         <div className="flex-1">
                           <h4 className="font-semibold text-lg">{drug.name}</h4>
                           <p className="text-sm text-gray-600">{drug.manufacturer}</p>
                           <p className="text-xs text-gray-500 mt-1">
-                            {formatComposition(drug.saltLinks)}
+                            {formatComposition(drug.salts)}
                           </p>
                         </div>
                         <div className="text-right">
                           <div className="flex items-center gap-1 text-green-600">
                             <FiPackage className="h-4 w-4" />
-                            <span className="font-semibold">{drug.totalStock} in stock</span>
+                            <span className="font-semibold">{drug.availableStock} in stock</span>
                           </div>
-                          {drug.lowestPrice && (
+                          {drug.mrp > 0 && (
                             <div className="flex items-center gap-1 text-gray-600 text-sm">
                               <FiDollarSign className="h-3 w-3" />
-                              <span>From ₹{drug.lowestPrice.toFixed(2)}</span>
+                              <span>₹{drug.mrp.toFixed(2)}</span>
                             </div>
                           )}
                         </div>
                       </div>
 
-                      {/* Batch Selection */}
-                      {selectedDrug === drug.id && drug.batches.length > 0 && (
+                      {/* Match Info */}
+                      {selectedDrug === drug.drugId && (
                         <div className="mt-4 pt-4 border-t">
-                          <p className="text-sm font-medium text-gray-700 mb-2">Select Batch:</p>
-                          <div className="space-y-2">
-                            {drug.batches.map((batch) => (
-                              <div
-                                key={batch.id}
-                                className="flex items-center justify-between p-3 bg-white rounded border hover:border-[#0ea5a3] transition-colors"
-                              >
-                                <div className="flex items-center gap-4">
-                                  <div>
-                                    <p className="font-medium text-sm">{batch.batchNumber}</p>
-                                    <div className="flex items-center gap-2 text-xs text-gray-500">
-                                      <FiCalendar className="h-3 w-3" />
-                                      <span>Exp: {formatDate(batch.expiryDate)}</span>
-                                    </div>
-                                  </div>
-                                  <div className="text-sm">
-                                    <span className="text-green-600 font-medium">
-                                      {batch.currentQuantity} units
-                                    </span>
-                                  </div>
-                                </div>
-                                <div className="flex items-center gap-3">
-                                  <span className="font-semibold text-lg">₹{batch.mrp.toFixed(2)}</span>
-                                  <Button
-                                    size="sm"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleSelectBatch(drug, batch);
-                                    }}
-                                    className="bg-[#0ea5a3] hover:bg-[#0d9491]"
-                                  >
-                                    <FiCheck className="h-4 w-4 mr-1" />
-                                    Select
-                                  </Button>
-                                </div>
-                              </div>
-                            ))}
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="text-sm font-medium text-gray-700">
+                              Match: {drug.matchType} ({drug.matchScore}%)
+                            </span>
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                // For now, create a mock batch since backend doesn't return batches
+                                const mockBatch: Batch = {
+                                  id: `batch-${drug.drugId}`,
+                                  batchNumber: 'AUTO',
+                                  currentQuantity: drug.availableStock,
+                                  expiryDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+                                  mrp: drug.mrp,
+                                  purchaseRate: drug.mrp * 0.7
+                                };
+                                handleSelectBatch(drug as any, mockBatch);
+                              }}
+                              className="bg-[#0ea5a3] hover:bg-[#0d9491]"
+                            >
+                              <FiCheck className="h-4 w-4 mr-1" />
+                              Select
+                            </Button>
                           </div>
                         </div>
                       )}
