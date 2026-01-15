@@ -616,6 +616,7 @@ model CustomerLedger {
 model Drug {
   id                       String                    @id @default(cuid())
   rxcui                    String?
+  canonicalId              String?                   // Link to Medicine Master (nullable for backward compatibility)
   name                     String
   genericName              String?
   strength                 String?
@@ -644,6 +645,7 @@ model Drug {
   hsnCodeRef               HsnCode?                  @relation(fields: [hsnCodeId], references: [id])
   store                    Store                     @relation(fields: [storeId], references: [id], onDelete: Cascade)
   confirmedByUser          User?                     @relation("DrugConfirmer", fields: [confirmedBy], references: [id])
+  medicineMaster           MedicineMaster?           @relation(fields: [canonicalId], references: [id])
   inventory                InventoryBatch[]
   prescriptionItems        PrescriptionItem[]
   poItems                  PurchaseOrderItem[]
@@ -666,6 +668,8 @@ model Drug {
   @@index([storeId, baseUnit])
   @@index([storeId, ingestionStatus])
   @@index([confirmedBy])
+  @@index([canonicalId])
+  @@index([storeId, canonicalId])
 }
 
 model TaxSlab {
@@ -2691,14 +2695,17 @@ model DrugUnit {
 model Salt {
   id                String             @id @default(cuid())
   name              String             @unique
-  category          String?
+  scientificName    String?
+  category          String?            @default("ACTIVE")
+  status            String             @default("APPROVED")
   therapeuticClass  String?
   highRisk          Boolean            @default(false)
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
   aliases           String[]
+  createdBy         String?
   createdById       String?
-  createdBy         User?              @relation("SaltCreator", fields: [createdById], references: [id])
+  createdByUser     User?              @relation("SaltCreator", fields: [createdById], references: [id])
   drugSaltLinks     DrugSaltLink[]
   medicineSaltLinks MedicineSaltLink[]
 
@@ -2706,6 +2713,7 @@ model Salt {
   @@index([category])
   @@index([highRisk])
   @@index([createdById])
+  @@index([status])
 }
 
 model DrugSaltLink {
@@ -3308,6 +3316,7 @@ model MedicineMaster {
   versions         MedicineVersion[]
   pendingMedicines PendingMedicine[]
   idMappings       IdMapping[]
+  drugs            Drug[]                // Store-specific drugs linked to this master
 
   @@index([name])
   @@index([primaryBarcode])

@@ -7,13 +7,16 @@
 
 const express = require('express');
 const { medicineMasterService } = require('../../services/MedicineMasterService');
-const { searchService } = require('../../services/SearchService');
 const { storeOverlayService } = require('../../services/StoreOverlayService');
 const { ingestionPipelineService } = require('../../services/IngestionPipelineService');
 const ApiError = require('../../utils/ApiError');
 const { asyncHandler } = require('../../middlewares/errorHandler');
 const { rateLimit } = require('express-rate-limit');
 const { validateCreateMedicine, validateUpdateMedicine } = require('../../middlewares/validateMedicine');
+
+// Use In-Memory Search (super fast, auto-syncs with database)
+const searchService = require('../../services/InMemorySearchService').inMemorySearchService;
+console.log(`🔍 Using In-Memory Search for medicines (ultra-fast)`);
 
 const router = express.Router();
 
@@ -25,15 +28,121 @@ const apiLimiter = rateLimit({
   message: 'Too many requests from this store, please try again later',
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => {
+    // Skip rate limiting if no user/storeId (let auth middleware handle it)
+    return !req.user || !req.user.storeId;
+  },
   keyGenerator: (req) => {
     // Store ID from authenticated user (set by auth middleware from cookies)
-    const storeId = req.user && req.user.storeId ? req.user.storeId : 'unknown';
+    const storeId = req.user?.storeId || 'unknown';
     return `store:${storeId}`;
   },
 });
 
 // Apply rate limiting to all routes
 router.use(apiLimiter);
+
+/**
+ * GET /api/v1/medicines/search
+ * Search medicines
+ * Requirements: 3.1, 3.2
+ */
+router.get('/search', asyncHandler(async (req, res) => {
+  const { q, manufacturer, schedule, requiresPrescription, discontinued, form, limit = 20, offset = 0 } = req.query;
+  
+  if (!q) {
+    throw ApiError.badRequest('Search query (q) is required');
+  }
+  
+  const results = await searchService.search({
+    query: q,
+    manufacturer,
+    schedule,
+    requiresPrescription: requiresPrescription === 'true',
+    discontinued: discontinued === 'true',
+    form,
+    limit: parseInt(limit),
+    offset: parseInt(offset)
+  });
+  
+  res.json({ success: true, data: results });
+}));
+
+/**
+ * GET /api/v1/medicines/autocomplete
+ * Autocomplete suggestions
+ * Requirements: 3.3
+ */
+router.get('/autocomplete', asyncHandler(async (req, res) => {
+  const { q, limit = 10 } = req.query;
+  
+  if (!q) {
+    throw ApiError.badRequest('Search query (q) is required');
+  }
+  
+  const results = await searchService.autocomplete({
+    query: q,
+    limit: parseInt(limit)
+  });
+  
+  res.json({ success: true, data: results });
+}));
+
+/**
+ * GET /api/v1/medicines/search/by-composition
+ * Search by salt composition
+ * Requirements: 2.1
+ */
+router.get('/search/by-composition', asyncHandler(async (req, res) => {
+  const { salt, limit = 20 } = req.query;
+  
+  if (!salt) {
+    throw ApiError.badRequest('Salt name is required');
+  }
+  
+  const results = await searchService.searchByComposition(salt, parseInt(limit));
+  res.json({ success: true, data: results });
+}));
+
+/**
+ * GET /api/v1/medicines/search/by-manufacturer
+ * Search by manufacturer
+ * Requirements: 2.4
+ */
+router.get('/search/by-manufacturer', asyncHandler(async (req, res) => {
+  const { manufacturer, limit = 20 } = req.query;
+  
+  if (!manufacturer) {
+    throw ApiError.badRequest('Manufacturer name is required');
+  }
+  
+  const results = await searchService.searchByManufacturer(manufacturer, parseInt(limit));
+  res.json({ success: true, data: results });
+}));
+
+/**
+ * GET /api/v1/medicines/stats
+ * Get search statistics
+ */
+router.get('/stats', asyncHandler(async (req, res) => {
+  const stats = await searchService.getIndexStats();
+  res.json({ success: true, data: stats });
+}));
+
+/**
+ * POST /api/v1/medicines/reload-search
+ * Force reload in-memory search index (admin only)
+ */
+router.post('/reload-search', asyncHandler(async (req, res) => {
+  console.log('🔄 Manual search reload triggered');
+  await searchService.reload();
+  const stats = await searchService.getIndexStats();
+  res.json({ 
+    success: true, 
+    message: 'Search index reloaded successfully',
+    data: stats 
+  });
+}));
 
 /**
  * POST /api/v1/medicines

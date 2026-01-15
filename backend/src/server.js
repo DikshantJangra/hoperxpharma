@@ -53,6 +53,27 @@ database.connect().then(() => {
     startDailyBehavioralScoringJob();
     logger.info('✅ Indian Pharmacy behavioral scoring job scheduled');
 
+    // Initialize Typesense Keep-Alive (Production Only)
+    if (validatedEnv.NODE_ENV === 'production' && validatedEnv.TYPESENSE_HOST) {
+        const { checkTypesenseHealth } = require('./lib/typesense/client');
+        
+        // Ping Typesense every 10 minutes to prevent spin-down on free tier
+        setInterval(async () => {
+            try {
+                const isHealthy = await checkTypesenseHealth();
+                if (isHealthy) {
+                    logger.info('✅ Typesense keep-alive ping successful');
+                } else {
+                    logger.warn('⚠️ Typesense health check returned unhealthy status');
+                }
+            } catch (error) {
+                logger.warn('⚠️ Typesense keep-alive ping failed:', error.message);
+            }
+        }, 10 * 60 * 1000); // Every 10 minutes
+        
+        logger.info('✅ Typesense keep-alive initialized (10-minute interval)');
+    }
+
     // Start server
     const server = app.listen(PORT, '0.0.0.0', () => {
         logger.info(`Server is running on port http://localhost:${PORT}`);

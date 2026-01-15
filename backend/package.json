@@ -18,6 +18,7 @@
     "medicine:rebuild-index": "node scripts/rebuild-search-index.js",
     "medicine:setup-typesense": "bash scripts/setup-typesense.sh",
     "medicine:setup-cloud": "bash scripts/setup-typesense-cloud.sh",
+    "medicine:migrate-csv": "node scripts/migrate-csv-to-medicine-master.js",
     "seed": "npx prisma db seed",
     "dpfv": "DISABLE_SCHEDULER=true DISABLE_GMAIL_INIT=true ts-node --transpile-only verifier/run.ts",
     "dpfv:critical": "ts-node verifier/run.ts --tags=critical",
