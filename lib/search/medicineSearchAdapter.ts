@@ -15,15 +15,22 @@ class MedicineSearchAdapter {
    * Load the index (fetch stats from API)
    */
   async loadIndex(): Promise<void> {
-    if (this.indexLoaded) return;
+    if (this.indexLoaded) {
+      console.log(`ℹ️  Index already loaded (${this.totalCount.toLocaleString()} medicines)`);
+      return;
+    }
 
     try {
+      console.log('🔄 Loading medicine index from API...');
       const stats = await medicineApi.getStats();
-      this.totalCount = stats.totalDocuments || 0;
+      console.log('📊 API Stats response:', stats);
+      
+      this.totalCount = stats.totalDocuments || stats.numDocuments || 0;
       this.indexLoaded = true;
+      
       console.log(`✅ Connected to medicine API (${this.totalCount.toLocaleString()} medicines)`);
     } catch (error) {
-      console.error('Failed to connect to medicine API:', error);
+      console.error('❌ Failed to connect to medicine API:', error);
       throw error;
     }
   }
@@ -44,14 +51,20 @@ class MedicineSearchAdapter {
     }
 
     try {
-      const response = await medicineApi.search({
+      const results = await medicineApi.search({
         q: query,
         limit: options?.limit || 20,
         discontinued: options?.includeDiscontinued,
       });
 
+      // API returns array directly, not { results: [] }
+      if (!Array.isArray(results)) {
+        console.error('Unexpected API response format:', results);
+        return [];
+      }
+
       // Transform API response to match old format
-      return response.results.map((result: any) => ({
+      return results.map((result: any) => ({
         id: result.id || result.canonicalId,
         name: result.name,
         price: result.defaultPrice || 0,

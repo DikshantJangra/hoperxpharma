@@ -291,8 +291,11 @@ async function baseFetch(
         // Check for offline/network error
         const isNetError = isNetworkError(error);
         const isMutation = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(options.method || 'GET');
+        
+        // CRITICAL: Never queue auth endpoints - they should fail immediately
+        const isAuthEndpoint = endpoint.includes('/auth/');
 
-        if (isNetError && isMutation) {
+        if (isNetError && isMutation && !isAuthEndpoint) {
             try {
                 // Only queue mutations if we're in a browser environment
                 if (typeof window !== 'undefined') {

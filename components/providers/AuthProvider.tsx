@@ -24,12 +24,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const publicRoutes = ['/', '/login', '/signup', '/verify-magic-link', '/auth/callback'];
         const isPublicRoute = publicRoutes.includes(pathname) || pathname.startsWith('/setup') || pathname.startsWith('/magic-link');
 
-        // If trying to access private route while unauthenticated, check auth/redirect
+        // If trying to access private route while unauthenticated, redirect to login
+        // Don't call checkAuth here - it's already called on mount and will cause infinite loop
         if (!isPublicRoute && !isAuthenticated && !isLoading) {
-            console.log('Accessing private route while unauthenticated, checking auth...');
-            checkAuth();
+            console.log('Accessing private route while unauthenticated, redirecting to login...');
+            router.push('/login');
         }
-    }, [pathname, isAuthenticated, isLoading, checkAuth]);
+    }, [pathname, isAuthenticated, isLoading, router]);
 
     // Check onboarding completion status
     useEffect(() => {

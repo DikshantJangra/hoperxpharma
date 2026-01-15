@@ -145,8 +145,18 @@ export default function MedicineCommandPalette({
                             </div>
                         )}
 
+                        {/* Searching State */}
+                        {indexLoaded && loading && query && (
+                            <div className="px-4 py-8 text-center">
+                                <div className="inline-flex items-center gap-2 text-sm text-gray-500">
+                                    <div className="w-4 h-4 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+                                    Searching for "{query}"...
+                                </div>
+                            </div>
+                        )}
+
                         {/* Results */}
-                        {indexLoaded && (
+                        {indexLoaded && !loading && (
                             <div className="max-h-[60vh] overflow-y-auto" ref={resultsRef}>
                                 {/* Section Header */}
                                 {displayItems.length > 0 && (

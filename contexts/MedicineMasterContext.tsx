@@ -1,7 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import mockData from '@/lib/data/mock-medicine-master.json';
+import { medicineApi } from '@/lib/api/medicineApi';
 
 // Define the shape of our Master Data Item
 export interface MedicineMasterItem {
@@ -16,49 +16,41 @@ export interface MedicineMasterItem {
 }
 
 interface MedicineMasterContextType {
-    lookupByBarcode: (barcode: string) => MedicineMasterItem | undefined;
+    lookupByBarcode: (barcode: string) => Promise<MedicineMasterItem | undefined>;
     isLoading: boolean;
 }
 
 const MedicineMasterContext = createContext<MedicineMasterContextType | undefined>(undefined);
 
 export function MedicineMasterProvider({ children }: { children: React.ReactNode }) {
-    const [masterIndex, setMasterIndex] = useState<Record<string, MedicineMasterItem>>({});
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(false);
 
-    useEffect(() => {
-        // In a real app, this would fetch from a JSON file URL or IndexedDB
-        // For now, we load the imported mock data into a hash map
-        const loadData = async () => {
-            try {
-                console.log('📦 Loading Medicine Master Data...');
-                const index: Record<string, MedicineMasterItem> = {};
-
-                // Build O(1) Lookup Map
-                mockData.forEach((item) => {
-                    // Ensure type is correct
-                    const typedItem: MedicineMasterItem = {
-                        ...item,
-                        type: (item.type as 'OTC' | 'RX')
-                    };
-                    index[item.barcode] = typedItem;
-                });
-
-                setMasterIndex(index);
-                console.log(`✅ Loaded ${Object.keys(index).length} items into Master Index`);
-            } catch (error) {
-                console.error('❌ Failed to load Medicine Master:', error);
-            } finally {
-                setIsLoading(false);
+    const lookupByBarcode = async (barcode: string): Promise<MedicineMasterItem | undefined> => {
+        try {
+            setIsLoading(true);
+            const medicine = await medicineApi.findByBarcode(barcode);
+            
+            if (!medicine) {
+                return undefined;
             }
-        };
 
-        // Simulate async load
-        setTimeout(loadData, 100);
-    }, []);
-
-    const lookupByBarcode = (barcode: string): MedicineMasterItem | undefined => {
-        return masterIndex[barcode];
+            // Transform API response to MedicineMasterItem format
+            return {
+                barcode: medicine.primaryBarcode || barcode,
+                name: medicine.name,
+                mrp: medicine.defaultPrice || 0,
+                gstRate: medicine.defaultGstRate || 12,
+                manufacturer: medicine.manufacturerName,
+                sku: medicine.id,
+                type: medicine.requiresPrescription ? 'RX' : 'OTC',
+                requiresPrescription: medicine.requiresPrescription
+            };
+        } catch (error) {
+            console.error('❌ Failed to lookup medicine by barcode:', error);
+            return undefined;
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (

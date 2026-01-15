@@ -1,12 +1,18 @@
+// Medicine Master schema (from MedicineMaster table)
 export interface Medicine {
     id: string;
     name: string;
-    price: number;
-    manufacturer: string;
-    packSize: string;
-    composition: string;
-    type: string;
-    discontinued: boolean;
+    genericName?: string;
+    strength?: string;
+    form?: string;
+    manufacturerName?: string;
+    schedule?: string;
+    compositionText?: string;
+    primaryBarcode?: string;
+    status?: string;
+    usageCount?: number;
+    requiresPrescription?: boolean;
+    price?: number; // Optional - may not be in master data
 }
 
 export interface MedicineSearchIndex {
@@ -18,7 +24,7 @@ export interface MedicineSearchIndex {
 
 export interface MedicineSearchResult extends Medicine {
     score: number;
-    match: {
+    match?: {
         name?: string[];
         composition?: string[];
         manufacturer?: string[];

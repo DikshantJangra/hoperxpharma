@@ -2,9 +2,10 @@
  * Medicine Master API Client
  * 
  * Provides methods to interact with the backend Medicine Master API
+ * Store ID is automatically retrieved from the user's session cookies
  */
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000/api/v1';
 
 export interface MedicineSearchParams {
   q: string;
@@ -39,22 +40,24 @@ export interface AutocompleteResponse {
 
 class MedicineApiClient {
   private baseUrl: string;
-  private storeId: string | null = null;
 
   constructor(baseUrl: string = API_BASE_URL) {
     this.baseUrl = baseUrl;
-    
-    // Auto-set store ID from environment
-    if (typeof window !== 'undefined' && process.env.NEXT_PUBLIC_STORE_ID) {
-      this.storeId = process.env.NEXT_PUBLIC_STORE_ID;
-    }
   }
 
   /**
-   * Set the store ID for store-specific operations
+   * Make authenticated request with cookies
+   * Store ID is automatically included from session cookies
    */
-  setStoreId(storeId: string) {
-    this.storeId = storeId;
+  private async fetchWithAuth(url: string, options: RequestInit = {}): Promise<Response> {
+    return fetch(url, {
+      ...options,
+      credentials: 'include', // Include cookies for authentication
+      headers: {
+        'Content-Type': 'application/json',
+        ...options.headers,
+      },
+    });
   }
 
   /**
@@ -68,12 +71,13 @@ class MedicineApiClient {
       }
     });
 
-    const response = await fetch(`${this.baseUrl}/medicines/search?${queryParams}`);
+    const response = await this.fetchWithAuth(`${this.baseUrl}/medicines/search?${queryParams}`);
     if (!response.ok) {
       throw new Error(`Search failed: ${response.statusText}`);
     }
 
-    return response.json();
+    const data = await response.json();
+    return data.success ? data.data : data;
   }
 
   /**
@@ -87,19 +91,20 @@ class MedicineApiClient {
       }
     });
 
-    const response = await fetch(`${this.baseUrl}/medicines/search/autocomplete?${queryParams}`);
+    const response = await this.fetchWithAuth(`${this.baseUrl}/medicines/autocomplete?${queryParams}`);
     if (!response.ok) {
       throw new Error(`Autocomplete failed: ${response.statusText}`);
     }
 
-    return response.json();
+    const data = await response.json();
+    return data.success ? data.data : data;
   }
 
   /**
    * Search by composition (salt)
    */
   async searchByComposition(salt: string): Promise<any[]> {
-    const response = await fetch(
+    const response = await this.fetchWithAuth(
       `${this.baseUrl}/medicines/search/by-composition?salt=${encodeURIComponent(salt)}`
     );
     if (!response.ok) {
@@ -107,14 +112,14 @@ class MedicineApiClient {
     }
 
     const data = await response.json();
-    return data.results;
+    return data.success ? data.data : data.results || data;
   }
 
   /**
    * Search by manufacturer
    */
   async searchByManufacturer(manufacturer: string): Promise<any[]> {
-    const response = await fetch(
+    const response = await this.fetchWithAuth(
       `${this.baseUrl}/medicines/search/by-manufacturer?manufacturer=${encodeURIComponent(manufacturer)}`
     );
     if (!response.ok) {
@@ -122,14 +127,14 @@ class MedicineApiClient {
     }
 
     const data = await response.json();
-    return data.results;
+    return data.success ? data.data : data.results || data;
   }
 
   /**
    * Get medicine by canonical ID
    */
   async getMedicineById(id: string): Promise<any> {
-    const response = await fetch(`${this.baseUrl}/medicines/${id}`);
+    const response = await this.fetchWithAuth(`${this.baseUrl}/medicines/${id}`);
     if (!response.ok) {
       if (response.status === 404) {
         return null;
@@ -143,13 +148,10 @@ class MedicineApiClient {
 
   /**
    * Get merged medicine (master + store overlay)
+   * Store ID is automatically retrieved from session
    */
   async getMergedMedicine(id: string): Promise<any> {
-    if (!this.storeId) {
-      return this.getMedicineById(id);
-    }
-
-    const response = await fetch(`${this.baseUrl}/stores/${this.storeId}/medicines/${id}`);
+    const response = await this.fetchWithAuth(`${this.baseUrl}/medicines/${id}/merged`);
     if (!response.ok) {
       if (response.status === 404) {
         return null;
@@ -157,26 +159,28 @@ class MedicineApiClient {
       throw new Error(`Get merged medicine failed: ${response.statusText}`);
     }
 
-    return response.json();
+    const data = await response.json();
+    return data.success ? data.data : data;
   }
 
   /**
    * Get search index statistics
    */
   async getStats(): Promise<any> {
-    const response = await fetch(`${this.baseUrl}/medicines/search/stats`);
+    const response = await this.fetchWithAuth(`${this.baseUrl}/medicines/stats`);
     if (!response.ok) {
       throw new Error(`Get stats failed: ${response.statusText}`);
     }
 
-    return response.json();
+    const data = await response.json();
+    return data.success ? data.data : data;
   }
 
   /**
    * Find medicine by barcode
    */
   async findByBarcode(barcode: string): Promise<any> {
-    const response = await fetch(`${this.baseUrl}/medicines/barcode/${barcode}`);
+    const response = await this.fetchWithAuth(`${this.baseUrl}/medicines/barcode/${barcode}`);
     if (!response.ok) {
       if (response.status === 404) {
         return null;

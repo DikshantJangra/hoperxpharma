@@ -1,54 +1,43 @@
-FROM node:18-slim
+# Multi-stage Dockerfile: Node.js Backend + Typesense in one container
+# This allows running both services together on a single Render instance
 
-# Install Chrome dependencies and Chrome itself
-RUN apt-get update && apt-get install -y \
-    wget \
-    gnupg \
-    ca-certificates \
-    fonts-liberation \
-    libappindicator3-1 \
-    libasound2 \
-    libatk-bridge2.0-0 \
-    libatk1.0-0 \
-    libcups2 \
-    libdbus-1-3 \
-    libgdk-pixbuf2.0-0 \
-    libnspr4 \
-    libnss3 \
-    libx11-xcb1 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxrandr2 \
-    libxss1 \
-    xdg-utils \
-    --no-install-recommends \
-    && wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add - \
-    && echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list \
-    && apt-get update \
-    && apt-get install -y google-chrome-stable --no-install-recommends \
-    && rm -rf /var/lib/apt/lists/*
+FROM node:20-alpine AS base
 
-# Skip Puppeteer's chromium download - we're using system Chrome
-ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+# Install Typesense binary
+FROM base AS typesense-installer
+WORKDIR /tmp
+RUN apk add --no-cache curl tar && \
+    curl -O https://dl.typesense.org/releases/27.1/typesense-server-27.1-linux-amd64.tar.gz && \
+    tar -xzf typesense-server-27.1-linux-amd64.tar.gz && \
+    chmod +x typesense-server
 
-# Set working directory
+# Final stage: Node.js + Typesense
+FROM base
 WORKDIR /app
 
-# Copy backend package files
-COPY backend/package*.json ./
+# Install supervisor to manage multiple processes
+RUN apk add --no-cache supervisor
 
-# Install dependencies
+# Copy Typesense binary
+COPY --from=typesense-installer /tmp/typesense-server /usr/local/bin/typesense-server
+
+# Copy backend code
+COPY backend/package*.json ./
 RUN npm ci --only=production
 
-# Copy backend application code
 COPY backend/ ./
 
-# Generate Prisma client
+# Generate Prisma Client
 RUN npx prisma generate
 
-# Expose port
-EXPOSE 8000
+# Create directories
+RUN mkdir -p /data/typesense /var/log/supervisor
 
-# Start the application
-CMD ["npm", "start"]
+# Copy supervisor configuration
+COPY supervisord.conf /etc/supervisord.conf
 
+# Expose ports
+EXPOSE 5000 8108
+
+# Start supervisor (manages both Node.js and Typesense)
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]

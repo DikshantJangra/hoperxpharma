@@ -64,19 +64,29 @@ export default function LineItemTable({
   };
 
   const handleMedicineSelect = (medicine: Medicine) => {
-    // Extract pack unit and size from packSize string (e.g., "strip of 10 tablets")
-    const packSizeMatch = medicine.packSize.match(/(\w+)\s+of\s+(\d+)/);
-    const packUnit = packSizeMatch ? packSizeMatch[1] : 'Strip';
-    const packSize = packSizeMatch ? parseInt(packSizeMatch[2]) : 10;
+    // Medicine Master data structure:
+    // - name, genericName, strength, form, manufacturerName, compositionText
+    // - No packSize field, so we'll use form (e.g., "Tablet", "Capsule", "Syrup")
+    
+    const packUnit = medicine.form || 'Strip';
+    const packSize = 10; // Default pack size
+    
+    // Build description from available fields
+    const description = [
+      medicine.name,
+      medicine.strength,
+      medicine.form,
+      medicine.manufacturerName
+    ].filter(Boolean).join(' - ');
 
     onAddLine({
       drugId: medicine.id, // Use medicine ID as drugId
-      description: `${medicine.name} - ${medicine.composition}`,
+      description: description,
       packUnit: packUnit,
       packSize: packSize,
       qty: 1,
       unit: packUnit.toLowerCase(),
-      pricePerUnit: medicine.price || 0,
+      pricePerUnit: medicine.price || 0, // Will be 0, user needs to enter
       gstPercent: 5, // Default to 5% for catalog items (editable)
       discountPercent: 0
     });
@@ -171,9 +181,8 @@ export default function LineItemTable({
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Item Details</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Pack</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-24">Qty</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-32">Price</th>
+                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-32">Estimated Price</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-24">GST</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-24">Disc %</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Total</th>
                 <th className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider w-10"></th>
               </tr>
@@ -191,7 +200,7 @@ export default function LineItemTable({
             </tbody>
             <tfoot className="bg-gray-50/50 font-medium">
               <tr>
-                <td colSpan={6} className="px-4 py-3 text-right text-sm text-gray-600">Subtotal</td>
+                <td colSpan={5} className="px-4 py-3 text-right text-sm text-gray-600">Subtotal</td>
                 <td className="px-4 py-3 text-sm text-gray-900">₹{lines.reduce((sum, line) => sum + line.lineNet, 0).toFixed(2)}</td>
                 <td></td>
               </tr>
