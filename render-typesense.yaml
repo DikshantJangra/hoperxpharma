@@ -1,0 +1,15 @@
+services:
+  - type: pserv
+    name: typesense
+    env: docker
+    dockerfilePath: ./Dockerfile.typesense
+    dockerContext: .
+    plan: starter
+    disk:
+      name: typesense-data
+      mountPath: /data
+      sizeGB: 10
+    envVars:
+      - key: TYPESENSE_API_KEY
+        generateValue: true
+    dockerCommand: --data-dir /data --api-key ${TYPESENSE_API_KEY} --enable-cors

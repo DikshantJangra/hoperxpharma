@@ -1,0 +1,180 @@
+{
+  "dashboard": {
+    "title": "Medicine Master API - Production Dashboard",
+    "tags": ["medicine", "api", "production"],
+    "timezone": "browser",
+    "panels": [
+      {
+        "title": "API Request Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(api_request_total[5m])",
+            "legendFormat": "{{method}} {{path}}"
+          }
+        ],
+        "yaxes": [
+          {
+            "label": "Requests/sec",
+            "format": "short"
+          }
+        ]
+      },
+      {
+        "title": "API Response Time (p95)",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(api_request_duration_bucket[5m]))",
+            "legendFormat": "{{path}}"
+          }
+        ],
+        "yaxes": [
+          {
+            "label": "Duration (ms)",
+            "format": "ms"
+          }
+        ]
+      },
+      {
+        "title": "Error Rate",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "rate(api_errors_total[5m])",
+            "legendFormat": "{{status_code}}"
+          }
+        ],
+        "alert": {
+          "conditions": [
+            {
+              "evaluator": {
+                "params": [0.05],
+                "type": "gt"
+              },
+              "operator": {
+                "type": "and"
+              },
+              "query": {
+                "params": ["A", "5m", "now"]
+              },
+              "reducer": {
+                "params": [],
+                "type": "avg"
+              },
+              "type": "query"
+            }
+          ],
+          "name": "High Error Rate Alert"
+        }
+      },
+      {
+        "title": "Search Performance",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "medicine_search_duration_avg",
+            "legendFormat": "Average"
+          },
+          {
+            "expr": "medicine_search_duration_max",
+            "legendFormat": "Max"
+          }
+        ],
+        "yaxes": [
+          {
+            "label": "Duration (ms)",
+            "format": "ms"
+          }
+        ]
+      },
+      {
+        "title": "Database Connections",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "pg_stat_database_numbackends",
+            "legendFormat": "Active Connections"
+          }
+        ]
+      },
+      {
+        "title": "Memory Usage",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "process_resident_memory_bytes",
+            "legendFormat": "RSS"
+          },
+          {
+            "expr": "nodejs_heap_size_used_bytes",
+            "legendFormat": "Heap Used"
+          }
+        ],
+        "yaxes": [
+          {
+            "label": "Bytes",
+            "format": "bytes"
+          }
+        ]
+      },
+      {
+        "title": "Medicine Operations",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "sum(increase(medicine_created_total[1h]))",
+            "legendFormat": "Created (1h)"
+          },
+          {
+            "expr": "sum(increase(medicine_updated_total[1h]))",
+            "legendFormat": "Updated (1h)"
+          },
+          {
+            "expr": "sum(increase(medicine_search_total[1h]))",
+            "legendFormat": "Searches (1h)"
+          }
+        ]
+      },
+      {
+        "title": "Typesense Health",
+        "type": "stat",
+        "targets": [
+          {
+            "expr": "typesense_health",
+            "legendFormat": "Status"
+          },
+          {
+            "expr": "typesense_documents_count",
+            "legendFormat": "Documents"
+          }
+        ]
+      },
+      {
+        "title": "Top Slow Endpoints",
+        "type": "table",
+        "targets": [
+          {
+            "expr": "topk(10, avg_over_time(api_request_duration_avg[1h]))",
+            "format": "table"
+          }
+        ]
+      },
+      {
+        "title": "Ingestion Queue",
+        "type": "graph",
+        "targets": [
+          {
+            "expr": "pending_medicine_count",
+            "legendFormat": "Pending Review"
+          }
+        ]
+      }
+    ],
+    "refresh": "30s",
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    }
+  }
+}

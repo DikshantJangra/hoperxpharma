@@ -5,6 +5,13 @@ const dashboardRoutes = require('./dashboard.routes');
 const drugRoutes = require('./drug.routes');
 const substituteRoutes = require('./substitute.routes');
 const saltIntelligenceRoutes = require('./saltIntelligence.routes');
+
+// Medicine Master routes (new system)
+const medicinesRoutes = require('./medicines.routes');
+const medicinesSearchRoutes = require('./medicines.search.routes');
+const medicinesOverlayRoutes = require('./medicines.overlay.routes');
+const medicinesIngestRoutes = require('./medicines.ingest.routes');
+const medicinesImagesRoutes = require('./medicines.images.routes');
 const storesRoutes = require('./stores.routes');
 const onboardingRoutes = require('./onboarding.routes');
 const patientsRoutes = require('./patients.routes');
@@ -57,6 +64,13 @@ router.use('/drugs', drugRoutes);
 router.use('/substitutes', substituteRoutes);
 router.use('/salt-intelligence', saltIntelligenceRoutes);
 router.use('/salt', require('./salt.routes'));
+
+// Medicine Master routes (new system)
+router.use('/medicines', medicinesRoutes);
+router.use('/medicines/search', medicinesSearchRoutes);
+router.use('/medicines/ingest', medicinesIngestRoutes);
+router.use('/medicines', medicinesImagesRoutes);
+router.use('/stores/:storeId/medicines', medicinesOverlayRoutes);
 router.use('/stores', storesRoutes);
 router.use('/onboarding', onboardingRoutes);
 router.use('/patients', patientsRoutes);

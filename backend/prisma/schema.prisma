@@ -259,6 +259,7 @@ model Store {
   emailAccounts       EmailAccount[]
   payments            Payment[]
   marginLedger        MarginLedger[]
+  storeOverlays       StoreOverlay[]
 
   @@index([email])
   @@index([deletedAt])
@@ -2688,17 +2689,18 @@ model DrugUnit {
 }
 
 model Salt {
-  id               String         @id @default(cuid())
-  name             String         @unique
-  category         String?
-  therapeuticClass String?
-  highRisk         Boolean        @default(false)
-  createdAt        DateTime       @default(now())
-  updatedAt        DateTime       @updatedAt
-  aliases          String[]
-  createdById      String?
-  createdBy        User?          @relation("SaltCreator", fields: [createdById], references: [id])
-  drugSaltLinks    DrugSaltLink[]
+  id                String             @id @default(cuid())
+  name              String             @unique
+  category          String?
+  therapeuticClass  String?
+  highRisk          Boolean            @default(false)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  aliases           String[]
+  createdById       String?
+  createdBy         User?              @relation("SaltCreator", fields: [createdById], references: [id])
+  drugSaltLinks     DrugSaltLink[]
+  medicineSaltLinks MedicineSaltLink[]
 
   @@index([name])
   @@index([category])
@@ -3242,4 +3244,291 @@ enum DrugIngestionStatus {
   DRAFT
   SALT_PENDING
   ACTIVE
+}
+
+enum MedicineStatus {
+  PENDING
+  VERIFIED
+  DISCONTINUED
+}
+
+model MedicineMaster {
+  id        String   @id @default(cuid()) @map("canonical_id")
+  legacyIds String[] @default([])
+
+  // Core attributes (universal)
+  name        String
+  genericName String?
+
+  // Composition (denormalized for search)
+  compositionText String
+
+  // Physical form
+  strength String?
+  form     String
+  packSize String
+
+  // Manufacturer
+  manufacturerId   String?
+  manufacturerName String
+
+  // Regulatory
+  schedule             String?
+  requiresPrescription Boolean @default(false)
+  hsnCode              String?
+  defaultGstRate       Decimal @default(0) @db.Decimal(5, 2)
+
+  // Barcodes
+  primaryBarcode      String?  @unique
+  alternativeBarcodes String[] @default([])
+
+  // Status
+  status          MedicineStatus @default(PENDING)
+  confidenceScore Int            @default(0)
+  usageCount      Int            @default(0)
+
+  // Media
+  globalImageUrls String[] @default([])
+
+  // Metadata
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  createdBy      String?
+  verifiedAt     DateTime?
+  verifiedBy     String?
+  discontinuedAt DateTime?
+
+  // Version control
+  version           Int     @default(1)
+  previousVersionId String?
+
+  // Relations
+  saltLinks        MedicineSaltLink[]
+  storeOverlays    StoreOverlay[]
+  versions         MedicineVersion[]
+  pendingMedicines PendingMedicine[]
+  idMappings       IdMapping[]
+
+  @@index([name])
+  @@index([primaryBarcode])
+  @@index([manufacturerName])
+  @@index([status])
+  @@index([compositionText])
+  @@index([usageCount])
+  @@index([createdAt])
+  @@map("medicine_master")
+}
+
+model MedicineSaltLink {
+  id            String   @id @default(cuid())
+  medicineId    String
+  saltId        String
+  saltName      String
+  strengthValue Decimal  @db.Decimal(10, 3)
+  strengthUnit  String
+  role          String   @default("PRIMARY")
+  order         Int      @default(1)
+  createdAt     DateTime @default(now())
+
+  medicine MedicineMaster @relation(fields: [medicineId], references: [id], onDelete: Cascade)
+  salt     Salt           @relation(fields: [saltId], references: [id], onDelete: Cascade)
+
+  @@unique([medicineId, saltId])
+  @@index([medicineId])
+  @@index([saltId])
+  @@index([saltId, strengthValue, strengthUnit])
+  @@map("medicine_salt_link")
+}
+
+model StoreOverlay {
+  id          String @id @default(cuid())
+  storeId     String
+  canonicalId String
+
+  // Pricing
+  customMrp           Decimal? @db.Decimal(10, 2)
+  customPurchasePrice Decimal? @db.Decimal(10, 2)
+  customDiscount      Decimal? @db.Decimal(10, 2)
+  customGstRate       Decimal? @db.Decimal(5, 2)
+  discountPercentage  Decimal? @db.Decimal(5, 2)
+  marginPercentage    Decimal? @db.Decimal(5, 2)
+
+  // Inventory
+  stockQuantity Int? @default(0)
+  reorderLevel  Int?
+
+  // Store-specific identifiers
+  internalSku     String?
+  internalBarcode String?
+  internalQrCode  String?
+
+  // Inventory settings
+  lowStockThreshold   Int?
+  reorderQuantity     Int?
+  preferredSupplierId String?
+
+  // Custom attributes
+  customNotes    String?
+  storeImageUrls String[] @default([])
+
+  // Status
+  isActive   Boolean @default(true)
+  isFavorite Boolean @default(false)
+
+  // Metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  store    Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  medicine MedicineMaster @relation(fields: [canonicalId], references: [id], onDelete: Cascade)
+
+  @@unique([storeId, canonicalId])
+  @@index([storeId])
+  @@index([canonicalId])
+  @@index([storeId, isActive])
+  @@index([storeId, isFavorite])
+  @@map("store_overlay")
+}
+
+enum PendingMedicineStatus {
+  PENDING
+  REVIEWING
+  APPROVED
+  REJECTED
+  MERGED
+}
+
+enum IngestionSource {
+  OCR
+  MANUAL
+  BARCODE
+  IMPORT
+}
+
+model PendingMedicine {
+  id String @id @default(cuid())
+
+  // Submitted data
+  submittedData Json
+  source        IngestionSource
+
+  // Processing status
+  status PendingMedicineStatus @default(PENDING)
+
+  // Validation results
+  validationErrors    Json?
+  duplicateCandidates Json?
+
+  // Scoring
+  confidenceScore       Int @default(0)
+  dataCompletenessScore Int @default(0)
+
+  // Usage tracking
+  sourceStoreId  String
+  usedByStoreIds String[] @default([])
+
+  // Review
+  reviewedBy  String?
+  reviewedAt  DateTime?
+  reviewNotes String?
+
+  // Resolution
+  resolvedCanonicalId String?
+  rejectionReason     String?
+
+  // Metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  resolvedMedicine MedicineMaster? @relation(fields: [resolvedCanonicalId], references: [id])
+
+  @@index([status])
+  @@index([sourceStoreId])
+  @@index([resolvedCanonicalId])
+  @@index([createdAt])
+  @@index([confidenceScore])
+  @@map("pending_medicine")
+}
+
+model MedicineVersion {
+  id             String @id @default(cuid())
+  medicineId     String @map("canonical_id")
+  versionNumber  Int    @map("version")
+
+  // Snapshot of data at this version
+  snapshotData Json @map("data")
+
+  // Change tracking
+  changedFields String[] @default([])
+  changeReason  String?  @map("change_reason")
+  changeType    String   @default("UPDATED")
+  changedBy     String?
+  changedAt     DateTime @default(now())
+
+  // Rollback info
+  isRolledBack Boolean   @default(false)
+  rolledBackAt DateTime?
+  rolledBackBy String?
+
+  // Relations
+  medicine MedicineMaster @relation(fields: [medicineId], references: [id], onDelete: Cascade)
+
+  @@unique([medicineId, versionNumber])
+  @@index([medicineId, changedAt])
+  @@index([changedBy])
+  @@map("medicine_version")
+}
+
+model IdMapping {
+  id          String   @id @default(cuid())
+  oldId       String   @unique
+  canonicalId String
+  source      String   @default("CSV_MIGRATION")
+  createdAt   DateTime @default(now())
+
+  // Relations
+  medicine MedicineMaster @relation(fields: [canonicalId], references: [id], onDelete: Cascade)
+
+  @@index([canonicalId])
+  @@index([source])
+  @@map("id_mapping")
+}
+
+enum ImageType {
+  FRONT
+  BACK
+  STRIP
+  BOX
+  OTHER
+}
+
+model MedicineImage {
+  id          String    @id @default(cuid())
+  canonicalId String
+  storeId     String?
+  imageType   ImageType @default(FRONT)
+
+  // Storage
+  url         String
+  contentHash String
+  fileSize    Int
+  mimeType    String    @default("image/webp")
+
+  // Global vs Store-specific
+  isGlobal      Boolean   @default(false)
+  contributedBy String?
+  contributedAt DateTime?
+
+  // Metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([canonicalId, imageType, storeId])
+  @@index([canonicalId])
+  @@index([contentHash])
+  @@index([isGlobal])
+  @@index([storeId])
+  @@map("medicine_image")
 }
