@@ -53,7 +53,8 @@ app.use(helmet({
 // CORS configuration
 // Strict origin validation to prevent security vulnerabilities
 const allowedOrigins = [
-  process.env.FRONTEND_URL || 'https://hoperxpharma.vercel.app'
+  process.env.FRONTEND_URL || 'https://hoperxpharma.vercel.app',
+  'https://hoperxpharma.vercel.app' // Always allow main production URL
 ];
 
 // In development, allow localhost with specific ports only
@@ -68,6 +69,11 @@ if (process.env.ALLOWED_ORIGINS) {
   allowedOrigins.push(...additionalOrigins);
 }
 
+// Allow all Vercel preview deployments in production
+if (process.env.NODE_ENV === 'production') {
+  allowedOrigins.push(/^https:\/\/hoperxpharma.*\.vercel\.app$/);
+}
+
 logger.info(`CORS: Allowed origins - ${allowedOrigins.join(', ')}`);
 
 /**
@@ -80,8 +86,13 @@ function isOriginAllowed(origin) {
   try {
     const originUrl = new URL(origin);
 
-    // Check against allowed origins with exact match
+    // Check against allowed origins with exact match or regex
     return allowedOrigins.some(allowed => {
+      // Handle regex patterns (for Vercel preview URLs)
+      if (allowed instanceof RegExp) {
+        return allowed.test(origin);
+      }
+      
       try {
         const allowedUrl = new URL(allowed);
         // Exact match: protocol, hostname, and port must all match

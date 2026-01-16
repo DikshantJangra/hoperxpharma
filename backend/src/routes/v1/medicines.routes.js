@@ -14,9 +14,10 @@ const { asyncHandler } = require('../../middlewares/errorHandler');
 const { rateLimit } = require('express-rate-limit');
 const { validateCreateMedicine, validateUpdateMedicine } = require('../../middlewares/validateMedicine');
 
-// Use In-Memory Search (super fast, auto-syncs with database)
-const searchService = require('../../services/InMemorySearchService').inMemorySearchService;
-console.log(`🔍 Using In-Memory Search for medicines (ultra-fast)`);
+// Use PostgreSQL Search (memory-efficient, prevents OOM errors)
+// InMemorySearchService was causing >512MB memory usage by loading all medicines into RAM
+const searchService = require('../../services/PostgresSearchService').postgresSearchService;
+console.log(`🔍 Using PostgreSQL Search for medicines (memory-efficient)`);
 
 const router = express.Router();
 
@@ -49,11 +50,11 @@ router.use(apiLimiter);
  */
 router.get('/search', asyncHandler(async (req, res) => {
   const { q, manufacturer, schedule, requiresPrescription, discontinued, form, limit = 20, offset = 0 } = req.query;
-  
+
   if (!q) {
     throw ApiError.badRequest('Search query (q) is required');
   }
-  
+
   const results = await searchService.search({
     query: q,
     manufacturer,
@@ -64,7 +65,7 @@ router.get('/search', asyncHandler(async (req, res) => {
     limit: parseInt(limit),
     offset: parseInt(offset)
   });
-  
+
   res.json({ success: true, data: results });
 }));
 
@@ -75,16 +76,16 @@ router.get('/search', asyncHandler(async (req, res) => {
  */
 router.get('/autocomplete', asyncHandler(async (req, res) => {
   const { q, limit = 10 } = req.query;
-  
+
   if (!q) {
     throw ApiError.badRequest('Search query (q) is required');
   }
-  
+
   const results = await searchService.autocomplete({
     query: q,
     limit: parseInt(limit)
   });
-  
+
   res.json({ success: true, data: results });
 }));
 
@@ -95,11 +96,11 @@ router.get('/autocomplete', asyncHandler(async (req, res) => {
  */
 router.get('/search/by-composition', asyncHandler(async (req, res) => {
   const { salt, limit = 20 } = req.query;
-  
+
   if (!salt) {
     throw ApiError.badRequest('Salt name is required');
   }
-  
+
   const results = await searchService.searchByComposition(salt, parseInt(limit));
   res.json({ success: true, data: results });
 }));
@@ -111,11 +112,11 @@ router.get('/search/by-composition', asyncHandler(async (req, res) => {
  */
 router.get('/search/by-manufacturer', asyncHandler(async (req, res) => {
   const { manufacturer, limit = 20 } = req.query;
-  
+
   if (!manufacturer) {
     throw ApiError.badRequest('Manufacturer name is required');
   }
-  
+
   const results = await searchService.searchByManufacturer(manufacturer, parseInt(limit));
   res.json({ success: true, data: results });
 }));
@@ -129,20 +130,8 @@ router.get('/stats', asyncHandler(async (req, res) => {
   res.json({ success: true, data: stats });
 }));
 
-/**
- * POST /api/v1/medicines/reload-search
- * Force reload in-memory search index (admin only)
- */
-router.post('/reload-search', asyncHandler(async (req, res) => {
-  console.log('🔄 Manual search reload triggered');
-  await searchService.reload();
-  const stats = await searchService.getIndexStats();
-  res.json({ 
-    success: true, 
-    message: 'Search index reloaded successfully',
-    data: stats 
-  });
-}));
+// Note: reload-search endpoint removed - not needed for PostgresSearchService
+// PostgreSQL search queries the database directly, no index reloading required
 
 /**
  * POST /api/v1/medicines
@@ -163,11 +152,11 @@ router.post('/', validateCreateMedicine, asyncHandler(async (req, res) => {
 router.get('/:id', asyncHandler(async (req, res) => {
   const { id } = req.params;
   const medicine = await medicineMasterService.getById(id);
-  
+
   if (!medicine) {
     throw ApiError.notFound(`Medicine ${id} not found`);
   }
-  
+
   res.json({ success: true, data: medicine });
 }));
 
@@ -215,11 +204,11 @@ router.post('/:id/rollback', asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { versionNumber } = req.body;
   const userId = req.user?.id || 'system';
-  
+
   if (!versionNumber) {
     throw ApiError.badRequest('versionNumber is required');
   }
-  
+
   const medicine = await medicineMasterService.rollback(id, versionNumber, userId);
   res.json({ success: true, data: medicine });
 }));
@@ -232,11 +221,11 @@ router.post('/:id/rollback', asyncHandler(async (req, res) => {
 router.get('/barcode/:barcode', asyncHandler(async (req, res) => {
   const { barcode } = req.params;
   const medicine = await medicineMasterService.findByBarcode(barcode);
-  
+
   if (!medicine) {
     throw ApiError.notFound(`Medicine with barcode ${barcode} not found`);
   }
-  
+
   res.json({ success: true, data: medicine });
 }));
 
@@ -248,11 +237,11 @@ router.get('/barcode/:barcode', asyncHandler(async (req, res) => {
 router.post('/bulk', asyncHandler(async (req, res) => {
   const { medicines } = req.body;
   const userId = req.user?.id || 'system';
-  
+
   if (!Array.isArray(medicines)) {
     throw ApiError.badRequest('medicines must be an array');
   }
-  
+
   const result = await medicineMasterService.bulkCreate(medicines, userId);
   res.json({ success: true, data: result });
 }));
@@ -265,11 +254,11 @@ router.post('/bulk', asyncHandler(async (req, res) => {
 router.put('/bulk', asyncHandler(async (req, res) => {
   const { updates } = req.body;
   const userId = req.user?.id || 'system';
-  
+
   if (!Array.isArray(updates)) {
     throw ApiError.badRequest('updates must be an array');
   }
-  
+
   const result = await medicineMasterService.bulkUpdate(updates, userId);
   res.json({ success: true, data: result });
 }));

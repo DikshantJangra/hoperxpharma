@@ -20,14 +20,16 @@ class InMemorySearchService extends EventEmitter {
         this.compositionIndex = new Map(); // lowercase composition -> Set of ids
         this.barcodeIndex = new Map(); // barcode -> id
         this.prefixTrie = {}; // Trie for autocomplete
-        
+
         this.isLoaded = false;
         this.isLoading = false;
         this.lastSyncTime = null;
         this.medicineCount = 0;
-        
-        // Auto-load on startup
-        this.initialize();
+
+        // ⚠️ DISABLED: Auto-initialization causes out-of-memory errors in production
+        // This service loads ALL medicines into RAM, which exceeds 512MB limit
+        // Use PostgresSearchService instead for production environments
+        // this.initialize();
     }
 
     /**
@@ -38,10 +40,10 @@ class InMemorySearchService extends EventEmitter {
             console.log('🔄 Initializing In-Memory Search Service...');
             console.log('📊 Starting to load medicines from database...');
             await this.loadAllMedicines();
-            
+
             // Start background sync every 5 minutes
             this.startBackgroundSync();
-            
+
             console.log(`✅ In-Memory Search Service ready (${this.medicineCount} medicines loaded)`);
             console.log(`📊 Memory indexes built: ${this.nameIndex.size} names, ${this.manufacturerIndex.size} manufacturers`);
         } catch (error) {
@@ -64,7 +66,7 @@ class InMemorySearchService extends EventEmitter {
 
         try {
             console.log('📊 Loading medicines from database...');
-            
+
             const medicines = await prisma.medicineMaster.findMany({
                 where: {
                     status: { not: 'DISCONTINUED' }
@@ -101,11 +103,11 @@ class InMemorySearchService extends EventEmitter {
             this.medicineCount = medicines.length;
             this.isLoaded = true;
             this.lastSyncTime = new Date();
-            
+
             const duration = Date.now() - startTime;
             console.log(`✅ Loaded ${this.medicineCount} medicines in ${duration}ms`);
             console.log(`📊 Memory usage: ~${Math.round(this.medicineCount * 0.3)}KB`);
-            
+
             this.emit('loaded', { count: this.medicineCount, duration });
         } catch (error) {
             console.error('❌ Failed to load medicines:', error);
@@ -121,7 +123,7 @@ class InMemorySearchService extends EventEmitter {
      */
     addMedicineToIndex(medicine) {
         const id = medicine.id;
-        
+
         // Store medicine
         this.medicines.set(id, medicine);
 
@@ -132,7 +134,7 @@ class InMemorySearchService extends EventEmitter {
                 this.nameIndex.set(nameLower, new Set());
             }
             this.nameIndex.get(nameLower).add(id);
-            
+
             // Add to prefix trie
             this.addToTrie(nameLower, id);
         }
@@ -263,7 +265,7 @@ class InMemorySearchService extends EventEmitter {
         if (resultIds.size === 0 && queryLower.length >= 3) {
             console.log('🔍 No exact matches, trying fuzzy search...');
             const fuzzyThreshold = 0.6; // 60% similarity required
-            
+
             for (const [name, ids] of this.nameIndex) {
                 const similarity = this.calculateSimilarity(queryLower, name);
                 if (similarity >= fuzzyThreshold) {
@@ -349,7 +351,7 @@ class InMemorySearchService extends EventEmitter {
      */
     searchTrie(prefix) {
         let node = this.prefixTrie;
-        
+
         // Navigate to prefix
         for (const char of prefix) {
             if (!node[char]) {
@@ -406,7 +408,7 @@ class InMemorySearchService extends EventEmitter {
             lastSyncTime: this.lastSyncTime,
             createdAt: Date.now(),
         };
-        
+
         console.log(`📊 Stats requested: ${this.medicineCount} medicines loaded, isLoaded: ${this.isLoaded}`);
         return stats;
     }
@@ -508,11 +510,11 @@ class InMemorySearchService extends EventEmitter {
      */
     startBackgroundSync() {
         console.log('🔄 Background sync started (checks every 5 minutes)');
-        
+
         setInterval(async () => {
             try {
                 console.log('🔄 Running background sync check...');
-                
+
                 // Check if there are new medicines
                 const count = await prisma.medicineMaster.count({
                     where: { status: { not: 'DISCONTINUED' } }
