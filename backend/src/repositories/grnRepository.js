@@ -107,14 +107,14 @@ class GRNRepository {
                         supplier: true
                     }
                 },
-                  
+
                 receivedByUser: {
                     select: {
                         firstName: true,
                         lastName: true
                     }
                 },
-                  
+
                 attachments: {
                     orderBy: {
                         uploadedAt: 'desc'
@@ -243,545 +243,202 @@ class GRNRepository {
         });
     }
 
-    // logger.info(`GRN completed: ${completedGRN.grnNumber} - Inventory updated, PO status: ${updatedPO.status}`);
     /**
-     * Complete GRN - Update inventory, PO status, create stock movements
+     * Complete GRN - Delegates to GRNCompletionService
+     * Repository now only handles data access, business logic extracted to service
      */
     async completeGRN(grnId, status, userId) {
-        return await prisma.$transaction(async (tx) => {
-            // Get GRN with all details
-            const grn = await tx.goodsReceivedNote.findUnique({
-                where: { id: grnId },
-                include: {
-                    items: {
-                        include: {
-                            children: true
-                        }
-                    },
-                    po: {
-                        include: {
-                            items: true
-                        }
-                    }
-                }
-            });
-
-            if (!grn) {
-                throw new Error('GRN not found');
-            }
-
-            if (grn.status !== 'DRAFT' && grn.status !== 'IN_PROGRESS') {
-                throw new Error('Can only complete draft or in-progress GRNs');
-            }
-
-            // Ensure all drugs exist in this store (create copies if needed)
-            // This handles the case where a PO was created with drugs from other stores
-            const drugIds = new Set(grn.items.map(item => item.drugId));
-            for (const drugId of drugIds) {
-                const drug = await tx.drug.findUnique({
-                    where: { id: drugId }
-                });
-
-                if (!drug) {
-                    throw new Error(`Drug ${drugId} not found`);
-                }
-
-                // Check if this drug exists in the GRN's store
-                if (drug.storeId !== grn.storeId) {
-                    // Drug belongs to a different store, create a copy for this store
-                    const existingDrugInStore = await tx.drug.findFirst({
-                        where: {
-                            storeId: grn.storeId,
-                            name: drug.name,
-                            strength: drug.strength,
-                            form: drug.form
-                        }
-                    });
-
-                    let storeDrugId;
-                    if (existingDrugInStore) {
-                        // Use existing drug in this store
-                        storeDrugId = existingDrugInStore.id;
-                    } else {
-                        // Create a new drug for this store
-                        const newDrug = await tx.drug.create({
-                            data: {
-                                storeId: grn.storeId,
-                                rxcui: drug.rxcui,
-                                name: drug.name,
-                                genericName: drug.genericName,
-                                strength: drug.strength,
-                                form: drug.form,
-                                manufacturer: drug.manufacturer,
-                                schedule: drug.schedule,
-                                hsnCode: drug.hsnCode,
-                                gstRate: drug.gstRate,
-                                requiresPrescription: drug.requiresPrescription,
-                                defaultUnit: drug.defaultUnit,
-                                lowStockThreshold: drug.lowStockThreshold,
-                                description: drug.description
-                            }
-                        });
-                        storeDrugId = newDrug.id;
-                    }
-
-                    // Update all GRN items that reference the old drug to use the store-specific drug
-                    await tx.gRNItem.updateMany({
-                        where: {
-                            grnId: grn.id,
-                            drugId: drugId
-                        },
-                        data: {
-                            drugId: storeDrugId
-                        }
-                    });
-                }
-            }
-
-            // Re-fetch GRN with updated drugIds
-            const updatedGrn = await tx.goodsReceivedNote.findUnique({
-                where: { id: grnId },
-                include: {
-                    items: {
-                        where: { parentItemId: null },
-                        include: { children: true }
-                    },
-                    po: true
-                }
-            });
-
-            // 1. Create inventory batches for each GRN item
-            // Flatten items to include children of split batches
-            // logger.info('🔍 GRN Items before flattening:', updatedGrn.items.length);
-            // logger.info('🔍 Items:', JSON.stringify(updatedGrn.items.map(i => ({
-            //     id: i.id,
-            //     batchNumber: i.batchNumber,
-            //     isSplit: i.isSplit,
-            //     hasChildren: !!i.children,
-            //     childrenCount: i.children?.length || 0,
-            //     receivedQty: i.receivedQty,
-            //     freeQty: i.freeQty
-            // })), null, 2));
-
-            const allItems = updatedGrn.items.flatMap(item => {
-                // Skip parent items that are split - only return their children
-                if (item.isSplit) {
-                    // logger.info(`🔍 Item ${item.batchNumber} is SPLIT, returning ${item.children?.length || 0} children`);
-                    return item.children || [];
-                }
-                // Return non-split items
-                // logger.info(`🔍 Item ${item.batchNumber} is NOT split, returning itself`);
-                return [item];
-            });
-
-            // logger.info('🔍 Flattened items count:', allItems.length);
-            // logger.info('🔍 Flattened items:', JSON.stringify(allItems.map(i => ({
-            //     id: i.id,
-            //     batchNumber: i.batchNumber,
-            //     receivedQty: i.receivedQty,
-            //     freeQty: i.freeQty
-            // })), null, 2));
-
-            // Validate: No TBD batches allowed
-            const tbdItems = allItems.filter(item => item.batchNumber === 'TBD');
-            if (tbdItems.length > 0) {
-                throw new Error(`Cannot complete GRN: ${tbdItems.length} item(s) still have batch number "TBD". Please update all batch numbers before completing.`);
-            }
-
-            for (const item of allItems) {
-                const totalQty = item.receivedQty + item.freeQty;
-                // logger.info(`🔍 Processing item ${item.batchNumber}, totalQty: ${totalQty}`);
-
-                if (totalQty > 0) {
-                    // logger.info(`🔍 Creating/updating inventory for batch ${item.batchNumber}`);
-
-                    // Calculate base unit quantity if unit conversion is configured
-                    let baseUnitQty = totalQty; // Default 1:1
-                    let receivedUnit = 'unit';
-                    let receivedQuantity = totalQty;
-
-                    try {
-                        const grnUnitHelper = require('./grnUnitConversionHelper');
-                        const packUnit = updatedGrn.po?.items?.find(pi => pi.id === item.poItemId)?.packUnit || 'unit';
-                        const packSize = updatedGrn.po?.items?.find(pi => pi.id === item.poItemId)?.packSize || 1;
-
-                        const conversion = await grnUnitHelper.calculateBaseUnitQty(
-                            {
-                                drugId: item.drugId,
-                                receivedQty: item.receivedQty,
-                                freeQty: item.freeQty
-                            },
-                            packUnit,
-                            packSize
-                        );
-
-                        baseUnitQty = conversion.baseUnitQty;
-                        receivedUnit = conversion.receivedUnit;
-                        receivedQuantity = conversion.receivedQuantity;
-                    } catch (error) {
-                        // Fallback to simple quantity if conversion fails
-                        logger.warn(`Unit conversion failed for batch ${item.batchNumber}, using 1:1 mapping:`, error.message);
-                    }
-
-                    const batch = await tx.inventoryBatch.upsert({
-                        where: {
-                            storeId_batchNumber_drugId: {
-                                storeId: grn.storeId,
-                                batchNumber: item.batchNumber,
-                                drugId: item.drugId
-                            }
-                        },
-                        update: {
-                            quantityInStock: {
-                                increment: totalQty
-                            },
-                            baseUnitQuantity: {
-                                increment: baseUnitQty
-                            },
-                            // Update price/location if necessary
-                            mrp: item.mrp,
-                            purchasePrice: item.unitPrice,
-                            location: item.location || undefined,
-                            manufacturerBarcode: item.manufacturerBarcode || undefined
-                        },
-                        create: {
-                            storeId: grn.storeId,
-                            drugId: item.drugId,
-                            batchNumber: item.batchNumber,
-                            expiryDate: item.expiryDate,
-                            quantityInStock: totalQty,
-                            baseUnitQuantity: baseUnitQty,
-                            baseUnitReserved: 0,
-                            receivedUnit,
-                            receivedQuantity,
-                            mrp: item.mrp,
-                            purchasePrice: item.unitPrice,
-                            supplierId: grn.supplierId,
-                            location: item.location || null,
-                            manufacturerBarcode: item.manufacturerBarcode || null
-                        }
-                    });
-
-                    // CRITICAL: Enroll manufacturer barcode in registry for POS scanning
-                    if (item.manufacturerBarcode) {
-                        // Check if barcode already exists
-                        const existingBarcode = await tx.barcodeRegistry.findUnique({
-                            where: { barcode: item.manufacturerBarcode }
-                        });
-
-                        if (!existingBarcode) {
-                            await tx.barcodeRegistry.create({
-                                data: {
-                                    barcode: item.manufacturerBarcode,
-                                    batchId: batch.id,
-                                    barcodeType: 'MANUFACTURER',
-                                    unitType: 'STRIP', // Default, maybe derive from pack unit?
-                                    manufacturerCode: item.manufacturerBarcode
-                                }
-                            });
-                        } else if (existingBarcode.batchId !== batch.id) {
-                            // If it points to an old batch, should we update it?
-                            // For manufacturer barcodes, they might reuse EAN-13 for different batches of same drug.
-                            // The system currently enforces 1:1 or 1:Many (Barcode -> Batch).
-                            // If we want multiple batches to share a barcode, we need a refined lookup strategy.
-                            // For now, let's keep the FIRST enrollment as the primary one, unless we explicitly handle multi-batch lookup.
-                            // BUT, user wants to sell THIS batch.
-
-                            // Strategy: Scan Service handles multi-batch lookup if we verify `drugId`.
-                            // But `BarcodeRegistry.barcode` is `@unique`.
-                            // So we can only have ONE batch linked to a barcode.
-
-                            // TEMPORARY FIX: Updating registry to point to NEWEST batch (FIFO-ish behavior for scan)
-                            // This ensures if I scan the product I just bought, I get the new batch.
-                            await tx.barcodeRegistry.update({
-                                where: { id: existingBarcode.id },
-                                data: { batchId: batch.id }
-                            });
-                        }
-                    }
-
-                    // logger.info(`✅ Inventory batch ${item.batchNumber} created/updated, qty: ${totalQty}`);
-
-                    // Create stock movement
-                    const createdBatch = await tx.inventoryBatch.findFirst({
-                        where: {
-                            storeId: grn.storeId,
-                            drugId: item.drugId,
-                            batchNumber: item.batchNumber
-                        }
-                    });
-
-                    if (createdBatch) {
-                        await tx.stockMovement.create({
-                            data: {
-                                batchId: createdBatch.id,
-                                movementType: 'IN',
-                                quantity: totalQty,
-                                reason: `GRN ${grn.grnNumber}`,
-                                referenceType: 'grn',
-                                referenceId: grn.id,
-                                userId
-                            }
-                        });
-                    }
-                }
-            }
-
-            // 2. Update PO item received quantities
-            // IMPORTANT: Only count receivedQty, NOT freeQty for shortage detection
-            // Free items are bonus from supplier, not part of the ordered quantity
-            for (const grnItem of grn.items) {
-                // Update receivedQty with ONLY the actual received quantity (not free)
-                await tx.purchaseOrderItem.update({
-                    where: { id: grnItem.poItemId },
-                    data: {
-                        receivedQty: {
-                            increment: grnItem.receivedQty  // Only actual received, NOT including freeQty
-                        }
-                    }
-                });
-            }
-
-            // 3. Determine PO status based on received quantities
-            const updatedPO = await tx.purchaseOrder.findUnique({
-                where: { id: grn.poId },
-                include: { items: true }
-            });
-
-            let newPOStatus = 'RECEIVED';
-            for (const poItem of updatedPO.items) {
-                // Check if receivedQty (not including free qty) meets orderedQty
-                if (poItem.receivedQty < poItem.quantity) {
-                    newPOStatus = 'PARTIALLY_RECEIVED';
-                    break;
-                }
-            }
-
-            // Override: If user explicitly marked GRN as COMPLETED, accept shortages
-            // So we force the PO status to RECEIVED
-            if (status === 'COMPLETED') {
-                newPOStatus = 'RECEIVED';
-            }
-
-            // Update PO status
-            await tx.purchaseOrder.update({
-                where: { id: grn.poId },
-                data: { status: newPOStatus }
-            });
-
-            // 4. Mark GRN as completed with the specified status
-            const completedGRN = await tx.goodsReceivedNote.update({
-                where: { id: grnId },
-                data: {
-                    status: status || 'COMPLETED',  // Use provided status or default to COMPLETED
-                    completedAt: new Date()
-                },
-                include: {
-                    items: true,
-                    discrepancies: true,
-                    po: {
-                        include: {
-                            items: true,
-                            supplier: true
-                        }
-                    }
-                }
-            });
-
-            return completedGRN;
-        }, {
-            maxWait: 10000, // Wait up to 10s to start transaction
-            timeout: 15000  // Transaction can run for up to 15s
-        });
+        const grnCompletionService = require('../services/grn/grnCompletionService');
+        return await grnCompletionService.complete(grnId, status, userId);
     }
 
     async cancelGRN(grnId) {
-        return await prisma.goodsReceivedNote.update({
-            where: { id: grnId },
-            data: {
-                status: 'CANCELLED'
-            }
-        });
-    }
+    return await prisma.goodsReceivedNote.update({
+        where: { id: grnId },
+        data: {
+            status: 'CANCELLED'
+        }
+    });
+}
 
     /**
      * Delete GRN (Hard Delete)
      * Must delete children first due to Restrict constraint
      */
     async deleteGRN(grnId) {
-        return await prisma.$transaction(async (tx) => {
-            // 1. Delete all child GRN items first (those with parentItemId)
-            await tx.gRNItem.deleteMany({
-                where: {
-                    grnId,
-                    parentItemId: { not: null }
-                }
-            });
-
-            // 2. Delete all parent GRN items (those without parentItemId)
-            await tx.gRNItem.deleteMany({
-                where: {
-                    grnId,
-                    parentItemId: null
-                }
-            });
-
-            // 3. Delete discrepancies (if any)
-            await tx.gRNDiscrepancy.deleteMany({
-                where: { grnId }
-            });
-
-            // 4. Delete attachments (handled by Cascade, but explicit for clarity)
-            await tx.gRNAttachment.deleteMany({
-                where: { grnId }
-            });
-
-            // 5. Finally delete the GRN itself
-            return await tx.goodsReceivedNote.delete({
-                where: { id: grnId }
-            });
+    return await prisma.$transaction(async (tx) => {
+        // 1. Delete all child GRN items first (those with parentItemId)
+        await tx.gRNItem.deleteMany({
+            where: {
+                grnId,
+                parentItemId: { not: null }
+            }
         });
-    }
+
+        // 2. Delete all parent GRN items (those without parentItemId)
+        await tx.gRNItem.deleteMany({
+            where: {
+                grnId,
+                parentItemId: null
+            }
+        });
+
+        // 3. Delete discrepancies (if any)
+        await tx.gRNDiscrepancy.deleteMany({
+            where: { grnId }
+        });
+
+        // 4. Delete attachments (handled by Cascade, but explicit for clarity)
+        await tx.gRNAttachment.deleteMany({
+            where: { grnId }
+        });
+
+        // 5. Finally delete the GRN itself
+        return await tx.goodsReceivedNote.delete({
+            where: { id: grnId }
+        });
+    });
+}
 
     /**
      * Get GRNs by PO ID
      */
     async getGRNsByPOId(poId) {
-        const grns = await prisma.goodsReceivedNote.findMany({
-            where: { poId },
-            include: {
-                items: {
-                    where: {
-                        parentItemId: null  // Only get top-level items (exclude children)
-                    },
-                    orderBy: {
-                        id: 'asc'  // Stable ordering
-                    },
-                    include: {
-                        drug: true,  // Include drug information directly on GRN items
-                        children: {
-                            orderBy: {
-                                id: 'asc'  // Also order child batches
-                            },
-                            include: {
-                                drug: true  // Include drug information on child items too
-                            }
-                        }
-                    }
+    const grns = await prisma.goodsReceivedNote.findMany({
+        where: { poId },
+        include: {
+            items: {
+                where: {
+                    parentItemId: null  // Only get top-level items (exclude children)
                 },
-                discrepancies: true,
-                po: {
-                    include: {
-                        items: {
-                            include: {
-                                drug: true
-                            }
+                orderBy: {
+                    id: 'asc'  // Stable ordering
+                },
+                include: {
+                    drug: true,  // Include drug information directly on GRN items
+                    children: {
+                        orderBy: {
+                            id: 'asc'  // Also order child batches
                         },
-                        supplier: true
-                    }
-                },
-                  
-                receivedByUser: {
-                    select: {
-                        firstName: true,
-                        lastName: true
-                    }
-                },
-                  
-                attachments: {
-                    orderBy: {
-                        uploadedAt: 'desc'
+                        include: {
+                            drug: true  // Include drug information on child items too
+                        }
                     }
                 }
             },
-            orderBy: {
-                createdAt: 'desc'
-            }
-        });
+            discrepancies: true,
+            po: {
+                include: {
+                    items: {
+                        include: {
+                            drug: true
+                        }
+                    },
+                    supplier: true
+                }
+            },
 
-        // Convert BigInt to Number for attachments
-        return grns.map(grn => ({
-            ...grn,
-            attachments: grn.attachments?.map(att => ({
-                ...att,
-                originalSize: Number(att.originalSize),
-                compressedSize: Number(att.compressedSize),
-            })) || []
-        }));
-    }
+            receivedByUser: {
+                select: {
+                    firstName: true,
+                    lastName: true
+                }
+            },
+
+            attachments: {
+                orderBy: {
+                    uploadedAt: 'desc'
+                }
+            }
+        },
+        orderBy: {
+            createdAt: 'desc'
+        }
+    });
+
+    // Convert BigInt to Number for attachments
+    return grns.map(grn => ({
+        ...grn,
+        attachments: grn.attachments?.map(att => ({
+            ...att,
+            originalSize: Number(att.originalSize),
+            compressedSize: Number(att.compressedSize),
+        })) || []
+    }));
+}
 
     /**
      * Get GRNs by store with filters
      */
     async getGRNs(filters = {}) {
-        const { storeId, status, limit = 50, offset = 0 } = filters;
+    const { storeId, status, limit = 50, offset = 0 } = filters;
 
-        const where = {};
-        if (storeId) where.storeId = storeId;
-        if (status) where.status = status;
+    const where = {};
+    if (storeId) where.storeId = storeId;
+    if (status) where.status = status;
 
-        return await prisma.goodsReceivedNote.findMany({
-            where,
-            include: {
-                po: {
-                    include: {
-                        supplier: true
-                    }
-                },
-                items: true
+    return await prisma.goodsReceivedNote.findMany({
+        where,
+        include: {
+            po: {
+                include: {
+                    supplier: true
+                }
             },
-            orderBy: {
-                createdAt: 'desc'
-            },
-            take: limit,
-            skip: offset
-        });
-    }
+            items: true
+        },
+        orderBy: {
+            createdAt: 'desc'
+        },
+        take: limit,
+        skip: offset
+    });
+}
     /**
      * Generate GRN number with race condition handling
      */
     async generateGRNNumber(storeId) {
-        const today = new Date();
-        const prefix = `GRN${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')} `;
+    const today = new Date();
+    const prefix = `GRN${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')} `;
 
-        // Try up to 5 times to generate a unique GRN number
-        for (let attempt = 0; attempt < 5; attempt++) {
-            const lastGRN = await prisma.goodsReceivedNote.findFirst({
-                where: {
-                    storeId,
-                    grnNumber: {
-                        startsWith: prefix,
-                    },
+    // Try up to 5 times to generate a unique GRN number
+    for (let attempt = 0; attempt < 5; attempt++) {
+        const lastGRN = await prisma.goodsReceivedNote.findFirst({
+            where: {
+                storeId,
+                grnNumber: {
+                    startsWith: prefix,
                 },
-                orderBy: { createdAt: 'desc' },
-            });
+            },
+            orderBy: { createdAt: 'desc' },
+        });
 
-            let sequence = 1;
-            if (lastGRN) {
-                const lastSequence = parseInt(lastGRN.grnNumber.slice(-4));
-                sequence = lastSequence + 1;
-            }
-
-            const grnNumber = `${prefix}${String(sequence).padStart(4, '0')} `;
-
-            // Check if this number already exists
-            const existing = await prisma.goodsReceivedNote.findUnique({
-                where: { grnNumber },
-                select: { id: true }
-            });
-
-            if (!existing) {
-                return grnNumber;
-            }
-
-            // If it exists, add a small delay and retry
-            await new Promise(resolve => setTimeout(resolve, 50 * (attempt + 1)));
+        let sequence = 1;
+        if (lastGRN) {
+            const lastSequence = parseInt(lastGRN.grnNumber.slice(-4));
+            sequence = lastSequence + 1;
         }
 
-        // Fallback: use timestamp-based unique number
-        const timestamp = Date.now().toString().slice(-6);
-        return `${prefix}${timestamp} `;
+        const grnNumber = `${prefix}${String(sequence).padStart(4, '0')} `;
+
+        // Check if this number already exists
+        const existing = await prisma.goodsReceivedNote.findUnique({
+            where: { grnNumber },
+            select: { id: true }
+        });
+
+        if (!existing) {
+            return grnNumber;
+        }
+
+        // If it exists, add a small delay and retry
+        await new Promise(resolve => setTimeout(resolve, 50 * (attempt + 1)));
     }
+
+    // Fallback: use timestamp-based unique number
+    const timestamp = Date.now().toString().slice(-6);
+    return `${prefix}${timestamp} `;
+}
 }
 
 module.exports = new GRNRepository();

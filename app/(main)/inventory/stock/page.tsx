@@ -1,12 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { toast } from 'sonner';
 import { FiSearch, FiPlus, FiRefreshCw, FiUpload, FiTool, FiAlertCircle, FiTrendingUp } from 'react-icons/fi';
 import StockFilters from '@/components/inventory/StockFilters';
 import StockTable from '@/components/inventory/StockTable';
 import StockDetailPanel from '@/components/inventory/StockDetailPanel';
 import AddDrugModal from '@/components/inventory/AddDrugModal';
 import IngestModal from '@/components/inventory/IngestModal';
+
 import Link from 'next/link';
 
 const StatCard = ({ label, value, loading, colorClass = 'bg-[#f1f5f9]' }: any) => (
@@ -22,6 +24,10 @@ const StatCard = ({ label, value, loading, colorClass = 'bg-[#f1f5f9]' }: any) =
 
 export default function StockPage() {
   const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [selectedStock, setSelectedStock] = useState<any | null>(null); // Assuming InventoryStock is 'any' for now
+  const [detailPanelOpen, setDetailPanelOpen] = useState(false);
+  const [savedViewsCollapsed, setSavedViewsCollapsed] = useState(false);
+  const [quickActionsCollapsed, setQuickActionsCollapsed] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchFocus, setSearchFocus] = useState(false);
   const [stats, setStats] = useState<any>(null);
@@ -29,6 +35,7 @@ export default function StockPage() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [showAddDrug, setShowAddDrug] = useState(false);
   const [showIngestModal, setShowIngestModal] = useState(false);
+
   const [pendingCount, setPendingCount] = useState(0);
 
   // Filter states
@@ -51,6 +58,11 @@ export default function StockPage() {
       if (e.key === '/' && !e.ctrlKey && !e.metaKey) {
         e.preventDefault();
         setSearchFocus(true);
+      }
+      // ⌘M or Ctrl+M to open add medicine
+      if ((e.metaKey || e.ctrlKey) && e.key === 'm') {
+        e.preventDefault();
+        setShowIngestModal(true);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -135,19 +147,21 @@ export default function StockPage() {
   };
 
   const handleItemUpdate = async () => {
-    // 1. Refresh list
     setRefreshKey(prev => prev + 1);
 
-    // 2. Refresh selected item details
-    if (selectedItem) {
+    if (selectedItem?.id) {
       try {
         const { inventoryApi } = await import('@/lib/api/inventory');
         const response = await inventoryApi.getDrugById(selectedItem.id);
         if (response.success && response.data) {
           setSelectedItem(response.data);
+        } else {
+          setSelectedItem(null);
         }
-      } catch (error) {
-        console.error('Failed to refresh item details:', error);
+      } catch (error: any) {
+        if (error?.status === 404 || error?.message?.includes('not found') || error?.message?.includes('Request failed')) {
+          setSelectedItem(null);
+        }
       }
     }
   };
@@ -173,6 +187,13 @@ export default function StockPage() {
               <FiUpload className="w-4 h-4" />
               Import
             </button>
+            <button
+              onClick={() => setShowIngestModal(true)}
+              className="px-3 py-2 bg-[#0ea5a3] hover:bg-[#0d9488] text-white rounded-lg flex items-center gap-2 text-sm font-medium shadow-sm transition-colors"
+            >
+              <FiPlus className="w-4 h-4" />
+              Add Medicine
+            </button>
           </div>
         </div>
 
@@ -184,28 +205,7 @@ export default function StockPage() {
           <StatCard label="Expiring <30d" value={stats?.expiring} loading={isStatsLoading} colorClass="bg-[#fee2e2]" />
         </div>
 
-        {/* Primary Action - Add Medicine */}
-        <button
-          onClick={() => setShowIngestModal(true)}
-          className="w-full p-4 bg-gradient-to-br from-[#0ea5a3] to-[#0d9491] text-white rounded-xl hover:shadow-lg transition-all mb-4 group text-left"
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="p-3 bg-white bg-opacity-20 rounded-lg group-hover:bg-opacity-30 transition-all">
-                <FiPlus size={24} />
-              </div>
-              <div>
-                <h3 className="font-semibold text-lg">Add New Medicine</h3>
-                <p className="text-sm text-white text-opacity-90">
-                  Scan strip or enter details manually
-                </p>
-              </div>
-            </div>
-            <div className="text-white text-opacity-75 group-hover:text-opacity-100 group-hover:translate-x-1 transition-all">
-              →
-            </div>
-          </div>
-        </button>
+
 
         {/* Search */}
         <div className="flex-1 relative">
@@ -222,74 +222,92 @@ export default function StockPage() {
         </div>
       </div>
 
-      {/* Quick Actions - Secondary Features */}
+      {/* Quick Actions - Collapsible Secondary Features */}
       <div className="bg-white border-b border-[#e2e8f0] px-4 py-3">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          {/* Stock Adjustment */}
-          <Link
-            href="/inventory/adjust"
-            className="p-3 bg-white border border-[#e2e8f0] rounded-lg hover:shadow-md hover:border-[#0ea5a3] transition-all group"
+        <button
+          onClick={() => setQuickActionsCollapsed(!quickActionsCollapsed)}
+          className="w-full flex items-center justify-between text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
+        >
+          <span>Quick Actions</span>
+          <svg
+            className={`w-4 h-4 transition-transform duration-200 ${quickActionsCollapsed ? '-rotate-90' : ''
+              }`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
           >
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-50 rounded-lg group-hover:bg-blue-100 transition-colors">
-                <FiTool className="text-blue-600" size={18} />
-              </div>
-              <div>
-                <h3 className="font-medium text-sm text-[#0f172a]">Adjust Stock</h3>
-                <p className="text-xs text-[#64748b]">Manual corrections</p>
-              </div>
-            </div>
-          </Link>
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
 
-          {/* Maintenance - Conditional Display */}
-          {pendingCount > 0 ? (
+        {!quickActionsCollapsed && (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            {/* Stock Adjustment */}
             <Link
-              href="/inventory/maintenance"
-              className="p-3 bg-orange-50 border-2 border-orange-200 rounded-lg hover:shadow-md hover:border-orange-300 transition-all group"
-            >
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-orange-100 rounded-lg group-hover:bg-orange-200 transition-colors">
-                  <FiAlertCircle className="text-orange-600" size={18} />
-                </div>
-                <div>
-                  <h3 className="font-medium text-sm text-orange-900">Fix {pendingCount} Pending</h3>
-                  <p className="text-xs text-orange-600">Need salt mapping</p>
-                </div>
-              </div>
-            </Link>
-          ) : (
-            <Link
-              href="/inventory/maintenance"
+              href="/inventory/adjust"
               className="p-3 bg-white border border-[#e2e8f0] rounded-lg hover:shadow-md hover:border-[#0ea5a3] transition-all group"
             >
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-green-50 rounded-lg group-hover:bg-green-100 transition-colors">
-                  <FiAlertCircle className="text-green-600" size={18} />
+                <div className="p-2 bg-blue-50 rounded-lg group-hover:bg-blue-100 transition-colors">
+                  <FiTool className="text-blue-600" size={18} />
                 </div>
                 <div>
-                  <h3 className="font-medium text-sm text-[#0f172a]">Maintenance</h3>
-                  <p className="text-xs text-[#64748b]">All items verified</p>
+                  <h3 className="font-medium text-sm text-[#0f172a]">Adjust Stock</h3>
+                  <p className="text-xs text-[#64748b]">Manual corrections</p>
                 </div>
               </div>
             </Link>
-          )}
 
-          {/* Demand Forecast */}
-          <Link
-            href="/inventory/forecast"
-            className="p-3 bg-white border border-[#e2e8f0] rounded-lg hover:shadow-md hover:border-[#0ea5a3] transition-all group"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-purple-50 rounded-lg group-hover:bg-purple-100 transition-colors">
-                <FiTrendingUp className="text-purple-600" size={18} />
+            {/* Maintenance - Conditional Display */}
+            {pendingCount > 0 ? (
+              <Link
+                href="/inventory/maintenance"
+                className="p-3 bg-orange-50 border-2 border-orange-200 rounded-lg hover:shadow-md hover:border-orange-300 transition-all group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-orange-100 rounded-lg group-hover:bg-orange-200 transition-colors">
+                    <FiAlertCircle className="text-orange-600" size={18} />
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-sm text-orange-900">Fix {pendingCount} Pending</h3>
+                    <p className="text-xs text-orange-600">Need salt mapping</p>
+                  </div>
+                </div>
+              </Link>
+            ) : (
+              <Link
+                href="/inventory/maintenance"
+                className="p-3 bg-white border border-[#e2e8f0] rounded-lg hover:shadow-md hover:border-[#0ea5a3] transition-all group"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-green-50 rounded-lg group-hover:bg-green-100 transition-colors">
+                    <FiAlertCircle className="text-green-600" size={18} />
+                  </div>
+                  <div>
+                    <h3 className="font-medium text-sm text-[#0f172a]">Maintenance</h3>
+                    <p className="text-xs text-[#64748b]">All items verified</p>
+                  </div>
+                </div>
+              </Link>
+            )}
+
+            {/* Demand Forecast */}
+            <Link
+              href="/inventory/forecast"
+              className="p-3 bg-white border border-[#e2e8f0] rounded-lg hover:shadow-md hover:border-[#0ea5a3] transition-all group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-purple-50 rounded-lg group-hover:bg-purple-100 transition-colors">
+                  <FiTrendingUp className="text-purple-600" size={18} />
+                </div>
+                <div>
+                  <h3 className="font-medium text-sm text-[#0f172a]">Forecast</h3>
+                  <p className="text-xs text-[#64748b]">Demand planning</p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-medium text-sm text-[#0f172a]">Forecast</h3>
-                <p className="text-xs text-[#64748b]">Demand planning</p>
-              </div>
-            </div>
-          </Link>
-        </div>
+            </Link>
+          </div>
+        )}
       </div>
 
       {/* Content */}
@@ -304,7 +322,7 @@ export default function StockPage() {
           onReset={handleResetFilters}
         />
 
-        <div className={`${selectedItem ? 'w-[45%]' : 'flex-1'} transition-all`} data-tour="inventory-table">
+        <div className="flex-1 min-w-0 transition-all" data-tour="inventory-table">
           <StockTable
             searchQuery={searchQuery}
             onSelectItem={setSelectedItem}
@@ -321,7 +339,10 @@ export default function StockPage() {
         {selectedItem && (
           <StockDetailPanel
             item={selectedItem}
-            onClose={() => setSelectedItem(null)}
+            onClose={() => {
+              setSelectedItem(null);
+              setRefreshKey(prev => prev + 1);
+            }}
             onUpdate={handleItemUpdate}
           />
         )}
@@ -337,12 +358,16 @@ export default function StockPage() {
         }}
       />
 
-      {/* Ingest Modal */}
+      {/* Ingest Modal - Medicine Entry */}
       <IngestModal
         isOpen={showIngestModal}
         onClose={() => setShowIngestModal(false)}
         onSuccess={() => {
           setRefreshKey(prev => prev + 1);
+          toast.success('Medicine added successfully!', {
+            description: '✓ Now searchable in your store catalog',
+            duration: 4000,
+          });
           setShowIngestModal(false);
         }}
       />

@@ -44,6 +44,8 @@ export default function EditDrugModal({ drugId, isOpen, onClose, onSuccess }: Ed
         gstRate: 12,
         requiresPrescription: false,
         defaultUnit: 'Strips',
+        baseUnit: 'Tablet',
+        displayUnit: 'Strip',
         lowStockThreshold: 10,
         description: '',
     });
@@ -75,6 +77,8 @@ export default function EditDrugModal({ drugId, isOpen, onClose, onSuccess }: Ed
                 gstRate: parseFloat(drug.gstRate) || 12,
                 requiresPrescription: drug.requiresPrescription || false,
                 defaultUnit: drug.defaultUnit || 'Strips',
+                baseUnit: drug.baseUnit || 'Tablet',
+                displayUnit: drug.displayUnit || 'Strip',
                 lowStockThreshold: drug.lowStockThreshold || 10,
                 description: drug.description || '',
             });
@@ -297,6 +301,36 @@ export default function EditDrugModal({ drugId, isOpen, onClose, onSuccess }: Ed
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
                                             >
                                                 {DEFAULT_UNITS.map(unit => (
+                                                    <option key={unit} value={unit}>{unit}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Base Unit (Smallest)
+                                            </label>
+                                            <select
+                                                value={formData.baseUnit}
+                                                onChange={(e) => handleChange('baseUnit', e.target.value)}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                                            >
+                                                {['Tablet', 'Capsule', 'Vial', 'Bottle', 'Unit', 'Piece'].map(unit => (
+                                                    <option key={unit} value={unit}>{unit}</option>
+                                                ))}
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                Display Unit (Large)
+                                            </label>
+                                            <select
+                                                value={formData.displayUnit}
+                                                onChange={(e) => handleChange('displayUnit', e.target.value)}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                                            >
+                                                {['Strip', 'Box', 'Bottle', 'Tablet', 'Capsule'].map(unit => (
                                                     <option key={unit} value={unit}>{unit}</option>
                                                 ))}
                                             </select>

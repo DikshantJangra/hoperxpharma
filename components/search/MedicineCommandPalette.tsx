@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { FiSearch, FiClock, FiX, FiAlertCircle } from 'react-icons/fi';
 import { useMedicineSearch } from '@/hooks/useMedicineSearch';
+import { useMedicineCache } from '@/hooks/useMedicineCache';
 import { medicineSearch } from '@/lib/search/medicineSearch';
 import type { Medicine } from '@/types/medicine';
 
@@ -26,6 +27,8 @@ export default function MedicineCommandPalette({
         recentMedicines,
         addToRecent
     } = useMedicineSearch();
+
+    const { syncStatus } = useMedicineCache();
 
     const [selectedIndex, setSelectedIndex] = useState(0);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -193,14 +196,14 @@ export default function MedicineCommandPalette({
                                                     </div>
                                                 )}
                                                 <div className="flex items-center gap-3 mt-1.5 text-xs text-gray-500">
-                                                    <span className="truncate">{medicine.manufacturer}</span>
+                                                    <span className="truncate">{medicine.manufacturerName}</span>
                                                     <span>•</span>
                                                     <span className="shrink-0">{medicine.packSize}</span>
                                                 </div>
                                             </div>
                                             <div className="shrink-0 text-right">
                                                 <div className="font-semibold text-emerald-600">
-                                                    ₹{medicine.price.toFixed(2)}
+                                                    ₹{medicine.price?.toFixed(2) || '0.00'}
                                                 </div>
                                                 {medicine.discontinued && (
                                                     <div className="text-xs text-red-600 mt-1">

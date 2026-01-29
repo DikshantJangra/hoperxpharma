@@ -58,7 +58,10 @@ const getDrugById = asyncHandler(async (req, res) => {
  * Create drug
  */
 const createDrug = asyncHandler(async (req, res) => {
-    const drug = await inventoryService.createDrug(req.body);
+    const drug = await inventoryService.createDrug({
+        ...req.body,
+        storeId: req.storeId
+    }, req.user?.id);
 
     const response = ApiResponse.created(drug, 'Drug created successfully');
     res.status(response.statusCode).json(response);
@@ -124,7 +127,7 @@ const createBatch = asyncHandler(async (req, res) => {
     const batch = await inventoryService.createBatch({
         ...req.body,
         storeId: req.storeId,
-    });
+    }, req.user?.id);
 
     const response = ApiResponse.created(batch, 'Batch created successfully');
     res.status(response.statusCode).json(response);

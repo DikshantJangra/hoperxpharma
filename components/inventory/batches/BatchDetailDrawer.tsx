@@ -92,10 +92,10 @@ export default function BatchDetailDrawer({ batch, onClose }: any) {
             <FiEdit className="w-4 h-4" />
             Adjust
           </button>
-          <button className="flex-1 px-3 py-2 border border-[#cbd5e1] rounded-lg hover:bg-[#f8fafc] flex items-center justify-center gap-2 text-sm">
+          {/* <button className="flex-1 px-3 py-2 border border-[#cbd5e1] rounded-lg hover:bg-[#f8fafc] flex items-center justify-center gap-2 text-sm">
             <FiSend className="w-4 h-4" />
             Transfer
-          </button>
+          </button> */}
         </div>
 
         {/* Tabs */}

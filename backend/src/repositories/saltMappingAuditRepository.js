@@ -24,6 +24,34 @@ class SaltMappingAuditRepository {
             wasAutoMapped = false
         } = data;
 
+        // If userId is 'system' or similar non-UUID, do NOT try to include the user relation
+        // This prevents "Field user is required to return data, got null instead" error
+        const isSystemUser = userId === 'system' || !userId || userId.length < 10;
+
+        if (isSystemUser) {
+            return await prisma.saltMappingAudit.create({
+                data: {
+                    drugId,
+                    userId,
+                    action,
+                    batchId,
+                    oldValue,
+                    newValue,
+                    ocrConfidence,
+                    wasAutoMapped
+                },
+                include: {
+                    drug: {
+                        select: {
+                            id: true,
+                            name: true
+                        }
+                    }
+                    // User excluded for system actions
+                }
+            });
+        }
+
         return await prisma.saltMappingAudit.create({
             data: {
                 drugId,
@@ -45,7 +73,8 @@ class SaltMappingAuditRepository {
                 user: {
                     select: {
                         id: true,
-                        name: true,
+                        firstName: true,
+                        lastName: true,
                         email: true
                     }
                 }
@@ -96,7 +125,8 @@ class SaltMappingAuditRepository {
                 user: {
                     select: {
                         id: true,
-                        name: true,
+                        firstName: true,
+                        lastName: true,
                         email: true
                     }
                 }
@@ -168,7 +198,7 @@ class SaltMappingAuditRepository {
                 log.drugId,
                 `"${log.drug?.name || ''}"`,
                 log.userId,
-                `"${log.user?.name || ''}"`,
+                `"${(log.user?.firstName || '') + ' ' + (log.user?.lastName || '')}"`,
                 log.action,
                 log.batchId || '',
                 `"${JSON.stringify(log.oldValue || {})}"`,

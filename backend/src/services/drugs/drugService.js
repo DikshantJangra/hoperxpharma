@@ -182,28 +182,119 @@ class DrugService {
             throw ApiError.badRequest('storeId is required');
         }
 
+        // Extract batchDetails if provided
+        const { batchDetails, ...drugDataWithoutBatch } = drugData;
+
         // If hsnCodeId is provided, fetch and populate tax rate from HSN code
-        if (drugData.hsnCodeId) {
+        if (drugDataWithoutBatch.hsnCodeId) {
             const gstRepository = require('../../repositories/gstRepository');
-            const hsnCode = await gstRepository.findHsnCodeById(drugData.hsnCodeId);
+            const hsnCode = await gstRepository.findHsnCodeById(drugDataWithoutBatch.hsnCodeId);
 
             if (!hsnCode) {
                 throw ApiError.badRequest('Invalid HSN code');
             }
 
             // Auto-populate tax rate and HSN code from linked record
-            drugData.gstRate = hsnCode.taxSlab.rate;
-            drugData.hsnCode = hsnCode.code; // Snapshot for backward compatibility
+            drugDataWithoutBatch.gstRate = hsnCode.taxSlab.rate;
+            drugDataWithoutBatch.hsnCode = hsnCode.code; // Snapshot for backward compatibility
 
-            logger.info(`Auto-populated GST rate ${drugData.gstRate}% from HSN ${hsnCode.code}`);
-        } else if (!drugData.gstRate) {
+            logger.info(`Auto-populated GST rate ${drugDataWithoutBatch.gstRate}% from HSN ${hsnCode.code}`);
+        } else if (!drugDataWithoutBatch.gstRate) {
             // Fallback to default GST rate if neither hsnCodeId nor gstRate provided
-            drugData.gstRate = 12; // Default pharmacy rate
+            drugDataWithoutBatch.gstRate = 12; // Default pharmacy rate
             logger.warn(`No HSN code linked, using default GST rate: 12%`);
         }
 
-        const drug = await drugRepository.createDrug(drugData);
-        logger.info(`Drug created: ${drug.name} (ID: ${drug.id}) for store ${drugData.storeId}`);
+        // If batchDetails are provided, create drug + batch in transaction
+        if (batchDetails) {
+            const prisma = require('../db/prisma');
+
+            // Validate batch details
+            if (!batchDetails.batchNumber || !batchDetails.batchNumber.trim()) {
+                throw ApiError.badRequest('Batch number is required');
+            }
+            if (!batchDetails.purchaseRate || batchDetails.purchaseRate <= 0) {
+                throw ApiError.badRequest('Purchase rate must be greater than 0');
+            }
+            if (!batchDetails.mrp || batchDetails.mrp <= 0) {
+                throw ApiError.badRequest('MRP must be greater than 0');
+            }
+            if (batchDetails.mrp < batchDetails.purchaseRate) {
+                throw ApiError.badRequest('MRP cannot be less than Purchase Rate');
+            }
+            if (!batchDetails.quantity || batchDetails.quantity <= 0) {
+                throw ApiError.badRequest('Quantity must be greater than 0');
+            }
+            if (!batchDetails.expiryDate) {
+                throw ApiError.badRequest('Expiry date is required');
+            }
+            if (!batchDetails.supplier || !batchDetails.supplier.trim()) {
+                throw ApiError.badRequest('Supplier name is required');
+            }
+
+            // Validate expiry date is in future
+            const expiryDate = new Date(batchDetails.expiryDate);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            if (expiryDate <= today) {
+                throw ApiError.badRequest('Expiry date must be in the future');
+            }
+
+            // Create drug and batch in transaction
+            const result = await prisma.$transaction(async (tx) => {
+                // Create drug
+                const drug = await tx.drug.create({
+                    data: drugDataWithoutBatch
+                });
+
+                logger.info(`Drug created: ${drug.name} (ID: ${drug.id}) for store ${drugDataWithoutBatch.storeId}`);
+
+                // Create first batch for this drug
+                const batch = await tx.inventoryBatch.create({
+                    data: {
+                        drugId: drug.id,
+                        storeId: drugDataWithoutBatch.storeId,
+                        batchNumber: batchDetails.batchNumber.trim(),
+                        purchasePrice: batchDetails.purchaseRate,
+                        mrp: batchDetails.mrp,
+                        quantityInStock: batchDetails.quantity,
+                        expiryDate: new Date(batchDetails.expiryDate),
+                        location: batchDetails.location || 'Default',
+                        supplierId: null, // TODO: Link to supplier if ID is provided
+                        // Store supplier name for now
+                    }
+                });
+
+                logger.info(`Batch created: ${batch.batchNumber} for drug ${drug.id} with ${batch.quantityInStock} units`);
+
+                // Create initial stock movement record
+                await tx.stockMovement.create({
+                    data: {
+                        batchId: batch.id,
+                        storeId: drugDataWithoutBatch.storeId,
+                        movementType: 'PURCHASE',
+                        quantity: batchDetails.quantity,
+                        reference: `Initial stock for ${drug.name}`,
+                        performedBy: 'system' // TODO: Get from auth context
+                    }
+                });
+
+                return { drug, batch };
+            });
+
+            // Auto-map salts after transaction commits
+            try {
+                await saltMappingService.autoMapDrug(result.drug.id);
+            } catch (error) {
+                logger.error(`Failed to auto-map salts for drug ${result.drug.id}:`, error);
+            }
+
+            return result.drug;
+        }
+
+        // Original flow - create drug only (no batch)
+        const drug = await drugRepository.createDrug(drugDataWithoutBatch);
+        logger.info(`Drug created: ${drug.name} (ID: ${drug.id}) for store ${drugDataWithoutBatch.storeId}`);
 
         // Auto-map salts
         try {

@@ -28,77 +28,38 @@ export default function StockDetailPanel({ item, onClose, onUpdate }: any) {
   // Map the drug data to expected format
   const mappedItem = mapDrugToDetailPanel(item);
 
-  useEffect(() => {
-    if (mappedItem && mappedItem.id) {
-      // Use inventory data that's already in the item object
-      if (item.inventory && Array.isArray(item.inventory)) {
-        fetchSupplierInfo(item.inventory);
-      } else {
-        // Fallback: fetch from API if inventory is not in item
-        fetchBatchesWithSuppliers();
-      }
-    }
-  }, [mappedItem?.id, item]);
-
-  const fetchSupplierInfo = async (batches: any[]) => {
-    try {
-      setIsLoadingBatches(true);
-
-      // Fetch supplier info for each batch that has a supplierId
-      const batchesWithSuppliers = await Promise.all(
-        batches.map(async (batch) => {
-          if (batch.supplierId) {
-            try {
-              const response = await fetch(
-                `${getApiBaseUrl()}/suppliers/${batch.supplierId}`,
-                {
-                  headers: {
-                    Authorization: `Bearer ${tokenManager.getAccessToken()}`,
-                  },
-                  credentials: 'include'
-                }
-              );
-              if (response.ok) {
-                const result = await response.json();
-                const supplier = result.data || result;
-                return { ...batch, supplier };
-              }
-            } catch (error) {
-              console.error(`Failed to fetch supplier for batch ${batch.id}:`, error);
-            }
-          }
-          return { ...batch, supplier: null };
-        })
-      );
-
-      setBatchesWithSuppliers(batchesWithSuppliers);
-    } catch (error) {
-      console.error('Failed to fetch supplier info:', error);
-      // Still show batches even if supplier fetch fails
-      setBatchesWithSuppliers(batches.map(b => ({ ...b, supplier: null })));
-    } finally {
-      setIsLoadingBatches(false);
-    }
-  };
-
   const fetchBatchesWithSuppliers = async () => {
-    if (!mappedItem) return;
+    if (!mappedItem?.id) return;
 
     try {
       setIsLoadingBatches(true);
       const { inventoryApi } = await import('@/lib/api/inventory');
-      const response = await inventoryApi.getBatchesWithSuppliers(mappedItem.id);
+      const response = await inventoryApi.getDrugById(mappedItem.id);
 
-      if (response.success) {
-        setBatchesWithSuppliers(response.data || []);
+      if (response.success && response.data?.inventory) {
+        setBatchesWithSuppliers(response.data.inventory);
       }
-    } catch (error) {
-      console.error('Failed to fetch batches with suppliers:', error);
-      toast.error('Failed to load batch details');
+    } catch (error: any) {
+      console.error('Failed to refresh batches:', error);
+      if (error?.response?.status === 404) {
+        // Drug was deleted, close the panel silently
+        onClose();
+      } else {
+        toast.error('Failed to load batch information');
+      }
     } finally {
       setIsLoadingBatches(false);
     }
   };
+
+  useEffect(() => {
+    if (item?.inventory) {
+      setBatchesWithSuppliers(item.inventory);
+      setIsLoadingBatches(false);
+    } else if (item) {
+      fetchBatchesWithSuppliers();
+    }
+  }, [item]);
 
   const handleLocationEdit = (batchId: string, currentLocation: string) => {
     setEditingLocation(batchId);
@@ -154,7 +115,7 @@ export default function StockDetailPanel({ item, onClose, onUpdate }: any) {
 
   return (
     <>
-      <div className="w-[35%] bg-white border-l border-[#e2e8f0] flex flex-col h-full">
+      <div className="w-[480px] flex-shrink-0 bg-white border-l border-[#e2e8f0] flex flex-col h-full shadow-2xl relative z-20">
         {/* Header */}
         <div className="p-4 border-b border-[#e2e8f0] flex items-start justify-between">
           <div className="flex-1">
@@ -392,10 +353,10 @@ export default function StockDetailPanel({ item, onClose, onUpdate }: any) {
               <FiPlus className="w-4 h-4" />
               Add Stock
             </button>
-            <button className="py-2 border border-[#cbd5e1] rounded-lg hover:bg-[#f8fafc] flex items-center justify-center gap-2 text-sm">
+            {/* <button className="py-2 border border-[#cbd5e1] rounded-lg hover:bg-[#f8fafc] flex items-center justify-center gap-2 text-sm">
               <FiSend className="w-4 h-4" />
               Transfer
-            </button>
+            </button> */}
             <button
               onClick={handleDeleteDrug}
               className="py-2 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 flex items-center justify-center gap-2 text-sm"
@@ -426,9 +387,11 @@ export default function StockDetailPanel({ item, onClose, onUpdate }: any) {
           item={deleteModal.item}
           onClose={() => setDeleteModal(null)}
           onSuccess={() => {
-            fetchBatchesWithSuppliers();
             if (deleteModal.type === 'drug') {
-              onClose(); // Close the detail panel if drug is deleted
+              onClose();
+            } else {
+              if (onUpdate) onUpdate();
+              fetchBatchesWithSuppliers();
             }
           }}
         />
@@ -441,7 +404,7 @@ export default function StockDetailPanel({ item, onClose, onUpdate }: any) {
           onClose={() => setShowEditDrugModal(false)}
           onSuccess={() => {
             if (onUpdate) onUpdate();
-            fetchSupplierInfo(item.inventory || []);
+            fetchBatchesWithSuppliers();
             toast.success('Drug information updated');
           }}
         />

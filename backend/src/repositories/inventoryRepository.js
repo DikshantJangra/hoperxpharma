@@ -76,16 +76,6 @@ class InventoryRepository {
                             storeId,
                             deletedAt: null // Exclude soft-deleted batches
                         },
-                        select: {
-                            id: true,
-                            batchNumber: true,
-                            quantityInStock: true,
-                            mrp: true,
-                            purchasePrice: true,
-                            expiryDate: true,
-                            location: true,
-                            supplierId: true
-                        },
                         orderBy: { expiryDate: 'asc' }
                     },
                 },
@@ -103,6 +93,7 @@ class InventoryRepository {
                 const lowStockThreshold = drug.lowStockThreshold || 10;
 
                 return stockStatus.some(status => {
+                    if (status === 'zero_stock') return totalStock === 0;
                     if (status === 'in_stock') return totalStock > lowStockThreshold;
                     if (status === 'out_of_stock') return totalStock === 0;
                     if (status === 'low_stock') return totalStock > 0 && totalStock <= lowStockThreshold;
@@ -134,8 +125,11 @@ class InventoryRepository {
         }
 
         // IMPORTANT: Filter out drugs with no active batches (all batches deleted)
-        // This ensures drugs with all batches soft-deleted don't appear
+        // UNLESS the user is looking for zero stock or out of stock items
+        const isLookingForOutOfStock = stockStatus.includes('zero_stock') || stockStatus.includes('out_of_stock');
+
         filteredDrugs = filteredDrugs.filter(drug => {
+            if (isLookingForOutOfStock) return true;
             return drug.inventory && drug.inventory.length > 0;
         });
 
@@ -149,9 +143,12 @@ class InventoryRepository {
      * Find drug by ID
      */
     async findDrugById(id) {
-        return await prisma.drug.findUnique({
+        const drug = await prisma.drug.findUnique({
             where: { id },
             include: {
+                saltLinks: {
+                    orderBy: { order: 'asc' }
+                },
                 inventory: {
                     where: { deletedAt: null },
                     orderBy: { expiryDate: 'asc' },
@@ -159,11 +156,34 @@ class InventoryRepository {
                         movements: {
                             orderBy: { createdAt: 'desc' },
                             take: 10, // Last 10 movements per batch
-                        },
+                        }
                     },
                 },
             },
         });
+
+        if (!drug) return null;
+
+        // Fetch suppliers for batches that have supplierId
+        const batchesWithSuppliers = await Promise.all(
+            drug.inventory.map(async (batch) => {
+                if (batch.supplierId) {
+                    const supplier = await prisma.supplier.findUnique({
+                        where: { id: batch.supplierId },
+                        select: {
+                            id: true,
+                            name: true,
+                            contactName: true,
+                            phoneNumber: true,
+                        },
+                    });
+                    return { ...batch, supplier };
+                }
+                return { ...batch, supplier: null };
+            })
+        );
+
+        return { ...drug, inventory: batchesWithSuppliers };
     }
 
     /**
@@ -182,6 +202,15 @@ class InventoryRepository {
         return await prisma.drug.update({
             where: { id },
             data: drugData,
+        });
+    }
+
+    /**
+     * Delete drug
+     */
+    async deleteDrug(id) {
+        return await prisma.drug.delete({
+            where: { id },
         });
     }
 
@@ -567,6 +596,9 @@ SUM(ib."quantityInStock" * ib."purchasePrice") as "totalValue",
                 quantityInStock: true,
                 expiryDate: true,
                 location: true,
+                receivedUnit: true,
+                tabletsPerStrip: true,
+                baseUnitQuantity: true,
                 mrp: true,
                 purchasePrice: true,
                 createdAt: true,

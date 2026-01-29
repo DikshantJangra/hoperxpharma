@@ -260,23 +260,19 @@ export default function Basket({ items, onUpdateItem, onRemoveItem, onClear, onE
                   <div className="text-right">
                     <div className="text-xs text-[#64748b]">
                       {(() => {
-                        if (!item.conversionFactor || item.conversionFactor <= 1) {
+                        const hasConversion = item.conversionFactor && item.conversionFactor > 1;
+                        if (!hasConversion) {
                           return `₹${unitPrice.toFixed(2)} × ${item.qty} ${formatUnitName(item.baseUnit || 'Unit')}`;
                         }
-                        const strips = Math.floor(item.qty / item.conversionFactor);
-                        const tabs = item.qty % item.conversionFactor;
-                        const stripPrice = Number(item.mrp) || 0;
 
-                        if (strips > 0 && tabs === 0) {
-                          return `₹${stripPrice.toFixed(2)} × ${strips} ${formatUnitName(item.displayUnit || 'Strip')}`;
-                        }
-                        if (strips === 0 && tabs > 0) {
-                          return `₹${unitPrice.toFixed(2)} × ${tabs} ${formatUnitName(item.baseUnit || 'Tab')}`;
-                        }
+                        // Show clear calculation: Total Tablets × Price/Tablet
                         return (
-                          <span>
-                            {strips} {formatUnitName(item.displayUnit || 'Strip')} + {tabs} {formatUnitName(item.baseUnit || 'Tab')}
-                          </span>
+                          <div className="flex flex-col items-end">
+                            <span>₹{unitPrice.toFixed(2)} / {formatUnitName(item.baseUnit || 'Tab')} × {item.qty}</span>
+                            <span className="text-[10px] text-gray-400">
+                              ({Number(item.mrp).toFixed(2)} / {formatUnitName(item.displayUnit || 'Strip')})
+                            </span>
+                          </div>
                         );
                       })()}
                     </div>

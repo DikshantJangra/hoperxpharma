@@ -4,6 +4,7 @@ const logger = require('../config/logger');
 const validationService = require('./validationService');
 const auditService = require('./auditService');
 const substituteService = require('./substituteService');
+const duplicateDetectionService = require('./inventory/duplicate-detection.service');
 const { v4: uuidv4 } = require('uuid');
 
 /**
@@ -20,15 +21,44 @@ class DrugService {
      * @returns {Promise<Object>} Created drug
      */
     async createDrug(data, userId) {
-        const { storeId, name, saltLinks = [], ...otherData } = data;
+        const { storeId, name, saltLinks = [], batchDetails, ...otherData } = data;
+
+        // ===== DUPLICATE DETECTION =====
+        try {
+            const duplicateCheck = await duplicateDetectionService.checkDuplicateMedicine(storeId, {
+                name,
+                manufacturer: data.manufacturer,
+                form: data.form,
+                saltLinks
+            });
+
+            if (duplicateCheck.isDuplicate && duplicateCheck.matchType === 'EXACT_DUPLICATE') {
+                logger.warn(`[Drug Creation] Duplicate detected: ${name} already exists as ${duplicateCheck.existingMedicine.id}`);
+
+                // Throw CONFLICT error with existing medicine details
+                const error = ApiError.conflict('Medicine already exists in inventory');
+                error.data = {
+                    code: 'DUPLICATE_MEDICINE',
+                    existingMedicine: duplicateCheck.existingMedicine,
+                    suggestedAction: 'ADD_BATCH'
+                };
+                throw error;
+            }
+        } catch (error) {
+            // Re-throw duplicate errors, log others but continue
+            if (error.statusCode === 409) {
+                throw error;
+            }
+            logger.error('[Drug Creation] Duplicate check failed, proceeding with creation:', error);
+        }
 
         // Determine ingestion status based on salt links
         let ingestionStatus = 'SALT_PENDING';
-        
+
         if (saltLinks && saltLinks.length > 0) {
             // Validate salt links
             const validation = validationService.validateSaltMapping({ salts: saltLinks });
-            
+
             if (validation.valid) {
                 ingestionStatus = 'ACTIVE';
             }
@@ -39,13 +69,13 @@ class DrugService {
             const processedSaltLinks = [];
             for (const link of saltLinks) {
                 let saltId = link.saltId;
-                
+
                 // If no saltId but has name, find or create the salt
                 if (!saltId && link.name) {
                     let salt = await prisma.salt.findFirst({
                         where: { name: { equals: link.name.trim(), mode: 'insensitive' } }
                     });
-                    
+
                     if (!salt) {
                         salt = await prisma.salt.create({
                             data: {
@@ -56,10 +86,10 @@ class DrugService {
                         });
                         logger.info(`Created new salt: ${salt.name} (${salt.id})`);
                     }
-                    
+
                     saltId = salt.id;
                 }
-                
+
                 if (saltId) {
                     processedSaltLinks.push({
                         saltId,
@@ -100,6 +130,34 @@ class DrugService {
                 });
             }
 
+            // ===== CREATE INITIAL BATCH IF PROVIDED =====
+            if (batchDetails && batchDetails.batchNumber) {
+                try {
+                    logger.info(`[Drug Creation] Creating initial batch for ${drug.name}`);
+
+                    // Create inventory batch
+                    const inventoryService = require('./inventory/inventoryService');
+                    await inventoryService.createBatch({
+                        storeId,
+                        drugId: drug.id,
+                        batchNumber: batchDetails.batchNumber,
+                        expiryDate: new Date(batchDetails.expiryDate),
+                        quantityInStock: parseInt(batchDetails.quantity),
+                        baseUnitQuantity: parseInt(batchDetails.quantity), // Assuming base unit
+                        mrp: parseFloat(batchDetails.mrp),
+                        purchasePrice: parseFloat(batchDetails.purchaseRate || batchDetails.mrp),
+                        supplierId: batchDetails.supplierId || null,
+                        supplier: batchDetails.supplier || null,
+                        location: batchDetails.rackLocation || null
+                    }, userId);
+
+                    logger.info(`[Drug Creation] Initial batch created for ${drug.name}`);
+                } catch (batchError) {
+                    logger.error(`[Drug Creation] Failed to create initial batch for ${drug.id}:`, batchError);
+                    // Don't fail drug creation if batch fails, but log it
+                }
+            }
+
             logger.info(`Drug created: ${drug.id} with status ${drug.ingestionStatus}`);
             return drug;
         } catch (error) {
@@ -133,7 +191,7 @@ class DrugService {
 
         // Validate activation
         const validation = validationService.validateActivation(drug);
-        
+
         if (!validation.valid) {
             throw ApiError.badRequest(validation.errors.join('; '));
         }
@@ -183,7 +241,7 @@ class DrugService {
      */
     async importMedicines(importData, userId) {
         const validation = validationService.validateImport(importData);
-        
+
         const results = {
             total: importData.length,
             successful: 0,
@@ -201,7 +259,7 @@ class DrugService {
                 if (record.salts && record.salts.length > 0) {
                     // Check confidence of salt mappings
                     const highConfidence = record.salts.every(s => s.confidence === 'HIGH');
-                    
+
                     if (highConfidence) {
                         ingestionStatus = 'ACTIVE';
                         confidence = 'HIGH';
@@ -247,14 +305,14 @@ class DrugService {
      */
     async bulkUpdate(updates, userId) {
         const validation = validationService.validateBulkUpdate(updates);
-        
+
         if (!validation.valid) {
             throw ApiError.badRequest(validation.errors.join('; '));
         }
 
         const BATCH_SIZE = 100;
         const batchId = uuidv4();
-        
+
         const results = {
             total: updates.length,
             successful: 0,
@@ -265,7 +323,7 @@ class DrugService {
         // Process in batches
         for (let i = 0; i < updates.length; i += BATCH_SIZE) {
             const batch = updates.slice(i, i + BATCH_SIZE);
-            
+
             for (const update of batch) {
                 try {
                     // Get current drug state

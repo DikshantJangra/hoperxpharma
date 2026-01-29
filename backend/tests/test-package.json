@@ -1,0 +1,26 @@
+{
+    "name": "backend",
+    "scripts": {
+        "test": "jest",
+        "test:unit": "jest tests/domain",
+        "test:integration": "jest tests/integration",
+        "test:e2e": "NODE_ENV=test jest tests/e2e --runInBand",
+        "test:coverage": "jest --coverage",
+        "test:watch": "jest --watch"
+    },
+    "jest": {
+        "testEnvironment": "node",
+        "coverageDirectory": "coverage",
+        "collectCoverageFrom": [
+            "src/domain/**/*.js",
+            "src/services/**/*.js",
+            "!src/**/*.test.js"
+        ],
+        "testMatch": [
+            "**/tests/**/*.test.js"
+        ],
+        "setupFilesAfterEnv": [
+            "<rootDir>/tests/setup.js"
+        ]
+    }
+}

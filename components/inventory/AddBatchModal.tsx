@@ -19,7 +19,9 @@ export default function AddBatchModal({ drugId, drugName, onClose, onSuccess }: 
         quantity: '',
         mrp: '',
         purchaseRate: '',
-        rackLocation: ''
+        rackLocation: '',
+        unit: 'Tablet',
+        packSize: '10'
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -39,15 +41,22 @@ export default function AddBatchModal({ drugId, drugName, onClose, onSuccess }: 
         try {
             const { inventoryApi } = await import('@/lib/api/inventory');
 
+            const packSizeNum = parseInt(formData.packSize || '1') || 1;
+            const quantityNum = parseFloat(formData.quantity);
+            const baseUnitQuantity = formData.unit === 'Strip' ? quantityNum * packSizeNum : quantityNum;
+
             await inventoryApi.createBatch({
                 drugId,
                 batchNumber: formData.batchNumber,
                 expiryDate: new Date(formData.expiryDate).toISOString(),
-                quantityInStock: parseFloat(formData.quantity),
+                quantityInStock: quantityNum,
+                baseUnitQuantity,
+                receivedUnit: formData.unit,
+                tabletsPerStrip: formData.unit === 'Strip' ? packSizeNum : null,
                 mrp: parseFloat(formData.mrp),
                 purchaseRate: parseFloat(formData.purchaseRate || '0'),
                 location: formData.rackLocation
-            });
+            } as any);
 
             toast.success('Stock added successfully!');
             onSuccess();
@@ -108,9 +117,44 @@ export default function AddBatchModal({ drugId, drugName, onClose, onSuccess }: 
                             />
                         </div>
 
+                        {/* Unit Selection */}
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
-                                Quantity <span className="text-red-500">*</span>
+                                Unit <span className="text-red-500">*</span>
+                            </label>
+                            <select
+                                value={formData.unit}
+                                onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0ea5a3]"
+                            >
+                                <option value="Tablet">Tablet</option>
+                                <option value="Strip">Strip</option>
+                                <option value="Capsule">Capsule</option>
+                                <option value="Bottle">Bottle</option>
+                                <option value="Box">Box</option>
+                            </select>
+                        </div>
+
+                        {formData.unit === 'Strip' && (
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                    Tabs/Strip <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                    type="number"
+                                    required
+                                    min="1"
+                                    value={formData.packSize}
+                                    onChange={(e) => setFormData({ ...formData, packSize: e.target.value })}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0ea5a3]"
+                                    placeholder="10"
+                                />
+                            </div>
+                        )}
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                Quantity ({formData.unit}s) <span className="text-red-500">*</span>
                             </label>
                             <input
                                 type="number"

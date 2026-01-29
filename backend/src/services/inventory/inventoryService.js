@@ -1,182 +1,460 @@
+/**
+ * Inventory Service (Refactored to use Domain Models)
+ * CRITICAL: Maintains backward compatibility with frontend expectations
+ */
+
 const inventoryRepository = require('../../repositories/inventoryRepository');
 const ApiError = require('../../utils/ApiError');
 const logger = require('../../config/logger');
 const eventBus = require('../../events/eventBus');
 const { INVENTORY_EVENTS } = require('../../events/eventTypes');
 
-/**
- * Inventory Service - Business logic for inventory management
- */
+// Domain imports
+const Batch = require('../../domain/inventory/Batch');
+const Drug = require('../../domain/inventory/Drug');
+const { StockMovement } = require('../../domain/inventory/StockMovement');
+const { InventoryDomainService, AllocationStrategy } = require('../../domain/inventory/InventoryDomainService');
+const { Quantity, Unit } = require('../../domain/shared/valueObjects/Quantity');
+const BatchNumber = require('../../domain/inventory/valueObjects/BatchNumber');
+const Money = require('../../domain/shared/valueObjects/Money');
+
 class InventoryService {
+    constructor() {
+        // Initialize domain service
+        this.inventoryDomain = new InventoryDomainService(inventoryRepository);
+        // Bind private methods
+        this._resolveSalts = this._resolveSalts.bind(this);
+    }
+
     /**
-     * Get all drugs with pagination
+     * Get all drugs with pagination and CRITICAL stock aggregation
      */
     async getDrugs(filters) {
-        return await inventoryRepository.findDrugs(filters);
+        const result = await inventoryRepository.findDrugs(filters);
+
+        // Handle both paginated and non-paginated responses
+        if (result.drugs) {
+            // Paginated response - MUST include stock aggregation for frontend
+            const drugsWithStock = result.drugs.map(d => {
+                // Calculate total stock from inventory batches
+                const totalStock = d.inventory
+                    ? d.inventory.reduce((sum, batch) => sum + (batch.quantityInStock || 0), 0)
+                    : 0;
+
+                // Return raw Prisma data with stock calculation
+                // IMPORTANT: Frontend expects these exact fields
+                return {
+                    ...d,
+                    totalStock,
+                    batches: d.inventory || [],
+                    batchCount: d.inventory ? d.inventory.length : 0
+                };
+            });
+
+            return {
+                drugs: drugsWithStock,
+                total: result.total
+            };
+        } else {
+            // Non-paginated response (array)
+            return result.map(d => {
+                const totalStock = d.inventory
+                    ? d.inventory.reduce((sum, batch) => sum + (batch.quantityInStock || 0), 0)
+                    : 0;
+
+                return {
+                    ...d,
+                    totalStock,
+                    batches: d.inventory || []
+                };
+            });
+        }
     }
 
     /**
      * Get drug by ID
      */
     async getDrugById(id) {
-        const drug = await inventoryRepository.findDrugById(id);
+        if (!id || typeof id !== 'string') {
+            throw ApiError.badRequest('Invalid drug ID');
+        }
 
-        if (!drug) {
+        const drugData = await inventoryRepository.findDrugById(id);
+
+        if (!drugData) {
+            logger.warn(`Drug not found with ID: ${id}`);
             throw ApiError.notFound('Drug not found');
         }
 
-        return drug;
+        const drug = Drug.fromPrisma(drugData);
+        return drug.toDTO();
     }
 
     /**
      * Create new drug
      */
-    async createDrug(drugData) {
-        // Extract initial stock data if present
-        const { initialStock, ...drugDetails } = drugData;
+    async createDrug(drugData, userId) {
+        // Create domain entity
+        const drug = new Drug({
+            ...drugData,
+            isActive: true
+        });
 
-        // Create the drug
-        const drug = await inventoryRepository.createDrug(drugDetails);
-        logger.info(`Drug created: ${drug.name} (ID: ${drug.id})`);
+        // Validate
+        drug.validate();
 
-        // If initial stock is provided, create the batch immediately
-        if (initialStock && initialStock.quantity > 0) {
+        // Persist Drug first
+        const prismaData = drug.toPrisma();
+
+        // Transform saltLinks for Prisma nested write if present
+        if (prismaData.saltLinks && Array.isArray(prismaData.saltLinks)) {
+            // Intelligent Salt Resolution: Resolve name to saltId or create new salt
+            const resolvedSaltLinks = await this._resolveSalts(prismaData.saltLinks, userId || drugData.storeId);
+
+            prismaData.saltLinks = {
+                create: resolvedSaltLinks.map(link => ({
+                    saltId: link.saltId,
+                    // Note: 'name' is NOT a field in DrugSaltLink model, removed to fix 500 error
+                    strengthValue: link.strengthValue ? Number(link.strengthValue) : null,
+                    strengthUnit: link.strengthUnit,
+                    order: link.order
+                }))
+            };
+        }
+
+        const created = await inventoryRepository.createDrug(prismaData);
+        logger.info(`Drug created: ${drug.getDisplayName()}`);
+
+        // CRITICAL FIX: Handle initial batch creation if provided
+        // The frontend sends 'batchDetails' in the same payload
+        if (drugData.batchDetails) {
             try {
-                await this.createBatch({
-                    drugId: drug.id,
-                    storeId: drugDetails.storeId, // Ensure storeId is passed from controller
-                    batchNumber: initialStock.batchNumber,
-                    quantityInStock: parseFloat(initialStock.quantity),
-                    expiryDate: new Date(initialStock.expiryDate),
-                    mrp: parseFloat(initialStock.mrp),
-                    purchaseRate: parseFloat(initialStock.purchaseRate || 0),
-                    supplierId: initialStock.supplierId // Optional
-                });
-                logger.info(`Initial stock added for drug: ${drug.name}`);
-            } catch (error) {
-                logger.error(`Failed to add initial stock for drug ${drug.id}:`, error);
-                // We don't fail the drug creation if stock fails, but we should probably alert
+                // Ensure numeric types for critical fields
+                const quantity = Number(drugData.batchDetails.quantity);
+                const mrp = Number(drugData.batchDetails.mrp);
+                const purchasePrice = Number(drugData.batchDetails.purchaseRate);
+
+                if (isNaN(quantity)) throw new Error(`Invalid Quantity: ${drugData.batchDetails.quantity}`);
+                if (isNaN(mrp)) throw new Error(`Invalid MRP: ${drugData.batchDetails.mrp}`);
+                if (isNaN(purchasePrice)) throw new Error(`Invalid Purchase Rate: ${drugData.batchDetails.purchaseRate}`);
+
+                const batchPayload = {
+                    ...drugData.batchDetails,
+                    drugId: created.id,
+                    storeId: created.storeId,
+                    quantity: quantity,
+                    mrp: mrp,
+                    purchasePrice: purchasePrice, // frontend sends purchaseRate
+                };
+
+                logger.info(`Creating initial batch for ${created.name} with Payload:`, JSON.stringify(batchPayload));
+
+                // Use existing createBatch method (handles domain logic & events & supplier resolution)
+                await this.createBatch(batchPayload, userId);
+                logger.info(`Initial batch created for drug: ${created.name}`);
+            } catch (err) {
+                logger.error(`Failed to create initial batch for ${created.name}:`, err);
+                // Throwing here to inform the client/user that part of the op failed
+                // Ideally this should revert the Drug creation (Transaction needed)
+                throw new ApiError(500, `Drug created but failed to add stock: ${err.message}`);
             }
         }
 
-        return drug;
+        return Drug.fromPrisma(created).toDTO();
     }
 
     /**
      * Update drug
      */
-    async updateDrug(id, drugData) {
-        const existingDrug = await inventoryRepository.findDrugById(id);
+    async updateDrug(id, updates) {
+        const existing = await inventoryRepository.findDrugById(id);
 
-        if (!existingDrug) {
+        if (!existing) {
             throw ApiError.notFound('Drug not found');
         }
 
-        const drug = await inventoryRepository.updateDrug(id, drugData);
-        logger.info(`Drug updated: ${drug.name} (ID: ${drug.id})`);
-        return drug;
+        const drug = Drug.fromPrisma(existing);
+
+        // Apply updates
+        Object.assign(drug, updates);
+        drug.updatedAt = new Date();
+
+        // Validate
+        drug.validate();
+
+        // Persist
+        const updated = await inventoryRepository.updateDrug(id, drug.toPrisma());
+
+        return Drug.fromPrisma(updated).toDTO();
     }
 
     /**
-     * Get inventory batches
+     * Get all batches with filters and related data
      */
     async getBatches(filters) {
-        return await inventoryRepository.findBatches(filters);
+        const result = await inventoryRepository.findBatches(filters);
+
+        // Return raw Prisma data - frontend expects exact DB structure
+        return result;
     }
 
     /**
      * Get batch by ID
      */
     async getBatchById(id) {
-        const batch = await inventoryRepository.findBatchById(id);
+        const batchData = await inventoryRepository.findBatchById(id);
 
-        if (!batch) {
+        if (!batchData) {
             throw ApiError.notFound('Batch not found');
         }
 
-        return batch;
+        // Return raw Prisma data
+        return batchData;
     }
 
     /**
-     * Create inventory batch
+     * Create new batch
      */
-    async createBatch(batchData) {
-        const batch = await inventoryRepository.createBatch(batchData);
+    async createBatch(batchData, userId) {
+        // Resolve supplier if name provided but ID missing
+        if (!batchData.supplierId && batchData.supplier) {
+            batchData.supplierId = await this.findOrCreateSupplierByName(batchData.supplier, batchData.storeId, userId);
+        }
 
-        // Create stock movement record
-        await inventoryRepository.createStockMovement({
-            batchId: batch.id,
-            movementType: 'IN',
-            quantity: batch.quantityInStock,
-            reason: 'Initial stock',
-            referenceType: 'purchase',
+        // CRITICAL: Calculate baseUnitQuantity correctly based on unit type
+        const quantity = Number(batchData.quantity || batchData.quantityInStock);
+        const unit = (batchData.receivedUnit || batchData.unit || 'Tablet').toUpperCase();
+        const tabletsPerStrip = batchData.tabletsPerStrip ? Number(batchData.tabletsPerStrip) : null;
+        
+        let baseUnitQuantity;
+        if (unit === 'STRIP' && tabletsPerStrip) {
+            baseUnitQuantity = quantity * tabletsPerStrip;
+        } else if (unit === 'BOTTLE' || unit === 'BOX') {
+            baseUnitQuantity = quantity * (tabletsPerStrip || 1);
+        } else {
+            baseUnitQuantity = quantity;
+        }
+
+        logger.info(`Batch conversion: ${quantity} ${unit} = ${baseUnitQuantity} tablets (${tabletsPerStrip} per ${unit})`);
+
+        // Create domain entity with corrected values
+        const batch = new Batch({
+            ...batchData,
+            batchNumber: new BatchNumber(batchData.batchNumber),
+            quantity: new Quantity(quantity, unit),
+            baseUnitQuantity,
+            receivedUnit: unit,
+            tabletsPerStrip
         });
 
-        logger.info(`Batch created: ${batch.batchNumber} for drug ${batch.drug.name}`);
+        // Check expiry warnings
+        if (batch.isExpiringSoon(30)) {
+            logger.warn(`New batch ${batch.batchNumber.toString()} is expiring soon`);
 
-        // Check for expiry alerts on batch creation
-        this.checkBatchExpiry(batch);
+            eventBus.emitEvent(INVENTORY_EVENTS.BATCH_EXPIRING_SOON, {
+                batchId: batch.id,
+                batchNumber: batch.batchNumber.toString(),
+                expiryDate: batch.expiryDate,
+                daysRemaining: Math.floor((batch.expiryDate - new Date()) / (1000 * 60 * 60 * 24))
+            });
+        }
 
-        return batch;
+        // Persist
+        const created = await inventoryRepository.createBatch(batch.toPrisma());
+
+        logger.info(`Batch created: ${batch.batchNumber.toString()} by user ${userId}`);
+
+        return created; // Return raw Prisma data
     }
 
     /**
-     * Check batch expiry and emit events
+     * Resolve supplier name to ID, creating it if it doesn't exist
      */
-    checkBatchExpiry(batch) {
-        const now = new Date();
-        const expiryDate = new Date(batch.expiryDate);
-        const daysLeft = Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24));
+    async findOrCreateSupplierByName(name, storeId, userId) {
+        if (!name || !storeId) return null;
 
-        // Use base unit quantity for accurate reporting
-        const stockQuantity = batch.baseUnitQuantity || batch.quantityInStock;
+        const supplierRepository = require('../../repositories/supplierRepository');
+        const existing = await supplierRepository.findByName(name, storeId);
 
-        // Emit expired event
-        if (daysLeft <= 0) {
-            eventBus.emitEvent(INVENTORY_EVENTS.EXPIRED, {
-                storeId: batch.storeId,
-                entityType: 'batch',
-                entityId: batch.id,
-                drugId: batch.drugId,
-                drugName: batch.drug?.name || 'Unknown',
-                batchNumber: batch.batchNumber,
-                expiryDate: batch.expiryDate,
-                quantityInStock: stockQuantity, // Base unit quantity
-                baseUnit: batch.drug?.baseUnit,
-                mrp: batch.mrp,
-            });
+        if (existing) {
+            return existing.id;
         }
-        // Emit near expiry event (within 90 days)
-        else if (daysLeft <= 90) {
-            eventBus.emitEvent(INVENTORY_EVENTS.EXPIRY_NEAR, {
-                storeId: batch.storeId,
-                entityType: 'batch',
-                entityId: batch.id,
-                drugId: batch.drugId,
-                drugName: batch.drug?.name || 'Unknown',
-                batchNumber: batch.batchNumber,
-                expiryDate: batch.expiryDate,
-                daysLeft,
-                quantityInStock: stockQuantity, // Base unit quantity
-                baseUnit: batch.drug?.baseUnit,
-                mrp: batch.mrp,
-            });
-        }
+
+        // Create new supplier if not found
+        const supplierService = require('../suppliers/supplierService');
+        const newSupplier = await supplierService.createSupplier({
+            name: name.trim(),
+            storeId,
+            status: 'Active',
+            createdBy: userId
+        });
+
+        return newSupplier.id;
     }
 
     /**
      * Update batch
      */
-    async updateBatch(id, updateData) {
-        const batch = await inventoryRepository.findBatchById(id);
+    async updateBatch(id, updates, userId) {
+        const existing = await inventoryRepository.findBatchById(id);
 
-        if (!batch) {
+        if (!existing) {
             throw ApiError.notFound('Batch not found');
         }
 
-        const updatedBatch = await inventoryRepository.updateBatchQuantity(id, updateData.quantityInStock || batch.quantityInStock);
-        logger.info(`Batch updated: ${updatedBatch.batchNumber}`);
-        return updatedBatch;
+        const batch = Batch.fromPrisma(existing);
+
+        // Apply updates (carefully - some fields shouldn't change)
+        if (updates.location) batch.location = updates.location;
+        if (updates.mrp) batch.sellingPrice = new Money(updates.mrp);
+        if (updates.costPrice) batch.costPrice = new Money(updates.costPrice);
+
+        // Persist
+        const updated = await inventoryRepository.updateBatch(id, batch.toPrisma());
+
+        return updated; // Return raw Prisma data
+    }
+
+    /**
+     * Adjust stock (manual increase/decrease)
+     */
+    async adjustStock(adjustmentData, userId) {
+        const { batchId, quantity, reason, notes } = adjustmentData;
+
+        const batchData = await inventoryRepository.findBatchById(batchId);
+
+        if (!batchData) {
+            throw ApiError.notFound('Batch not found');
+        }
+
+        const batch = Batch.fromPrisma(batchData);
+        const adjustQty = new Quantity(Math.abs(quantity), Unit.TABLET);
+
+        // Add or deduct based on sign
+        if (quantity > 0) {
+            batch.add(adjustQty, reason, userId);
+        } else {
+            batch.deduct(adjustQty, reason, userId);
+        }
+
+        // Persist batch
+        await inventoryRepository.updateBatchQuantity(batch.id, batch.quantity.getValue());
+
+        // Create stock movement
+        const movement = StockMovement.createAdjustment(
+            batchId,
+            new Quantity(quantity, Unit.TABLET),
+            reason,
+            userId,
+            notes
+        );
+
+        await inventoryRepository.createStockMovement(movement.toPrisma());
+
+        // Emit events
+        batch.getDomainEvents().forEach(event => {
+            eventBus.emitEvent(event.type, event);
+        });
+        batch.clearEvents();
+
+        logger.info(`Stock adjusted for batch ${batch.batchNumber.toString()}: ${quantity}`);
+
+        return batch.toDTO();
+    }
+
+    /**
+     * Get low stock alerts
+     */
+    async getLowStockAlerts(storeId) {
+        // Use repository directly as it returns aggregated data
+        return await inventoryRepository.getLowStockItems(storeId);
+    }
+
+    /**
+     * Get expiring items
+     */
+    async getExpiringItems(storeId, daysAhead = 90) {
+        // Return raw Prisma data - frontend expects exact structure
+        return await inventoryRepository.getExpiringItems(storeId, daysAhead);
+    }
+
+    /**
+     * Get inventory summary
+     */
+    async getInventorySummary(storeId) {
+        try {
+            const [value, lowStock, expiring] = await Promise.all([
+                inventoryRepository.getInventoryValue(storeId).catch(() => null),
+                inventoryRepository.getLowStockItems(storeId).catch(() => []),
+                inventoryRepository.getExpiringItems(storeId, 30).catch(() => []),
+            ]);
+
+            return {
+                totalValue: value?.totalValue || 0,
+                uniqueDrugs: value?.uniqueDrugs || 0,
+                totalUnits: value?.totalUnits || 0,
+                lowStockCount: lowStock?.length || 0,
+                expiringCount: expiring?.length || 0,
+            };
+        } catch (error) {
+            logger.error('Error getting inventory summary:', error);
+            // Return safe defaults if there's an error
+            return {
+                totalValue: 0,
+                uniqueDrugs: 0,
+                totalUnits: 0,
+                lowStockCount: 0,
+                expiringCount: 0,
+            };
+        }
+    }
+
+    /**
+     * Allocate stock using domain service (FEFO by default)
+     */
+    async allocateStock(storeId, drugId, quantity, strategy = AllocationStrategy.FEFO) {
+        const qty = new Quantity(quantity, Unit.TABLET);
+        const allocations = await this.inventoryDomain.allocateStock(storeId, drugId, qty, strategy);
+
+        return allocations.map(alloc => ({
+            batch: alloc.batch.toDTO(),
+            allocatedQty: alloc.allocatedQty.toJSON()
+        }));
+    }
+
+    /**
+     * Search drugs for POS (enriched for frontend)
+     */
+    async searchDrugsForPOS(storeId, query, limit = 10) {
+        const drugs = await inventoryRepository.searchDrugsWithStock(storeId, query, limit);
+
+        // Transform results to match what frontend expects (similar to getDrugs)
+        return drugs.map(d => {
+            // Calculate total stock from inventory batches
+            const totalStock = d.inventory
+                ? d.inventory.reduce((sum, batch) => sum + (batch.quantityInStock || 0), 0)
+                : 0;
+
+            const batchCount = d.inventory ? d.inventory.length : 0;
+
+            // Get unit config if available
+            let baseUnit = d.baseUnit || d.defaultUnit || 'Tablet';
+            let displayUnit = d.displayUnit || d.defaultUnit || d.form || 'Tablet';
+
+            // Return enriched object
+            return {
+                ...d,
+                totalStock,
+                batchCount,
+                baseUnit,
+                displayUnit,
+                // Include batch info if available (for UI that shows batch details)
+                batchId: d.inventory && d.inventory.length > 0 ? d.inventory[0].id : null, // <--- CRITICAL: Pass Batch ID
+                batchNumber: d.inventory && d.inventory.length > 0 ? d.inventory[0].batchNumber : null,
+                expiryDate: d.inventory && d.inventory.length > 0 ? d.inventory[0].expiryDate : null,
+                mrp: d.inventory && d.inventory.length > 0 ? d.inventory[0].mrp : d.mrp || 0,
+            };
+        });
     }
 
     /**
@@ -199,207 +477,44 @@ class InventoryService {
     }
 
     /**
-     * Delete drug and all its batches (soft delete)
+     * Delete drug and all its batches
      */
     async deleteDrug(id, userId) {
+        const prisma = require('../../db/prisma');
+        
         try {
-            const drug = await inventoryRepository.findDrugById(id);
-
+            const drug = await prisma.drug.findUnique({ where: { id }, select: { id: true, name: true } });
             if (!drug) {
                 throw ApiError.notFound('Drug not found');
             }
 
-            // Get all batches for this drug
-            const batches = await inventoryRepository.getBatchesWithSuppliers(id);
-            logger.info(`Found ${batches.length} batches for drug ${drug.name}`);
+            logger.info(`Deleting drug ${drug.name}`);
 
-            // Delete all batches
-            if (batches.length > 0) {
-                const deletePromises = batches.map(batch =>
-                    inventoryRepository.deleteBatch(batch.id, userId)
-                );
-                await Promise.all(deletePromises);
-            }
+            // Delete all related records in correct order
+            await prisma.stockMovement.deleteMany({ where: { batch: { drugId: id } } });
+            await prisma.saleItem.deleteMany({ where: { drugId: id } });
+            await prisma.prescriptionItem.deleteMany({ where: { drugId: id } });
+            await prisma.prescriptionItemVersion.deleteMany({ where: { drugId: id } });
+            await prisma.purchaseOrderItem.deleteMany({ where: { drugId: id } });
+            await prisma.gRNItem.deleteMany({ where: { drugId: id } });
+            await prisma.supplierReturnItem.deleteMany({ where: { drugId: id } });
+            await prisma.consolidatedInvoiceItem.deleteMany({ where: { drugId: id } });
+            await prisma.pOTemplateItem.deleteMany({ where: { drugId: id } });
+            await prisma.stockAlert.deleteMany({ where: { drugId: id } });
+            await prisma.inventoryForecast.deleteMany({ where: { drugId: id } });
+            await prisma.locationMapping.deleteMany({ where: { drugId: id } });
+            await prisma.locationMismatch.deleteMany({ where: { drugId: id } });
+            await prisma.saltMappingAudit.deleteMany({ where: { drugId: id } });
+            await prisma.drugUnit.deleteMany({ where: { drugId: id } });
+            await prisma.inventoryBatch.deleteMany({ where: { drugId: id } });
+            await prisma.drugSaltLink.deleteMany({ where: { drugId: id } });
+            await prisma.drug.delete({ where: { id } });
 
-            logger.info(`Drug deleted: ${drug.name} with ${batches.length} batches by user: ${userId}`);
-
-            return {
-                drug,
-                deletedBatchCount: batches.length
-            };
+            logger.info(`Drug deleted: ${drug.name} by user: ${userId}`);
+            return { drug };
         } catch (error) {
             logger.error('Delete drug error:', error);
             throw error;
-        }
-    }
-
-    /**
-     * Adjust stock
-     */
-    async adjustStock(adjustmentData) {
-        const { batchId, quantityAdjusted, reason, userId } = adjustmentData;
-
-        const batch = await inventoryRepository.findBatchById(batchId);
-
-        if (!batch) {
-            throw ApiError.notFound('Batch not found');
-        }
-
-        const newQuantity = batch.quantityInStock + quantityAdjusted;
-
-        if (newQuantity < 0) {
-            throw ApiError.badRequest('Adjustment would result in negative stock');
-        }
-
-        // Update batch quantity
-        await inventoryRepository.updateBatchQuantity(batchId, newQuantity);
-
-        // Create stock movement
-        await inventoryRepository.createStockMovement({
-            batchId,
-            movementType: quantityAdjusted > 0 ? 'IN' : 'OUT',
-            quantity: Math.abs(quantityAdjusted),
-            reason,
-            referenceType: 'adjustment',
-            userId,
-        });
-
-        logger.info(`Stock adjusted for batch ${batch.batchNumber}: ${quantityAdjusted}`);
-
-        return { success: true, newQuantity };
-    }
-
-    /**
-     * Get low stock alerts
-     */
-    async getLowStockAlerts(storeId) {
-        return await inventoryRepository.getLowStockItems(storeId);
-    }
-
-    /**
-     * Get expiring items
-     */
-    async getExpiringItems(storeId, daysAhead = 90) {
-        return await inventoryRepository.getExpiringItems(storeId, daysAhead);
-    }
-
-    /**
-     * Get inventory summary
-     */
-    async getInventorySummary(storeId) {
-        const [value, lowStock, expiring] = await Promise.all([
-            inventoryRepository.getInventoryValue(storeId),
-            inventoryRepository.getLowStockItems(storeId),
-            inventoryRepository.getExpiringItems(storeId, 30),
-        ]);
-
-        return {
-            totalValue: value.totalValue || 0,
-            uniqueDrugs: value.uniqueDrugs || 0,
-            totalUnits: value.totalUnits || 0,
-            lowStockCount: lowStock.length,
-            expiringCount: expiring.length,
-        };
-    }
-
-    /**
-     * Allocate stock for sale (FIFO/FEFO)
-     */
-    async allocateStock(storeId, drugId, quantity) {
-        const batches = await inventoryRepository.findBatchesForDispense(storeId, drugId, quantity);
-
-        if (batches.length === 0) {
-            throw ApiError.notFound('No stock available for this drug');
-        }
-
-        const allocations = [];
-        let remainingQuantity = quantity;
-
-        for (const batch of batches) {
-            if (remainingQuantity <= 0) break;
-
-            const allocatedQuantity = Math.min(batch.quantityInStock, remainingQuantity);
-
-            allocations.push({
-                batchId: batch.id,
-                batchNumber: batch.batchNumber,
-                quantity: allocatedQuantity,
-                mrp: batch.mrp,
-                expiryDate: batch.expiryDate,
-            });
-
-            remainingQuantity -= allocatedQuantity;
-        }
-
-        if (remainingQuantity > 0) {
-            throw ApiError.badRequest(`Insufficient stock. Available: ${quantity - remainingQuantity}, Required: ${quantity}`);
-        }
-
-        return allocations;
-    }
-
-    /**
-     * Search drugs for POS with stock availability
-     */
-    async searchDrugsForPOS(storeId, searchTerm) {
-        try {
-            logger.info('🔍 Service: Searching drugs for POS:', { storeId, searchTerm });
-
-            // Search drugs that belong to this store
-            const drugs = await inventoryRepository.searchDrugsWithStock(storeId, searchTerm);
-            logger.info('🔍 Service: Found drugs count:', drugs.length);
-
-            // Process drugs to flatten structure and add conversion factor
-            const results = drugs.map(drug => {
-                try {
-                    // Find conversion factor for displayUnit -> baseUnit
-                    let conversion = 1;
-                    if (drug.unitConfigurations && drug.unitConfigurations.length > 0) {
-                        const config = drug.unitConfigurations.find(
-                            c => c.parentUnit === drug.displayUnit && c.childUnit === drug.baseUnit
-                        );
-                        if (config) {
-                            conversion = Number(config.conversion);
-                        }
-                    }
-
-                    // Calculate total stock
-                    const totalStock = drug.inventory ? drug.inventory.reduce((sum, batch) => sum + batch.quantityInStock, 0) : 0;
-
-                    // Identify primary batch (FEFO) - Repo returns sorted by expiry
-                    const primaryBatch = drug.inventory && drug.inventory.length > 0 ? drug.inventory[0] : null;
-
-                    return {
-                        id: drug.id,
-                        name: drug.name,
-                        strength: drug.strength,
-                        form: drug.form,
-                        manufacturer: drug.manufacturer,
-                        mrp: primaryBatch ? Number(primaryBatch.mrp) : 0,
-                        totalStock,
-                        batchCount: drug.inventory ? drug.inventory.length : 0,
-                        gstRate: Number(drug.gstRate),
-                        requiresPrescription: drug.requiresPrescription,
-                        baseUnit: drug.baseUnit,
-                        displayUnit: drug.displayUnit,
-                        unitConfigurations: drug.unitConfigurations,
-                        conversionFactor: conversion,
-                        // Primary Batch Details (for FEFO auto-selection)
-                        batchId: primaryBatch ? primaryBatch.id : null,
-                        batchNumber: primaryBatch ? primaryBatch.batchNumber : null,
-                        expiryDate: primaryBatch ? primaryBatch.expiryDate : null,
-                        location: primaryBatch ? primaryBatch.location : null
-                    };
-                } catch (innerError) {
-                    logger.error('❌ Error processing drug:', { drugId: drug.id, error: innerError.message });
-                    return null;
-                }
-            }).filter(item => item !== null);
-
-            return results;
-        } catch (error) {
-            logger.error('❌ Service: Error in searchDrugsForPOS:', error);
-            throw error; // Re-throw so controller sends 500
         }
     }
 
@@ -482,7 +597,7 @@ class InventoryService {
             };
         });
 
-        // Add 'exists: false' for items not found (implicit in frontend usage, but explicit here is clearer)
+        // Add 'exists: false' for items not found
         items.forEach(item => {
             const key = getKey(item.drugId, item.batchNumber);
             if (!result[key]) {
@@ -491,6 +606,44 @@ class InventoryService {
         });
 
         return result;
+    }
+    /**
+     * Private helper to resolve salts by name or ID
+     * @private
+     */
+    async _resolveSalts(saltLinks, contextId) {
+        const saltRepository = require('../../repositories/saltRepository');
+        const resolvedLinks = [];
+
+        for (const link of saltLinks) {
+            let finalSaltId = link.saltId;
+
+            // If no ID, but we have a name, try to resolve or create
+            if (!finalSaltId && link.name) {
+                // Try to find existing salt by name
+                const existingSalt = await saltRepository.findByNameOrAlias(link.name);
+                if (existingSalt) {
+                    finalSaltId = existingSalt.id;
+                } else {
+                    // Create new salt master record
+                    const newSalt = await saltRepository.createSalt({
+                        name: link.name,
+                        createdById: contextId // Use storeId or userId as creator context
+                    });
+                    finalSaltId = newSalt.id;
+                    logger.info(`Created new salt master record for: ${link.name}`);
+                }
+            }
+
+            if (finalSaltId) {
+                resolvedLinks.push({
+                    ...link,
+                    saltId: finalSaltId
+                });
+            }
+        }
+
+        return resolvedLinks;
     }
 }
 

@@ -17,6 +17,7 @@ const StatCardSkeleton = () => (
 )
 
 import { usePremiumTheme } from '@/lib/hooks/usePremiumTheme';
+import SupplierDrawer from '@/components/suppliers/SupplierDrawer';
 
 export default function SuppliersDashboardPage() {
     const { isPremium } = usePremiumTheme();
@@ -50,37 +51,8 @@ export default function SuppliersDashboardPage() {
         }
     };
 
-    const handleSaveSupplier = async (data: any) => {
-        try {
-            const { supplierApi } = await import('@/lib/api/supplier');
-
-            // Transform form data to match backend schema
-            const supplierData = {
-                name: data.name,
-                category: data.category,
-                status: 'Active',
-                gstin: data.gstin,
-                dlNumber: data.dlNumber,
-                pan: data.pan,
-                contactName: data.contactName,
-                phoneNumber: data.phoneNumber,
-                email: data.email,
-                whatsapp: data.whatsapp,
-                addressLine1: data.addressLine1,
-                addressLine2: data.addressLine2,
-                city: data.city,
-                state: data.state,
-                pinCode: data.pinCode,
-                paymentTerms: data.paymentTerms,
-                creditLimit: data.creditLimit,
-            };
-
-            await supplierApi.createSupplier(supplierData);
-            setIsAddModalOpen(false);
-            setRefreshKey(prev => prev + 1); // Trigger refresh
-        } catch (error: any) {
-            alert(error.message || 'Failed to create supplier');
-        }
+    const handleSupplierSaved = () => {
+        setRefreshKey(prev => prev + 1); // Trigger refresh
     };
 
     return (
@@ -89,7 +61,7 @@ export default function SuppliersDashboardPage() {
             <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-gray-900">Supplier Overview</h1>
-                    <p className="text-gray-500">Manage relationships, performance, and compliance.</p>
+                    <p className="text-gray-500">Manage relationships, powerformance, and compliance.</p>
                 </div>
             </div>
 
@@ -166,20 +138,12 @@ export default function SuppliersDashboardPage() {
             {/* Main List */}
             <SupplierList onAddClick={() => setIsAddModalOpen(true)} onRefresh={refreshKey} />
 
-            {/* Add Modal */}
-            {
-                isAddModalOpen && typeof window !== 'undefined' && createPortal(
-                    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4">
-                        <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-white rounded-xl shadow-2xl">
-                            <SupplierForm
-                                onSave={handleSaveSupplier}
-                                onCancel={() => setIsAddModalOpen(false)}
-                            />
-                        </div>
-                    </div>,
-                    document.body
-                )
-            }
+            {/* Add Drawer */}
+            <SupplierDrawer
+                isOpen={isAddModalOpen}
+                onClose={() => setIsAddModalOpen(false)}
+                onSuccess={handleSupplierSaved}
+            />
         </div >
     );
 }

@@ -107,4 +107,39 @@ body {
     background: linear-gradient(to right, #059669, #14b8a6);
     opacity: 0.6;
   }
+  
+  /* Upload Progress Shimmer Animation */
+  @keyframes shimmer {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(100%);
+    }
+  }
+  
+  .animate-shimmer {
+    animation: shimmer 2s infinite;
+  }
+  
+  .animate-slide-right {
+    animation: slide-right 3s linear infinite;
+  }
+  
+  @keyframes slide-right {
+    0% {
+      transform: translateX(-10px);
+      opacity: 0;
+    }
+    10% {
+      opacity: 0.4;
+    }
+    90% {
+      opacity: 0.4;
+    }
+    100% {
+      transform: translateX(calc(100vw + 10px));
+      opacity: 0;
+    }
+  }
 }

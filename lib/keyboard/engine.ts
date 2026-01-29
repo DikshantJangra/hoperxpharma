@@ -108,6 +108,12 @@ class KeyboardEngine {
         if (e.shiftKey) parts.push('shift');
         if (e.altKey) parts.push('alt');
 
+        // Safety check: ensure e.key exists before calling toLowerCase
+        if (!e.key) {
+            console.warn('[KeyboardEngine] Keyboard event has no key property', e);
+            return '';
+        }
+
         let key = e.key.toLowerCase();
         if (key === ' ') key = 'space';
         if (key === 'escape') key = 'escape';

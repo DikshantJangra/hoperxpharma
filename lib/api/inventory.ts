@@ -10,7 +10,18 @@ export interface Drug {
     gstRate: number;
     requiresPrescription: boolean;
     defaultUnit: string;
+    baseUnit: string;
+    displayUnit: string;
     lowStockThreshold: number;
+    saltLinks?: Array<{
+        saltId: string;
+        name: string;
+        strengthValue?: string;
+        strengthUnit?: string;
+        order: number;
+    }>;
+    ocrMetadata?: any;
+    stripImageUrl?: string;
     createdAt: string;
     updatedAt: string;
 }
@@ -25,6 +36,10 @@ export interface Batch {
     purchaseRate: number;
     supplierId: string;
     storeId: string;
+    location: string | null;
+    receivedUnit: string;
+    tabletsPerStrip: number | null;
+    baseUnitQuantity: number;
     createdAt: string;
     updatedAt: string;
     drug?: Drug;
@@ -218,10 +233,10 @@ export const inventoryApi = {
             }
 
             // Filter out invalid items
-            const validItems = items.filter(item => 
-                item.drugId && 
-                item.batchNumber && 
-                item.batchNumber !== 'TBD' && 
+            const validItems = items.filter(item =>
+                item.drugId &&
+                item.batchNumber &&
+                item.batchNumber !== 'TBD' &&
                 item.batchNumber.length > 1
             );
 

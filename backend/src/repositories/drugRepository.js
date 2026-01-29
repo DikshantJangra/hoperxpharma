@@ -60,6 +60,9 @@ class DrugRepository {
         return await prisma.drug.findUnique({
             where,
             include: {
+                saltLinks: {
+                    orderBy: { order: 'asc' }
+                },
                 inventory: {
                     where: storeId ? { storeId, deletedAt: null } : { deletedAt: null },
                     select: {

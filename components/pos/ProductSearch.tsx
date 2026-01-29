@@ -148,6 +148,7 @@ export default function ProductSearch({ onAddProduct, searchFocus, setSearchFocu
       batches: product.batchCount,
       baseUnit: product.baseUnit,
       displayUnit: product.displayUnit,
+      conversionFactor: (product as any).conversionFactor || 1, // Critical: Pass factor
       batchId: product.batchId,
       batchNumber: product.batchNumber,
       type: product.requiresPrescription ? 'RX' : 'OTC',

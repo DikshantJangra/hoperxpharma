@@ -13,6 +13,10 @@ export interface Medicine {
     usageCount?: number;
     requiresPrescription?: boolean;
     price?: number; // Optional - may not be in master data
+    packSize?: string; // Pack size information
+    composition?: string; // Alias for compositionText
+    type?: string; // Alias for form
+    discontinued?: boolean; // Derived from status
 }
 
 export interface MedicineSearchIndex {

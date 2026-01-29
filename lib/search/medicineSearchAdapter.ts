@@ -24,10 +24,10 @@ class MedicineSearchAdapter {
       console.log('🔄 Loading medicine index from API...');
       const stats = await medicineApi.getStats();
       console.log('📊 API Stats response:', stats);
-      
+
       this.totalCount = stats.totalDocuments || stats.numDocuments || 0;
       this.indexLoaded = true;
-      
+
       console.log(`✅ Connected to medicine API (${this.totalCount.toLocaleString()} medicines)`);
     } catch (error) {
       console.error('❌ Failed to connect to medicine API:', error);
@@ -36,7 +36,7 @@ class MedicineSearchAdapter {
   }
 
   /**
-   * Search for medicines
+   * Search for medicines (hybrid: local cache first, API fallback)
    */
   async search(query: string, options?: {
     limit?: number;
@@ -51,9 +51,37 @@ class MedicineSearchAdapter {
     }
 
     try {
+      // Try local cache first (ultra-fast)
+      const { medicineCacheService } = await import('@/lib/cache/medicineCacheService');
+      const cacheInfo = await medicineCacheService.getCacheInfo();
+
+      if (cacheInfo.hasCache && cacheInfo.count > 0) {
+        console.log('🚀 Using local cache for search');
+        const results = await medicineCacheService.search(query, { limit: options?.limit });
+        console.log('📦 Cache returned:', results.length, 'results');
+        if (results.length > 0) console.log('First result:', results[0]);
+
+        // Transform to match expected format
+        return results.map(result => ({
+          id: result.id,
+          name: result.name,
+          genericName: result.genericName || undefined,
+          price: 0, // Not stored in cache
+          manufacturerName: result.manufacturerName || undefined,
+          packSize: result.packSize || undefined,
+          composition: result.compositionText || undefined,
+          type: result.form || undefined,
+          discontinued: false, // Discontinued items not in cache
+          score: 1,
+          match: {}
+        }));
+      }
+
+      // Fallback to API search
+      console.log('📡 Using API search (no local cache)');
       const results = await medicineApi.search({
         q: query,
-        limit: options?.limit || 20,
+        limit: options?.limit || 50, // Increased from 20 to 50
         discontinued: options?.includeDiscontinued,
       });
 
@@ -92,7 +120,7 @@ class MedicineSearchAdapter {
 
     try {
       const results = await medicineApi.searchByComposition(salt);
-      
+
       return results.map((result: any) => ({
         id: result.id || result.canonicalId,
         name: result.name,
@@ -121,7 +149,7 @@ class MedicineSearchAdapter {
 
     try {
       const results = await medicineApi.searchByManufacturer(manufacturer);
-      
+
       return results.map((result: any) => ({
         id: result.id || result.canonicalId,
         name: result.name,
@@ -152,7 +180,7 @@ class MedicineSearchAdapter {
         id: result.id || result.canonicalId,
         name: result.name,
         price: result.defaultPrice || 0,
-        manufacturer: result.manufacturerName,
+        manufacturerName: result.manufacturerName,
         packSize: result.packSize,
         composition: result.compositionText,
         type: result.form,

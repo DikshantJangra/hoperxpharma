@@ -204,6 +204,23 @@ class SupplierRepository {
             where: { gstin, storeId, deletedAt: null },
         });
     }
+
+    /**
+     * Find supplier by name (exact, case-insensitive, within store)
+     */
+    async findByName(name, storeId) {
+        if (!storeId) {
+            throw new Error('storeId is required for findByName');
+        }
+
+        return await prisma.supplier.findFirst({
+            where: {
+                name: { equals: name.trim(), mode: 'insensitive' },
+                storeId,
+                deletedAt: null
+            },
+        });
+    }
 }
 
 module.exports = new SupplierRepository();

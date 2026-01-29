@@ -9,9 +9,11 @@ const ApiError = require('../../utils/ApiError');
 const { PrismaClient } = require('@prisma/client');
 const prisma = require('../../db/prisma');
 const loyaltyService = require('../loyaltyService');
-const gstCalculator = require('../../utils/gstCalculator');
-const gstRepository = require('../../repositories/gstRepository');
 const configService = require('../configService');
+
+// Extracted services
+const gstCalculationService = require('./gstCalculationService');
+const saleAnalyticsService = require('./saleAnalyticsService');
 
 /**
  * Sale Service (Refactored with Dispense Integration)
@@ -271,7 +273,7 @@ class SaleService {
                 } else {
                     logger.info('Reusing existing walk-in patient', { patientId: walkInPatient.id, storeId: saleInfo.storeId });
                 }
-                
+
                 actualPatientId = walkInPatient.id;
             }
 

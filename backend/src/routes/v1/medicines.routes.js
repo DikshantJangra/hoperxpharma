@@ -130,6 +130,151 @@ router.get('/stats', asyncHandler(async (req, res) => {
   res.json({ success: true, data: stats });
 }));
 
+/**
+ * GET /api/v1/medicines/version
+ * Get medicine data version for client-side cache validation
+ * Requirements: Client-side search sync
+ */
+router.get('/version', asyncHandler(async (req, res) => {
+  const prisma = require('../../db/prisma');
+
+  // Get last update timestamp and total count
+  const [lastUpdate, count] = await Promise.all([
+    prisma.medicineMaster.findFirst({
+      where: { status: { not: 'DISCONTINUED' } },
+      orderBy: { updatedAt: 'desc' },
+      select: { updatedAt: true }
+    }),
+    prisma.medicineMaster.count({
+      where: { status: { not: 'DISCONTINUED' } }
+    })
+  ]);
+
+  res.json({
+    success: true,
+    data: {
+      version: lastUpdate?.updatedAt?.toISOString() || new Date().toISOString(),
+      count,
+      lastModified: lastUpdate?.updatedAt
+    }
+  });
+}));
+
+/**
+ * GET /api/v1/medicines/updates
+ * Get incremental updates since a specific version
+ * Requirements: Client-side search sync
+ */
+router.get('/updates', asyncHandler(async (req, res) => {
+  const { since } = req.query;
+  const prisma = require('../../db/prisma');
+
+  if (!since) {
+    throw ApiError.badRequest('since parameter is required (ISO timestamp)');
+  }
+
+  const sinceDate = new Date(since);
+  if (isNaN(sinceDate.getTime())) {
+    throw ApiError.badRequest('Invalid since timestamp');
+  }
+
+  // Find all medicines updated or created since the given timestamp
+  const updates = await prisma.medicineMaster.findMany({
+    where: {
+      OR: [
+        { updatedAt: { gt: sinceDate } },
+        { createdAt: { gt: sinceDate } }
+      ]
+    },
+    select: {
+      id: true,
+      name: true,
+      genericName: true,
+      strength: true,
+      form: true,
+      manufacturerName: true,
+      compositionText: true,
+      primaryBarcode: true,
+      status: true,
+      updatedAt: true,
+      packSize: true,
+      schedule: true,
+      requiresPrescription: true,
+    },
+    orderBy: { updatedAt: 'asc' }
+  });
+
+  res.json({
+    success: true,
+    data: {
+      updates,
+      count: updates.length,
+      version: new Date().toISOString()
+    }
+  });
+}));
+
+/**
+ * GET /api/v1/medicines/export
+ * Export all medicines in chunks for client-side caching
+ * Requirements: Client-side search
+ */
+router.get('/export', asyncHandler(async (req, res) => {
+  const { page = 1, limit = 10000 } = req.query;
+  const prisma = require('../../db/prisma');
+
+  const pageNum = parseInt(page);
+  const limitNum = parseInt(limit);
+
+  if (pageNum < 1 || limitNum < 1 || limitNum > 50000) {
+    throw ApiError.badRequest('Invalid pagination parameters');
+  }
+
+  const skip = (pageNum - 1) * limitNum;
+
+  const [medicines, total] = await Promise.all([
+    prisma.medicineMaster.findMany({
+      where: { status: { not: 'DISCONTINUED' } },
+      select: {
+        id: true,
+        name: true,
+        genericName: true,
+        strength: true,
+        form: true,
+        manufacturerName: true,
+        compositionText: true,
+        primaryBarcode: true,
+        packSize: true,
+        schedule: true,
+        requiresPrescription: true,
+        usageCount: true,
+      },
+      skip,
+      take: limitNum,
+      orderBy: { id: 'asc' } // Stable ordering for pagination
+    }),
+    prisma.medicineMaster.count({
+      where: { status: { not: 'DISCONTINUED' } }
+    })
+  ]);
+
+  const totalPages = Math.ceil(total / limitNum);
+  const hasMore = pageNum < totalPages;
+
+  res.json({
+    success: true,
+    data: medicines,
+    pagination: {
+      page: pageNum,
+      limit: limitNum,
+      total,
+      totalPages,
+      hasMore,
+      count: medicines.length
+    }
+  });
+}));
+
 // Note: reload-search endpoint removed - not needed for PostgresSearchService
 // PostgreSQL search queries the database directly, no index reloading required
 

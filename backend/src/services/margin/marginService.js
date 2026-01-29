@@ -185,112 +185,101 @@ async function calculateProvisionalMargin(items) {
     let totalCost = new Decimal(0);
 
     for (const item of items) {
-        console.log(`\n=== Processing Item ===`);
-        console.log(`Full item object:`, JSON.stringify(item, null, 2));
-        console.log(`Qty: ${item.qty}, Unit: ${item.unit}, Price: ${item.price}`);
+        try {
+            // Validation
+            if (!item.batchId) {
+                console.warn(`[Margin] Skipping item without batchId: ${item.name || 'Unknown'}`);
+                continue;
+            }
 
-        // Fetch batch details for cost
-        const batch = await prisma.inventoryBatch.findUnique({
-            where: { id: item.batchId },
-            include: { drug: true }
-        });
+            console.log(`\n=== Processing Item: ${item.name} (${item.batchId}) ===`);
 
-        if (!batch) {
-            console.log(`Batch ${item.batchId} not found, skipping`);
-            continue;
+            // Fetch batch details for cost
+            const batch = await prisma.inventoryBatch.findUnique({
+                where: { id: item.batchId },
+                include: { drug: true }
+            });
+
+            if (!batch) {
+                console.warn(`[Margin] Batch ${item.batchId} not found, skipping`);
+                continue;
+            }
+
+            // ============================================
+            // STEP 1: CALCULATE REVENUE
+            // ============================================
+            let sellingPrice;
+            const conversionFactor = Number(item.conversionFactor) || 1;
+
+            // Safe decimal creation for price inputs
+            const safeDecimal = (val) => {
+                if (val === null || val === undefined || isNaN(Number(val))) return new Decimal(0);
+                return new Decimal(val);
+            };
+
+            if (item.price) {
+                sellingPrice = safeDecimal(item.price);
+            } else if (item.mrp && conversionFactor > 1) {
+                sellingPrice = safeDecimal(item.mrp).div(conversionFactor);
+            } else {
+                sellingPrice = safeDecimal(item.mrp || 0);
+            }
+
+            const qty = safeDecimal(item.qty);
+            const discount = safeDecimal(item.discount);
+            const grossRevenue = sellingPrice.mul(qty).minus(discount);
+
+            const gstRate = safeDecimal(item.gstRate);
+            const taxableAmount = grossRevenue.div(new Decimal(1).plus(gstRate.div(100)));
+
+            // ============================================
+            // STEP 2: CALCULATE COST
+            // ============================================
+            const purchasePrice = safeDecimal(batch.purchasePrice);
+
+            // Determine pack size
+            let packSize = Number(batch.tabletsPerStrip || item.tabletsPerStrip || 1);
+            if (packSize === 1 && conversionFactor > 1) {
+                packSize = conversionFactor;
+            }
+
+            const normalizeString = (s) => (s || '').toLowerCase().trim();
+            const itemUnit = normalizeString(item.unit);
+            const drug = batch.drug || {};
+            const baseUnit = normalizeString(drug.baseUnit);
+
+            const isDerivedPrice = !item.price && item.mrp && conversionFactor > 1;
+
+            const isBaseUnitSale = isDerivedPrice ||
+                (itemUnit === baseUnit && baseUnit !== '') ||
+                (itemUnit.includes('tab')) ||
+                (itemUnit.includes('cap')) ||
+                (itemUnit.includes('pill'));
+
+            let quantityInPackUnits;
+
+            if (isBaseUnitSale && packSize > 1) {
+                quantityInPackUnits = qty.div(packSize);
+            } else {
+                quantityInPackUnits = qty;
+            }
+
+            const lineCost = purchasePrice.mul(quantityInPackUnits);
+
+            // ============================================
+            // STEP 3: ACCUMULATE
+            // ============================================
+            totalCost = totalCost.plus(lineCost);
+            totalRevenue = totalRevenue.plus(taxableAmount);
+
+        } catch (itemError) {
+            console.error(`[Margin] Error processing item ${item.name}:`, itemError);
+            // Continue processing other items instead of crashing
         }
-
-        // ============================================
-        // STEP 1: CALCULATE REVENUE
-        // ============================================
-        // Problem: Frontend doesn't send 'price' field, only 'mrp'
-        // Solution: Derive actual selling price from MRP and conversionFactor
-
-        let sellingPrice;
-        const conversionFactor = item.conversionFactor || 1;
-
-        if (item.price) {
-            sellingPrice = new Decimal(item.price);
-        } else if (item.mrp && conversionFactor > 1) {
-            // No price provided. Calculate per-tablet price from MRP
-            // MRP is for the pack (strip). Divide by conversionFactor to get per-tablet price
-            sellingPrice = new Decimal(item.mrp).div(conversionFactor);
-            console.log(`💰 Price derived: MRP ${item.mrp} ÷ ${conversionFactor} = ${sellingPrice}`);
-        } else {
-            sellingPrice = new Decimal(item.mrp || 0);
-        }
-
-        const discount = new Decimal(item.discount || 0);
-        const grossRevenue = sellingPrice.mul(item.qty).minus(discount);
-
-        const gstRate = new Decimal(item.gstRate || 0);
-        const taxableAmount = grossRevenue.div(new Decimal(1).plus(gstRate.div(100)));
-
-        console.log(`Revenue: Price=${sellingPrice}, Qty=${item.qty}, Gross=${grossRevenue}, Taxable=${taxableAmount}`);
-
-        // ============================================
-        // STEP 2: CALCULATE COST
-        // ============================================
-        // batch.purchasePrice is per BATCH UNIT (usually Strip)
-        // We need to convert item.qty (in sold units) to batch units
-
-        // Determine pack size
-        let packSize = batch.tabletsPerStrip || item.tabletsPerStrip || 1;
-        if (packSize === 1 && item.conversionFactor && item.conversionFactor > 1) {
-            packSize = item.conversionFactor;
-        }
-        console.log(`Pack size: ${packSize}`);
-
-        // Determine if we're selling in base units (tablets) or pack units (strips)
-        const drug = batch.drug || {};
-        const normalizeString = (s) => (s || '').toLowerCase().trim();
-        const itemUnit = normalizeString(item.unit);
-        const baseUnit = normalizeString(drug.baseUnit);
-
-
-        // CRITICAL: If we derived the price from MRP/conversionFactor,
-        // it PROVES we're selling in base units, regardless of 'unit' field
-        const isDerivedPrice = !item.price && item.mrp && conversionFactor > 1;
-
-        const isBaseUnitSale = isDerivedPrice ||
-            (itemUnit === baseUnit) ||
-            (itemUnit.includes('tab')) ||
-            (itemUnit.includes('cap')) ||
-            (itemUnit.includes('pill')) ||
-            (itemUnit.includes('ml'));
-
-        let quantityInPackUnits;
-
-        if (isBaseUnitSale && packSize > 1) {
-            // Selling tablets, but batch price is per strip
-            // Convert: 5 tablets / 10 tablets per strip = 0.5 strips
-            quantityInPackUnits = new Decimal(item.qty).div(packSize);
-            console.log(`Base unit sale detected. Qty ${item.qty} ${item.unit} = ${quantityInPackUnits} packs`);
-        } else {
-            // Selling in pack units (strips) or packSize is 1 (no conversion needed)
-            quantityInPackUnits = new Decimal(item.qty);
-            console.log(`Pack unit sale. Qty ${item.qty} ${item.unit} = ${quantityInPackUnits} packs`);
-        }
-
-        const lineCost = new Decimal(batch.purchasePrice).mul(quantityInPackUnits);
-        console.log(`Cost: ${batch.purchasePrice} × ${quantityInPackUnits} = ${lineCost}`);
-
-        // ============================================
-        // STEP 3: ACCUMULATE
-        // ============================================
-        totalCost = totalCost.plus(lineCost);
-        totalRevenue = totalRevenue.plus(taxableAmount);
-
-        console.log(`Running totals: Cost=${totalCost}, Revenue=${totalRevenue}, Margin=${totalRevenue.minus(totalCost)}`);
     }
 
     const marginAmount = totalRevenue.minus(totalCost);
     const marginPercent = totalRevenue.equals(0) ? new Decimal(0) : marginAmount.div(totalRevenue).mul(100);
-
-    console.log(`\n=== FINAL RESULT ===`);
-    console.log(`Total Revenue: ${totalRevenue}`);
-    console.log(`Total Cost: ${totalCost}`);
-    console.log(`Margin: ${marginAmount} (${marginPercent}%)`);
 
     return {
         totalMargin: marginAmount.toNumber(),

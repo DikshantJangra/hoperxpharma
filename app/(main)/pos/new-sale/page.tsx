@@ -100,6 +100,10 @@ export default function NewSalePage() {
                 stock: Number(scannedItem.quantityInStock),
                 batches: 1,
                 batchCount: 1,
+                // Pass conversion details
+                conversionFactor: Number(scannedItem.conversionFactor) || 1,
+                baseUnit: scannedItem.baseUnit || 'Tablet',
+                displayUnit: scannedItem.displayUnit || 'Strip',
 
                 // Specific Batch Details
                 batchId: scannedItem.batchId,
@@ -141,7 +145,7 @@ export default function NewSalePage() {
         timeThreshold: 50
     });
 
-// Fetch next invoice number
+    // Fetch next invoice number
     useEffect(() => {
         const fetchNextInvoice = async () => {
             try {

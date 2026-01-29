@@ -3,11 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import { POLine, Supplier } from '@/types/po';
 import LineItemRow from './LineItemRow';
-import ProductSearchBar from './ProductSearchBar';
 import { normalizeGSTRate } from '@/utils/gst-utils';
 import AddCustomItemInline from './AddCustomItemInline';
 import MedicineCommandPalette from '@/components/search/MedicineCommandPalette';
-import { MdAdd, MdSearch, MdShoppingCart, MdPostAdd } from 'react-icons/md';
+import { MdSearch, MdShoppingCart, MdPostAdd } from 'react-icons/md';
 import { FiPlus, FiTrash2, FiEdit2, FiPackage } from 'react-icons/fi';
 import type { Medicine } from '@/types/medicine';
 
@@ -26,7 +25,6 @@ export default function LineItemTable({
   onRemoveLine,
   supplier
 }: LineItemTableProps) {
-  const [showSearch, setShowSearch] = useState(false);
   const [showCustomItemInline, setShowCustomItemInline] = useState(false);
   const [showMedicinePalette, setShowMedicinePalette] = useState(false);
 
@@ -67,10 +65,10 @@ export default function LineItemTable({
     // Medicine Master data structure:
     // - name, genericName, strength, form, manufacturerName, compositionText
     // - No packSize field, so we'll use form (e.g., "Tablet", "Capsule", "Syrup")
-    
+
     const packUnit = medicine.form || 'Strip';
     const packSize = 10; // Default pack size
-    
+
     // Build description from available fields
     const description = [
       medicine.name,
@@ -114,10 +112,7 @@ export default function LineItemTable({
             </kbd>
           </button>
           <button
-            onClick={() => {
-              setShowCustomItemInline(!showCustomItemInline);
-              setShowSearch(false); // Close search if open
-            }}
+            onClick={() => setShowCustomItemInline(!showCustomItemInline)}
             className={`inline-flex items-center gap-2 px-4 py-2 text-sm font-medium border rounded-lg transition-colors shadow-sm ${showCustomItemInline
               ? 'text-emerald-700 bg-emerald-100 border-emerald-300'
               : 'text-emerald-700 bg-emerald-50 border-emerald-200 hover:bg-emerald-100'
@@ -126,27 +121,11 @@ export default function LineItemTable({
             <MdPostAdd className="h-4 w-4" />
             {showCustomItemInline ? 'Close Custom Item' : 'Add Custom Item'}
           </button>
-          <button
-            onClick={() => {
-              setShowSearch(!showSearch);
-              setShowCustomItemInline(false); // Close custom item if open
-            }}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 transition-colors shadow-sm"
-          >
-            <MdAdd className="h-4 w-4" />
-            {showSearch ? 'Close Search' : 'Add Item'}
-          </button>
+
         </div>
       </div>
 
-      {showSearch && (
-        <div className="px-4 py-4 border-b border-gray-200 bg-gray-50 animate-in slide-in-from-top-2">
-          <ProductSearchBar
-            onSelect={handleAddProduct}
-            supplier={supplier}
-          />
-        </div>
-      )}
+
 
       {showCustomItemInline && (
         <div className="px-4 py-4 border-b border-gray-200 bg-gray-50 animate-in slide-in-from-top-2">
@@ -167,7 +146,7 @@ export default function LineItemTable({
             Search for products above or use the suggestions panel to quickly build your order.
           </p>
           <button
-            onClick={() => setShowSearch(true)}
+            onClick={() => setShowMedicinePalette(true)}
             className="text-emerald-600 font-medium text-sm hover:text-emerald-700 hover:underline"
           >
             Search Product Catalog

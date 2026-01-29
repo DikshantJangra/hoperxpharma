@@ -14,6 +14,20 @@ const drugSchema = z.object({
     defaultUnit: z.string().optional(),
     lowStockThreshold: z.number().int().positive().optional(),
     description: z.string().optional(),
+    // Extended fields for richer medicine data
+    saltLinks: z.array(z.object({
+        saltId: z.string().optional(), // Optional to allow resolution by name
+        name: z.string(),
+        strengthValue: z.union([z.string(), z.number()]).optional(),
+        strengthUnit: z.string().optional(),
+        order: z.number().int()
+    })).optional(),
+    ocrMetadata: z.any().optional(),
+    stripImageUrl: z.string().optional(),
+    baseUnit: z.string().optional(),
+    displayUnit: z.string().optional(),
+    // Allow batchDetails to be passed during drug creation for atomic operations
+    batchDetails: z.any().optional()
 });
 
 /**
@@ -23,12 +37,16 @@ const batchCreateSchema = z.object({
     storeId: z.string().cuid(),
     drugId: z.string(),
     batchNumber: z.string().min(1, 'Batch number is required'),
-    expiryDate: z.string().datetime(),
-    quantityInStock: z.number().int().positive('Quantity must be positive'),
-    mrp: z.number().positive('MRP must be positive'),
-    purchasePrice: z.number().positive('Purchase price must be positive'),
+    expiryDate: z.string(), // Allow various date formats, service will convert
+    quantityInStock: z.number().int().nonnegative('Quantity cannot be negative'),
+    mrp: z.number().nonnegative('MRP cannot be negative'),
+    purchasePrice: z.number().nonnegative('Purchase price cannot be negative'),
     supplierId: z.string().cuid().optional(),
+    supplier: z.string().optional(), // Allow name for resolution
     location: z.string().optional(),
+    receivedUnit: z.string().optional(),
+    tabletsPerStrip: z.number().int().positive().optional(),
+    baseUnitQuantity: z.number().optional(),
 });
 
 /**
@@ -58,8 +76,13 @@ const inventoryQuerySchema = z.object({
     limit: z.string().transform(Number).pipe(z.number().int().positive().max(100)).optional(),
     search: z.string().optional(),
     drugId: z.string().optional(),
-    expiringInDays: z.string().transform(Number).pipe(z.number().int().positive()).optional(),
-});
+    // Allow single value or array for filters
+    stockStatus: z.union([z.string(), z.array(z.string())]).optional(),
+    expiryWindow: z.union([z.string(), z.array(z.string())]).optional(),
+    storage: z.union([z.string(), z.array(z.string())]).optional(),
+    sortBy: z.string().optional(),
+    sortOrder: z.enum(['asc', 'desc']).optional(),
+}).passthrough();
 
 module.exports = {
     drugSchema,

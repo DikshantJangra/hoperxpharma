@@ -41,23 +41,38 @@ export default function ExposeMarginEstimate({ items }: ExposeMarginEstimateProp
             // We need to calculate the REAL unit price (Per Tablet) if that's what's being sold.
 
             const payload = items.map(item => {
-                // 1. Derive Price: If lineTotal exists, use that to get per-qty price. 
-                // This is the safest way to get the actual "Selling Price Per 1 Qty".
-                // e.g. LineTotal ₹2, Qty 1 -> Price ₹2.
-                // e.g. LineTotal ₹22, Qty 11 -> Price ₹2.
-                let effectivePrice = item.price;
-                if (!effectivePrice && item.lineTotal && item.qty) {
-                    effectivePrice = item.lineTotal / item.qty;
+                // 1. Derive Price: Use explicit price if available, otherwise calculate from MRP
+                // The Basket stores MRP per pack (Strip), but Qty might be in base units (Tablets).
+                // We must send the price PER SOLD UNIT to the backend.
+
+                const conversionFactor = Number(item.conversionFactor) || 1;
+                let effectivePrice = Number(item.price);
+
+                if (!effectivePrice || isNaN(effectivePrice)) {
+                    // Fallback 1: Derive from Line Total if available
+                    if (item.lineTotal && item.qty) {
+                        effectivePrice = Number(item.lineTotal) / Number(item.qty);
+                    }
+                    // Fallback 2: Derive from MRP (Standard Logic)
+                    else if (item.mrp) {
+                        effectivePrice = Number(item.mrp) / conversionFactor;
+                    }
+                    // Fallback 3: Zero
+                    else {
+                        effectivePrice = 0;
+                    }
                 }
 
-                // Debug logging
-                console.log('🔍 Margin Estimate Item:', {
-                    price: item.price,
-                    lineTotal: item.lineTotal,
-                    qty: item.qty,
-                    effectivePrice,
-                    unit: item.unit
-                });
+                // Debug logging (Cleaner)
+                if (process.env.NODE_ENV === 'development') {
+                    console.log('✅ STAT-CHECK Item:', {
+                        name: item.name,
+                        qty: item.qty,
+                        mrp: item.mrp,
+                        factor: conversionFactor,
+                        finalPrice: effectivePrice
+                    });
+                }
 
                 // 2. Derive Unit:
                 // If item.unit is 'Strip' but Qty is 1, and Price is small, it's likely a Tablet?
@@ -128,20 +143,30 @@ export default function ExposeMarginEstimate({ items }: ExposeMarginEstimateProp
             ) : marginStats ? (
                 <div className="flex items-end justify-between gap-4">
                     <div>
-                        <div className="text-[10px] text-emerald-600/70 font-medium mb-0.5">Total Margin</div>
-                        <SecureMarginReveal value={marginStats.totalMargin} label="" blurIntensity='medium' />
+                        <div className="text-[10px] text-emerald-600/70 font-medium mb-0.5">Estimated Profit</div>
+                        <SecureMarginReveal
+                            value={(marginStats as any).grossMargin || marginStats.totalMargin}
+                            label=""
+                            blurIntensity='medium'
+                        />
                     </div>
                     <div className="text-right">
-                        <div className="text-[10px] text-emerald-600/70 font-medium mb-0.5">Net %</div>
-                        <SecureMarginReveal value={marginStats.netMarginPercent} label="" isCurrency={false} blurIntensity='medium' />
+                        <div className="text-[10px] text-emerald-600/70 font-medium mb-0.5">Margin %</div>
+                        <SecureMarginReveal
+                            value={(marginStats as any).grossMarginPercent || marginStats.netMarginPercent}
+                            label=""
+                            isCurrency={false}
+                            blurIntensity='medium'
+                        />
                     </div>
                 </div>
             ) : (
                 <span className="text-xs text-red-400">Unavailable</span>
             )}
 
-            <div className="mt-2 text-[9px] text-center text-emerald-600/40 italic">
-                Only visible to {user.role}
+            <div className="mt-2 text-[9px] text-center text-emerald-600/40 italic flex justify-between px-2">
+                <span>Simple Margin (Revenue - Cost)</span>
+                <span>v4.0</span>
             </div>
         </div>
     )

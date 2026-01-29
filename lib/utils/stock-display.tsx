@@ -48,12 +48,12 @@ export function formatStockQuantity(
     const baseQuantity = batch.baseUnitQuantity ?? batch.quantityInStock ?? batch.totalStock ?? 0;
 
     // Get unit information - support both nested and flat structures
-    const baseUnit = batch.drug?.baseUnit || batch.baseUnit || 'unit';
+    const baseUnit = batch.drug?.baseUnit || batch.baseUnit || (batch.drug?.form && batch.drug.form !== 'Tablet' ? batch.drug.form : 'Tablet');
     const displayUnit = batch.drug?.displayUnit || batch.displayUnit || batch.unit || baseUnit;
 
     // Get conversion factor - support multiple structures
-    // Default to 10 if no conversion factor found (consistent with SmartQuantityInput)
-    let conversionFactor = batch.conversionFactor || batch.conversion || 10;
+    // Default to 10 if no conversion factor found
+    let conversionFactor = batch.drug?.tabletsPerStrip || batch.tabletsPerStrip || batch.conversionFactor || batch.conversion || 1;
     if (batch.drug?.unitConfigurations) {
         const config = batch.drug.unitConfigurations.find(
             (c: any) => c.parentUnit === displayUnit && c.childUnit === baseUnit
@@ -112,11 +112,12 @@ export function renderStockQuantity(
     } = options;
 
     const baseQuantity = batch.baseUnitQuantity ?? batch.quantityInStock ?? batch.totalStock ?? 0;
-    const baseUnit = batch.drug?.baseUnit || batch.baseUnit || 'unit';
+    const baseUnit = batch.drug?.baseUnit || batch.baseUnit || (batch.drug?.form && batch.drug.form !== 'Tablet' ? batch.drug.form : 'Tablet');
     const displayUnit = batch.drug?.displayUnit || batch.displayUnit || batch.unit || baseUnit;
 
-    // Default to 10 if no conversion factor found (consistent with SmartQuantityInput)
-    let conversionFactor = batch.conversionFactor || batch.conversion || 10;
+    // Get conversion factor - support multiple structures
+    // Default to 1 if no conversion factor found (consistent with SmartQuantityInput)
+    let conversionFactor = batch.drug?.tabletsPerStrip || batch.tabletsPerStrip || batch.conversionFactor || batch.conversion || 1;
     if (batch.drug?.unitConfigurations) {
         const config = batch.drug.unitConfigurations.find(
             (c: any) => c.parentUnit === displayUnit && c.childUnit === baseUnit

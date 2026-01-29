@@ -104,7 +104,14 @@ export default function AdvancedCamera({ onCapture, onClose, title = 'Capture Im
 
   const stopCamera = () => {
     if (stream) {
-      stream.getTracks().forEach(track => track.stop());
+      stream.getTracks().forEach(track => {
+        track.stop();
+        console.log('[Camera] Stopped track:', track.label);
+      });
+      setStream(null);
+    }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null;
     }
   };
 
@@ -276,8 +283,10 @@ export default function AdvancedCamera({ onCapture, onClose, title = 'Capture Im
         size: Math.round(photoDataUrl.length / 1024) + 'KB'
       });
       
+      // Stop camera immediately after capture
+      stopCamera();
+      
       setTimeout(() => {
-        stopCamera();
         onCapture(photoDataUrl);
         setCapturing(false);
       }, 300);
@@ -298,7 +307,10 @@ export default function AdvancedCamera({ onCapture, onClose, title = 'Capture Im
         <div className="bg-gradient-to-b from-black/80 to-transparent p-4 flex items-center justify-between">
           <h2 className="text-white text-lg font-semibold">{title}</h2>
           <button
-            onClick={onClose}
+            onClick={() => {
+              stopCamera();
+              onClose();
+            }}
             className="text-white hover:bg-white/20 p-2 rounded-full transition-colors"
           >
             <FiX className="h-6 w-6" />

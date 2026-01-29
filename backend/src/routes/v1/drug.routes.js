@@ -162,7 +162,7 @@ router.get('/substitutes', async (req, res, next) => {
     const substitutesWithStock = exactMatches.map(drug => ({
       ...drug,
       totalStock: drug.batches.reduce((sum, batch) => sum + batch.currentQuantity, 0),
-      lowestPrice: drug.batches.length > 0 
+      lowestPrice: drug.batches.length > 0
         ? Math.min(...drug.batches.map(b => b.mrp))
         : null,
     }));
@@ -244,6 +244,65 @@ router.get('/bulk', async (req, res, next) => {
     res.json(drugs);
   } catch (error) {
     console.error('[Bulk Drugs] Error:', error);
+    next(error);
+  }
+});
+
+/**
+ * POST /api/v1/drugs/check-duplicate
+ * Check for duplicate medicine before creation
+ */
+router.post('/check-duplicate', async (req, res, next) => {
+  try {
+    const { name, manufacturer, form, saltLinks, storeId } = req.body;
+
+    if (!storeId) {
+      throw ApiError.badRequest('storeId is required');
+    }
+
+    if (!name || !name.trim()) {
+      throw ApiError.badRequest('Medicine name is required');
+    }
+
+    console.log('[Check Duplicate] Checking:', { name, manufacturer, form, saltCount: saltLinks?.length || 0 });
+
+    const duplicateDetectionService = require('../../services/inventory/duplicate-detection.service');
+
+    // Check for exact duplicate
+    const duplicateCheck = await duplicateDetectionService.checkDuplicateMedicine(storeId, {
+      name,
+      manufacturer,
+      form,
+      saltLinks: saltLinks || []
+    });
+
+    // Find similar medicines if not exact duplicate
+    let similarMedicines = [];
+    if (!duplicateCheck.isDuplicate) {
+      similarMedicines = await duplicateDetectionService.findSimilarMedicines(storeId, {
+        name,
+        manufacturer,
+        form,
+        saltLinks: saltLinks || []
+      });
+    }
+
+    console.log('[Check Duplicate] Result:', {
+      isDuplicate: duplicateCheck.isDuplicate,
+      matchType: duplicateCheck.matchType,
+      similarCount: similarMedicines.length
+    });
+
+    res.json({
+      isDuplicate: duplicateCheck.isDuplicate,
+      matchType: duplicateCheck.matchType,
+      existingMedicine: duplicateCheck.existingMedicine || null,
+      similarMedicines: similarMedicines,
+      checkedAt: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error('[Check Duplicate] Error:', error);
     next(error);
   }
 });
@@ -368,18 +427,18 @@ router.get('/:id/units', async (req, res, next) => {
     // Determine display and base units
     const displayUnit = drug.displayUnit || 'Strip';
     const baseUnit = drug.baseUnit || 'Tablet';
-    
+
     // Get conversion factor from:
     // 1. DrugUnit configurations (if exists)
     // 2. InventoryBatch.tabletsPerStrip (if exists)
     // 3. Default to 10
     let conversionFactor = 10;
-    
+
     // Check DrugUnit configurations first
     if (drug.unitConfigurations && drug.unitConfigurations.length > 0) {
       const defaultConfig = drug.unitConfigurations.find(c => c.isDefault) || drug.unitConfigurations[0];
       conversionFactor = Number(defaultConfig.conversion) || 10;
-    } 
+    }
     // Fallback to batch tabletsPerStrip
     else if (drug.inventory && drug.inventory.length > 0 && drug.inventory[0].tabletsPerStrip) {
       conversionFactor = drug.inventory[0].tabletsPerStrip;

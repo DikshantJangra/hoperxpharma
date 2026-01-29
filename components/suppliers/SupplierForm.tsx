@@ -6,9 +6,10 @@ interface SupplierFormProps {
     initialData?: any;
     onSave: (data: any) => void;
     onCancel: () => void;
+    variant?: 'card' | 'drawer';
 }
 
-export default function SupplierForm({ initialData, onSave, onCancel }: SupplierFormProps) {
+export default function SupplierForm({ initialData, onSave, onCancel, variant = 'card' }: SupplierFormProps) {
     const [formData, setFormData] = useState(initialData || {
         name: '',
         category: 'Distributor',
@@ -135,10 +136,13 @@ export default function SupplierForm({ initialData, onSave, onCancel }: Supplier
 
     return (
         <div
-            className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 max-w-4xl mx-auto"
+            className={`${variant === 'card'
+                ? 'bg-white rounded-lg shadow-sm border border-gray-200 p-6 max-w-4xl mx-auto'
+                : 'h-full flex flex-col bg-white'
+                }`}
             onKeyDown={handleKeyDown}
         >
-            <div className="flex items-center justify-between mb-6">
+            <div className={`flex items-center justify-between ${variant === 'drawer' ? 'p-6 border-b border-gray-100' : 'mb-6'}`}>
                 <h2 className="text-xl font-bold text-gray-800">
                     {initialData ? 'Edit Supplier' : 'Add New Supplier'}
                 </h2>
@@ -147,7 +151,7 @@ export default function SupplierForm({ initialData, onSave, onCancel }: Supplier
                 </button>
             </div>
 
-            <div className="space-y-8">
+            <div className={`space-y-8 ${variant === 'drawer' ? 'flex-1 overflow-y-auto p-6' : ''}`}>
                 {/* Section 1: Basic Info */}
                 <section>
                     <h3 className="text-sm font-semibold text-gray-900 uppercase tracking-wider mb-4 pb-2 border-b border-gray-100">
@@ -376,23 +380,23 @@ export default function SupplierForm({ initialData, onSave, onCancel }: Supplier
                         </div>
                     </div>
                 </section>
+            </div>
 
-                {/* Actions */}
-                <div className="flex items-center justify-end gap-3 pt-6 border-t border-gray-100">
-                    <button
-                        onClick={onCancel}
-                        className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
-                    >
-                        Cancel
-                    </button>
-                    <button
-                        onClick={handleSubmit}
-                        className="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center gap-2"
-                    >
-                        <FiSave />
-                        <span>Save Supplier</span>
-                    </button>
-                </div>
+            {/* Actions */}
+            <div className={`flex items-center justify-end gap-3 ${variant === 'drawer' ? 'p-6 border-t border-gray-100 mt-auto bg-white' : 'pt-6 border-t border-gray-100'}`}>
+                <button
+                    onClick={onCancel}
+                    className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                >
+                    Cancel
+                </button>
+                <button
+                    onClick={handleSubmit}
+                    className="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center gap-2"
+                >
+                    <FiSave />
+                    <span>Save Supplier</span>
+                </button>
             </div>
         </div>
     );
