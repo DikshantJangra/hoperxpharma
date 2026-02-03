@@ -29,9 +29,8 @@ class StockMovement {
         this.batchId = data.batchId;
 
         this.movementType = data.movementType;
-        this.quantity = data.quantity instanceof Quantity
-            ? data.quantity
-            : new Quantity(Math.abs(data.quantity), data.unit || Unit.TABLET);
+        // In this system, movement quantity is always baseUnitQuantity
+        this.baseUnitQuantity = Number(data.baseUnitQuantity || data.quantity || 0);
 
         // Reference to source transaction
         this.referenceType = data.referenceType;
@@ -55,8 +54,7 @@ class StockMovement {
             id: prismaData.id,
             batchId: prismaData.batchId,
             movementType: prismaData.movementType,
-            quantity: Math.abs(prismaData.quantity), // Always store as positive
-            unit: Unit.TABLET,
+            baseUnitQuantity: Math.abs(prismaData.baseUnitQuantity || prismaData.quantity),
             referenceType: prismaData.referenceType,
             referenceId: prismaData.referenceId,
             reason: prismaData.reason,
@@ -71,11 +69,11 @@ class StockMovement {
     /**
      * Create stock movement for GRN receipt
      */
-    static createForGRN(batchId, quantity, grnNumber, userId) {
+    static createForGRN(batchId, baseUnitQuantity, grnNumber, userId) {
         return new StockMovement({
             batchId,
             movementType: MovementType.IN,
-            quantity,
+            baseUnitQuantity,
             referenceType: ReferenceType.GRN,
             referenceId: grnNumber,
             reason: `Stock received via GRN ${grnNumber}`,
@@ -86,11 +84,11 @@ class StockMovement {
     /**
      * Create stock movement for sale
      */
-    static createForSale(batchId, quantity, invoiceNumber, userId) {
+    static createForSale(batchId, baseUnitQuantity, invoiceNumber, userId) {
         return new StockMovement({
             batchId,
             movementType: MovementType.OUT,
-            quantity,
+            baseUnitQuantity,
             referenceType: ReferenceType.SALE,
             referenceId: invoiceNumber,
             reason: `Sold via invoice ${invoiceNumber}`,
@@ -101,13 +99,13 @@ class StockMovement {
     /**
      * Create stock movement for manual adjustment
      */
-    static createAdjustment(batchId, quantity, reason, userId, notes = null) {
-        const type = quantity.getValue() > 0 ? MovementType.IN : MovementType.OUT;
+    static createAdjustment(batchId, baseUnitQuantity, reason, userId, notes = null) {
+        const type = baseUnitQuantity > 0 ? MovementType.IN : MovementType.OUT;
 
         return new StockMovement({
             batchId,
             movementType: type,
-            quantity: new Quantity(Math.abs(quantity.getValue()), quantity.getUnit()),
+            baseUnitQuantity: Math.abs(baseUnitQuantity),
             referenceType: ReferenceType.ADJUSTMENT,
             referenceId: null,
             reason,
@@ -136,7 +134,7 @@ class StockMovement {
      * Get signed quantity (positive for IN, negative for OUT)
      */
     getSignedQuantity() {
-        const value = this.quantity.getValue();
+        const value = this.baseUnitQuantity;
         return this.isIncoming() ? value : -value;
     }
 
@@ -160,7 +158,7 @@ class StockMovement {
             throw new Error('Movement type is required');
         }
 
-        if (this.quantity.getValue() <= 0) {
+        if (this.baseUnitQuantity <= 0) {
             throw new Error('Quantity must be positive');
         }
 
@@ -176,11 +174,11 @@ class StockMovement {
             id: this.id,
             batchId: this.batchId,
             movementType: this.movementType,
-            quantity: this.getSignedQuantity(), // Store with sign
+            baseUnitQuantity: this.getSignedQuantity(), // Store as signed baseUnitQuantity
+            quantity: Math.floor(this.getSignedQuantity()), // Maintain compatibility for now
             referenceType: this.referenceType,
             referenceId: this.referenceId,
             reason: this.reason,
-            notes: this.notes,
             userId: this.userId,
             balanceBefore: this.balanceBefore,
             balanceAfter: this.balanceAfter
@@ -192,7 +190,7 @@ class StockMovement {
             id: this.id,
             batchId: this.batchId,
             movementType: this.movementType,
-            quantity: this.quantity.toJSON(),
+            baseUnitQuantity: this.baseUnitQuantity,
             signedQuantity: this.getSignedQuantity(),
             referenceType: this.referenceType,
             referenceId: this.referenceId,

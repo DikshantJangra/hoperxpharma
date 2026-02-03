@@ -82,7 +82,7 @@ describe('Substitute Discovery Property Tests', () => {
                         })),
                         inventoryBatches: [
                             {
-                                quantityInStock: 10,
+                                baseUnitQuantity: 10,
                                 mrp: 100
                             }
                         ]
@@ -103,7 +103,7 @@ describe('Substitute Discovery Property Tests', () => {
 
                     // Assert: Should find the exact match
                     expect(substitutes.length).toBeGreaterThan(0);
-                    
+
                     // Verify each substitute has exact composition
                     substitutes.forEach(substitute => {
                         expect(substitute.matchType).toBe('EXACT');
@@ -181,7 +181,7 @@ describe('Substitute Discovery Property Tests', () => {
                         ingestionStatus: 'ACTIVE',
                         deletedAt: null,
                         drugSaltLinks: candidateSaltLinks,
-                        inventoryBatches: [{ quantityInStock: 10, mrp: 100 }]
+                        inventoryBatches: [{ baseUnitQuantity: 10, mrp: 100 }]
                     };
 
                     prisma.drug.findUnique.mockResolvedValue(sourceDrug);
@@ -252,7 +252,7 @@ describe('Substitute Discovery Property Tests', () => {
                             order: 0,
                             salt: { id: saltId, name: 'Paracetamol' }
                         }],
-                        inventoryBatches: [{ quantityInStock: 10, mrp: 100 }]
+                        inventoryBatches: [{ baseUnitQuantity: 10, mrp: 100 }]
                     };
 
                     prisma.drug.findUnique.mockResolvedValue(sourceDrug);
@@ -323,7 +323,7 @@ describe('Substitute Discovery Property Tests', () => {
                             order: 0,
                             salt: { id: saltId, name: 'Paracetamol' }
                         }],
-                        inventoryBatches: [{ quantityInStock: 10, mrp: 100 }]
+                        inventoryBatches: [{ baseUnitQuantity: 10, mrp: 100 }]
                     };
 
                     prisma.drug.findUnique.mockResolvedValue(sourceDrug);
@@ -437,11 +437,11 @@ describe('Substitute Discovery Property Tests', () => {
                             order: 0,
                             salt: { id: saltId, name: 'TestSalt' }
                         }],
-                        inventoryBatches: [{ quantityInStock: 10, mrp: 100 }]
+                        inventoryBatches: [{ baseUnitQuantity: 10, mrp: 100 }]
                     };
 
                     prisma.drug.findUnique.mockResolvedValue(sourceDrug);
-                    
+
                     // Only return candidate if it's ACTIVE (simulating WHERE clause)
                     if (candidateStatus === 'ACTIVE') {
                         prisma.drug.findMany.mockResolvedValue([candidateDrug]);

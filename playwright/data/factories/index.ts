@@ -164,14 +164,14 @@ export async function createTestBatch(
             storeId,
             drugId,
             batchNumber: overrides.batchNumber || `BATCH-${testId().substring(0, 8)}`,
-            quantityInStock: overrides.quantity ?? 100,
+            baseUnitQuantity: overrides.quantity ?? 100,
             mrp: overrides.mrp ?? 25.00,
             purchasePrice: overrides.purchasePrice ?? 20.00,
             expiryDate: overrides.expiryDate ?? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year from now
         },
     });
 
-    return { id: batch.id, quantity: batch.quantityInStock };
+    return { id: batch.id, quantity: Number(batch.baseUnitQuantity) };
 }
 
 /**

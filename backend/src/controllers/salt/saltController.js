@@ -18,7 +18,7 @@ exports.searchSalts = async (req, res, next) => {
 
         if (q) {
             const searchQuery = q.toLowerCase().trim();
-            
+
             if (includeAliases === 'true') {
                 // Search in both name and aliases
                 where.OR = [
@@ -670,8 +670,7 @@ exports.getAlternatives = async (req, res, next) => {
                         deletedAt: null
                     },
                     select: {
-                        quantityInStock: true,
-                        baseUnitQuantity: true
+                        baseUnitQuantity: true,
                     }
                 }
             }
@@ -683,7 +682,7 @@ exports.getAlternatives = async (req, res, next) => {
 
         // Calculate total stock
         const totalStock = originalDrug.inventory.reduce(
-            (sum, batch) => sum + (batch.baseUnitQuantity || batch.quantityInStock || 0),
+            (sum, batch) => sum + (Number(batch.baseUnitQuantity) || 0),
             0
         );
 
@@ -733,7 +732,7 @@ exports.getAlternatives = async (req, res, next) => {
                     where: {
                         storeId,
                         deletedAt: null,
-                        quantityInStock: { gte: parseInt(minStock) }
+                        baseUnitQuantity: { gte: parseInt(minStock) }
                     },
                     orderBy: {
                         expiryDate: 'asc' // FEFO
@@ -756,7 +755,7 @@ exports.getAlternatives = async (req, res, next) => {
 
             // Calculate total stock
             const drugTotalStock = drug.inventory.reduce(
-                (sum, batch) => sum + (batch.baseUnitQuantity || batch.quantityInStock || 0),
+                (sum, batch) => sum + (Number(batch.baseUnitQuantity) || 0),
                 0
             );
 
@@ -805,7 +804,7 @@ exports.getAlternatives = async (req, res, next) => {
                 batches: drug.inventory.map(batch => ({
                     id: batch.id,
                     batchNumber: batch.batchNumber,
-                    quantity: batch.baseUnitQuantity || batch.quantityInStock,
+                    quantity: batch.baseUnitQuantity,
                     expiryDate: batch.expiryDate,
                     location: batch.location
                 })),

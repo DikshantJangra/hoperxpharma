@@ -58,6 +58,7 @@ model User {
   saltsCreated                  Salt[]                   @relation("SaltCreator")
   drugsConfirmed                Drug[]                   @relation("DrugConfirmer")
   saltMappingAudits             SaltMappingAudit[]
+  creditNotesIssued             CreditNote[]             @relation("CreditNoteIssuer")
 
   @@index([email])
   @@index([phoneNumber])
@@ -224,7 +225,7 @@ model Store {
   whatsappMode        String?
   isDemo              Boolean               @default(false)
   rxNumberCounter     Int                   @default(0)
-  rxNumberFormat      String?               @default("SXXX-PREFIX-NNNNNN")
+  rxNumberFormat      String?               @default("SXXX-PREFIX-YY-NNNNNN")
   rxNumberPrefix      String?               @default("RX")
   users               StoreUser[]
   licenses            StoreLicense[]
@@ -258,6 +259,7 @@ model Store {
   ledger              CustomerLedger[]
   emailAccounts       EmailAccount[]
   payments            Payment[]
+  creditNotes         CreditNote[]
   marginLedger        MarginLedger[]
   storeOverlays       StoreOverlay[]
 
@@ -514,6 +516,7 @@ model Patient {
   adherence             PatientAdherence[]
   auditLogs             PatientAudit[]
   ledger                CustomerLedger[]
+  creditNotes           CreditNote[]
   loyaltyProfile        LoyaltyProfile?
 
   @@index([storeId, phoneNumber])
@@ -616,7 +619,7 @@ model CustomerLedger {
 model Drug {
   id                       String                    @id @default(cuid())
   rxcui                    String?
-  canonicalId              String?                   // Link to Medicine Master (nullable for backward compatibility)
+  canonicalId              String? // Link to Medicine Master (nullable for backward compatibility)
   name                     String
   genericName              String?
   strength                 String?
@@ -725,7 +728,7 @@ model InventoryBatch {
   drugId                   String
   batchNumber              String
   expiryDate               DateTime
-  quantityInStock          Int
+  // REMOVED: quantityInStock Int (use baseUnitQuantity computed in domain)
   mrp                      Decimal                   @db.Decimal(10, 2)
   purchasePrice            Decimal                   @db.Decimal(10, 2)
   supplierId               String?
@@ -734,7 +737,7 @@ model InventoryBatch {
   updatedAt                DateTime                  @updatedAt
   deletedAt                DateTime?
   barcodeType              String?
-  baseUnitQuantity         Decimal?                  @db.Decimal(12, 3)
+  baseUnitQuantity         Decimal                   @default(0) @db.Decimal(12, 3)
   baseUnitReserved         Decimal                   @default(0) @db.Decimal(12, 3)
   internalQRCode           String?                   @unique
   looseTabletsCount        Int                       @default(0)
@@ -745,6 +748,7 @@ model InventoryBatch {
   tabletsPerStrip          Int?
   store                    Store                     @relation(fields: [storeId], references: [id], onDelete: Cascade)
   drug                     Drug                      @relation(fields: [drugId], references: [id])
+  supplier                 Supplier?                 @relation(fields: [supplierId], references: [id])
   movements                StockMovement[]
   dispenseItems            DispenseItem[]
   saleItems                SaleItem[]
@@ -756,7 +760,7 @@ model InventoryBatch {
 
   @@unique([storeId, batchNumber, drugId])
   @@index([storeId, drugId])
-  @@index([storeId, expiryDate, quantityInStock])
+  @@index([storeId, expiryDate, baseUnitQuantity])
   @@index([drugId, expiryDate])
   @@index([supplierId, createdAt])
   @@index([batchNumber])
@@ -1196,6 +1200,7 @@ model Supplier {
   returns             SupplierReturn[]
   goodsReceivedNotes  GoodsReceivedNote[]
   ConsolidatedInvoice ConsolidatedInvoice[]
+  inventory           InventoryBatch[]
 
   @@index([gstin])
   @@index([deletedAt])
@@ -1753,6 +1758,7 @@ model SaleRefund {
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
   items          SaleRefundItem[]
+  creditNote     CreditNote?
   originalSale   Sale             @relation(fields: [originalSaleId], references: [id], onDelete: Restrict, onUpdate: Restrict)
   store          Store            @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
@@ -1769,6 +1775,7 @@ model SaleRefundItem {
   batchId      String
   quantity     Int
   refundAmount Decimal    @db.Decimal(10, 2)
+  isResellable Boolean    @default(false)
   reason       String
   createdAt    DateTime   @default(now())
   refund       SaleRefund @relation(fields: [refundId], references: [id], onDelete: Cascade)
@@ -3316,7 +3323,7 @@ model MedicineMaster {
   versions         MedicineVersion[]
   pendingMedicines PendingMedicine[]
   idMappings       IdMapping[]
-  drugs            Drug[]                // Store-specific drugs linked to this master
+  drugs            Drug[] // Store-specific drugs linked to this master
 
   @@index([name])
   @@index([primaryBarcode])
@@ -3462,9 +3469,9 @@ model PendingMedicine {
 }
 
 model MedicineVersion {
-  id             String @id @default(cuid())
-  medicineId     String @map("canonical_id")
-  versionNumber  Int    @map("version")
+  id            String @id @default(cuid())
+  medicineId    String @map("canonical_id")
+  versionNumber Int    @map("version")
 
   // Snapshot of data at this version
   snapshotData Json @map("data")
@@ -3523,7 +3530,7 @@ model MedicineImage {
   url         String
   contentHash String
   fileSize    Int
-  mimeType    String    @default("image/webp")
+  mimeType    String @default("image/webp")
 
   // Global vs Store-specific
   isGlobal      Boolean   @default(false)
@@ -3540,4 +3547,52 @@ model MedicineImage {
   @@index([isGlobal])
   @@index([storeId])
   @@map("medicine_image")
+}
+
+model CreditNote {
+  id         String           @id @default(cuid())
+  storeId    String
+  code       String           @unique // CN-202501-0001
+  amount     Decimal          @db.Decimal(10, 2)
+  balance    Decimal          @db.Decimal(10, 2)
+  status     CreditNoteStatus @default(ACTIVE)
+  issuedToId String? // Patient ID (optional, for guest checkout)
+  issuedById String
+  refundId   String?          @unique
+  issuedAt   DateTime         @default(now())
+  expiresAt  DateTime?
+  notes      String?
+
+  store    Store       @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  patient  Patient?    @relation(fields: [issuedToId], references: [id])
+  issuedBy User        @relation(fields: [issuedById], references: [id], name: "CreditNoteIssuer")
+  refund   SaleRefund? @relation(fields: [refundId], references: [id])
+
+  @@index([storeId])
+  @@index([issuedToId])
+  @@index([code])
+}
+
+enum ReturnIntent {
+  UNOPENED_UNUSED
+  OPENED_UNUSED
+  PARTIAL_USED
+  DEFECTIVE_DAMAGED
+  EXPIRED_SOLD
+  WRONG_ITEM_SOLD
+  CUSTOMER_MIND_CHANGE
+}
+
+enum RefundType {
+  CASH
+  SOURCE_REVERSAL
+  STORE_CREDIT
+  EXCHANGE
+}
+
+enum CreditNoteStatus {
+  ACTIVE
+  REDEEMED
+  EXPIRED
+  CANCELLED
 }

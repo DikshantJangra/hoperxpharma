@@ -8,15 +8,14 @@ import { BsSnow, BsQrCode } from 'react-icons/bs';
 import { toast } from 'sonner';
 import { getApiBaseUrl } from '@/lib/config/env';
 import { tokenManager } from '@/lib/api/client';
-import AdjustStockModal from './AdjustStockModal';
-import AddBatchModal from './AddBatchModal';
+import AdjustStockView from './AdjustStockView';
+import AddStockView from './AddStockView';
 import DeleteInventoryModal from './DeleteInventoryModal';
 import EditDrugModal from './EditDrugModal';
 import { mapDrugToDetailPanel } from '@/lib/utils/drugMapper';
 
 export default function StockDetailPanel({ item, onClose, onUpdate }: any) {
-  const [showAdjustModal, setShowAdjustModal] = useState(false);
-  const [showAddBatchModal, setShowAddBatchModal] = useState(false);
+  const [activeView, setActiveView] = useState<'overview' | 'adjust' | 'add'>('overview');
   const [showEditDrugModal, setShowEditDrugModal] = useState(false);
   const [batchesWithSuppliers, setBatchesWithSuppliers] = useState<any[]>([]);
   const [isLoadingBatches, setIsLoadingBatches] = useState(true);
@@ -36,8 +35,15 @@ export default function StockDetailPanel({ item, onClose, onUpdate }: any) {
       const { inventoryApi } = await import('@/lib/api/inventory');
       const response = await inventoryApi.getDrugById(mappedItem.id);
 
-      if (response.success && response.data?.inventory) {
-        setBatchesWithSuppliers(response.data.inventory);
+      // Handle both response formats:
+      // - Old: { success: true, data: { inventory: [...] } }
+      // - New: Drug object directly with inventory property
+      const inventory = response?.data?.inventory || response?.inventory || [];
+
+      console.log('🔍 Frontend: Found', inventory.length, 'batches');
+
+      if (inventory.length > 0) {
+        setBatchesWithSuppliers(inventory);
       }
     } catch (error: any) {
       console.error('Failed to refresh batches:', error);
@@ -53,13 +59,19 @@ export default function StockDetailPanel({ item, onClose, onUpdate }: any) {
   };
 
   useEffect(() => {
-    if (item?.inventory) {
-      setBatchesWithSuppliers(item.inventory);
-      setIsLoadingBatches(false);
-    } else if (item) {
-      fetchBatchesWithSuppliers();
+    // Always fetch fresh data to ensure we have movements and latest supplier info
+    fetchBatchesWithSuppliers();
+  }, [item?.id]);
+
+  // Debug: Log batches to check movements
+  useEffect(() => {
+    if (batchesWithSuppliers.length > 0) {
+      console.log('Batches with movements:', batchesWithSuppliers.map(b => ({
+        batchNumber: b.batchNumber,
+        movementsCount: b.movements?.length || 0
+      })));
     }
-  }, [item]);
+  }, [batchesWithSuppliers]);
 
   const handleLocationEdit = (batchId: string, currentLocation: string) => {
     setEditingLocation(batchId);
@@ -114,269 +126,391 @@ export default function StockDetailPanel({ item, onClose, onUpdate }: any) {
   const primarySupplier = batchesWithSuppliers.find(b => b.supplier)?.supplier;
 
   return (
-    <>
-      <div className="w-[480px] flex-shrink-0 bg-white border-l border-[#e2e8f0] flex flex-col h-full shadow-2xl relative z-20">
-        {/* Header */}
-        <div className="p-4 border-b border-[#e2e8f0] flex items-start justify-between">
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1">
-              <h2 className="text-lg font-bold text-[#0f172a]">{mappedItem.name}</h2>
-              {mappedItem.coldChain && <BsSnow className="w-4 h-4 text-[#3b82f6]" title="Cold chain" />}
-            </div>
-            <p className="text-sm text-[#64748b]">{mappedItem.generic}</p>
-            <p className="text-xs text-[#94a3b8] mt-1">SKU: {mappedItem.sku} • HSN: {mappedItem.hsn}</p>
-          </div>
-          <button onClick={onClose} className="p-2 hover:bg-[#f8fafc] rounded-lg">
-            <FiX className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-          {/* Summary */}
-          <div className="bg-[#f8fafc] rounded-lg p-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <p className="text-xs text-[#64748b] mb-1">On-hand</p>
-                <div className="flex flex-col">
-                  {renderStockQuantity({ ...item, quantityInStock: mappedItem.onHand }, { className: "text-2xl font-bold text-[#0f172a]" })}
-                </div>
+    <div className="w-[480px] flex-shrink-0 bg-white border-l border-[#e2e8f0] flex flex-col h-full shadow-2xl relative z-20 overflow-hidden">
+      {activeView === 'overview' ? (
+        <>
+          {/* Header */}
+          <div className="p-4 border-b border-[#e2e8f0] flex items-start justify-between">
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <h2 className="text-lg font-bold text-[#0f172a]">{mappedItem.name}</h2>
+                {mappedItem.coldChain && <BsSnow className="w-4 h-4 text-[#3b82f6]" title="Cold chain" />}
               </div>
-              <div>
-                <p className="text-xs text-[#64748b] mb-1">Available</p>
-                <div className="flex flex-col">
-                  {renderStockQuantity({ ...item, quantityInStock: mappedItem.available }, { className: "text-2xl font-bold text-[#0ea5a3]" })}
-                </div>
-              </div>
-              <div>
-                <p className="text-xs text-[#64748b] mb-1">Reorder Point</p>
-                <div className="flex flex-col">
-                  {renderStockQuantity({ ...item, quantityInStock: mappedItem.reorderPoint }, { className: `text-lg font-semibold ${mappedItem.available < mappedItem.reorderPoint ? 'text-[#ef4444]' : 'text-[#0f172a]'}` })}
-                </div>
-              </div>
-              <div>
-                <p className="text-xs text-[#64748b] mb-1">Avg Usage/mo</p>
-                <div className="flex flex-col">
-                  {renderStockQuantity({ ...item, quantityInStock: mappedItem.avgUsage }, { className: "text-lg font-semibold text-[#0f172a]" })}
-                </div>
+              {mappedItem.generic && <p className="text-sm text-[#64748b]">{mappedItem.generic}</p>}
+              <div className="flex flex-wrap gap-1 mt-1">
+                {item?.saltLinks?.length > 0 ? (
+                  item.saltLinks.map((link: any, idx: number) => (
+                    <span key={idx} className="text-[10px] bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded border border-emerald-100 font-medium">
+                      {link.salt?.name} {link.strengthValue}{link.strengthUnit}
+                    </span>
+                  ))
+                ) : (
+                  <p className="text-xs text-[#94a3b8]">HSN: {mappedItem.hsn}</p>
+                )}
               </div>
             </div>
+            <button onClick={onClose} className="p-2 hover:bg-[#f8fafc] rounded-lg">
+              <FiX className="w-5 h-5" />
+            </button>
           </div>
 
-          {/* AI Suggestion */}
-          {mappedItem.available < mappedItem.reorderPoint && (
-            <div className="bg-[#fef3c7] border border-[#fde68a] rounded-lg p-3">
-              <div className="flex items-start gap-2">
-                <FiAlertCircle className="w-4 h-4 text-[#f59e0b] mt-0.5 shrink-0" />
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-[#92400e] mb-1">Reorder Suggested</p>
-                  <p className="text-xs text-[#92400e] mb-2">
-                    Reorder {formatStockQuantity({ ...item, quantityInStock: mappedItem.reorderPoint * 2 })} • Lead time: 5 days
-                  </p>
-                  <button onClick={handleCreatePO} className="px-3 py-1.5 bg-[#f59e0b] text-white text-xs rounded-lg hover:bg-[#d97706]">
-                    Create PO
-                  </button>
+          {/* Content */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            {/* Summary */}
+            {isLoadingBatches ? (
+              <div className="bg-[#f8fafc] rounded-lg p-4 animate-pulse">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <div className="h-3 bg-gray-200 rounded w-16 mb-2"></div>
+                    <div className="h-8 bg-gray-300 rounded w-20"></div>
+                  </div>
+                  <div>
+                    <div className="h-3 bg-gray-200 rounded w-16 mb-2"></div>
+                    <div className="h-8 bg-gray-300 rounded w-20"></div>
+                  </div>
+                  <div>
+                    <div className="h-3 bg-gray-200 rounded w-20 mb-2"></div>
+                    <div className="h-6 bg-gray-300 rounded w-16"></div>
+                  </div>
+                  <div>
+                    <div className="h-3 bg-gray-200 rounded w-24 mb-2"></div>
+                    <div className="h-6 bg-gray-300 rounded w-16"></div>
+                  </div>
                 </div>
               </div>
-            </div>
-          )}
+            ) : (
+              <div className="bg-[#f8fafc] rounded-lg p-4">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-xs text-[#64748b] mb-1">On-hand</p>
+                    <div className="flex flex-col">
+                      {renderStockQuantity({ ...item, baseUnitQuantity: mappedItem.onHand }, { className: "text-2xl font-bold text-[#0f172a]" })}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs text-[#64748b] mb-1">Available</p>
+                    <div className="flex flex-col">
+                      {renderStockQuantity({ ...item, baseUnitQuantity: mappedItem.available }, { className: "text-2xl font-bold text-[#0ea5a3]" })}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs text-[#64748b] mb-1">Reorder Point</p>
+                    <div className="flex flex-col">
+                      {renderStockQuantity({ ...item, baseUnitQuantity: mappedItem.reorderPoint }, { className: `text-lg font-semibold ${mappedItem.available < mappedItem.reorderPoint ? 'text-[#ef4444]' : 'text-[#0f172a]'}` })}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs text-[#64748b] mb-1">Avg Usage/mo</p>
+                    <div className="flex flex-col">
+                      {renderStockQuantity({ ...item, baseUnitQuantity: mappedItem.avgUsage }, { className: "text-lg font-semibold text-[#0f172a]" })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
-          {/* Supplier */}
-          <div>
-            <h3 className="text-sm font-semibold text-[#64748b] mb-2">Primary Supplier</h3>
-            <div className="bg-white border border-[#e2e8f0] rounded-lg p-3">
-              {primarySupplier ? (
-                <>
-                  <p className="text-sm font-medium text-[#0f172a]">{primarySupplier.name}</p>
-                  <p className="text-xs text-[#64748b] mt-1">
-                    Contact: {primarySupplier.contactName} • {primarySupplier.phoneNumber}
-                  </p>
-                </>
-              ) : (
-                <p className="text-sm text-[#94a3b8]">No supplier assigned</p>
-              )}
-            </div>
-          </div>
+            {/* AI Suggestion */}
+            {mappedItem.available < mappedItem.reorderPoint && (
+              <div className="bg-[#fef3c7] border border-[#fde68a] rounded-lg p-3">
+                <div className="flex items-start gap-2">
+                  <FiAlertCircle className="w-4 h-4 text-[#f59e0b] mt-0.5 shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-[#92400e] mb-1">Reorder Suggested</p>
+                    <p className="text-xs text-[#92400e] mb-2">
+                      Reorder {formatStockQuantity({ ...item, baseUnitQuantity: mappedItem.reorderPoint * 2 })} • Lead time: 5 days
+                    </p>
+                    <button onClick={handleCreatePO} className="px-3 py-1.5 bg-[#f59e0b] text-white text-xs rounded-lg hover:bg-[#d97706]">
+                      Create PO
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
-          {/* Batches */}
-          <div>
-            <h3 className="text-sm font-semibold text-[#64748b] mb-2">
-              Batches ({isLoadingBatches ? '...' : batchesWithSuppliers.length})
-            </h3>
-            <div className="space-y-2">
+            {/* Supplier */}
+            <div>
+              <h3 className="text-sm font-semibold text-[#64748b] mb-2">Primary Supplier</h3>
               {isLoadingBatches ? (
                 <div className="bg-white border border-[#e2e8f0] rounded-lg p-3 animate-pulse">
-                  <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                  <div className="h-4 bg-gray-200 rounded w-2/3 mb-2"></div>
                   <div className="h-3 bg-gray-100 rounded w-1/2"></div>
                 </div>
-              ) : batchesWithSuppliers.length > 0 ? (
-                batchesWithSuppliers.map((batch: any) => {
-                  const daysToExpiry = Math.floor(
-                    (new Date(batch.expiryDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
-                  );
-
-                  return (
-                    <div key={batch.id} className="bg-white border border-[#e2e8f0] rounded-lg p-3">
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold text-[#0f172a]">{batch.batchNumber}</span>
-                            {daysToExpiry < 30 && (
-                              <span className="px-2 py-0.5 bg-[#fee2e2] text-[#991b1b] text-xs rounded">
-                                {daysToExpiry}d
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-xs text-[#64748b] mt-1">
-                            Expiry: {(() => {
-                              const date = new Date(batch.expiryDate);
-                              return `${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
-                            })()}
-                          </p>
-                          <div className="flex items-center gap-2 mt-1">
-                            <span className="text-xs text-[#64748b]">Location:</span>
-                            {editingLocation === batch.id ? (
-                              <div className="flex items-center gap-1">
-                                <input
-                                  type="text"
-                                  value={locationValue}
-                                  onChange={(e) => setLocationValue(e.target.value)}
-                                  className="px-2 py-0.5 text-xs border border-[#cbd5e1] rounded w-24"
-                                  autoFocus
-                                />
-                                <button
-                                  onClick={() => handleLocationSave(batch.id)}
-                                  className="p-1 text-green-600 hover:bg-green-50 rounded"
-                                >
-                                  <FiCheck className="w-3 h-3" />
-                                </button>
-                                <button
-                                  onClick={() => setEditingLocation(null)}
-                                  className="p-1 text-red-600 hover:bg-red-50 rounded"
-                                >
-                                  <FiX className="w-3 h-3" />
-                                </button>
-                              </div>
-                            ) : (
-                              <button
-                                onClick={() => handleLocationEdit(batch.id, batch.location)}
-                                className="text-xs text-[#0ea5a3] hover:underline"
-                              >
-                                {batch.location || 'Set location'}
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                        <BsQrCode className="w-5 h-5 text-[#64748b] cursor-pointer hover:text-[#0f172a]" />
-                      </div>
-                      <div className="flex items-center justify-between text-sm mb-2">
-                        <span className="text-[#64748b]">Qty: {renderStockQuantity(batch, { className: "text-gray-700" })}</span>
-                        <span className="text-[#64748b]">Cost: ₹{Number(batch.purchasePrice).toFixed(2)} • MRP: ₹{Number(batch.mrp).toFixed(2)}</span>
-                      </div>
-                      {batch.supplier && (
-                        <p className="text-xs text-[#64748b] mb-2">
-                          Supplier: {batch.supplier.name}
+              ) : (
+                <div className="bg-white border border-[#e2e8f0] rounded-lg p-3">
+                  {primarySupplier ? (
+                    <>
+                      <p className="text-sm font-medium text-[#0f172a]">{primarySupplier.name}</p>
+                      {primarySupplier.contactName && (
+                        <p className="text-xs text-[#64748b] mt-1">
+                          Contact: {primarySupplier.contactName}{primarySupplier.phoneNumber && ` • ${primarySupplier.phoneNumber}`}
                         </p>
                       )}
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => setShowAdjustModal(true)}
-                          className="flex-1 px-2 py-1 text-xs border border-[#cbd5e1] rounded hover:bg-[#f8fafc]"
-                        >
-                          Adjust
-                        </button>
-                        <button
-                          onClick={() => handleDeleteBatch(batch)}
-                          className="px-2 py-1 text-xs border border-red-200 text-red-600 rounded hover:bg-red-50"
-                          title="Delete batch"
-                        >
-                          <FiTrash2 className="w-3 h-3" />
-                        </button>
-                      </div>
-
-                      {/* Stock Movements */}
-                      {batch.movements && batch.movements.length > 0 && (
-                        <div className="mt-3 pt-3 border-t border-[#e2e8f0]">
-                          <p className="text-xs font-semibold text-[#64748b] mb-2">Recent Movements</p>
-                          <div className="space-y-1">
-                            {batch.movements.slice(0, 3).map((movement: any) => {
-                              const typeInfo = formatMovementType(movement.movementType);
-                              return (
-                                <div key={movement.id} className="flex items-center justify-between text-xs">
-                                  <span className={typeInfo.color}>{typeInfo.label}</span>
-                                  <span className="text-[#64748b]">
-                                    {movement.quantity > 0 ? '+' : ''}{formatStockQuantity({ ...batch, quantityInStock: Math.abs(movement.quantity) })} • {new Date(movement.createdAt).toLocaleDateString()}
-                                  </span>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })
-              ) : (
-                <p className="text-sm text-[#94a3b8] text-center py-4">No batches available</p>
+                    </>
+                  ) : (
+                    <p className="text-sm text-[#94a3b8]">No supplier assigned</p>
+                  )}
+                </div>
               )}
             </div>
-          </div>
-        </div>
 
-        {/* Actions */}
-        <div className="border-t border-[#e2e8f0] p-4 space-y-2">
-          <button onClick={handleCreatePO} className="w-full py-2 bg-[#0ea5a3] text-white rounded-lg hover:bg-[#0d9391] flex items-center justify-center gap-2">
-            <FiShoppingCart className="w-4 h-4" />
-            Create PO
-          </button>
-          <div className="grid grid-cols-4 gap-2">
-            <button
-              onClick={() => setShowEditDrugModal(true)}
-              className="py-2 border border-emerald-200 bg-emerald-50 text-emerald-700 rounded-lg hover:bg-emerald-100 flex items-center justify-center gap-2 text-sm"
-              title="Edit drug information"
-            >
-              <FiEdit2 className="w-4 h-4" />
-              Edit
-            </button>
-            <button
-              onClick={() => setShowAdjustModal(true)}
-              className="py-2 border border-[#cbd5e1] rounded-lg hover:bg-[#f8fafc] flex items-center justify-center gap-2 text-sm"
-            >
-              <FiEdit className="w-4 h-4" />
-              Adjust
-            </button>
-            <button
-              onClick={() => setShowAddBatchModal(true)}
-              className="py-2 border border-[#cbd5e1] rounded-lg hover:bg-[#f8fafc] flex items-center justify-center gap-2 text-sm"
-              title="Add new batch directly"
-            >
-              <FiPlus className="w-4 h-4" />
-              Add Stock
-            </button>
-            {/* <button className="py-2 border border-[#cbd5e1] rounded-lg hover:bg-[#f8fafc] flex items-center justify-center gap-2 text-sm">
-              <FiSend className="w-4 h-4" />
-              Transfer
-            </button> */}
-            <button
-              onClick={handleDeleteDrug}
-              className="py-2 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 flex items-center justify-center gap-2 text-sm"
-              title="Delete drug and all batches"
-            >
-              <FiTrash2 className="w-4 h-4" />
-              Delete
-            </button>
-          </div>
-        </div>
-      </div>
+            {/* Batches */}
+            <div>
+              <h3 className="text-sm font-semibold text-[#64748b] mb-2">
+                Batches ({isLoadingBatches ? '...' : batchesWithSuppliers.length})
+              </h3>
+              <div className="space-y-2">
+                {isLoadingBatches ? (
+                  <div className="bg-white border border-[#e2e8f0] rounded-lg p-3 animate-pulse">
+                    <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                    <div className="h-3 bg-gray-100 rounded w-1/2"></div>
+                  </div>
+                ) : batchesWithSuppliers.length > 0 ? (
+                  batchesWithSuppliers.map((batch: any) => {
+                    const daysToExpiry = Math.floor(
+                      (new Date(batch.expiryDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)
+                    );
 
-      {showAdjustModal && (
-        <AdjustStockModal
-          item={mappedItem}
-          onClose={() => setShowAdjustModal(false)}
+                    return (
+                      <div key={batch.id} className="bg-white border border-[#e2e8f0] rounded-lg p-3">
+                        <div className="flex items-start justify-between mb-2">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-[#0f172a]">{batch.batchNumber}</span>
+                              {daysToExpiry < 30 && (
+                                <span className="px-2 py-0.5 bg-[#fee2e2] text-[#991b1b] text-xs rounded">
+                                  {daysToExpiry}d
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-[#64748b] mt-1">
+                              Expiry: {(() => {
+                                const date = new Date(batch.expiryDate);
+                                return `${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
+                              })()}
+                            </p>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-xs text-[#64748b]">Location:</span>
+                              {editingLocation === batch.id ? (
+                                <div className="flex items-center gap-1">
+                                  <input
+                                    type="text"
+                                    value={locationValue}
+                                    onChange={(e) => setLocationValue(e.target.value)}
+                                    className="px-2 py-0.5 text-xs border border-[#cbd5e1] rounded w-24"
+                                    autoFocus
+                                  />
+                                  <button
+                                    onClick={() => handleLocationSave(batch.id)}
+                                    className="p-1 text-green-600 hover:bg-green-50 rounded"
+                                  >
+                                    <FiCheck className="w-3 h-3" />
+                                  </button>
+                                  <button
+                                    onClick={() => setEditingLocation(null)}
+                                    className="p-1 text-red-600 hover:bg-red-50 rounded"
+                                  >
+                                    <FiX className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => handleLocationEdit(batch.id, batch.location)}
+                                  className="text-xs text-[#0ea5a3] hover:underline"
+                                >
+                                  {batch.location || 'Set location'}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                          <BsQrCode className="w-5 h-5 text-[#64748b] cursor-pointer hover:text-[#0f172a]" />
+                        </div>
+                        <div className="flex items-center justify-between text-sm mb-2">
+                          <span className="text-[#64748b]">Qty: {renderStockQuantity({ ...batch, drug: { ...item, ...mappedItem } }, { className: "text-gray-700", forceBoth: true })}</span>
+                          <span className="text-[#64748b]">Cost: ₹{Number(batch.purchasePrice).toFixed(2)} • MRP: ₹{Number(batch.mrp).toFixed(2)}</span>
+                        </div>
+                        {batch.tabletsPerStrip && (
+                          <p className="text-xs text-[#64748b] mb-2">
+                            Pack size: {batch.tabletsPerStrip} {item.baseUnit || 'units'} per {batch.receivedUnit || item.displayUnit || 'pack'}
+                          </p>
+                        )}
+                        {batch.supplier && (
+                          <p className="text-xs text-[#64748b] mb-2">
+                            Supplier: {batch.supplier.name}
+                          </p>
+                        )}
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setActiveView('adjust')}
+                            className="flex-1 px-2 py-1 text-xs border border-[#cbd5e1] rounded hover:bg-[#f8fafc]"
+                          >
+                            Adjust
+                          </button>
+                          <button
+                            onClick={() => handleDeleteBatch(batch)}
+                            className="px-2 py-1 text-xs border border-red-200 text-red-600 rounded hover:bg-red-50"
+                            title="Delete batch"
+                          >
+                            <FiTrash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p className="text-sm text-[#94a3b8] text-center py-4">No batches available</p>
+                )}
+              </div>
+            </div>
+
+            {/* Audit History */}
+            <div>
+              <h3 className="text-sm font-semibold text-[#64748b] mb-2">Audit History</h3>
+              <div className="bg-white border border-[#e2e8f0] rounded-lg">
+                {isLoadingBatches ? (
+                  <div className="p-3 animate-pulse">
+                    <div className="h-4 bg-gray-200 rounded w-3/4 mb-2"></div>
+                    <div className="h-3 bg-gray-100 rounded w-1/2"></div>
+                  </div>
+                ) : (() => {
+                  const allMovements = batchesWithSuppliers
+                    .flatMap(batch => (batch.movements || []).map((m: any) => ({ ...m, batch })))
+                    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                    .slice(0, 10);
+
+                  if (allMovements.length === 0) {
+                    return <p className="text-xs text-[#94a3b8] text-center py-4">No movements recorded</p>;
+                  }
+
+                  return (
+                    <div className="divide-y divide-[#e2e8f0]">
+                      {allMovements.map((movement: any) => {
+                        const typeInfo = formatMovementType(movement.movementType);
+                        const date = new Date(movement.createdAt);
+                        return (
+                          <div key={movement.id} className="p-3 hover:bg-[#f8fafc] transition-colors">
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className={`text-xs font-semibold ${typeInfo.color}`}>{typeInfo.label}</span>
+                                  <span className="text-xs text-[#94a3b8]">•</span>
+                                  <span className="text-xs text-[#64748b]">{movement.batch.batchNumber}</span>
+                                </div>
+                                <p className="text-xs text-[#64748b]">
+                                  {movement.quantity > 0 ? '+' : ''}{formatStockQuantity({ ...movement.batch, baseUnitQuantity: Math.abs(movement.quantity) })}
+                                  {(() => {
+                                    // Format reference based on referenceType
+                                    if (movement.referenceType && movement.referenceId) {
+                                      const shortId = movement.referenceId.slice(-6).toUpperCase();
+                                      switch (movement.referenceType) {
+                                        case 'GRN':
+                                        case 'GOODS_RECEIPT':
+                                          return ` • via GRN-${shortId}`;
+                                        case 'SALE':
+                                        case 'INVOICE':
+                                          return ` • Sale #${shortId}`;
+                                        case 'PURCHASE_ORDER':
+                                        case 'PO':
+                                          return ` • PO-${shortId}`;
+                                        case 'ADJUSTMENT':
+                                          return ` • Adj-${shortId}`;
+                                        case 'TRANSFER':
+                                          return ` • Transfer-${shortId}`;
+                                        default:
+                                          return ` • Ref: ${shortId}`;
+                                      }
+                                    }
+                                    // Fallback to reason if no reference
+                                    if (movement.reason) {
+                                      const reasonLabels: Record<string, string> = { 'count': 'Count correction', 'damage': 'Damage', 'expiry': 'Expiry write-off', 'return': 'Return to supplier', 'theft': 'Theft/Loss', 'sample': 'Sample/Free goods' };
+                                      const label = reasonLabels[movement.reason.toLowerCase()] || movement.reason;
+                                      return ` • ${label}`;
+                                    }
+                                    return '';
+                                  })()}
+                                </p>
+                              </div>
+                              <span className="text-xs text-[#94a3b8] whitespace-nowrap ml-2">
+                                {date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          </div>
+
+          {/* Actions */}
+          <div className="border-t border-[#e2e8f0] p-4 space-y-2">
+            <button onClick={handleCreatePO} className="w-full py-2 bg-[#0ea5a3] text-white rounded-lg hover:bg-[#0d9391] flex items-center justify-center gap-2">
+              <FiShoppingCart className="w-4 h-4" />
+              Create PO
+            </button>
+            <div className="grid grid-cols-4 gap-2">
+              <button
+                onClick={() => {
+                  // Navigate to POS with this item pre-selected
+                  const queryParams = new URLSearchParams({
+                    drugId: mappedItem.id,
+                    drugName: mappedItem.name,
+                  });
+                  router.push(`/pos/new-sale?${queryParams.toString()}`);
+                }}
+                className="py-2 border border-blue-200 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 flex items-center justify-center gap-2 text-sm font-medium"
+                title="Dispense/Sell this medicine"
+              >
+                <FiShoppingCart className="w-4 h-4" />
+                Dispense
+              </button>
+              <button
+                onClick={() => setActiveView('adjust')}
+                className="flex items-center justify-center gap-2 py-2 px-3 border border-[#cbd5e1] text-[#475569] rounded-lg hover:bg-[#f8fafc] text-sm font-medium transition-colors"
+                title="Manually adjust stock (wastage, damage, etc)"
+              >
+                <FiEdit2 className="w-4 h-4" />
+                Adjust
+              </button>
+              <button
+                onClick={() => setActiveView('add')}
+                className="flex items-center justify-center gap-2 py-2 px-3 border border-[#cbd5e1] text-[#475569] rounded-lg hover:bg-[#f8fafc] text-sm font-medium transition-colors"
+                title="Add new batch of stock"
+              >
+                <FiPlus className="w-4 h-4" />
+                Add Stock
+              </button>
+              <button
+                onClick={handleDeleteDrug}
+                className="py-2 border border-red-200 text-red-600 rounded-lg hover:bg-red-50 flex items-center justify-center gap-2 text-sm"
+                title="Delete drug and all batches"
+              >
+                <FiTrash2 className="w-4 h-4" />
+                Delete
+              </button>
+            </div>
+          </div>
+        </>
+      ) : activeView === 'adjust' ? (
+        <AdjustStockView
+          item={{ ...mappedItem, batches: batchesWithSuppliers }}
+          onClose={() => setActiveView('overview')}
           onSuccess={() => {
             if (onUpdate) onUpdate();
             fetchBatchesWithSuppliers();
-            router.refresh();
+            setActiveView('overview');
+          }}
+        />
+      ) : (
+        <AddStockView
+          drugId={mappedItem.id}
+          drugName={mappedItem.name}
+          onClose={() => setActiveView('overview')}
+          onSuccess={() => {
+            if (onUpdate) onUpdate();
+            fetchBatchesWithSuppliers();
+            setActiveView('overview');
           }}
         />
       )}
@@ -409,19 +543,6 @@ export default function StockDetailPanel({ item, onClose, onUpdate }: any) {
           }}
         />
       )}
-
-      {showAddBatchModal && (
-        <AddBatchModal
-          drugId={mappedItem.id}
-          drugName={mappedItem.name}
-          onClose={() => setShowAddBatchModal(false)}
-          onSuccess={() => {
-            if (onUpdate) onUpdate();
-            fetchBatchesWithSuppliers();
-            toast.success('Batch added successfully');
-          }}
-        />
-      )}
-    </>
+    </div>
   );
 }

@@ -146,7 +146,7 @@ export default function RefillsTab({ prescription, onUpdate }: RefillsTabProps) 
                     const sortedBatches = [...batches].sort((a: any, b: any) =>
                       new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime()
                     );
-                    bestBatch = sortedBatches.find((b: any) => Number(b.quantityInStock) > 0) || sortedBatches[0];
+                    bestBatch = sortedBatches.find((b: any) => Number(b.baseUnitQuantity) > 0) || sortedBatches[0];
                   }
                 } catch (e) {
                   console.error("Stock fetch error", e);
@@ -154,7 +154,7 @@ export default function RefillsTab({ prescription, onUpdate }: RefillsTabProps) 
               }
 
               // Step C: Update state for this specific item
-              const totalStock = batches.reduce((sum: number, b: any) => sum + (Number(b.quantityInStock) || 0), 0);
+              const totalStock = batches.reduce((sum: number, b: any) => sum + (Number(b.baseUnitQuantity) || 0), 0);
 
               setStockInfo(prev => ({
                 ...prev,

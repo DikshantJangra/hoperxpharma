@@ -181,41 +181,45 @@ const getAggregatedMargin = async (storeId, startDate, endDate) => {
  * @returns {Promise<Object>} - { totalMargin, totalRevenue, totalCost, netMarginPercent }
  */
 async function calculateProvisionalMargin(items) {
+    console.log('\n🔍 [MARGIN-BACKEND] Starting calculation for', items.length, 'items');
     let totalRevenue = new Decimal(0);
     let totalCost = new Decimal(0);
 
     for (const item of items) {
         try {
-            // Validation
             if (!item.batchId) {
-                console.warn(`[Margin] Skipping item without batchId: ${item.name || 'Unknown'}`);
+                console.error(`[Margin] ❌ CRITICAL: Item without batchId:`, item.name);
                 continue;
             }
 
-            console.log(`\n=== Processing Item: ${item.name} (${item.batchId}) ===`);
+            console.log(`\n=== Processing: ${item.name} (${item.batchId}) ===`);
+            console.log('Input:', { qty: item.qty, price: item.price, mrp: item.mrp, discount: item.discount, unit: item.unit });
 
-            // Fetch batch details for cost
             const batch = await prisma.inventoryBatch.findUnique({
                 where: { id: item.batchId },
                 include: { drug: true }
             });
 
             if (!batch) {
-                console.warn(`[Margin] Batch ${item.batchId} not found, skipping`);
+                console.warn(`[Margin] Batch ${item.batchId} not found`);
                 continue;
             }
 
-            // ============================================
-            // STEP 1: CALCULATE REVENUE
-            // ============================================
-            let sellingPrice;
-            const conversionFactor = Number(item.conversionFactor) || 1;
+            console.log(`📦 [BATCH-DATA] ${item.name}:`, {
+                batchId: batch.id,
+                purchasePrice: batch.purchasePrice,
+                mrp: batch.mrp,
+                tabletsPerStrip: batch.tabletsPerStrip,
+                packSize: batch.packSize
+            });
 
-            // Safe decimal creation for price inputs
             const safeDecimal = (val) => {
                 if (val === null || val === undefined || isNaN(Number(val))) return new Decimal(0);
                 return new Decimal(val);
             };
+
+            const conversionFactor = Number(item.conversionFactor) || 1;
+            let sellingPrice;
 
             if (item.price) {
                 sellingPrice = safeDecimal(item.price);
@@ -226,18 +230,14 @@ async function calculateProvisionalMargin(items) {
             }
 
             const qty = safeDecimal(item.qty);
-            const discount = safeDecimal(item.discount);
-            const grossRevenue = sellingPrice.mul(qty).minus(discount);
+            const grossRevenue = sellingPrice.mul(qty);
 
             const gstRate = safeDecimal(item.gstRate);
             const taxableAmount = grossRevenue.div(new Decimal(1).plus(gstRate.div(100)));
 
-            // ============================================
-            // STEP 2: CALCULATE COST
-            // ============================================
-            const purchasePrice = safeDecimal(batch.purchasePrice);
+            console.log('Revenue calc:', { sellingPrice: sellingPrice.toNumber(), qty: qty.toNumber(), grossRevenue: grossRevenue.toNumber(), taxableAmount: taxableAmount.toNumber() });
 
-            // Determine pack size
+            const purchasePrice = safeDecimal(batch.purchasePrice);
             let packSize = Number(batch.tabletsPerStrip || item.tabletsPerStrip || 1);
             if (packSize === 1 && conversionFactor > 1) {
                 packSize = conversionFactor;
@@ -249,44 +249,41 @@ async function calculateProvisionalMargin(items) {
             const baseUnit = normalizeString(drug.baseUnit);
 
             const isDerivedPrice = !item.price && item.mrp && conversionFactor > 1;
-
             const isBaseUnitSale = isDerivedPrice ||
                 (itemUnit === baseUnit && baseUnit !== '') ||
                 (itemUnit.includes('tab')) ||
                 (itemUnit.includes('cap')) ||
                 (itemUnit.includes('pill'));
 
-            let quantityInPackUnits;
-
-            if (isBaseUnitSale && packSize > 1) {
-                quantityInPackUnits = qty.div(packSize);
-            } else {
-                quantityInPackUnits = qty;
-            }
-
+            // CRITICAL FIX: purchasePrice is already per base unit (tablet)
+            // Don't divide by packSize - use it directly
+            let quantityInPackUnits = qty;
             const lineCost = purchasePrice.mul(quantityInPackUnits);
 
-            // ============================================
-            // STEP 3: ACCUMULATE
-            // ============================================
+            console.log('Cost calc:', { purchasePrice: purchasePrice.toNumber(), packSize, isBaseUnitSale, quantityInPackUnits: quantityInPackUnits.toNumber(), lineCost: lineCost.toNumber() });
+
             totalCost = totalCost.plus(lineCost);
             totalRevenue = totalRevenue.plus(taxableAmount);
 
+            console.log('Running totals:', { totalRevenue: totalRevenue.toNumber(), totalCost: totalCost.toNumber(), margin: totalRevenue.minus(totalCost).toNumber() });
+
         } catch (itemError) {
-            console.error(`[Margin] Error processing item ${item.name}:`, itemError);
-            // Continue processing other items instead of crashing
+            console.error(`[Margin] ❌ Error processing ${item.name}:`, itemError);
         }
     }
 
     const marginAmount = totalRevenue.minus(totalCost);
     const marginPercent = totalRevenue.equals(0) ? new Decimal(0) : marginAmount.div(totalRevenue).mul(100);
 
-    return {
+    const result = {
         totalMargin: marginAmount.toNumber(),
         totalRevenue: totalRevenue.toNumber(),
         totalCost: totalCost.toNumber(),
         netMarginPercent: marginPercent.toNumber()
     };
+
+    console.log('\n✅ [MARGIN-BACKEND] Final result:', result);
+    return result;
 }
 
 module.exports = {

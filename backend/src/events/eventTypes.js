@@ -86,7 +86,7 @@ const EVENT_SCHEMAS = {
         batchNumber: 'string',
         expiryDate: 'date',
         daysLeft: 'number',
-        quantityInStock: 'number',
+        baseUnitQuantity: 'number',
         mrp: 'number',
     },
 
@@ -98,7 +98,7 @@ const EVENT_SCHEMAS = {
         drugName: 'string',
         batchNumber: 'string',
         expiryDate: 'date',
-        quantityInStock: 'number',
+        baseUnitQuantity: 'number',
         mrp: 'number',
     },
 

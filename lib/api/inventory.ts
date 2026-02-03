@@ -3,21 +3,23 @@ import { apiClient } from './client';
 export interface Drug {
     id: string;
     name: string;
-    strength: string;
-    form: string;
-    manufacturer: string;
-    hsnCode: string;
+    strength?: string;
+    form?: string;
+    manufacturer?: string;
+    hsnCode?: string;
     gstRate: number;
     requiresPrescription: boolean;
-    defaultUnit: string;
-    baseUnit: string;
-    displayUnit: string;
-    lowStockThreshold: number;
+    defaultUnit?: string;
+    baseUnit?: string;
+    displayUnit?: string;
+    lowStockThreshold?: number;
+    description?: string;
+    schedule?: string;
     saltLinks?: Array<{
-        saltId: string;
+        saltId?: string;
         name: string;
-        strengthValue?: string;
-        strengthUnit?: string;
+        strengthValue?: string | number | null;
+        strengthUnit?: string | null;
         order: number;
     }>;
     ocrMetadata?: any;
@@ -34,6 +36,7 @@ export interface Batch {
     quantity: number;
     mrp: number;
     purchaseRate: number;
+    purchasePrice?: number; // Backend field mapping
     supplierId: string;
     storeId: string;
     location: string | null;
@@ -47,10 +50,9 @@ export interface Batch {
 
 export interface StockAdjustment {
     batchId: string;
-    quantityAdjusted: number; // Changed from 'quantity' to match backend
+    quantityAdjusted: number;
     reason: string;
-    // drugId and type are not needed - backend only needs batchId, quantityAdjusted, reason
-    // userId is added automatically by backend from req.user.id
+    notes?: string;
 }
 
 export const inventoryApi = {
@@ -92,7 +94,7 @@ export const inventoryApi = {
     /**
      * Create new drug
      */
-    async createDrug(data: Partial<Drug>) {
+    async createDrug(data: Partial<Drug> & { batchDetails?: any }) {
         const response = await apiClient.post('/inventory/drugs', data);
         return response.data;
     },
@@ -200,6 +202,14 @@ export const inventoryApi = {
      */
     async deleteBatch(batchId: string) {
         const response = await apiClient.delete(`/inventory/batches/${batchId}`);
+        return response.data;
+    },
+
+    /**
+     * Update batch details
+     */
+    async updateBatch(batchId: string, data: Partial<Batch>) {
+        const response = await apiClient.put(`/inventory/batches/${batchId}`, data);
         return response.data;
     },
 

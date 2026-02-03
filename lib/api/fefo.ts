@@ -9,7 +9,6 @@ export interface FEFORecommendation {
     recommendedBatchId: string;
     batchNumber: string;
     expiryDate: string;
-    quantityInStock: number;
     baseUnitQuantity: number;
     mrp: number;
     daysToExpiry: number;
@@ -17,7 +16,7 @@ export interface FEFORecommendation {
         id: string;
         batchNumber: string;
         expiryDate: string;
-        quantityInStock: number;
+        baseUnitQuantity: number;
         mrp: number;
         daysToExpiry: number;
         daysDifferenceFromRecommended: number;

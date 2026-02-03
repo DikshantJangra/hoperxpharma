@@ -8,9 +8,11 @@ import FilterBar from '@/components/pos/invoices/FilterBar';
 
 export default function InvoicesPage() {
   const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
+  const [isReturnMode, setIsReturnMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [filters, setFilters] = useState({
     paymentMethod: 'all',
     invoiceType: 'all',
@@ -28,6 +30,13 @@ export default function InvoicesPage() {
     }, 1500);
     return () => clearTimeout(timer);
   }, []);
+
+  const handleInvoiceClose = () => {
+    setSelectedInvoice(null);
+    setIsReturnMode(false);
+    // Trigger refresh
+    setRefreshKey(prev => prev + 1);
+  };
 
   return (
     <div className="h-full flex flex-col bg-[#f8fafc]">
@@ -82,8 +91,16 @@ export default function InvoicesPage() {
       <div className="flex-1 flex overflow-hidden" data-tour="pos-invoices-tab">
         <div className={`${selectedInvoice ? 'w-[60%]' : 'w-full'} transition-all`}>
           <InvoiceTable
+            key={refreshKey}
             searchQuery={searchQuery}
-            onSelectInvoice={setSelectedInvoice}
+            onSelectInvoice={(inv: any) => {
+              setSelectedInvoice(inv);
+              setIsReturnMode(false);
+            }}
+            onInitiateReturn={(inv: any) => {
+              setSelectedInvoice(inv);
+              setIsReturnMode(true);
+            }}
             selectedInvoice={selectedInvoice}
             isLoading={isLoading}
             filters={filters}
@@ -92,11 +109,12 @@ export default function InvoicesPage() {
         </div>
 
         {selectedInvoice && (
-          <div data-tour="invoice-actions">
+          <div data-tour="invoice-actions" className="flex-1 flex flex-col h-full overflow-hidden">
             <InvoiceDrawer
               invoice={selectedInvoice}
-              onClose={() => setSelectedInvoice(null)}
+              onClose={handleInvoiceClose}
               isLoading={isLoading && !selectedInvoice}
+              startInReturnMode={isReturnMode}
             />
           </div>
         )}

@@ -66,7 +66,7 @@ export const inventorySteps = {
                 drugId,
                 batchNumber: batchData.batchNumber,
                 expiryDate: batchData.expiryDate,
-                quantityInStock: batchData.quantity,
+                baseUnitQuantity: batchData.quantity,
                 mrp: batchData.mrp,
                 purchasePrice: batchData.purchasePrice,
                 supplierId: batchData.supplierId,
@@ -131,7 +131,7 @@ export const inventorySteps = {
             where: {
                 storeId: ctx.storeId,
                 drugId: drug.id,
-                quantityInStock: { gte: params.quantity },
+                baseUnitQuantity: { gte: params.quantity },
                 expiryDate: { gt: new Date() },
                 deletedAt: null
             },
@@ -145,7 +145,7 @@ export const inventorySteps = {
                     drugId: drug.id,
                     batchNumber,
                     expiryDate,
-                    quantityInStock: params.quantity,
+                    baseUnitQuantity: params.quantity,
                     mrp: params.mrp,
                     purchasePrice: params.mrp * 0.8
                 },
@@ -279,21 +279,21 @@ export const inventorySteps = {
             }
 
             const currentBatch = await this.getBatch(ctx, params.batchId);
-            const expectedStock = initialBatch.quantityInStock - params.quantity;
+            const expectedStock = Number(initialBatch.baseUnitQuantity) - params.quantity;
 
-            const correct = currentBatch.quantityInStock === expectedStock;
+            const correct = Number(currentBatch.baseUnitQuantity) === expectedStock;
 
             return {
                 success: correct,
                 data: {
-                    initial: initialBatch.quantityInStock,
+                    initial: initialBatch.baseUnitQuantity,
                     deduction: params.quantity,
                     expected: expectedStock,
-                    actual: currentBatch.quantityInStock
+                    actual: currentBatch.baseUnitQuantity
                 },
                 duration: 0,
                 error: correct ? undefined : new Error(
-                    `Stock mismatch: expected ${expectedStock}, got ${currentBatch.quantityInStock}`
+                    `Stock mismatch: expected ${expectedStock}, got ${currentBatch.baseUnitQuantity}`
                 )
             };
         } catch (error: any) {
@@ -320,18 +320,18 @@ export const inventorySteps = {
             const batch = await this.getBatch(ctx, params.batchId);
             const expectedStock = params.initialStock - params.expectedDeduction;
 
-            const correct = batch.quantityInStock === expectedStock;
+            const correct = Number(batch.baseUnitQuantity) === expectedStock;
 
             return {
                 success: correct,
                 data: {
                     expected: expectedStock,
-                    actual: batch.quantityInStock,
+                    actual: batch.baseUnitQuantity,
                     deduction: params.expectedDeduction
                 },
                 duration: 0,
                 error: correct ? undefined : new Error(
-                    `Stock mismatch: expected ${expectedStock}, got ${batch.quantityInStock}`
+                    `Stock mismatch: expected ${expectedStock}, got ${batch.baseUnitQuantity}`
                 )
             };
         } catch (error: any) {

@@ -25,22 +25,26 @@ class InventoryDomainService {
      * Allocate stock from multiple batches using specified strategy
      * Returns array of { batch, allocatedQty } objects
      */
-    async allocateStock(storeId, drugId, requestedQty, strategy = AllocationStrategy.FEFO) {
+    async allocateStock(storeId, drugId, requestedQtyInBaseUnits, strategy = AllocationStrategy.FEFO) {
         // Get all available batches for this drug
-        const batches = await this.inventoryRepo.findAvailableBatches(storeId, drugId);
+        const batches = await this.inventoryRepo.findBatches({
+            storeId,
+            drugId,
+            minQuantity: 1 // min base unit quantity
+        });
 
-        if (!batches || batches.length === 0) {
-            throw new InsufficientStockError('No batches available', 0, requestedQty.getValue());
+        if (!batches.batches || batches.batches.length === 0) {
+            throw new InsufficientStockError('No batches available', 0, requestedQtyInBaseUnits);
         }
 
         // Convert to domain objects
-        const batchEntities = batches.map(b => Batch.fromPrisma(b));
+        const batchEntities = batches.batches.map(b => Batch.fromPrisma(b));
 
         // Filter expired batches
         const validBatches = batchEntities.filter(b => !b.isExpired());
 
         if (validBatches.length === 0) {
-            throw new InsufficientStockError('All batches expired', 0, requestedQty.getValue());
+            throw new InsufficientStockError('All batches expired', 0, requestedQtyInBaseUnits);
         }
 
         // Sort based on strategy
@@ -48,17 +52,17 @@ class InventoryDomainService {
 
         // Allocate from batches
         const allocations = [];
-        let remaining = requestedQty.getValue();
+        let remaining = requestedQtyInBaseUnits;
 
         for (const batch of sortedBatches) {
             if (remaining <= 0) break;
 
-            const available = batch.quantity.getValue();
+            const available = batch.baseUnitQuantity;
             const toAllocate = Math.min(available, remaining);
 
             allocations.push({
                 batch,
-                allocatedQty: new Quantity(toAllocate, requestedQty.getUnit())
+                allocatedQtyInBaseUnits: toAllocate
             });
 
             remaining -= toAllocate;
@@ -67,19 +71,19 @@ class InventoryDomainService {
         // Check if we could fulfill the request
         if (remaining > 0) {
             const totalAvailable = validBatches.reduce(
-                (sum, b) => sum + b.quantity.getValue(),
+                (sum, b) => sum + b.baseUnitQuantity,
                 0
             );
             throw new InsufficientStockError(
                 `Insufficient stock`,
                 totalAvailable,
-                requestedQty.getValue()
+                requestedQtyInBaseUnits
             );
         }
 
         logger.info('[InventoryDomain] Stock allocated', {
             drugId,
-            requested: requestedQty.getValue(),
+            requestedInBaseUnits: requestedQtyInBaseUnits,
             batches: allocations.length,
             strategy
         });
@@ -94,29 +98,29 @@ class InventoryDomainService {
         const movements = [];
 
         for (const allocation of allocations) {
-            const { batch, allocatedQty } = allocation;
+            const { batch, allocatedQtyInBaseUnits } = allocation;
 
             // Deduct from batch (this validates and creates domain event)
-            batch.deduct(allocatedQty, reason, userId);
+            batch.deduct(allocatedQtyInBaseUnits, reason, userId);
 
             // Persist batch update
             await this.inventoryRepo.updateBatchQuantity(
                 batch.id,
-                batch.quantity.getValue(),
+                batch.baseUnitQuantity,
                 tx
             );
 
             // Create stock movement
             const movement = StockMovement.createForSale(
                 batch.id,
-                allocatedQty,
+                allocatedQtyInBaseUnits,
                 referenceId,
                 userId
             );
 
             // Set balance snapshots
-            const balanceBefore = batch.quantity.getValue() + allocatedQty.getValue();
-            movement.setBalances(balanceBefore, batch.quantity.getValue());
+            const balanceBefore = batch.baseUnitQuantity + allocatedQtyInBaseUnits;
+            movement.setBalances(balanceBefore, batch.baseUnitQuantity);
 
             movements.push(movement);
 

@@ -65,6 +65,33 @@ export default function NewPOPage({ storeId, poId }: NewPOPageProps) {
     }
   }, [poId]);
 
+  // Handle pre-filled item from query params (from inventory reorder)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const drugId = params.get('drugId');
+    const drugName = params.get('drugName');
+    const suggestedQty = params.get('suggestedQty');
+
+    if (drugId && drugName && !poId) {
+      // Add the item to PO automatically
+      addLine({
+        drugId,
+        description: drugName,
+        qty: suggestedQty ? parseInt(suggestedQty) : 1,
+        packUnit: 'Strip',
+        packSize: 10,
+        unit: 'strip',
+        pricePerUnit: 0,
+        gstPercent: 12,
+        discountPercent: 0,
+        reorderReason: 'Low Stock Alert'
+      });
+
+      // Clear the query params after adding
+      router.replace('/orders/new-po', { scroll: false });
+    }
+  }, []);
+
   const loadExistingPO = async (id: string) => {
     setIsLoadingPO(true);
     try {

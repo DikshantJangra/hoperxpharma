@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
 import { FiPackage, FiX, FiCheckCircle } from 'react-icons/fi';
 import { useAuthStore } from '@/lib/store/auth-store';
@@ -10,9 +10,10 @@ import { MarginStats } from '@/types/finance';
 
 interface ExposeMarginEstimateProps {
     items: any[];
+    additionalDiscount?: number;
 }
 
-export default function ExposeMarginEstimate({ items }: ExposeMarginEstimateProps) {
+export default function ExposeMarginEstimate({ items, additionalDiscount = 0 }: ExposeMarginEstimateProps) {
     const { user } = useAuthStore();
     const [marginStats, setMarginStats] = useState<MarginStats | null>(null);
     const [loading, setLoading] = useState(false);
@@ -20,7 +21,23 @@ export default function ExposeMarginEstimate({ items }: ExposeMarginEstimateProp
 
 
 
+    // CRITICAL FIX: Create stable tracking values for dependencies
+    // Use useMemo to ensure these only change when actual values change
+    const batchIdsHash = useMemo(() => {
+        if (!items || items.length === 0) return '';
+        return items.map(item => item.batchId || 'MISSING').join('|');
+    }, [items]);
+
+    const qtyPriceHash = useMemo(() => {
+        if (!items || items.length === 0) return '';
+        return items.map(item => `${item.qty || 0}@${item.price || item.mrp || 0}-${item.discount || 0}`).join('|');
+    }, [items]);
+
+    // Track total item count to detect deletions/additions
+    const itemsCount = items?.length || 0;
+
     // Auto-update when items change, but only if visible
+    // CRITICAL: Track batchIds to ensure margin updates when batch selection changes
     useEffect(() => {
         if (!show || !items || items.length === 0) return;
 
@@ -29,7 +46,13 @@ export default function ExposeMarginEstimate({ items }: ExposeMarginEstimateProp
         }, 800); // 800ms debounce
 
         return () => clearTimeout(timer);
-    }, [items, show]);
+    }, [
+        batchIdsHash,  // ✅ Stable tracking of batch changes
+        qtyPriceHash,  // ✅ Stable tracking of quantity/price changes
+        itemsCount,    // ✅ Stable tracking of item count
+        additionalDiscount, // ✅ Track overall discount changes
+        show
+    ]);
 
     const handleEstimate = async (silent = false) => {
         if (!silent) setLoading(true);
@@ -40,62 +63,85 @@ export default function ExposeMarginEstimate({ items }: ExposeMarginEstimateProp
             // The Basket often stores 'qty' in Base Units (Tablets), but 'unit' might default to 'Strip'.
             // We need to calculate the REAL unit price (Per Tablet) if that's what's being sold.
 
-            const payload = items.map(item => {
-                // 1. Derive Price: Use explicit price if available, otherwise calculate from MRP
-                // The Basket stores MRP per pack (Strip), but Qty might be in base units (Tablets).
-                // We must send the price PER SOLD UNIT to the backend.
+            // Filter out items without batchId BEFORE sending to backend
+            const validItems = items.filter(item => {
+                if (!item.batchId) {
+                    console.error('❌ Skipping item without batchId in margin estimation:', {
+                        name: item.name,
+                        id: item.id,
+                        drugId: item.drugId
+                    });
+                    return false;
+                }
+                return true;
+            });
 
+            if (validItems.length === 0) {
+                if (!silent) toast.error('No valid items for margin calculation');
+                return;
+            }
+
+            const payload = validItems.map(item => {
                 const conversionFactor = Number(item.conversionFactor) || 1;
                 let effectivePrice = Number(item.price);
 
                 if (!effectivePrice || isNaN(effectivePrice)) {
-                    // Fallback 1: Derive from Line Total if available
                     if (item.lineTotal && item.qty) {
                         effectivePrice = Number(item.lineTotal) / Number(item.qty);
-                    }
-                    // Fallback 2: Derive from MRP (Standard Logic)
-                    else if (item.mrp) {
+                    } else if (item.mrp) {
                         effectivePrice = Number(item.mrp) / conversionFactor;
-                    }
-                    // Fallback 3: Zero
-                    else {
+                    } else {
                         effectivePrice = 0;
                     }
                 }
 
-                // Debug logging (Cleaner)
-                if (process.env.NODE_ENV === 'development') {
-                    console.log('✅ STAT-CHECK Item:', {
-                        name: item.name,
-                        qty: item.qty,
-                        mrp: item.mrp,
-                        factor: conversionFactor,
-                        finalPrice: effectivePrice
-                    });
+                // ✅ FIX: Apply item discount to price
+                const itemDiscount = Number(item.discount) || 0;
+                if (itemDiscount > 0) {
+                    effectivePrice = (effectivePrice * item.qty - itemDiscount) / item.qty;
                 }
 
-                // 2. Derive Unit:
-                // If item.unit is 'Strip' but Qty is 1, and Price is small, it's likely a Tablet?
-                // Actually, let's just pass what we have. My backend rewrite is smarter now.
-                // But passing the correct price is CRITICAL.
+                console.log('📊 [MARGIN] Item:', item.name, '| Qty:', item.qty, '| Price:', effectivePrice, '| MRP:', item.mrp, '| Discount:', item.discount);
 
                 return {
                     batchId: item.batchId,
                     qty: item.qty,
-                    unit: item.unit || item.displayUnit, // Pass what we have
-                    price: effectivePrice, // <--- CRITICAL FIX
+                    unit: item.unit || item.displayUnit,
+                    price: effectivePrice,
                     mrp: item.mrp,
-                    discount: item.discount,
+                    discount: 0, // Already applied to price
                     gstRate: item.gstRate,
                     conversionFactor: item.conversionFactor,
-                    tabletsPerStrip: item.tabletsPerStrip // Pass if available
+                    tabletsPerStrip: item.tabletsPerStrip,
+                    name: item.name,
+                    drugId: item.drugId || item.id,
+                    id: item.id
                 };
             });
 
+            console.log('📤 [MARGIN] Sending payload:', JSON.stringify(payload, null, 2));
+            console.log('💰 [MARGIN] Additional discount from POS:', additionalDiscount);
             const stats = await salesLedgerApi.estimateMargin(payload);
-            setMarginStats(stats);
-        } catch (e) {
-            if (!silent) toast.error('Failed to estimate margin');
+            console.log('📥 [MARGIN] Received stats:', stats);
+
+            if (stats && additionalDiscount > 0) {
+                console.log('⚠️ [MARGIN] Adjusting for additional discount:', additionalDiscount);
+                const adjustedStats = {
+                    ...stats,
+                    totalMargin: (stats.totalMargin || 0) - additionalDiscount,
+                    netMargin: (stats.netMargin || 0) - additionalDiscount,
+                };
+                console.log('📊 [MARGIN] Adjusted stats:', adjustedStats);
+                setMarginStats(adjustedStats);
+            } else {
+                console.log('✅ [MARGIN] No adjustment needed, using raw stats');
+                setMarginStats(stats);
+            }
+        } catch (e: any) {
+            console.error('❌ [MARGIN] Error:', e);
+            console.error('❌ [MARGIN] Error message:', e.message);
+            console.error('❌ [MARGIN] Error response:', e.response?.data);
+            if (!silent) toast.error('Failed to estimate margin: ' + (e.response?.data?.message || e.message));
             // Don't clear stats on silent fail to avoid flicker
         } finally {
             setLoading(false);
@@ -145,7 +191,7 @@ export default function ExposeMarginEstimate({ items }: ExposeMarginEstimateProp
                     <div>
                         <div className="text-[10px] text-emerald-600/70 font-medium mb-0.5">Estimated Profit</div>
                         <SecureMarginReveal
-                            value={(marginStats as any).grossMargin || marginStats.totalMargin}
+                            value={marginStats.totalMargin}
                             label=""
                             blurIntensity='medium'
                         />
@@ -153,7 +199,7 @@ export default function ExposeMarginEstimate({ items }: ExposeMarginEstimateProp
                     <div className="text-right">
                         <div className="text-[10px] text-emerald-600/70 font-medium mb-0.5">Margin %</div>
                         <SecureMarginReveal
-                            value={(marginStats as any).grossMarginPercent || marginStats.netMarginPercent}
+                            value={marginStats.netMarginPercent}
                             label=""
                             isCurrency={false}
                             blurIntensity='medium'
@@ -166,7 +212,6 @@ export default function ExposeMarginEstimate({ items }: ExposeMarginEstimateProp
 
             <div className="mt-2 text-[9px] text-center text-emerald-600/40 italic flex justify-between px-2">
                 <span>Simple Margin (Revenue - Cost)</span>
-                <span>v4.0</span>
             </div>
         </div>
     )

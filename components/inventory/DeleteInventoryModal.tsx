@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { FiX, FiAlertTriangle, FiTrash2, FiPackage } from 'react-icons/fi';
 import { toast } from 'sonner';
 
@@ -33,9 +34,9 @@ export default function DeleteInventoryModal({ type, item, onClose, onSuccess }:
                 // response is the batches array directly because inventoryApi unwraps it
                 if (Array.isArray(response)) {
                     const batches = response;
-                    const totalStock = batches.reduce((sum: number, b: any) => sum + (b.quantityInStock || 0), 0);
+                    const totalStock = batches.reduce((sum: number, b: any) => sum + (Number(b.baseUnitQuantity) || 0), 0);
                     const totalValue = batches.reduce((sum: number, b: any) =>
-                        sum + ((b.quantityInStock || 0) * (b.purchasePrice || 0)), 0
+                        sum + ((Number(b.baseUnitQuantity) || 0) * (Number(b.purchasePrice) || 0)), 0
                     );
 
                     setImpactData({
@@ -60,8 +61,8 @@ export default function DeleteInventoryModal({ type, item, onClose, onSuccess }:
                 // For batch deletion, show single batch impact
                 setImpactData({
                     batchCount: 1,
-                    totalStock: item.quantityInStock || 0,
-                    totalValue: (item.quantityInStock || 0) * (item.purchasePrice || 0),
+                    totalStock: Number(item.baseUnitQuantity) || 0,
+                    totalValue: (Number(item.baseUnitQuantity) || 0) * (Number(item.purchasePrice) || 0),
                     batches: [item],
                     allBatches: [item]
                 });
@@ -72,8 +73,8 @@ export default function DeleteInventoryModal({ type, item, onClose, onSuccess }:
             // Set minimal data to allow deletion to proceed
             setImpactData({
                 batchCount: type === 'drug' ? 0 : 1,
-                totalStock: type === 'drug' ? 0 : (item.quantityInStock || 0),
-                totalValue: type === 'drug' ? 0 : ((item.quantityInStock || 0) * (item.purchasePrice || 0)),
+                totalStock: type === 'drug' ? 0 : (Number(item.baseUnitQuantity) || 0),
+                totalValue: type === 'drug' ? 0 : ((Number(item.baseUnitQuantity) || 0) * (Number(item.purchasePrice) || 0)),
                 batches: type === 'drug' ? [] : [item],
                 allBatches: type === 'drug' ? [] : [item]
             });
@@ -132,10 +133,18 @@ export default function DeleteInventoryModal({ type, item, onClose, onSuccess }:
     };
 
     const expectedConfirmText = type === 'drug' ? item.name : item.batchNumber;
+    const [mounted, setMounted] = useState(false);
 
-    return (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    if (!mounted) return null;
+
+    const modalContent = (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onClose}></div>
+            <div className="relative bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col">
                 {/* Header */}
                 <div className="px-6 py-4 border-b border-gray-200 flex items-center justify-between bg-red-50">
                     <div className="flex items-center gap-3">
@@ -220,14 +229,14 @@ export default function DeleteInventoryModal({ type, item, onClose, onSuccess }:
                                             <div key={batch.id} className="bg-white rounded p-2 border border-amber-200 text-sm">
                                                 <div className="flex items-center justify-between">
                                                     <span className="font-medium text-gray-900">{batch.batchNumber}</span>
-                                                    <span className="text-gray-600">{batch.quantityInStock} units</span>
+                                                    <span className="text-gray-600">{batch.baseUnitQuantity} units</span>
                                                 </div>
                                                 <div className="text-xs text-gray-500 mt-1">
                                                     Expiry: {(() => {
                                                         const date = new Date(batch.expiryDate);
                                                         return `${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
                                                     })()} •
-                                                    Value: ₹{((batch.quantityInStock || 0) * (batch.purchasePrice || 0)).toFixed(2)}
+                                                    Value: ₹{((Number(batch.baseUnitQuantity) || 0) * (Number(batch.purchasePrice) || 0)).toFixed(2)}
                                                 </div>
                                             </div>
                                         ))}
@@ -308,4 +317,6 @@ export default function DeleteInventoryModal({ type, item, onClose, onSuccess }:
             </div>
         </div>
     );
+
+    return createPortal(modalContent, document.body);
 }

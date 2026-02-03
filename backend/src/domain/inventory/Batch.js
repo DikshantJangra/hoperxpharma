@@ -22,10 +22,6 @@ class Batch {
         this.drugId = data.drugId;
         this.drugName = data.drugName || data.drug?.name;
 
-        this.quantity = data.quantity instanceof Quantity
-            ? data.quantity
-            : new Quantity(data.quantity || data.quantityInStock, data.unit || Unit.TABLET);
-
         this.expiryDate = data.expiryDate instanceof Date
             ? data.expiryDate
             : new Date(data.expiryDate);
@@ -42,18 +38,34 @@ class Batch {
         this.supplierId = data.supplierId;
         this.supplier = data.supplier;
 
-        // Multi-unit support
-        this.receivedUnit = data.unit || data.receivedUnit || 'Tablet';
-        this.tabletsPerStrip = data.tabletsPerStrip || null;
-        this.baseUnitQuantity = data.baseUnitQuantity ||
-            (this.receivedUnit === 'Strip' && this.tabletsPerStrip
-                ? this.quantity.getValue() * this.tabletsPerStrip
-                : this.quantity.getValue());
+        // Multi-unit support - baseUnitQuantity is the source of truth
+        this.receivedUnit = (data.receivedUnit || data.unit || 'TABLET').toUpperCase();
+        this.tabletsPerStrip = data.tabletsPerStrip || 1;
+
+        // baseUnitQuantity can be passed directly or calculated from quantity if provided during creation
+        if (data.baseUnitQuantity !== undefined) {
+            this.baseUnitQuantity = Number(data.baseUnitQuantity);
+        } else {
+            const quantityValue = Number(data.quantity || 0);
+            this.baseUnitQuantity = (this.receivedUnit === 'STRIP' || this.receivedUnit === 'BOX' || this.receivedUnit === 'BOTTLE')
+                ? quantityValue * this.tabletsPerStrip
+                : quantityValue;
+        }
 
         this.location = data.location || null;
 
         // Domain events
         this.domainEvents = [];
+    }
+
+    /**
+     * Computed property - get quantity in received unit
+     */
+    getQuantityInReceivedUnit() {
+        if (this.receivedUnit === 'STRIP' || this.receivedUnit === 'BOX' || this.receivedUnit === 'BOTTLE') {
+            return Math.floor(this.baseUnitQuantity / this.tabletsPerStrip);
+        }
+        return this.baseUnitQuantity;
     }
 
     /**
@@ -65,12 +77,11 @@ class Batch {
             batchNumber: prismaData.batchNumber,
             drugId: prismaData.drugId,
             drugName: prismaData.drug?.name,
-            quantity: prismaData.quantityInStock,
-            unit: prismaData.receivedUnit || 'Tablet',
-            baseUnitQuantity: prismaData.baseUnitQuantity,
+            baseUnitQuantity: prismaData.baseUnitQuantity || 0,
+            receivedUnit: prismaData.receivedUnit,
             tabletsPerStrip: prismaData.tabletsPerStrip,
             expiryDate: prismaData.expiryDate,
-            costPrice: prismaData.purchasePrice, // Map from DB purchasePrice
+            costPrice: prismaData.purchasePrice,
             sellingPrice: prismaData.mrp,
             storeId: prismaData.storeId,
             supplierId: prismaData.supplierId,
@@ -82,42 +93,32 @@ class Batch {
     // ========== Business Logic Methods ==========
 
     /**
-     * Check if this batch can fulfill a requested quantity
-     * Enforces business rules: not expired, sufficient stock
+     * Check if this batch can fulfill a requested quantity (in base units)
      */
-    canFulfill(requestedQty) {
-        if (!(requestedQty instanceof Quantity)) {
-            requestedQty = new Quantity(requestedQty, this.quantity.getUnit());
-        }
-
+    canFulfill(requestedQtyInBaseUnits) {
         // Business Rule 1: Cannot dispense from expired batch
         if (this.isExpired()) {
             throw new ExpiredBatchError(this.batchNumber, this.expiryDate);
         }
 
         // Business Rule 2: Must have sufficient stock
-        return this.quantity.isGreaterThanOrEqual(requestedQty);
+        return this.baseUnitQuantity >= requestedQtyInBaseUnits;
     }
 
     /**
-     * Deduct stock from this batch
-     * Returns the deducted quantity for audit trail
+     * Deduct stock from this batch (always in base units)
      */
-    deduct(qty, reason, userId) {
-        if (!(qty instanceof Quantity)) {
-            qty = new Quantity(qty, this.quantity.getUnit());
-        }
-
-        if (!this.canFulfill(qty)) {
+    deduct(qtyInBaseUnits, reason, userId) {
+        if (!this.canFulfill(qtyInBaseUnits)) {
             throw new InsufficientStockError(
                 this.drugName,
-                this.quantity.toString(),
-                qty.toString()
+                `${this.baseUnitQuantity} base units`,
+                `${qtyInBaseUnits} base units`
             );
         }
 
-        const oldQuantity = this.quantity;
-        this.quantity = this.quantity.subtract(qty);
+        const oldBaseQty = this.baseUnitQuantity;
+        this.baseUnitQuantity -= qtyInBaseUnits;
 
         // Emit domain event
         this.raiseEvent({
@@ -125,41 +126,36 @@ class Batch {
             batchId: this.id,
             batchNumber: this.batchNumber.toString(),
             drugName: this.drugName,
-            quantity: qty.toJSON(),
-            oldQuantity: oldQuantity.toJSON(),
-            newQuantity: this.quantity.toJSON(),
+            baseUnitQuantity: qtyInBaseUnits,
+            oldBaseUnitQuantity: oldBaseQty,
+            newBaseUnitQuantity: this.baseUnitQuantity,
             reason,
             userId,
             timestamp: new Date()
         });
 
-        return qty;
+        return qtyInBaseUnits;
     }
 
     /**
-     * Add stock to this batch
-     * Used for stock adjustments, returns, etc.
+     * Add stock to this batch (always in base units)
      */
-    add(qty, reason, userId) {
-        if (!(qty instanceof Quantity)) {
-            qty = new Quantity(qty, this.quantity.getUnit());
-        }
-
-        const oldQuantity = this.quantity;
-        this.quantity = this.quantity.add(qty);
+    add(qtyInBaseUnits, reason, userId) {
+        const oldBaseQty = this.baseUnitQuantity;
+        this.baseUnitQuantity += qtyInBaseUnits;
 
         this.raiseEvent({
             type: 'STOCK_ADDED',
             batchId: this.id,
-            quantity: qty.toJSON(),
-            oldQuantity: oldQuantity.toJSON(),
-            newQuantity: this.quantity.toJSON(),
+            baseUnitQuantity: qtyInBaseUnits,
+            oldBaseUnitQuantity: oldBaseQty,
+            newBaseUnitQuantity: this.baseUnitQuantity,
             reason,
             userId,
             timestamp: new Date()
         });
 
-        return qty;
+        return qtyInBaseUnits;
     }
 
     /**
@@ -209,10 +205,19 @@ class Batch {
     }
 
     /**
-     * Check if batch is low on stock
+     * Check if batch is low on stock (using base units threshold)
      */
-    isLowStock(threshold = 10) {
-        return this.quantity.getValue() <= threshold;
+    isLowStock(thresholdInBaseUnits = 10) {
+        return this.baseUnitQuantity <= thresholdInBaseUnits;
+    }
+
+    /**
+     * Get display quantity string
+     */
+    getDisplayQuantity() {
+        const qty = this.getQuantityInReceivedUnit();
+        const unit = this.receivedUnit.charAt(0) + this.receivedUnit.slice(1).toLowerCase();
+        return `${qty} ${unit}${qty !== 1 ? 's' : ''}`;
     }
 
     // ========== Domain Events ==========
@@ -241,7 +246,6 @@ class Batch {
             id: this.id,
             batchNumber: this.batchNumber.toPrisma(),
             drugId: this.drugId,
-            quantityInStock: this.quantity.getValue(),
             baseUnitQuantity: this.baseUnitQuantity,
             receivedUnit: this.receivedUnit,
             tabletsPerStrip: this.tabletsPerStrip,
@@ -258,12 +262,13 @@ class Batch {
      * Convert to DTO for API responses
      */
     toDTO() {
+        const quantityInReceivedUnit = this.getQuantityInReceivedUnit();
         return {
             id: this.id,
             batchNumber: this.batchNumber.toString(),
             drugId: this.drugId,
             drugName: this.drugName,
-            quantity: this.quantity.toJSON(),
+            displayQuantity: this.getDisplayQuantity(),
             expiryDate: this.expiryDate.toISOString(),
             expiryStatus: this.getExpiryStatus(),
             costPrice: this.costPrice.toJSON(),

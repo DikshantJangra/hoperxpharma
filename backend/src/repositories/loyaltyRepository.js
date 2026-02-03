@@ -70,6 +70,10 @@ class LoyaltyRepository {
     }
 
     async updateProfile(patientId, data) {
+        // Ensure milestoneProgress is included if not provided
+        if (data.milestoneProgress === undefined) {
+            data.milestoneProgress = 0;
+        }
         return prisma.loyaltyProfile.update({
             where: { patientId },
             data,

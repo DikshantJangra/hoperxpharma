@@ -26,7 +26,7 @@ async function checkInventory() {
         console.log('\nBatch Details:');
         console.log('  Batch Number:', batch.batchNumber);
         console.log('  Drug:', batch.drug.name);
-        console.log('  Quantity in Stock:', batch.quantityInStock);
+        console.log('  Quantity in Stock:', batch.baseUnitQuantity);
         console.log('  MRP:', batch.mrp);
         console.log('  Purchase Price:', batch.purchasePrice);
         console.log('  Expiry Date:', batch.expiryDate);

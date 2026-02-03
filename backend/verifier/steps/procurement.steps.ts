@@ -21,11 +21,11 @@ export const procurementSteps = {
     ): Promise<StepResult> {
         try {
             const storeId = ctx.storeId || ctx.get<any>('currentStore')?.id || ctx.get<string>('storeId');
-            
+
             if (!storeId) {
                 throw new Error('storeId is required but not found in context');
             }
-            
+
             // Use supplierService for supplier creation
             const supplier = await supplierService.createSupplier({
                 storeId,
@@ -65,11 +65,11 @@ export const procurementSteps = {
      */
     async ensureSupplierExists(ctx: ScenarioContext): Promise<any> {
         const storeId = ctx.storeId || ctx.get<any>('currentStore')?.id || ctx.get<string>('storeId');
-        
+
         if (!storeId) {
             throw new Error('storeId is required but not found in context');
         }
-        
+
         let supplier = await prisma.supplier.findFirst({
             where: {
                 storeId,
@@ -377,9 +377,9 @@ export const procurementSteps = {
 
                 if (!batch) {
                     mismatches.push(`Batch ${expected.batchNumber} not found`);
-                } else if (batch.quantityInStock !== expected.quantity) {
+                } else if (Number(batch.baseUnitQuantity) !== expected.quantity) {
                     mismatches.push(
-                        `Batch ${expected.batchNumber}: expected ${expected.quantity}, got ${batch.quantityInStock}`
+                        `Batch ${expected.batchNumber}: expected ${expected.quantity}, got ${batch.baseUnitQuantity}`
                     );
                 }
             }

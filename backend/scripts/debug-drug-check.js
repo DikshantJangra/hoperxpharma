@@ -28,10 +28,10 @@ async function debugDrug() {
             console.log(`ID: ${drug.id}`);
             console.log(`Name: ${drug.name}`);
             console.log(`Store ID: ${drug.storeId}`);
-            console.log(`Total Stock (calculated): ${drug.inventory.reduce((sum, b) => sum + b.quantityInStock, 0)}`);
+            console.log(`Total Stock (calculated): ${drug.inventory.reduce((sum, b) => sum + b.baseUnitQuantity, 0)}`);
             console.log('Inventory Batches:', drug.inventory.length);
             drug.inventory.forEach(b => {
-                console.log(` - Batch: ${b.batchNumber}, Stock: ${b.quantityInStock}, StoreId: ${b.storeId}, Deleted: ${b.deletedAt}`);
+                console.log(` - Batch: ${b.batchNumber}, Stock: ${b.baseUnitQuantity}, StoreId: ${b.storeId}, Deleted: ${b.deletedAt}`);
             });
             console.log('Salts:', drug.saltLinks.map(l => l.salt.name).join(', '));
         });

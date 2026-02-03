@@ -18,7 +18,7 @@ global.createMockBatch = (overrides = {}) => ({
     batchNumber: 'B001',
     drugId: 'drug-1',
     storeId: 'store-1',
-    quantityInStock: 100,
+    baseUnitQuantity: 100,
     expiryDate: new Date('2025-12-31'),
     mrp: 10,
     purchasePrice: 5,

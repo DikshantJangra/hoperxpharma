@@ -81,6 +81,15 @@ export const prescriptionApi = {
 
   async importERx(eRxData: any) {
     return apiClient.post('/prescriptions/erx/import', { eRxData });
+  },
+
+  // RX Number Format Configuration (storeId from backend middleware)
+  async updateRxFormat(config: { format: string; prefix: string; yearlyReset?: boolean }) {
+    return apiClient.put('/prescriptions/rx-format', config);
+  },
+
+  async getRxFormat() {
+    return apiClient.get('/prescriptions/rx-format');
   }
 };
 

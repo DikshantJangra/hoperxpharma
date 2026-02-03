@@ -133,7 +133,7 @@ class DemoDataService {
                         drugId: newDrug.id,
                         batchNumber: `BAT-${Math.floor(1000 + Math.random() * 9000)}-${batchNum + 1}`,
                         expiryDate: new Date(Date.now() + (180 + batchNum * 90 + Math.random() * 200) * 24 * 60 * 60 * 1000), // Staggered expiry
-                        quantityInStock: 20 + Math.floor(Math.random() * 80), // 20-100 stock
+                        baseUnitQuantity: 20 + Math.floor(Math.random() * 80), // 20-100 stock
                         mrp: drug.mrp,
                         purchasePrice: drug.cost, // Mapped from cost to purchasePrice
                         location: batchNum === 0 ? 'Rack A, Shelf 1' : 'Rack B, Shelf 2' // Use valid location field

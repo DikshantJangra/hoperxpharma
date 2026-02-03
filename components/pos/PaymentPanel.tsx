@@ -837,7 +837,7 @@ export default function PaymentPanel({
             ))}
           </div>
           {/* Provisional Profit Check (Owner Only) - Hidden below scroll (Confidential) */}
-          <ExposeMarginEstimate items={basketItems} />
+          <ExposeMarginEstimate items={basketItems} additionalDiscount={safeTotals.overallDiscountAmount || 0} />
         </div>
       </div>
 

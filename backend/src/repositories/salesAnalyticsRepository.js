@@ -356,14 +356,14 @@ class SalesAnalyticsRepository {
                 where: {
                     drugId: product.drugId,
                     storeId,
-                    quantityInStock: { gt: 0 }
+                    baseUnitQuantity: { gt: 0 }
                 },
                 _sum: {
-                    quantityInStock: true
+                    baseUnitQuantity: true
                 }
             });
 
-            product.stockLeft = stock._sum.quantityInStock || 0;
+            product.stockLeft = stock._sum.baseUnitQuantity || 0;
             product.avgPrice = product.orders > 0 ? Math.round((product.revenue / product.quantity) * 100) / 100 : 0;
             product.revenue = Math.round(product.revenue * 100) / 100;
 

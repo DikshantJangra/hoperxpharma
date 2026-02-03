@@ -38,7 +38,7 @@ class InventoryService {
             const drugsWithStock = result.drugs.map(d => {
                 // Calculate total stock from inventory batches
                 const totalStock = d.inventory
-                    ? d.inventory.reduce((sum, batch) => sum + (batch.quantityInStock || 0), 0)
+                    ? d.inventory.reduce((sum, batch) => sum + (batch.baseUnitQuantity || 0), 0)
                     : 0;
 
                 // Return raw Prisma data with stock calculation
@@ -59,7 +59,7 @@ class InventoryService {
             // Non-paginated response (array)
             return result.map(d => {
                 const totalStock = d.inventory
-                    ? d.inventory.reduce((sum, batch) => sum + (batch.quantityInStock || 0), 0)
+                    ? d.inventory.reduce((sum, batch) => sum + (batch.baseUnitQuantity || 0), 0)
                     : 0;
 
                 return {
@@ -94,6 +94,17 @@ class InventoryService {
      * Create new drug
      */
     async createDrug(drugData, userId) {
+        // CRITICAL: Prevent duplicate drugs - use repository layer
+        const existing = await inventoryRepository.findDrugByNameAndManufacturer(
+            drugData.name.trim(),
+            drugData.manufacturer?.trim() || '',
+            drugData.storeId
+        );
+
+        if (existing) {
+            throw ApiError.conflict(`Medicine "${drugData.name}" by ${drugData.manufacturer || 'Unknown'} already exists`);
+        }
+
         // Create domain entity
         const drug = new Drug({
             ...drugData,
@@ -126,28 +137,38 @@ class InventoryService {
         logger.info(`Drug created: ${drug.getDisplayName()}`);
 
         // CRITICAL FIX: Handle initial batch creation if provided
-        // The frontend sends 'batchDetails' in the same payload
-        if (drugData.batchDetails) {
+        // The frontend sends 'initialStock' or 'batchDetails' in the same payload
+        const batchData = drugData.batchDetails || drugData.initialStock;
+        if (batchData) {
             try {
-                // Ensure numeric types for critical fields
-                const quantity = Number(drugData.batchDetails.quantity);
-                const mrp = Number(drugData.batchDetails.mrp);
-                const purchasePrice = Number(drugData.batchDetails.purchaseRate);
+                console.error('🚨 DEBUG: Raw initialStock from frontend:', batchData);
+                logger.info('🔍 DEBUG createDrug - Raw initialStock from frontend:', JSON.stringify(batchData, null, 2));
 
-                if (isNaN(quantity)) throw new Error(`Invalid Quantity: ${drugData.batchDetails.quantity}`);
-                if (isNaN(mrp)) throw new Error(`Invalid MRP: ${drugData.batchDetails.mrp}`);
-                if (isNaN(purchasePrice)) throw new Error(`Invalid Purchase Rate: ${drugData.batchDetails.purchaseRate}`);
+                // Ensure numeric types for critical fields
+                const quantity = Number(batchData.quantity);
+                const mrp = Number(batchData.mrp);
+                const purchasePrice = Number(batchData.purchaseRate || batchData.purchasePrice);
+
+                logger.info('🔍 DEBUG createDrug - Extracted numbers:', { quantity, mrp, purchasePrice });
+
+                if (isNaN(quantity)) throw new Error(`Invalid Quantity: ${batchData.quantity}`);
+                if (isNaN(mrp)) throw new Error(`Invalid MRP: ${batchData.mrp}`);
+                if (isNaN(purchasePrice)) throw new Error(`Invalid Purchase Rate: ${batchData.purchaseRate}`);
 
                 const batchPayload = {
-                    ...drugData.batchDetails,
+                    ...batchData,
                     drugId: created.id,
                     storeId: created.storeId,
                     quantity: quantity,
                     mrp: mrp,
                     purchasePrice: purchasePrice, // frontend sends purchaseRate
+                    // CRITICAL: Get unit config from drug if not in batch
+                    receivedUnit: batchData.receivedUnit || drugData.displayUnit || 'Tablet',
+                    tabletsPerStrip: batchData.tabletsPerStrip || drugData.tabletsPerStrip || 1
                 };
 
-                logger.info(`Creating initial batch for ${created.name} with Payload:`, JSON.stringify(batchPayload));
+                console.error('🚨 DEBUG: batchPayload about to send to createBatch:', batchPayload);
+                logger.info('🔍 DEBUG createDrug - Initial Stock Payload:', JSON.stringify(batchPayload, null, 2));
 
                 // Use existing createBatch method (handles domain logic & events & supplier resolution)
                 await this.createBatch(batchPayload, userId);
@@ -173,17 +194,25 @@ class InventoryService {
             throw ApiError.notFound('Drug not found');
         }
 
-        const drug = Drug.fromPrisma(existing);
+        // Only update allowed fields, exclude relations like saltLinks
+        const allowedFields = [
+            'name', 'genericName', 'manufacturer', 'strength', 'form',
+            'defaultUnit', 'schedule', 'requiresPrescription', 'hsnCode',
+            'gstRate', 'lowStockThreshold', 'description', 'baseUnit',
+            'displayUnit', 'ocrMetadata', 'stripImageUrl'
+        ];
 
-        // Apply updates
-        Object.assign(drug, updates);
-        drug.updatedAt = new Date();
+        const updateData = {};
+        allowedFields.forEach(field => {
+            if (updates[field] !== undefined) {
+                updateData[field] = updates[field];
+            }
+        });
 
-        // Validate
-        drug.validate();
+        updateData.updatedAt = new Date();
 
-        // Persist
-        const updated = await inventoryRepository.updateDrug(id, drug.toPrisma());
+        // Persist only the allowed fields
+        const updated = await inventoryRepository.updateDrug(id, updateData);
 
         return Drug.fromPrisma(updated).toDTO();
     }
@@ -222,26 +251,59 @@ class InventoryService {
         }
 
         // CRITICAL: Calculate baseUnitQuantity correctly based on unit type
-        const quantity = Number(batchData.quantity || batchData.quantityInStock);
+        logger.info('🔍 DEBUG createBatch - Raw Input:', JSON.stringify({
+            quantity: batchData.quantity,
+            receivedUnit: batchData.receivedUnit,
+            unit: batchData.unit,
+            tabletsPerStrip: batchData.tabletsPerStrip,
+            form: batchData.form
+        }, null, 2));
+
+        const quantity = Number(batchData.quantity || 0);
         const unit = (batchData.receivedUnit || batchData.unit || 'Tablet').toUpperCase();
         const tabletsPerStrip = batchData.tabletsPerStrip ? Number(batchData.tabletsPerStrip) : null;
-        
-        let baseUnitQuantity;
-        if (unit === 'STRIP' && tabletsPerStrip) {
-            baseUnitQuantity = quantity * tabletsPerStrip;
-        } else if (unit === 'BOTTLE' || unit === 'BOX') {
-            baseUnitQuantity = quantity * (tabletsPerStrip || 1);
-        } else {
-            baseUnitQuantity = quantity;
-        }
 
-        logger.info(`Batch conversion: ${quantity} ${unit} = ${baseUnitQuantity} tablets (${tabletsPerStrip} per ${unit})`);
+        logger.info('🔍 DEBUG createBatch - Parsed Values:', {
+            quantity,
+            unit,
+            tabletsPerStrip,
+            'isNaN(tabletsPerStrip)': tabletsPerStrip === null ? 'null' : isNaN(tabletsPerStrip)
+        });
+
+        let baseUnitQuantity;
+
+        // CRITICAL: If frontend already calculated baseUnitQuantity (e.g., 3-level Box hierarchy), use it!
+        if (batchData.baseUnitQuantity !== undefined && batchData.baseUnitQuantity !== null) {
+            baseUnitQuantity = Number(batchData.baseUnitQuantity);
+            logger.info(`✅ Using PRE-CALCULATED baseUnitQuantity: ${baseUnitQuantity} base units`);
+        } else {
+            const needsConversion = (unit === 'STRIP' || unit === 'BOX' || unit === 'BOTTLE');
+            const hasValidConversion = tabletsPerStrip !== null && !isNaN(tabletsPerStrip) && tabletsPerStrip > 0;
+
+            logger.info('🔍 DEBUG createBatch - Conversion Check:', {
+                needsConversion,
+                hasValidConversion,
+                willApplyConversion: needsConversion && hasValidConversion
+            });
+
+            // Check if unit requires conversion AND tabletsPerStrip is a valid number > 0
+            if (needsConversion && hasValidConversion) {
+                baseUnitQuantity = quantity * tabletsPerStrip;
+                logger.info(`✅ Batch conversion APPLIED: ${quantity} ${unit} × ${tabletsPerStrip} = ${baseUnitQuantity} tablets`);
+            } else {
+                baseUnitQuantity = quantity;
+                if (needsConversion && !hasValidConversion) {
+                    logger.warn(`⚠️ WARNING: Unit "${unit}" needs conversion but tabletsPerStrip is invalid (${tabletsPerStrip}). Using quantity as-is: ${baseUnitQuantity}`);
+                } else {
+                    logger.info(`ℹ️ No conversion needed for unit "${unit}". Using quantity directly: ${baseUnitQuantity}`);
+                }
+            }
+        }
 
         // Create domain entity with corrected values
         const batch = new Batch({
             ...batchData,
             batchNumber: new BatchNumber(batchData.batchNumber),
-            quantity: new Quantity(quantity, unit),
             baseUnitQuantity,
             receivedUnit: unit,
             tabletsPerStrip
@@ -263,6 +325,11 @@ class InventoryService {
         const created = await inventoryRepository.createBatch(batch.toPrisma());
 
         logger.info(`Batch created: ${batch.batchNumber.toString()} by user ${userId}`);
+
+        // Create stock movement for audit trail
+        const movement = StockMovement.createForGRN(created.id, baseUnitQuantity, userId, 'Initial Stock', null);
+        await inventoryRepository.createStockMovement(movement.toPrisma());
+        logger.info(`✅ Stock movement created for batch ${created.id} with ${baseUnitQuantity} base units`);
 
         return created; // Return raw Prisma data
     }
@@ -319,7 +386,13 @@ class InventoryService {
      * Adjust stock (manual increase/decrease)
      */
     async adjustStock(adjustmentData, userId) {
-        const { batchId, quantity, reason, notes } = adjustmentData;
+        const { batchId, quantityAdjusted, reason, notes } = adjustmentData;
+
+        // Validate quantity is a number
+        const numQuantity = Number(quantityAdjusted);
+        if (isNaN(numQuantity)) {
+            throw ApiError.badRequest(`Invalid quantity: ${quantityAdjusted}`);
+        }
 
         const batchData = await inventoryRepository.findBatchById(batchId);
 
@@ -328,22 +401,27 @@ class InventoryService {
         }
 
         const batch = Batch.fromPrisma(batchData);
-        const adjustQty = new Quantity(Math.abs(quantity), Unit.TABLET);
+
+        // Frontend sends adjustment already in BASE UNITS
+        // Backend is DUMB - just add or deduct the received quantity
+        const adjustmentInBaseUnits = numQuantity;
 
         // Add or deduct based on sign
-        if (quantity > 0) {
-            batch.add(adjustQty, reason, userId);
+        if (adjustmentInBaseUnits > 0) {
+            batch.add(adjustmentInBaseUnits, reason, userId);
         } else {
-            batch.deduct(adjustQty, reason, userId);
+            batch.deduct(Math.abs(adjustmentInBaseUnits), reason, userId);
         }
 
-        // Persist batch
-        await inventoryRepository.updateBatchQuantity(batch.id, batch.quantity.getValue());
+        // Update ONLY baseUnitQuantity
+        await inventoryRepository.updateBatch(batch.id, {
+            baseUnitQuantity: batch.baseUnitQuantity
+        });
 
-        // Create stock movement
+        // Create stock movement (use absolute value, direction is indicated by movement type)
         const movement = StockMovement.createAdjustment(
             batchId,
-            new Quantity(quantity, Unit.TABLET),
+            adjustmentInBaseUnits,
             reason,
             userId,
             notes
@@ -357,7 +435,7 @@ class InventoryService {
         });
         batch.clearEvents();
 
-        logger.info(`Stock adjusted for batch ${batch.batchNumber.toString()}: ${quantity}`);
+        logger.info(`Stock adjusted for batch ${batch.batchNumber.toString()}: ${numQuantity} base units -> ${batch.baseUnitQuantity} total base units`);
 
         return batch.toDTO();
     }
@@ -429,32 +507,42 @@ class InventoryService {
         const drugs = await inventoryRepository.searchDrugsWithStock(storeId, query, limit);
 
         // Transform results to match what frontend expects (similar to getDrugs)
-        return drugs.map(d => {
-            // Calculate total stock from inventory batches
-            const totalStock = d.inventory
-                ? d.inventory.reduce((sum, batch) => sum + (batch.quantityInStock || 0), 0)
-                : 0;
+        return drugs
+            .map(d => {
+                // Calculate total stock from inventory batches
+                const totalStock = d.inventory
+                    ? d.inventory.reduce((sum, batch) => sum + (batch.baseUnitQuantity || 0), 0)
+                    : 0;
 
-            const batchCount = d.inventory ? d.inventory.length : 0;
+                const batchCount = d.inventory ? d.inventory.length : 0;
 
-            // Get unit config if available
-            let baseUnit = d.baseUnit || d.defaultUnit || 'Tablet';
-            let displayUnit = d.displayUnit || d.defaultUnit || d.form || 'Tablet';
+                // Get unit config if available
+                let baseUnit = d.baseUnit || d.defaultUnit || 'Tablet';
+                let displayUnit = d.displayUnit || d.defaultUnit || d.form || 'Tablet';
 
-            // Return enriched object
-            return {
-                ...d,
-                totalStock,
-                batchCount,
-                baseUnit,
-                displayUnit,
-                // Include batch info if available (for UI that shows batch details)
-                batchId: d.inventory && d.inventory.length > 0 ? d.inventory[0].id : null, // <--- CRITICAL: Pass Batch ID
-                batchNumber: d.inventory && d.inventory.length > 0 ? d.inventory[0].batchNumber : null,
-                expiryDate: d.inventory && d.inventory.length > 0 ? d.inventory[0].expiryDate : null,
-                mrp: d.inventory && d.inventory.length > 0 ? d.inventory[0].mrp : d.mrp || 0,
-            };
-        });
+                // Return enriched object
+                return {
+                    ...d,
+                    totalStock,
+                    batchCount,
+                    baseUnit,
+                    displayUnit,
+                    // Include batch info if available (for UI that shows batch details)
+                    batchId: d.inventory && d.inventory.length > 0 ? d.inventory[0].id : null, // <--- CRITICAL: Pass Batch ID
+                    batchNumber: d.inventory && d.inventory.length > 0 ? d.inventory[0].batchNumber : null,
+                    expiryDate: d.inventory && d.inventory.length > 0 ? d.inventory[0].expiryDate : null,
+                    mrp: d.inventory && d.inventory.length > 0 ? d.inventory[0].mrp : d.mrp || 0,
+                };
+            })
+            // CRITICAL FIX: Filter out medicines without valid batches
+            // This ensures POS never receives medicines that can't be sold
+            .filter(drug => {
+                const hasValidBatch = drug.batchId && drug.totalStock > 0;
+                if (!hasValidBatch) {
+                    logger.warn(`[POS Search] Filtering out ${drug.name} - No valid batches (batchId: ${drug.batchId}, stock: ${drug.totalStock})`);
+                }
+                return hasValidBatch;
+            });
     }
 
     /**
@@ -481,7 +569,7 @@ class InventoryService {
      */
     async deleteDrug(id, userId) {
         const prisma = require('../../db/prisma');
-        
+
         try {
             const drug = await prisma.drug.findUnique({ where: { id }, select: { id: true, name: true } });
             if (!drug) {
@@ -555,7 +643,7 @@ class InventoryService {
             return {
                 exists: true,
                 batchId: batch.id,
-                currentStock: batch.quantityInStock,
+                currentStock: batch.baseUnitQuantity,
                 expiry: batch.expiryDate,
                 location: batch.location,
                 mrp: batch.mrp,
@@ -588,7 +676,7 @@ class InventoryService {
             result[key] = {
                 exists: true,
                 batchId: batch.id,
-                currentStock: batch.quantityInStock,
+                currentStock: batch.baseUnitQuantity,
                 expiry: batch.expiryDate,
                 location: batch.location,
                 mrp: batch.mrp,

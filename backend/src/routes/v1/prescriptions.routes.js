@@ -46,4 +46,8 @@ router.delete('/:id/files/:fileId', prescriptionController.deleteFile.bind(presc
 // Refill management
 router.post('/:id/refills', prescriptionController.createRefill.bind(prescriptionController));
 
+// RX Number format configuration (uses storeId from middleware)
+router.put('/rx-format', prescriptionController.updateRxFormat.bind(prescriptionController));
+router.get('/rx-format', prescriptionController.getRxFormat.bind(prescriptionController));
+
 module.exports = router;

@@ -41,6 +41,9 @@ class Drug {
         this.ocrMetadata = data.ocrMetadata || null;
         this.stripImageUrl = data.stripImageUrl || null;
 
+        // Inventory batches (when fetched with relations)
+        this.inventory = data.inventory || [];
+
         this.createdAt = data.createdAt || new Date();
         this.updatedAt = data.updatedAt || new Date();
     }
@@ -66,6 +69,7 @@ class Drug {
             baseUnit: prismaData.baseUnit,
             displayUnit: prismaData.displayUnit,
             saltLinks: prismaData.saltLinks,
+            inventory: prismaData.inventory,
             ocrMetadata: prismaData.ocrMetadata,
             stripImageUrl: prismaData.stripImageUrl,
             createdAt: prismaData.createdAt,
@@ -217,6 +221,7 @@ class Drug {
             baseUnit: this.baseUnit,
             displayUnit: this.displayUnit,
             saltLinks: this.saltLinks,
+            inventory: this.inventory,
             ocrMetadata: this.ocrMetadata,
             stripImageUrl: this.stripImageUrl,
             createdAt: this.createdAt.toISOString(),

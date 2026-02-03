@@ -257,7 +257,7 @@ class DrugService {
                         batchNumber: batchDetails.batchNumber.trim(),
                         purchasePrice: batchDetails.purchaseRate,
                         mrp: batchDetails.mrp,
-                        quantityInStock: batchDetails.quantity,
+                        baseUnitQuantity: batchDetails.quantity,
                         expiryDate: new Date(batchDetails.expiryDate),
                         location: batchDetails.location || 'Default',
                         supplierId: null, // TODO: Link to supplier if ID is provided
@@ -265,7 +265,7 @@ class DrugService {
                     }
                 });
 
-                logger.info(`Batch created: ${batch.batchNumber} for drug ${drug.id} with ${batch.quantityInStock} units`);
+                logger.info(`Batch created: ${batch.batchNumber} for drug ${drug.id} with ${batch.baseUnitQuantity} units`);
 
                 // Create initial stock movement record
                 await tx.stockMovement.create({

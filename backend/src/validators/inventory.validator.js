@@ -31,6 +31,33 @@ const drugSchema = z.object({
 });
 
 /**
+ * Drug update schema - all fields optional
+ */
+const drugUpdateSchema = z.object({
+    name: z.string().min(1, 'Drug name is required').optional(),
+    strength: z.string().optional(),
+    form: z.string().optional(),
+    manufacturer: z.string().optional(),
+    hsnCode: z.string().optional(),
+    gstRate: z.number().min(0).max(100).optional(),
+    requiresPrescription: z.boolean().optional(),
+    defaultUnit: z.string().optional(),
+    lowStockThreshold: z.number().int().positive().optional(),
+    description: z.string().optional(),
+    saltLinks: z.array(z.object({
+        saltId: z.string().optional(),
+        name: z.string(),
+        strengthValue: z.union([z.string(), z.number()]).optional(),
+        strengthUnit: z.string().optional(),
+        order: z.number().int()
+    })).optional(),
+    ocrMetadata: z.any().optional(),
+    stripImageUrl: z.string().optional(),
+    baseUnit: z.string().optional(),
+    displayUnit: z.string().optional()
+});
+
+/**
  * Inventory batch creation schema
  */
 const batchCreateSchema = z.object({
@@ -38,7 +65,7 @@ const batchCreateSchema = z.object({
     drugId: z.string(),
     batchNumber: z.string().min(1, 'Batch number is required'),
     expiryDate: z.string(), // Allow various date formats, service will convert
-    quantityInStock: z.number().int().nonnegative('Quantity cannot be negative'),
+    baseUnitQuantity: z.number().nonnegative('Quantity cannot be negative'),
     mrp: z.number().nonnegative('MRP cannot be negative'),
     purchasePrice: z.number().nonnegative('Purchase price cannot be negative'),
     supplierId: z.string().cuid().optional(),
@@ -46,14 +73,13 @@ const batchCreateSchema = z.object({
     location: z.string().optional(),
     receivedUnit: z.string().optional(),
     tabletsPerStrip: z.number().int().positive().optional(),
-    baseUnitQuantity: z.number().optional(),
 });
 
 /**
  * Batch update schema
  */
 const batchUpdateSchema = z.object({
-    quantityInStock: z.number().int().nonnegative().optional(),
+    baseUnitQuantity: z.number().nonnegative().optional(),
     mrp: z.number().positive().optional(),
     location: z.string().optional(),
 });
@@ -86,6 +112,7 @@ const inventoryQuerySchema = z.object({
 
 module.exports = {
     drugSchema,
+    drugUpdateSchema,
     batchCreateSchema,
     batchUpdateSchema,
     stockAdjustmentSchema,

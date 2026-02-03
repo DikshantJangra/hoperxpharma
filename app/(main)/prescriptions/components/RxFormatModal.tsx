@@ -12,13 +12,13 @@ interface RxFormatModalProps {
 }
 
 export default function RxFormatModal({ currentFormat, currentPrefix, onSave, onClose }: RxFormatModalProps) {
-    const [format, setFormat] = useState(currentFormat || 'SXXX-PREFIX-NNNNNN');
+    const [format, setFormat] = useState(currentFormat || 'SXXX-PREFIX-YY-NNNNNN');
     const [prefix, setPrefix] = useState(currentPrefix || 'RX');
     const [isSaving, setIsSaving] = useState(false);
     const [customFormat, setCustomFormat] = useState('');
     const templates = [
-        { label: 'Store-Based (Default)', value: 'SXXX-PREFIX-NNNNNN', example: 'S012-RX-000047', desc: 'Recommended' },
-        { label: 'Year-Based', value: 'PREFIX-YYYY-SXXX-NNNNNN', example: 'RX-2026-S012-000047' },
+        { label: 'Store-Based (Default)', value: 'SXXX-PREFIX-YY-NNNNNN', example: 'S012-RX-26-000047', desc: 'Recommended with Year' },
+        { label: 'Year-Month Based', value: 'PREFIX-YYYY-MM-SXXX-NNNNNN', example: 'RX-2026-02-S012-000047' },
         { label: 'Simple Sequential', value: 'PREFIX-SXXX-NNNNNN', example: 'RX-S012-000047' },
         { label: 'Custom Pattern', value: 'custom', example: 'Use tokens below' }
     ];

@@ -24,7 +24,7 @@ export const importDispenseToBasket = async (dispense: any, inventoryApi: any) =
             });
 
             const batches = (batchResponse as any).data || (batchResponse as any).batches || [];
-            const validBatches = batches.filter((b: any) => Number(b.quantityInStock) > 0);
+            const validBatches = batches.filter((b: any) => Number(b.baseUnitQuantity) > 0);
 
             if (validBatches.length === 0) {
                 warnings.push(`${item.drug?.name || 'Unknown'} is out of stock`);
@@ -53,7 +53,7 @@ export const importDispenseToBasket = async (dispense: any, inventoryApi: any) =
 
             if (selectedBatch) {
                 const qtyPrescribed = Number(item.quantityPrescribed) || 1;
-                const availableStock = Number(selectedBatch.quantityInStock);
+                const availableStock = Number(selectedBatch.baseUnitQuantity);
                 const qtyToAdd = Math.min(qtyPrescribed, availableStock);
 
                 basketItems.push({

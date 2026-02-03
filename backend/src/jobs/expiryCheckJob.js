@@ -35,7 +35,7 @@ async function runExpiryCheck() {
                 expiryDate: {
                     lte: in90Days,
                 },
-                quantityInStock: {
+                baseUnitQuantity: {
                     gt: 0, // Only batches with stock
                 },
                 deletedAt: null,
@@ -73,7 +73,7 @@ async function runExpiryCheck() {
                         drugName: batch.drug.name,
                         batchNumber: batch.batchNumber,
                         expiryDate: batch.expiryDate,
-                        quantityInStock: batch.quantityInStock,
+                        baseUnitQuantity: batch.baseUnitQuantity,
                         mrp: batch.mrp,
                     });
                     eventsEmitted++;
@@ -87,7 +87,7 @@ async function runExpiryCheck() {
                         batchNumber: batch.batchNumber,
                         expiryDate: batch.expiryDate,
                         daysLeft,
-                        quantityInStock: batch.quantityInStock,
+                        baseUnitQuantity: batch.baseUnitQuantity,
                         mrp: batch.mrp,
                     });
                     eventsEmitted++;

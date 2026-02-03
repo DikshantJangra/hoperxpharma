@@ -27,7 +27,7 @@ class FEFOService {
         // Filter out deleted and out-of-stock batches
         const availableBatches = batches.filter(b =>
             !b.deletedAt &&
-            b.quantityInStock > 0
+            b.baseUnitQuantity > 0
         );
 
         if (availableBatches.length === 0) {
@@ -35,7 +35,7 @@ class FEFOService {
         }
 
         // Find first batch with sufficient stock
-        const recommended = availableBatches.find(b => b.quantityInStock >= quantity);
+        const recommended = availableBatches.find(b => b.baseUnitQuantity >= quantity);
 
         // If no single batch has enough, recommend the oldest anyway
         const finalRecommendation = recommended || availableBatches[0];
@@ -44,7 +44,6 @@ class FEFOService {
             recommendedBatchId: finalRecommendation.id,
             batchNumber: finalRecommendation.batchNumber,
             expiryDate: finalRecommendation.expiryDate,
-            quantityInStock: finalRecommendation.quantityInStock,
             baseUnitQuantity: finalRecommendation.baseUnitQuantity,
             mrp: finalRecommendation.mrp,
             daysToExpiry: dayjs(finalRecommendation.expiryDate).diff(dayjs(), 'days'),
@@ -52,7 +51,6 @@ class FEFOService {
                 id: b.id,
                 batchNumber: b.batchNumber,
                 expiryDate: b.expiryDate,
-                quantityInStock: b.quantityInStock,
                 mrp: b.mrp,
                 daysToExpiry: dayjs(b.expiryDate).diff(dayjs(), 'days'),
                 daysDifferenceFromRecommended: dayjs(b.expiryDate).diff(
@@ -146,7 +144,7 @@ class FEFOService {
 
         batches.forEach(batch => {
             const daysToExpiry = dayjs(batch.expiryDate).diff(now, 'days');
-            const value = parseFloat(batch.quantityInStock) * parseFloat(batch.mrp);
+            const value = Number(batch.baseUnitQuantity) * Number(batch.mrp);
 
             // Categorize by expiry
             if (daysToExpiry < 0) {

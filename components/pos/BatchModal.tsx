@@ -66,7 +66,7 @@ export default function BatchModal({ product, onSelect, onClose }: any) {
               batchNumber: batch.batchNumber,
               expiry: new Date(batch.expiryDate).toLocaleDateString(),
               expiryDate: batch.expiryDate,
-              qty: Number(batch.quantityInStock || batch.quantity || 0),
+              qty: Number(batch.baseUnitQuantity || 0),
               mrp: Number(batch.mrp || 0),
               location: batch.location || 'N/A',
               recommended: false,

@@ -100,8 +100,8 @@ const getDashboardStats = asyncHandler(async (req, res) => {
         prisma.inventoryBatch.count({
             where: {
                 storeId,
-                quantityInStock: { lte: 10 }, // Low stock threshold
-                quantityInStock: { gt: 0 },
+                baseUnitQuantity: { lte: 10 }, // Low stock threshold
+                baseUnitQuantity: { gt: 0 },
                 deletedAt: null
             }
         }),
@@ -348,13 +348,13 @@ const getActionQueues = asyncHandler(async (req, res) => {
         prisma.inventoryBatch.findMany({
             where: {
                 storeId,
-                quantityInStock: { lte: 10, gt: 0 }
+                baseUnitQuantity: { lte: 10, gt: 0 }
             },
             take: 5,
-            orderBy: { quantityInStock: 'asc' },
+            orderBy: { baseUnitQuantity: 'asc' },
             select: {
                 id: true,
-                quantityInStock: true,
+                baseUnitQuantity: true,
                 drug: {
                     select: { name: true }
                 }
@@ -409,7 +409,7 @@ const getActionQueues = asyncHandler(async (req, res) => {
         lowStockItems: lowStockItems.map(i => ({
             id: i.id,
             drugName: i.drug.name,
-            stock: i.quantityInStock
+            stock: i.baseUnitQuantity
         })),
         expiringItems: expiringItems.map(i => ({
             id: i.id,

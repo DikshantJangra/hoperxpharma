@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 interface Batch {
     id: string;
     batchNumber: string;
-    quantityInStock: number;
+    baseUnitQuantity: number;
     expiryDate: string;
     mrp: number;
     location?: string;
@@ -73,7 +73,7 @@ export default function BatchSelector({
             if (selectedBatch) {
                 onBatchSelect(selectedBatch);
                 toast.success(`Using existing batch: ${value}`, {
-                    description: `Current stock: ${selectedBatch.quantityInStock} units`
+                    description: `Current stock: ${selectedBatch.baseUnitQuantity} units`
                 });
             }
         }
@@ -87,7 +87,7 @@ export default function BatchSelector({
             onBatchSelect({
                 id: '',
                 batchNumber: value,
-                quantityInStock: 0,
+                baseUnitQuantity: 0,
                 expiryDate: '',
                 mrp: 0,
                 location: '',
@@ -122,7 +122,7 @@ export default function BatchSelector({
                             <option disabled className="text-gray-400">──────────────</option>
                             {batches.map((batch) => (
                                 <option key={batch.id} value={batch.batchNumber}>
-                                    {batch.batchNumber} - Stock: {batch.quantityInStock} | Exp: {formatDate(batch.expiryDate)}
+                                    {batch.batchNumber} - Stock: {batch.baseUnitQuantity} | Exp: {formatDate(batch.expiryDate)}
                                 </option>
                             ))}
                         </>

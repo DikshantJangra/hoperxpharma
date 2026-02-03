@@ -578,9 +578,9 @@ class PatientRepository {
                         throw new Error(`Batch not found: ${item.batchId}`);
                     }
 
-                    if (batch.quantityInStock < item.quantity) {
+                    if (batch.baseUnitQuantity < item.quantity) {
                         throw new Error(
-                            `Insufficient stock for ${batch.drug.name}. Available: ${batch.quantityInStock}, Requested: ${item.quantity}`
+                            `Insufficient stock for ${batch.drug.name}. Available: ${batch.baseUnitQuantity}, Requested: ${item.quantity}`
                         );
                     }
 
@@ -606,7 +606,7 @@ class PatientRepository {
                     await tx.inventoryBatch.update({
                         where: { id: item.batchId },
                         data: {
-                            quantityInStock: {
+                            baseUnitQuantity: {
                                 decrement: item.quantity,
                             },
                         },

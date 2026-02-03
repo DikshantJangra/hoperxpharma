@@ -10,6 +10,8 @@ const { PrismaClient } = require('@prisma/client');
 const prisma = require('../../db/prisma');
 const loyaltyService = require('../loyaltyService');
 const configService = require('../configService');
+const gstCalculator = require('../../utils/gstCalculator'); // CRITICAL FIX: Add missing import
+const gstRepository = require('../../repositories/gstRepository'); // CRITICAL FIX: For HSN code lookups
 
 // Extracted services
 const gstCalculationService = require('./gstCalculationService');
@@ -286,9 +288,9 @@ class SaleService {
                     throw ApiError.badRequest(`Batch not found: ${item.batchId}`);
                 }
 
-                if (batch.quantityInStock < item.quantity) {
+                if (batch.baseUnitQuantity < item.quantity) {
                     throw ApiError.badRequest(
-                        `Insufficient stock for ${batch.drug.name}. Available: ${batch.quantityInStock}, Required: ${item.quantity}`
+                        `Insufficient stock for ${batch.drug.name}. Available: ${batch.baseUnitQuantity}, Required: ${item.quantity}`
                     );
                 }
                 preparedItems.push({
@@ -417,9 +419,9 @@ class SaleService {
             for (const item of items) {
                 const batch = await inventoryService.getBatchById(item.batchId);
 
-                if (batch.quantityInStock < item.quantity) {
+                if (batch.baseUnitQuantity < item.quantity) {
                     throw ApiError.badRequest(
-                        `Insufficient stock for ${batch.drug.name}.Available: ${batch.quantityInStock}, Required: ${item.quantity} `
+                        `Insufficient stock for ${batch.drug.name}.Available: ${batch.baseUnitQuantity}, Required: ${item.quantity} `
                     );
                 }
 

@@ -142,6 +142,25 @@ export default function ProductSearch({ onAddProduct, searchFocus, setSearchFocu
   };
 
   const handleAddProduct = (product: Product) => {
+    // CRITICAL VALIDATION: Ensure batchId exists before adding to basket
+    if (!product.batchId) {
+      console.error('❌ Cannot add product without batchId:', product);
+      // Show error toast if toast library is available
+      if (typeof window !== 'undefined' && (window as any).toast) {
+        (window as any).toast.error(`Cannot add ${product.name} - No batch data available. Please check inventory.`);
+      }
+      return; // BLOCK addition to basket
+    }
+
+    // Additional validation: Ensure stock exists
+    if (!product.totalStock || product.totalStock <= 0) {
+      console.warn('⚠️ Product has no stock:', product);
+      if (typeof window !== 'undefined' && (window as any).toast) {
+        (window as any).toast.warning(`${product.name} is out of stock`);
+      }
+      return;
+    }
+
     onAddProduct({
       ...product,
       stock: product.totalStock,
@@ -149,7 +168,7 @@ export default function ProductSearch({ onAddProduct, searchFocus, setSearchFocu
       baseUnit: product.baseUnit,
       displayUnit: product.displayUnit,
       conversionFactor: (product as any).conversionFactor || 1, // Critical: Pass factor
-      batchId: product.batchId,
+      batchId: product.batchId, // GUARANTEED to exist due to validation above
       batchNumber: product.batchNumber,
       type: product.requiresPrescription ? 'RX' : 'OTC',
       unitConfigurations: (product as any).unitConfigurations

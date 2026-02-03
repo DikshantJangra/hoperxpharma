@@ -28,7 +28,7 @@ class SubstituteService {
         // Check cache first
         const cacheKey = `substitutes:${drugId}:${storeId}:${includePartialMatches}`;
         const cached = cacheService.get(cacheKey);
-        
+
         if (cached) {
             logger.debug(`Returning cached substitutes for drug ${drugId}`);
             return cached;
@@ -132,10 +132,10 @@ class SubstituteService {
                     where: {
                         storeId: storeId,
                         deletedAt: null,
-                        quantityInStock: { gt: 0 }
+                        baseUnitQuantity: { gt: 0 }
                     },
                     select: {
-                        quantityInStock: true,
+                        baseUnitQuantity: true,
                         mrp: true
                     }
                 }
@@ -200,10 +200,10 @@ class SubstituteService {
                     where: {
                         storeId: storeId,
                         deletedAt: null,
-                        quantityInStock: { gt: 0 }
+                        baseUnitQuantity: { gt: 0 }
                     },
                     select: {
-                        quantityInStock: true,
+                        baseUnitQuantity: true,
                         mrp: true
                     }
                 }
@@ -214,7 +214,7 @@ class SubstituteService {
         const partialMatches = candidateDrugs
             .map(drug => {
                 const matchScore = this.calculateMatchScore(saltLinks, drug.drugSaltLinks);
-                
+
                 // Only include if score is above threshold (50%)
                 if (matchScore < 50) {
                     return null;
@@ -245,7 +245,7 @@ class SubstituteService {
 
             if (match) {
                 matchingCount++;
-                
+
                 // Bonus for exact strength match
                 if (match.strengthValue === sourceLink.strengthValue &&
                     match.strengthUnit === sourceLink.strengthUnit) {
@@ -274,7 +274,7 @@ class SubstituteService {
     transformToSubstitute(drug, matchType, matchScore) {
         // Calculate total available stock
         const totalStock = drug.inventoryBatches.reduce(
-            (sum, batch) => sum + batch.quantityInStock,
+            (sum, batch) => sum + Number(batch.baseUnitQuantity),
             0
         );
 
@@ -337,7 +337,7 @@ class SubstituteService {
             if (sourceDrug.manufacturer) {
                 const aMatchesManufacturer = a.manufacturer === sourceDrug.manufacturer;
                 const bMatchesManufacturer = b.manufacturer === sourceDrug.manufacturer;
-                
+
                 if (aMatchesManufacturer && !bMatchesManufacturer) return -1;
                 if (!aMatchesManufacturer && bMatchesManufacturer) return 1;
             }
@@ -379,7 +379,7 @@ class SubstituteService {
         // Invalidate all cache entries for this drug
         const pattern = `substitutes:${drugId}:*`;
         const deletedCount = cacheService.deletePattern(pattern);
-        
+
         if (deletedCount > 0) {
             logger.info(`Invalidated ${deletedCount} cache entries for drug ${drugId}`);
         }
@@ -393,7 +393,7 @@ class SubstituteService {
         // Invalidate all cache entries for this store
         const pattern = `substitutes:*:${storeId}:*`;
         const deletedCount = cacheService.deletePattern(pattern);
-        
+
         if (deletedCount > 0) {
             logger.info(`Invalidated ${deletedCount} cache entries for store ${storeId}`);
         }

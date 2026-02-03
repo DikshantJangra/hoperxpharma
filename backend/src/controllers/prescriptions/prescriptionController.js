@@ -642,6 +642,67 @@ class PrescriptionController {
             });
         }
     }
+
+    /**
+     * Update RX Number format configuration for a store
+     * PUT /api/v1/prescriptions/rx-format
+     */
+    async updateRxFormat(req, res) {
+        try {
+            const storeId = req.storeId; // From middleware
+
+            if (!storeId) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Store ID is required'
+                });
+            }
+
+            const config = await prescriptionService.updateRxNumberConfig(storeId, req.body);
+
+            return res.json({
+                success: true,
+                data: config,
+                message: 'RX number format updated successfully'
+            });
+        } catch (error) {
+            logger.error('[PrescriptionController] Update RX format error:', error);
+            return res.status(500).json({
+                success: false,
+                message: error.message || 'Failed to update RX format'
+            });
+        }
+    }
+
+    /**
+     * Get RX Number format configuration for a store
+     * GET /api/v1/prescriptions/rx-format
+     */
+    async getRxFormat(req, res) {
+        try {
+            const storeId = req.storeId; // From middleware
+
+            if (!storeId) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Store ID is required'
+                });
+            }
+
+            const config = await prescriptionService.getRxNumberConfig(storeId);
+
+            return res.json({
+                success: true,
+                data: config
+            });
+        } catch (error) {
+            logger.error('[PrescriptionController] Get RX format error:', error);
+            return res.status(500).json({
+                success: false,
+                message: error.message || 'Failed to fetch RX format'
+            });
+        }
+    }
 }
 
 module.exports = new PrescriptionController();

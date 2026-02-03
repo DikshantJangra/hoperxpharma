@@ -93,7 +93,7 @@ async function createTestAlerts() {
             batchNumber: 'B00789',
             expiryDate: in7Days,
             daysLeft: 7,
-            quantityInStock: 75,
+            baseUnitQuantity: 75,
             mrp: 185,
         });
         await new Promise(resolve => setTimeout(resolve, 1000));

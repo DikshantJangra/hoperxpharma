@@ -142,7 +142,7 @@ class DrugService {
                         drugId: drug.id,
                         batchNumber: batchDetails.batchNumber,
                         expiryDate: new Date(batchDetails.expiryDate),
-                        quantityInStock: parseInt(batchDetails.quantity),
+                        baseUnitQuantity: parseInt(batchDetails.quantity),
                         baseUnitQuantity: parseInt(batchDetails.quantity), // Assuming base unit
                         mrp: parseFloat(batchDetails.mrp),
                         purchasePrice: parseFloat(batchDetails.purchaseRate || batchDetails.mrp),

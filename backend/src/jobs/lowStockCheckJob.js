@@ -56,17 +56,17 @@ async function runLowStockCheck() {
                         inventory: {
                             where: {
                                 deletedAt: null,
-                                quantityInStock: { gt: 0 },
+                                baseUnitQuantity: { gt: 0 },
                             },
                             select: {
-                                quantityInStock: true,
+                                baseUnitQuantity: true,
                             },
                         },
                     },
                 });
 
                 for (const drug of drugs) {
-                    const totalStock = drug.inventory.reduce((sum, b) => sum + b.quantityInStock, 0);
+                    const totalStock = drug.inventory.reduce((sum, b) => sum + Number(b.baseUnitQuantity), 0);
 
                     // Only emit if below threshold (de-duplication handled by rule engine)
                     if (totalStock < lowStockThreshold && totalStock >= 0) {

@@ -76,8 +76,20 @@ class InventoryRepository {
                             storeId,
                             deletedAt: null // Exclude soft-deleted batches
                         },
-                        orderBy: { expiryDate: 'asc' }
+                        orderBy: { expiryDate: 'asc' },
+                        include: {
+                            movements: {
+                                orderBy: { createdAt: 'desc' },
+                                take: 10
+                            }
+                        }
                     },
+                    saltLinks: {
+                        include: {
+                            salt: true
+                        },
+                        orderBy: { order: 'asc' }
+                    }
                 },
             }),
             prisma.drug.count({ where }),
@@ -89,7 +101,7 @@ class InventoryRepository {
         // Apply stock status filters
         if (stockStatus && stockStatus.length > 0) {
             filteredDrugs = filteredDrugs.filter(drug => {
-                const totalStock = drug.inventory?.reduce((sum, batch) => sum + batch.quantityInStock, 0) || 0;
+                const totalStock = drug.inventory?.reduce((sum, batch) => sum + (batch.baseUnitQuantity || 0), 0) || 0;
                 const lowStockThreshold = drug.lowStockThreshold || 10;
 
                 return stockStatus.some(status => {
@@ -147,6 +159,9 @@ class InventoryRepository {
             where: { id },
             include: {
                 saltLinks: {
+                    include: {
+                        salt: true
+                    },
                     orderBy: { order: 'asc' }
                 },
                 inventory: {
@@ -156,13 +171,18 @@ class InventoryRepository {
                         movements: {
                             orderBy: { createdAt: 'desc' },
                             take: 10, // Last 10 movements per batch
-                        }
+                        },
                     },
                 },
             },
         });
 
-        if (!drug) return null;
+        if (!drug) {
+            logger.warn(`findDrugById: Drug not found for id=${id}`);
+            return null;
+        }
+
+        logger.info(`findDrugById: Found drug ${drug.name} with ${drug.inventory?.length || 0} batches`);
 
         // Fetch suppliers for batches that have supplierId
         const batchesWithSuppliers = await Promise.all(
@@ -184,6 +204,19 @@ class InventoryRepository {
         );
 
         return { ...drug, inventory: batchesWithSuppliers };
+    }
+
+    /**
+     * Find drug by name and manufacturer for duplicate detection
+     */
+    async findDrugByNameAndManufacturer(name, manufacturer, storeId) {
+        return await prisma.drug.findFirst({
+            where: {
+                name: { equals: name, mode: 'insensitive' },
+                manufacturer: { equals: manufacturer, mode: 'insensitive' },
+                storeId: storeId
+            }
+        });
     }
 
     /**
@@ -227,7 +260,7 @@ class InventoryRepository {
             deletedAt: null,
             ...(drugId && { drugId }),
             ...(expiringBefore && { expiryDate: { lte: expiringBefore } }),
-            ...(minQuantity && { quantityInStock: { gte: parseInt(minQuantity) } }),
+            ...(minQuantity && { baseUnitQuantity: { gte: parseInt(minQuantity) } }),
             ...(search && {
                 OR: [
                     { batchNumber: { contains: search, mode: 'insensitive' } },
@@ -306,14 +339,14 @@ class InventoryRepository {
     /**
      * Update batch quantity
      */
-    async updateBatchQuantity(id, quantity) {
-        if (quantity < 0) {
+    async updateBatchQuantity(id, baseUnitQuantity) {
+        if (baseUnitQuantity < 0) {
             throw new Error('Batch quantity cannot be negative');
         }
 
         return await prisma.inventoryBatch.update({
             where: { id },
-            data: { quantityInStock: quantity },
+            data: { baseUnitQuantity },
         });
     }
 
@@ -369,13 +402,13 @@ SELECT
 d.id as "drugId",
     d.name,
     d."lowStockThreshold",
-        SUM(ib."quantityInStock") as "totalStock"
+        SUM(ib."baseUnitQuantity") as "totalStock"
                 FROM "Drug" d
                 INNER JOIN "InventoryBatch" ib ON ib."drugId" = d.id
                 WHERE ib."storeId" = ${storeId}
                     AND ib."deletedAt" IS NULL
                 GROUP BY d.id, d.name, d."lowStockThreshold"
-                HAVING SUM(ib."quantityInStock") <= COALESCE(d."lowStockThreshold", 10)
+                HAVING SUM(ib."baseUnitQuantity") <= COALESCE(d."lowStockThreshold", 10)
                 ORDER BY "totalStock" ASC
             `;
             logger.info(`🔍 Repository: Found ${result.length} low stock items`);
@@ -405,7 +438,7 @@ d.id as "drugId",
                     lte: expiryDate,
                     gte: new Date(),
                 },
-                quantityInStock: { gt: 0 },
+                baseUnitQuantity: { gt: 0 },
             },
             include: {
                 drug: true,
@@ -420,9 +453,9 @@ d.id as "drugId",
     async getInventoryValue(storeId) {
         const result = await prisma.$queryRaw`
 SELECT
-SUM(ib."quantityInStock" * ib."purchasePrice") as "totalValue",
+SUM(ib."baseUnitQuantity" * ib."purchasePrice") as "totalValue",
     COUNT(DISTINCT ib."drugId") as "uniqueDrugs",
-    SUM(ib."quantityInStock") as "totalUnits"
+    SUM(ib."baseUnitQuantity") as "totalUnits"
       FROM "InventoryBatch" ib
       WHERE ib."storeId" = ${storeId}
         AND ib."deletedAt" IS NULL
@@ -445,7 +478,7 @@ SUM(ib."quantityInStock" * ib."purchasePrice") as "totalValue",
                 storeId,
                 drugId,
                 deletedAt: null,
-                quantityInStock: { gt: 0 },
+                baseUnitQuantity: { gt: 0 },
             },
             orderBy: [
                 { expiryDate: 'asc' }, // FEFO - First Expiry First Out
@@ -481,7 +514,7 @@ SUM(ib."quantityInStock" * ib."purchasePrice") as "totalValue",
                 unitConfigurations: true,
                 inventory: {
                     where: {
-                        quantityInStock: { gt: 0 },
+                        baseUnitQuantity: { gt: 0 },
                         deletedAt: null
                     },
                     orderBy: {
@@ -593,7 +626,6 @@ SUM(ib."quantityInStock" * ib."purchasePrice") as "totalValue",
             select: {
                 id: true,
                 batchNumber: true,
-                quantityInStock: true,
                 expiryDate: true,
                 location: true,
                 receivedUnit: true,
@@ -641,7 +673,6 @@ SUM(ib."quantityInStock" * ib."purchasePrice") as "totalValue",
                     id: true,
                     drugId: true,
                     batchNumber: true,
-                    quantityInStock: true,
                     expiryDate: true,
                     location: true,
                     mrp: true,

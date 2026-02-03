@@ -125,9 +125,9 @@ export class DatabaseAssertions {
             throw new Error(`Batch ${batchId} not found`);
         }
 
-        if (batch.quantityInStock !== expectedQuantity) {
+        if (Number(batch.baseUnitQuantity) !== expectedQuantity) {
             throw new Error(
-                `Expected batch ${batchId} to have quantity ${expectedQuantity}, but found ${batch.quantityInStock}`
+                `Expected batch ${batchId} to have quantity ${expectedQuantity}, but found ${batch.baseUnitQuantity}`
             );
         }
     }

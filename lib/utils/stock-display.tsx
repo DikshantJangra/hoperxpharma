@@ -44,26 +44,32 @@ export function formatStockQuantity(
         forceBoth = false
     } = options;
 
-    // Use baseUnitQuantity if available, otherwise fall back to quantityInStock or totalStock
-    const baseQuantity = batch.baseUnitQuantity ?? batch.quantityInStock ?? batch.totalStock ?? 0;
+    // Use baseUnitQuantity as the single source of truth
+    const baseQuantity = Number(batch.baseUnitQuantity ?? 0);
 
     // Get unit information - support both nested and flat structures
     const baseUnit = batch.drug?.baseUnit || batch.baseUnit || (batch.drug?.form && batch.drug.form !== 'Tablet' ? batch.drug.form : 'Tablet');
     const displayUnit = batch.drug?.displayUnit || batch.displayUnit || batch.unit || baseUnit;
 
     // Get conversion factor - support multiple structures
-    // Default to 10 if no conversion factor found
-    let conversionFactor = batch.drug?.tabletsPerStrip || batch.tabletsPerStrip || batch.conversionFactor || batch.conversion || 1;
-    if (batch.drug?.unitConfigurations) {
-        const config = batch.drug.unitConfigurations.find(
-            (c: any) => c.parentUnit === displayUnit && c.childUnit === baseUnit
-        );
-        if (config) conversionFactor = Number(config.conversion) || 10;
-    } else if (batch.unitConfigurations) {
-        const config = batch.unitConfigurations.find(
-            (c: any) => c.parentUnit === displayUnit && c.childUnit === baseUnit
-        );
-        if (config) conversionFactor = Number(config.conversion) || 10;
+    // CRITICAL: Only use conversion if baseUnit and displayUnit are different
+    let conversionFactor = 1;
+
+    if (baseUnit !== displayUnit) {
+        // Priority: batch.tabletsPerStrip > drug.tabletsPerStrip > unitConfigurations > 1
+        conversionFactor = batch.tabletsPerStrip || batch.drug?.tabletsPerStrip || batch.conversionFactor || batch.conversion || 1;
+
+        if (batch.drug?.unitConfigurations) {
+            const config = batch.drug.unitConfigurations.find(
+                (c: any) => c.parentUnit === displayUnit && c.childUnit === baseUnit
+            );
+            if (config) conversionFactor = Number(config.conversion) || conversionFactor;
+        } else if (batch.unitConfigurations) {
+            const config = batch.unitConfigurations.find(
+                (c: any) => c.parentUnit === displayUnit && c.childUnit === baseUnit
+            );
+            if (config) conversionFactor = Number(config.conversion) || conversionFactor;
+        }
     }
 
     if (!showUnit) {
@@ -75,6 +81,12 @@ export function formatStockQuantity(
 
     const formattedBaseUnit = formatUnitName(baseUnit);
     const formattedDisplayUnit = formatUnitName(displayUnit);
+
+    // If units differ but no conversion factor, show base unit only
+    if (baseUnit !== displayUnit && conversionFactor === 1) {
+        const unitLabel = baseQuantity === 1 ? formattedBaseUnit : `${formattedBaseUnit}s`;
+        return `${baseQuantity} ${unitLabel}`;
+    }
 
     // Case: Multi-unit conversion exists
     if (conversionFactor > 1) {
@@ -111,27 +123,41 @@ export function renderStockQuantity(
         forceBoth = true
     } = options;
 
-    const baseQuantity = batch.baseUnitQuantity ?? batch.quantityInStock ?? batch.totalStock ?? 0;
+    const baseQuantity = Number(batch.baseUnitQuantity ?? 0);
     const baseUnit = batch.drug?.baseUnit || batch.baseUnit || (batch.drug?.form && batch.drug.form !== 'Tablet' ? batch.drug.form : 'Tablet');
     const displayUnit = batch.drug?.displayUnit || batch.displayUnit || batch.unit || baseUnit;
 
-    // Get conversion factor - support multiple structures
-    // Default to 1 if no conversion factor found (consistent with SmartQuantityInput)
-    let conversionFactor = batch.drug?.tabletsPerStrip || batch.tabletsPerStrip || batch.conversionFactor || batch.conversion || 1;
-    if (batch.drug?.unitConfigurations) {
-        const config = batch.drug.unitConfigurations.find(
-            (c: any) => c.parentUnit === displayUnit && c.childUnit === baseUnit
-        );
-        if (config) conversionFactor = Number(config.conversion) || 10;
-    } else if (batch.unitConfigurations) {
-        const config = batch.unitConfigurations.find(
-            (c: any) => c.parentUnit === displayUnit && c.childUnit === baseUnit
-        );
-        if (config) conversionFactor = Number(config.conversion) || 10;
+    let conversionFactor = 1;
+
+    if (baseUnit !== displayUnit) {
+        conversionFactor = batch.tabletsPerStrip || batch.drug?.tabletsPerStrip || batch.conversionFactor || batch.conversion || 1;
+
+        if (batch.drug?.unitConfigurations) {
+            const config = batch.drug.unitConfigurations.find(
+                (c: any) => c.parentUnit === displayUnit && c.childUnit === baseUnit
+            );
+            if (config) conversionFactor = Number(config.conversion) || conversionFactor;
+        } else if (batch.unitConfigurations) {
+            const config = batch.unitConfigurations.find(
+                (c: any) => c.parentUnit === displayUnit && c.childUnit === baseUnit
+            );
+            if (config) conversionFactor = Number(config.conversion) || conversionFactor;
+        }
     }
 
     const formattedBaseUnit = formatUnitName(baseUnit);
     const formattedDisplayUnit = formatUnitName(displayUnit);
+
+    // If units differ but no conversion factor, show base unit only
+    if (baseUnit !== displayUnit && conversionFactor === 1) {
+        const unitLabel = baseQuantity === 1 ? formattedBaseUnit : `${formattedBaseUnit}s`;
+        return (
+            <span className={`inline-flex items-baseline ${className}`}>
+                {baseQuantity}
+                <span className={unitClassName}>{unitLabel}</span>
+            </span>
+        );
+    }
 
     if (conversionFactor > 1) {
         const displayQty = Math.floor(baseQuantity / conversionFactor);
@@ -169,7 +195,7 @@ export function getStockStatus(batch: any): {
     status: 'OK' | 'LOW' | 'CRITICAL' | 'OUT';
     color: string;
 } {
-    const quantity = batch.baseUnitQuantity ?? batch.quantityInStock ?? batch.totalStock ?? 0;
+    const quantity = Number(batch.baseUnitQuantity ?? 0);
     const threshold = batch.drug?.lowStockThresholdBase ?? batch.drug?.lowStockThreshold ?? 0;
 
     if (quantity === 0) {

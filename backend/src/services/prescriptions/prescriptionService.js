@@ -57,13 +57,26 @@ class PrescriptionService {
             throw new Error('Store not found');
         }
 
-        const format = store.rxNumberFormat || 'RX-NNNNNN';
+        console.log('🔵 [generatePrescriptionNumber] Store config:', {
+            storeId,
+            rxNumberFormat: store.rxNumberFormat,
+            rxNumberPrefix: store.rxNumberPrefix,
+            rxNumberCounter: store.rxNumberCounter
+        });
+
+        const format = store.rxNumberFormat || 'SXXX-PREFIX-YY-NNNNNN'; // Default includes year
 
         // Increment counter (no yearly reset)
         const nextCounter = (store.rxNumberCounter || 0) + 1;
 
         // Generate number using format
         const prescriptionNumber = this.parseRxFormat(format, store, nextCounter);
+
+        console.log('🟢 [generatePrescriptionNumber] Generated:', {
+            format,
+            nextCounter,
+            prescriptionNumber
+        });
 
         // Update store counter
         await prisma.store.update({
@@ -72,6 +85,67 @@ class PrescriptionService {
         });
 
         return prescriptionNumber;
+    }
+
+    /**
+     * Update RX Number format configuration for a store
+     * @param {string} storeId - Store ID
+     * @param {Object} config - { format, prefix, yearlyReset }
+     * @returns {Object} Updated RX format configuration
+     */
+    async updateRxNumberConfig(storeId, { format, prefix, yearlyReset }) {
+        console.log('🔵 [updateRxNumberConfig] Updating RX format:', { storeId, format, prefix, yearlyReset });
+
+        const updateData = {};
+        if (format) updateData.rxNumberFormat = format;
+        if (prefix !== undefined) updateData.rxNumberPrefix = prefix;
+        // Note: yearlyReset is not stored but can be used for future auto-reset logic
+
+        console.log('🔵 [updateRxNumberConfig] Update data:', updateData);
+
+        const updated = await prisma.store.update({
+            where: { id: storeId },
+            data: updateData
+        });
+
+        console.log('🟢 [updateRxNumberConfig] Updated store:', {
+            id: updated.id,
+            rxNumberFormat: updated.rxNumberFormat,
+            rxNumberPrefix: updated.rxNumberPrefix,
+            rxNumberCounter: updated.rxNumberCounter
+        });
+
+        return {
+            rxNumberFormat: updated.rxNumberFormat,
+            rxNumberPrefix: updated.rxNumberPrefix,
+            rxNumberCounter: updated.rxNumberCounter
+        };
+    }
+
+    /**
+     * Get RX Number format configuration for a store
+     * @param {string} storeId - Store ID
+     * @returns {Object} RX format configuration
+     */
+    async getRxNumberConfig(storeId) {
+        const store = await prisma.store.findUnique({
+            where: { id: storeId },
+            select: {
+                rxNumberFormat: true,
+                rxNumberPrefix: true,
+                rxNumberCounter: true
+            }
+        });
+
+        if (!store) {
+            throw new Error('Store not found');
+        }
+
+        return {
+            rxNumberFormat: store.rxNumberFormat || 'SXXX-PREFIX-YY-NNNNNN',
+            rxNumberPrefix: store.rxNumberPrefix || 'RX',
+            rxNumberCounter: store.rxNumberCounter || 0
+        };
     }
 
     /**
@@ -1039,7 +1113,8 @@ class PrescriptionService {
                                         id: true,
                                         batchNumber: true,
                                         expiryDate: true,
-                                        mrp: true
+                                        mrp: true,
+                                        baseUnitQuantity: true
                                     }
                                 }
                             }

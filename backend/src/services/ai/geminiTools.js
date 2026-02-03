@@ -167,11 +167,11 @@ const toolHandlers = {
                 };
             }
 
-            const totalStock = batches.reduce((sum, b) => sum + b.quantityInStock, 0);
+            const totalStock = batches.reduce((sum, b) => sum + Number(b.baseUnitQuantity), 0);
 
             const batchDetails = batches.map(b => ({
                 batchNumber: b.batchNumber,
-                quantity: b.quantityInStock,
+                quantity: b.baseUnitQuantity,
                 expiryDate: b.expiryDate,
                 mrp: b.mrp,
                 purchasePrice: b.purchasePrice,

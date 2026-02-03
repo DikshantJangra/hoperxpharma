@@ -35,6 +35,7 @@ export default function StockPage() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [showAddDrug, setShowAddDrug] = useState(false);
   const [showIngestModal, setShowIngestModal] = useState(false);
+  const [detailPanelHasUpdates, setDetailPanelHasUpdates] = useState(false);
 
   const [pendingCount, setPendingCount] = useState(0);
 
@@ -147,6 +148,7 @@ export default function StockPage() {
   };
 
   const handleItemUpdate = async () => {
+    setDetailPanelHasUpdates(true); // Mark that an update occurred
     setRefreshKey(prev => prev + 1);
 
     if (selectedItem?.id) {
@@ -340,8 +342,12 @@ export default function StockPage() {
           <StockDetailPanel
             item={selectedItem}
             onClose={() => {
+              // Only refetch if updates occurred
+              if (detailPanelHasUpdates) {
+                setRefreshKey(prev => prev + 1);
+                setDetailPanelHasUpdates(false);
+              }
               setSelectedItem(null);
-              setRefreshKey(prev => prev + 1);
             }}
             onUpdate={handleItemUpdate}
           />

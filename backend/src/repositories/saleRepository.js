@@ -88,6 +88,11 @@ class SaleRepository {
                         },
                     },
                     paymentSplits: true,
+                    refunds: {
+                        include: {
+                            items: true,
+                        },
+                    },
                 },
                 orderBy,
             }),
@@ -118,6 +123,11 @@ class SaleRepository {
                     },
                 },
                 paymentSplits: true,
+                refunds: {
+                    include: {
+                        items: true,
+                    },
+                },
             },
         });
     }
@@ -285,7 +295,7 @@ class SaleRepository {
                     const currentBatch = await tx.inventoryBatch.findUnique({
                         where: { id: item.batchId },
                         select: {
-                            quantityInStock: true,
+                            baseUnitQuantity: true,
                             baseUnitQuantity: true,
                             batchNumber: true,
                             drugId: true,
@@ -293,7 +303,7 @@ class SaleRepository {
                         }
                     });
 
-                    if (!currentBatch || currentBatch.quantityInStock < item.quantity) {
+                    if (!currentBatch || currentBatch.baseUnitQuantity < item.quantity) {
                         throw new Error(
                             `Insufficient stock for ${currentBatch?.drug.name || 'item'} (Batch: ${currentBatch?.batchNumber})`
                         );
@@ -318,7 +328,7 @@ class SaleRepository {
                     }
 
                     // Validate base unit availability
-                    const availableBaseQty = currentBatch.baseUnitQuantity || currentBatch.quantityInStock;
+                    const availableBaseQty = currentBatch.baseUnitQuantity;
                     if (availableBaseQty < baseUnitQtyToDeduct) {
                         throw new Error(
                             `Insufficient base unit stock for ${currentBatch?.drug.name}. ` +
@@ -332,8 +342,7 @@ class SaleRepository {
                         tx.inventoryBatch.update({
                             where: { id: item.batchId },
                             data: {
-                                quantityInStock: { decrement: item.quantity }, // Backward compat
-                                baseUnitQuantity: { decrement: baseUnitQtyToDeduct } // New truth
+                                baseUnitQuantity: { decrement: baseUnitQtyToDeduct } // Truth
                             }
                         }),
                         tx.stockMovement.create({

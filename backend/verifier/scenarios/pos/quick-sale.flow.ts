@@ -32,7 +32,7 @@ export const quickSaleScenario: Scenario = {
                 });
 
                 ctx.set('testBatch', batch);
-                ctx.set('initialStock', batch.quantityInStock);
+                ctx.set('initialStock', Number(batch.baseUnitQuantity));
 
                 return {
                     success: true,
@@ -47,9 +47,9 @@ export const quickSaleScenario: Scenario = {
                     check: async (ctx) => {
                         const batch = ctx.get<any>('testBatch');
                         return {
-                            passed: batch.quantityInStock > 0,
+                            passed: Number(batch.baseUnitQuantity) > 0,
                             expected: '> 0',
-                            actual: batch.quantityInStock,
+                            actual: batch.baseUnitQuantity,
                             message: 'Test batch must have positive stock'
                         };
                     }
@@ -153,9 +153,9 @@ export const quickSaleScenario: Scenario = {
                         const expectedStock = initialStock - soldQty;
 
                         return {
-                            passed: updatedBatch.quantityInStock === expectedStock,
+                            passed: Number(updatedBatch.baseUnitQuantity) === expectedStock,
                             expected: expectedStock,
-                            actual: updatedBatch.quantityInStock,
+                            actual: updatedBatch.baseUnitQuantity,
                             message: 'Stock must be deducted by exact sold quantity'
                         };
                     }

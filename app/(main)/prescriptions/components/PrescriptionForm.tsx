@@ -3,6 +3,7 @@ import { useRouter } from 'next/navigation';
 import { FiSearch, FiX, FiCheck, FiLock, FiEdit, FiTag, FiChevronDown, FiAlertCircle, FiPaperclip, FiFile, FiSettings } from 'react-icons/fi';
 import { RiCapsuleLine } from 'react-icons/ri';
 import { inventoryApi } from '@/lib/api/inventory';
+import { prescriptionApi } from '@/lib/api/prescriptions';
 import PatientSearchSelect from '@/components/prescriptions/PatientSearchSelect';
 import PrescriberSelect from './PrescriberSelect';
 import BatchModal from '@/components/pos/BatchModal';
@@ -108,6 +109,7 @@ const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ onSubmit, onCancel,
     const [availableUnits, setAvailableUnits] = useState<Record<string, any[]>>({});
     const [showScanner, setShowScanner] = useState(false);
     const [showRxFormatModal, setShowRxFormatModal] = useState(false);
+    const [currentRxFormat, setCurrentRxFormat] = useState({ format: 'SXXX-PREFIX-YY-NNNNNN', prefix: 'RX' });
 
     const patientLocked = medications.length > 0;
 
@@ -223,7 +225,7 @@ const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ onSubmit, onCancel,
                 gstRate: Number(scannedItem.gstRate),
                 manufacturer: scannedItem.manufacturer || 'Unknown',
                 requiresPrescription: true,
-                stock: Number(scannedItem.quantityInStock),
+                stock: Number(scannedItem.baseUnitQuantity),
                 batches: 1,
                 batchCount: 1,
                 batchId: scannedItem.batchId,
@@ -246,6 +248,18 @@ const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ onSubmit, onCancel,
             console.error('Scan error:', error);
             const msg = error.response?.data?.message || `Item not found: ${barcode}`;
             toast.error(msg);
+        }
+    };
+
+    // Handle RX Format save
+    const handleSaveRxFormat = async (config: { format: string; prefix: string; yearlyReset: boolean }) => {
+        try {
+            // Backend middleware handles storeId automatically
+            const response = await prescriptionApi.updateRxFormat(config);
+            setCurrentRxFormat({ format: config.format, prefix: config.prefix });
+            return response;
+        } catch (error: any) {
+            throw new Error(error.response?.data?.message || 'Failed to update RX format');
         }
     };
 
@@ -336,7 +350,7 @@ const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ onSubmit, onCancel,
                     batchNumber: item.batch?.batchNumber || '',
                     expiryDate: item.batch?.expiryDate || '',
                     location: item.batch?.location || '',
-                    totalStock: item.batch?.quantityInStock || 0,
+                    totalStock: Number(item.batch?.baseUnitQuantity) || 0,
                     mrp: item.batch?.mrp || 0,
                     gstRate: item.drug?.gstRate || 0,
                     requiresPrescription: item.drug?.requiresPrescription || false,
@@ -448,10 +462,11 @@ const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ onSubmit, onCancel,
                 refillsAllowed: 0,
 
                 // Unit defaults
-                unit: drug.unit || drug.displayUnit || 'Tablet',
+                // Unit defaults - FORCE BASE UNIT (Simple Mode)
+                unit: drug.baseUnit || 'Tablet',
                 baseUnit: drug.baseUnit,
                 displayUnit: drug.displayUnit,
-                conversionFactor: drug.conversionFactor || 1,
+                conversionFactor: 1, // Force 1:1 conversion for base unit mode
                 unitConfigurations: drug.unitConfigurations || [],
                 isControlled: drug.isControlled || false
             };
@@ -873,7 +888,7 @@ const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ onSubmit, onCancel,
                         <span className="text-gray-500">Source:</span>
                         <span className="font-medium text-gray-900">{source}</span>
                     </div>
-                    <div className="flex justify-between text-xs">
+                    <div className="flex justify-between items-center text-xs">
                         <span className="text-gray-500">Status:</span>
                         <span className={`font-semibold ${status === 'VERIFIED' ? 'text-green-600' :
                             status === 'DRAFT' ? 'text-blue-600' :
@@ -881,6 +896,15 @@ const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ onSubmit, onCancel,
                             }`}>
                             {status === 'UNSAVED' ? 'Unsaved' : status}
                         </span>
+                    </div>
+                    <div className="flex justify-between items-center text-xs border-t border-gray-200 pt-3 mt-3">
+                        <span className="text-gray-500">RX Format:</span>
+                        <button
+                            onClick={() => setShowRxFormatModal(true)}
+                            className="flex items-center gap-1 text-teal-600 hover:text-teal-700 font-medium">
+                            <FiSettings className="w-3 h-3" />
+                            Configure
+                        </button>
                     </div>
                 </div>
             </div>
@@ -1093,24 +1117,9 @@ const PrescriptionForm: React.FC<PrescriptionFormProps> = ({ onSubmit, onCancel,
             {/* RX Format Modal */}
             {showRxFormatModal && (
                 <RxFormatModal
-                    currentFormat={undefined}
-                    currentPrefix={undefined}
-                    onSave={async (config) => {
-                        const { apiClient } = await import('@/lib/api/client');
-                        try {
-                            const storeResponse = await apiClient.get('/stores/me');
-                            const store = storeResponse.data;
-
-                            if (!store?.id) {
-                                throw new Error('Store not found');
-                            }
-
-                            await apiClient.patch(`/stores/${store.id}/rx-format`, config);
-                        } catch (error) {
-                            console.error('Failed to update RX format:', error);
-                            throw error;
-                        }
-                    }}
+                    currentFormat={currentRxFormat.format}
+                    currentPrefix={currentRxFormat.prefix}
+                    onSave={handleSaveRxFormat}
                     onClose={() => setShowRxFormatModal(false)}
                 />
             )}
@@ -1239,33 +1248,13 @@ const MedicationRow: React.FC<MedicationRowProps> = ({ medication, locked, onUpd
                             maxQuantity={medication.totalStock}
                             disabled={locked}
                             compact={true}
+                            disableUnitSwitch={true}
                         />
                         {/* Unit Selector - POS Style */}
-                        {availableUnits && availableUnits.length > 1 ? (
-                            <select
-                                value={selectedUnit}
-                                onChange={(e) => {
-                                    const newUnit = e.target.value;
-                                    const config = availableUnits.find((u: any) => u.unit === newUnit);
-                                    onUpdate(tempId, {
-                                        unit: newUnit,
-                                        conversionFactor: config?.conversionFactor || 1
-                                    });
-                                }}
-                                disabled={locked}
-                                className="px-2 py-1 text-[10px] border border-teal-200 rounded bg-teal-50 text-teal-700 font-medium focus:outline-none focus:ring-2 focus:ring-teal-300 cursor-pointer"
-                            >
-                                {availableUnits.map((u: any) => (
-                                    <option key={u.unit} value={u.unit}>
-                                        {formatUnitName(u.unit)}
-                                    </option>
-                                ))}
-                            </select>
-                        ) : (
-                            <div className="px-2 py-1 text-[10px] border border-gray-200 rounded bg-gray-50 text-gray-600 font-medium">
-                                {formatUnitName(selectedUnit)}
-                            </div>
-                        )}
+                        {/* Unit Selector Removed - Enforcing Base Unit Only */}
+                        <div className="px-2 py-1 text-[10px] border border-gray-200 rounded bg-gray-50 text-gray-600 font-medium">
+                            {formatUnitName(selectedUnit)}
+                        </div>
                     </div>
                 </div>
 

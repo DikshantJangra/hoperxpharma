@@ -34,7 +34,7 @@ export async function processBarcodeScan(barcode: string): Promise<ScanProcessRe
         const batchData = await scanApi.processScan(barcode, 'SALE');
         toast.success(`Scanned: ${batchData.drugName}`);
         return batchData;
-    } catch(error: any) {
+    } catch (error: any) {
         if (error.response?.status === 404) {
             toast.error('Barcode not recognized. Please enroll this barcode or enter manually.');
         } else {
@@ -98,8 +98,8 @@ export function scanDataToBasketItem(scanData: ScanProcessResponse, quantity: nu
         manufacturer: scanData.manufacturer,
         qty: quantity,
         mrp: scanData.mrp,
-        stock: scanData.quantityInStock,
-        totalStock: scanData.quantityInStock,
+        stock: scanData.baseUnitQuantity || 0,
+        totalStock: scanData.baseUnitQuantity || 0,
         expiryDate: scanData.expiryDate,
         location: scanData.location,
         gstRate: scanData.gstRate,

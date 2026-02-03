@@ -383,7 +383,7 @@ class PurchaseOrderRepository {
                         drugId: item.drugId,
                         batchNumber: item.batchNumber,
                         expiryDate: item.expiryDate,
-                        quantityInStock: item.quantityReceived,
+                        baseUnitQuantity: item.quantityReceived,
                         mrp: item.mrp,
                         purchasePrice: item.purchasePrice,
                         supplierId: receiptData.supplierId,

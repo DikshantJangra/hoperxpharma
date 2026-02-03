@@ -27,16 +27,33 @@ class ConfigService {
         }
 
         try {
-            const settings = await prisma.storeSettings.findUnique({
+            let settings = await prisma.storeSettings.findUnique({
                 where: { storeId }
             });
 
-            const result = settings || this.getDefaultSettings();
+            // CRITICAL FIX: Auto-create settings if missing
+            if (!settings) {
+                logger.warn(`StoreSettings not found for store ${storeId}, creating default settings`);
+
+                try {
+                    settings = await prisma.storeSettings.create({
+                        data: {
+                            storeId,
+                            ...this.getDefaultSettings()
+                        }
+                    });
+                    logger.info(`Created default storeSettings for store ${storeId}`);
+                } catch (createError) {
+                    logger.error('Failed to create store settings', { storeId, error: createError.message });
+                    // Fall back to default settings if creation fails
+                    settings = this.getDefaultSettings();
+                }
+            }
 
             // Cache the result
-            await cacheService.set(cacheKey, result, this.CACHE_TTL);
+            await cacheService.set(cacheKey, settings, this.CACHE_TTL);
 
-            return result;
+            return settings;
         } catch (error) {
             logger.error('Failed to fetch store settings', { storeId, error: error.message });
             return this.getDefaultSettings();
@@ -56,9 +73,7 @@ class ConfigService {
             purchaseRounding: true,
             allowNegativeStock: false,
             invoiceFormat: 'INV/{YYYY}/{NNNN}',
-            businessType: 'RETAIL',
-            workbenchMode: 'SIMPLE',
-            purchaseRounding: true
+            workbenchMode: 'SIMPLE'
         };
     }
 

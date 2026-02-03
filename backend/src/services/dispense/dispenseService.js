@@ -82,8 +82,8 @@ class DispenseService {
             throw new Error('SAFETY ALERT: This batch is EXPIRED! Do not dispense.');
         }
 
-        if (batch.quantityInStock < quantity) {
-            throw new Error(`Insufficient stock in batch. Available: ${batch.quantityInStock}`);
+        if (batch.baseUnitQuantity < quantity) {
+            throw new Error(`Insufficient stock in batch. Available: ${batch.baseUnitQuantity}`);
         }
 
         // 4. Record the Fill (Create/Update DispenseItem)
@@ -149,7 +149,7 @@ class DispenseService {
                 await tx.inventoryBatch.update({
                     where: { id: item.batchId },
                     data: {
-                        quantityInStock: { decrement: item.quantityDispensed }
+                        baseUnitQuantity: { decrement: item.quantityDispensed }
                     }
                 });
 

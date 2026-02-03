@@ -53,8 +53,9 @@ class UnitConversionService {
                 throw new ApiError(400, `Drug ${drugId} has no base unit configured. Please configure unit settings first.`);
             }
 
-            // If already in base units, return as-is
-            if (fromUnit === drug.baseUnit) {
+            // If already in base units, return as-is (case-insensitive comparison)
+            const normalizeUnit = (u) => (u || '').toLowerCase().trim();
+            if (normalizeUnit(fromUnit) === normalizeUnit(drug.baseUnit)) {
                 return {
                     baseQuantity: quantity,
                     baseUnit: drug.baseUnit

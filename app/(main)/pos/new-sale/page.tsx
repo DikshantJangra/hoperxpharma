@@ -18,7 +18,7 @@ import CustomerLedgerPanel from '@/components/customers/CustomerLedgerPanel';
 import PrescriptionBanner from '@/components/pos/PrescriptionBanner';
 import { salesApi, Sale } from '@/lib/api/sales';
 import { prescriptionApi } from '@/lib/api/prescriptions';
-import PrescriptionImportModal from '@/components/pos/PrescriptionImportModal';
+import PrescriptionImportPanel from '@/components/pos/PrescriptionImportPanel';
 import SubstituteFinder from '@/components/pos/SubstituteFinder';
 import { inventoryApi } from '@/lib/api/inventory';
 import { useBarcodeScanner } from '@/hooks/useBarcodeScanner';
@@ -50,7 +50,7 @@ export default function NewSalePage() {
     const [showDraftRestore, setShowDraftRestore] = useState(false);
     const [pendingDraft, setPendingDraft] = useState<any>(null);
     const storeId = 'default';
-    const [showPrescriptionModal, setShowPrescriptionModal] = useState(false);
+    const [showImportPanel, setShowImportPanel] = useState(false);
     const [linkedPrescriptionId, setLinkedPrescriptionId] = useState<string | undefined>(undefined);
     const [activePrescription, setActivePrescription] = useState<any>(null);
     const [isLoadingRx, setIsLoadingRx] = useState(false);
@@ -97,7 +97,7 @@ export default function NewSalePage() {
                 manufacturer: scannedItem.manufacturer || 'Unknown',
                 type: 'RX',
                 requiresPrescription: true,
-                stock: Number(scannedItem.quantityInStock),
+                stock: Number(scannedItem.baseUnitQuantity),
                 batches: 1,
                 batchCount: 1,
                 // Pass conversion details
@@ -442,7 +442,7 @@ export default function NewSalePage() {
     });
 
     useKeyboardCommand('pos.prescription', () => {
-        setShowPrescriptionModal(true);
+        setShowImportPanel(prev => !prev);
     });
 
     useKeyboardCommand('pos.parkSale', () => {
@@ -474,6 +474,33 @@ export default function NewSalePage() {
      * FIX: Add to basket with Duplicate Check
      */
     const addToBasket = (product: any) => {
+        // CRITICAL VALIDATION: Ensure product has essential fields
+        if (!product || typeof product !== 'object') {
+            console.error('❌ Cannot add invalid product:', product);
+            toast.error('Invalid product data');
+            return;
+        }
+
+        if (!product.id) {
+            console.error('❌ Cannot add product without ID:', product);
+            toast.error('Product is missing ID - please contact support');
+            return;
+        }
+
+        if (!product.name) {
+            console.error('❌ Cannot add product without name:', product);
+            toast.error('Product is missing name - please contact support');
+            return;
+        }
+
+        console.log('✅ Adding product to basket:', {
+            id: product.id,
+            name: product.name,
+            batchId: product.batchId,
+            batches: product.batches,
+            totalStock: product.totalStock
+        });
+
         // If product has multiple batches and no specific batch is selected, show modal
         if (product.batches > 1 && !product.batchId) {
             setPendingProduct(product);
@@ -519,13 +546,23 @@ export default function NewSalePage() {
 
             // Add new item
             console.log(`📦 Adding NEW item: ${product.name} (Batch: ${targetBatchId})`);
-            return [...prev, {
+            const newBasketItem = {
                 ...product,
+                drugId: product.drugId || product.id, // Ensure drugId is set
                 batchId: product.batchId || targetBatchId,
                 unit: initialUnit, // Store normalized unit
                 qty: 1,
                 gstRate: product.gstRate ? Number(product.gstRate) : 5
-            }];
+            };
+
+            console.log('📦 New basket item:', {
+                id: newBasketItem.id,
+                name: newBasketItem.name,
+                drugId: newBasketItem.drugId,
+                batchId: newBasketItem.batchId
+            });
+
+            return [...prev, newBasketItem];
         });
     };
 
@@ -583,30 +620,76 @@ export default function NewSalePage() {
     };
 
     const handleBatchSelect = (batch: any) => {
+        // CRITICAL: BatchModal returns batch.batchId (not batch.id) and batch.qty (not batch.quantityInStock)
+        const actualBatchId = batch.batchId || batch.id;
+        const actualStock = batch.qty !== undefined ? batch.qty : batch.quantityInStock;
+
+        console.log('🔍 handleBatchSelect - batch data:', {
+            batchId: actualBatchId,
+            batchNumber: batch.batchNumber,
+            mrp: batch.mrp,
+            stock: actualStock,
+            allBatchKeys: Object.keys(batch)
+        });
+
+        console.log('🔍 handleBatchSelect - pendingProduct:', {
+            exists: !!pendingProduct,
+            id: pendingProduct?.id,
+            name: pendingProduct?.name,
+            drugId: pendingProduct?.drugId
+        });
+
+        console.log('🔍 handleBatchSelect - editingBasketItemIndex:', editingBasketItemIndex);
+
         if (pendingProduct) {
             // Create the item object from the selected batch
             const newItem = {
                 ...pendingProduct,
-                batchId: batch.id,
-                batchNumber: batch.batchNumber, // Ensure these are strings!
+                batchId: actualBatchId, // ✅ Use actualBatchId (supports both batchId and id)
+                batchNumber: batch.batchNumber,
                 location: batch.location,
-                stock: Number(batch.quantityInStock), // Fix N/A issue by ensuring number
+                stock: Number(actualStock), // ✅ Use actualStock (supports both qty and quantityInStock)
                 expiryDate: batch.expiryDate,
-                qty: editingBasketItemIndex !== null ? basketItems[editingBasketItemIndex].qty : 1, // Keep existing qty if editing
+                qty: editingBasketItemIndex !== null ? basketItems[editingBasketItemIndex].qty : 1,
                 gstRate: pendingProduct.gstRate ? Number(pendingProduct.gstRate) : 5,
-                // Override price if batch has specific MRP/PTR (optional, usually batch price rules)
                 mrp: batch.mrp || pendingProduct.mrp
             };
 
             setBasketItems(prev => {
-                // CASE 1: Editing an existing item in the basket
+                // CASE 1: Editing an existing item in the basket (changing batch)
                 if (editingBasketItemIndex !== null) {
                     const newItems = [...prev];
+                    const existingItem = newItems[editingBasketItemIndex];
+
+                    console.log('🔍 BEFORE update - existingItem:', {
+                        id: existingItem.id,
+                        name: existingItem.name,
+                        batchId: existingItem.batchId,
+                        drugId: existingItem.drugId
+                    });
+
+                    // CRITICAL FIX: Only update batch-specific fields, preserve ALL other properties
+                    // DO NOT spread newItem - it might not have id, name, drugId etc.
                     newItems[editingBasketItemIndex] = {
-                        ...newItems[editingBasketItemIndex], // Keep other props like discount
-                        ...newItem, // Overwrite with new batch details
-                        qty: newItems[editingBasketItemIndex].qty // Preserve quantity
+                        ...existingItem, // ✅ Keep everything (id, name, drugId, discount, etc.)
+                        // Only override batch-specific fields:
+                        batchId: actualBatchId, // ✅ Use actualBatchId (supports both batchId and id)
+                        batchNumber: batch.batchNumber,
+                        location: batch.location,
+                        stock: Number(actualStock), // ✅ Use actualStock (supports both qty and quantityInStock)
+                        expiryDate: batch.expiryDate,
+                        mrp: batch.mrp || existingItem.mrp,
+                        // qty is already in existingItem, no need to override
                     };
+
+                    console.log('🔍 AFTER update - newItems[index]:', {
+                        id: newItems[editingBasketItemIndex].id,
+                        name: newItems[editingBasketItemIndex].name,
+                        batchId: newItems[editingBasketItemIndex].batchId,
+                        drugId: newItems[editingBasketItemIndex].drugId,
+                        allKeys: Object.keys(newItems[editingBasketItemIndex])
+                    });
+
                     toast.success(`Batch updated to ${batch.batchNumber}`);
                     return newItems;
                 }
@@ -829,7 +912,7 @@ export default function NewSalePage() {
                             for (const batch of validBatches) {
                                 if (remainingQty <= 0) break;
 
-                                const currentStock = Number(batch.quantityInStock);
+                                const currentStock = Number(batch.baseUnitQuantity);
                                 const qtyToTake = Math.min(remainingQty, currentStock);
 
                                 if (qtyToTake > 0) {
@@ -885,7 +968,7 @@ export default function NewSalePage() {
                                     batchNumber: anyBatch.batchNumber,
                                     location: anyBatch.location,
                                     expiryDate: anyBatch.expiryDate,
-                                    stock: Number(anyBatch.quantityInStock),
+                                    stock: Number(anyBatch.baseUnitQuantity),
                                     mrp: Number(anyBatch.mrp),
                                     qty: Number(item.quantityPrescribed) || 1, // Show requested
                                     discount: 0,
@@ -1013,9 +1096,7 @@ export default function NewSalePage() {
         toast.success(`Overall ${type} discount of ${type === 'percentage' ? value + '%' : '₹' + value} applied`);
     };
 
-    // Calculate GST
-    // Enhanced Financial Calculations
-    // Enhanced Financial Calculations
+    // Enhanced Financial Calculations with Correct GST
     const calculateTotals = () => {
         let totalMrp = 0;
         let totalItemDiscount = 0;
@@ -1081,13 +1162,14 @@ export default function NewSalePage() {
 
         return {
             totalMrp,
-            totalDiscount: totalItemDiscount, // Item-level discounts only
+            totalDiscount: totalItemDiscount + overallDiscountAmount, // Combined discounts
             overallDiscountAmount, // Overall discount separate
             taxableValue: Math.round(taxableValue * 100) / 100, // Round to 2 decimals
             taxAmount: Math.round(taxAmount * 100) / 100, // Round to 2 decimals
             roundOff: Math.round(roundOff * 100) / 100, // Round to 2 decimals
             total: roundedTotal,
-            subtotal: totalMrp
+            subtotal: totalMrp,
+            unroundedTotal: netTotal
         };
     };
 
@@ -1165,7 +1247,7 @@ export default function NewSalePage() {
                 discountAmount: Number(totals.totalDiscount.toFixed(2)),
                 taxAmount: Number(totals.taxAmount.toFixed(2)),
                 roundOff: Number(totals.roundOff.toFixed(2)),
-                total: Number(totals.total),
+                total: Number((totals as any).unroundedTotal || totals.total),
                 items,
                 paymentSplits,
                 prescriptionId: finalPrescriptionId, // Link to prescription if imported
@@ -1292,168 +1374,154 @@ export default function NewSalePage() {
             <POSHeader
                 saleId={saleId}
                 onOpenCustomer={() => setShowCustomerModal(true)}
-                onOpenPrescription={() => setShowPrescriptionModal(true)}
+                onOpenPrescription={() => setShowImportPanel(prev => !prev)}
                 activePrescription={activePrescription}
                 invoiceNumber={invoiceNumber}
                 setInvoiceNumber={setInvoiceNumber}
             />
 
             <div className="flex-1 flex overflow-hidden">
-                {/* Left Panel - 65% */}
-                <div className="w-[65%] flex flex-col border-r border-[#e2e8f0] min-h-0">
-                    {/* Hybrid Context Banner */}
-                    <PrescriptionBanner
-                        prescription={activePrescription}
-                        onClear={handleUnlinkPrescription}
-                    />
+                {/* Main POS Content */}
+                <div className="flex-1 flex flex-col min-w-0">
+                    <div className="flex-1 flex overflow-hidden relative">
+                        {/* Left Panel - Product Search & Basket */}
+                        <div className="w-[65%] flex flex-col border-r border-[#e2e8f0] min-h-0 relative">
+                            {/* Prescription Import Panel - Horizontal Overlay (Scoped to Search Width) */}
+                            {showImportPanel && (
+                                <div className="absolute top-0 left-0 right-0 z-50">
+                                    <PrescriptionImportPanel
+                                        onSelect={handleImportPrescription}
+                                        onClose={() => setShowImportPanel(false)}
+                                    />
+                                </div>
+                            )}
+                            {/* Hybrid Context Banner */}
+                            <PrescriptionBanner
+                                prescription={activePrescription}
+                                onClear={handleUnlinkPrescription}
+                            />
 
-                    <div data-tour="pos-search">
-                        <ProductSearch
-                            onAddProduct={addToBasket}
-                            searchFocus={searchFocus}
-                            setSearchFocus={setSearchFocus}
-                            onManualScan={handleScan}
-                            onScanClick={() => setShowScanner(true)}
-                        />
-                    </div>
-                    <QuickAddGrid onAddProduct={addToBasket} storeId={storeId} />
+                            <div data-tour="pos-search">
+                                <ProductSearch
+                                    onAddProduct={addToBasket}
+                                    searchFocus={searchFocus}
+                                    setSearchFocus={setSearchFocus}
+                                    onManualScan={handleScan}
+                                    onScanClick={() => setShowScanner(true)}
+                                />
+                            </div>
+                            <QuickAddGrid onAddProduct={addToBasket} storeId={storeId} />
 
-                    <div data-tour="pos-cart" className="flex-1 min-h-0 flex flex-col">
-                        <Basket
-                            items={basketItems}
-                            onUpdateItem={updateBasketItem}
-                            onRemoveItem={removeBasketItem}
-                            onClear={clearBasket}
-                            onEditBatch={handleEditBatch}
-                            onFindSubstitute={handleFindSubstitute}
-                        />
+                            <div data-tour="pos-cart" className="flex-1 min-h-0 flex flex-col">
+                                <Basket
+                                    items={basketItems}
+                                    onUpdateItem={updateBasketItem}
+                                    onRemoveItem={removeBasketItem}
+                                    onClear={clearBasket}
+                                    onEditBatch={handleEditBatch}
+                                    onFindSubstitute={handleFindSubstitute}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Right Panel - 35% */}
+                        <div className="w-[35%] bg-white flex flex-col min-h-0" data-tour="pos-payment">
+                            <PaymentPanel
+                                basketItems={basketItems}
+                                customer={customer}
+                                onCustomerChange={setCustomer}
+                                onFinalize={(method: string, splits?: any, invoiceType?: string) => handleFinalize(method, splits, invoiceType)}
+                                onOpenCustomer={() => setShowCustomerModal(true)}
+                                onOpenLedger={() => customer ? setShowLedgerModal(true) : toast.error("Select a customer first")}
+                                onSplitPayment={() => setShowSplitPayment(true)}
+                                onClear={clearBasket}
+                                onApplyDiscount={handleApplyOverallDiscount}
+                                overallDiscount={overallDiscount}
+                                onOpenDiscount={() => {/* handled in PaymentPanel */ }}
+                                onSaveDraft={() => saveDraft(false)}
+                                onViewInvoices={() => router.push('/pos/invoices')}
+                                totals={totals}
+                                dispenseFor={dispenseFor}
+                                onDispenseForChange={setDispenseFor}
+                            />
+                        </div>
                     </div>
                 </div>
-
-                {/* Right Panel - 35% */}
-                <div className="w-[35%] bg-white flex flex-col min-h-0" data-tour="pos-payment">
-                    <PaymentPanel
-                        basketItems={basketItems}
-                        customer={customer}
-                        onCustomerChange={setCustomer}
-                        onFinalize={(method: string, splits?: any, invoiceType?: string) => handleFinalize(method, splits, invoiceType)}
-                        onOpenCustomer={() => setShowCustomerModal(true)}
-                        onOpenLedger={() => customer ? setShowLedgerModal(true) : toast.error("Select a customer first")}
-                        onSplitPayment={() => setShowSplitPayment(true)}
-                        onClear={clearBasket}
-                        onApplyDiscount={handleApplyOverallDiscount}
-                        overallDiscount={overallDiscount}
-                        onOpenDiscount={() => {/* handled in PaymentPanel */ }}
-                        onSaveDraft={() => saveDraft(false)}
-                        onViewInvoices={() => router.push('/pos/invoices')}
-                        totals={totals}
-                        dispenseFor={dispenseFor}
-                        onDispenseForChange={setDispenseFor}
+                {showShortcuts && <ShortcutsOverlay onClose={() => setShowShortcuts(false)} />}
+                {showBatchModal && (
+                    <BatchModal
+                        product={pendingProduct}
+                        onSelect={handleBatchSelect}
+                        onClose={() => {
+                            setShowBatchModal(false);
+                            setPendingProduct(null);
+                        }}
                     />
-                </div>
+                )}
+                {showCustomerModal && (
+                    <CustomerModal
+                        onSelect={handleCustomerSelect}
+                        onClose={() => setShowCustomerModal(false)}
+                    />
+                )}
+                {showSplitPayment && (
+                    <SplitPaymentModal
+                        total={calculateTotals().total}
+                        onClose={() => setShowSplitPayment(false)}
+                        onConfirm={(splits: any) => {
+                            setShowSplitPayment(false);
+                            handleFinalize('SPLIT', splits);
+                        }}
+                    />
+                )}
+
+                {showLedgerModal && customer && (
+                    <CustomerLedgerPanel
+                        isOpen={showLedgerModal}
+                        onClose={() => setShowLedgerModal(false)}
+                        customerId={customer.id}
+                        onBalanceUpdate={(newBalance) => {
+                            console.log('Refreshing POS customer balance:', newBalance);
+                            setCustomer((prev: any) => prev ? ({ ...prev, currentBalance: newBalance }) : null);
+                        }}
+                    />
+                )}
+
+                {showDraftRestore && pendingDraft && (
+                    <DraftRestoreModal
+                        draftDate={pendingDraft.createdAt}
+                        onRestore={handleRestoreDraft}
+                        onDiscard={handleDiscardDraft}
+                    />
+                )}
+
+                {showSuccess && (
+                    <SuccessScreen
+                        saleData={{ invoiceNo: saleId, total: totals.total, method: 'cash', saleId: lastSaleId }}
+                        onNewSale={handleNewSale}
+                        onClose={handleNewSale}
+                    />
+                )}
+                {showScanner && (
+                    <BarcodeScannerModal
+                        onClose={() => setShowScanner(false)}
+                        onScan={handleScan}
+                    />
+                )}
+                {showSubstituteFinder && substituteForItem && (
+                    <SubstituteFinder
+                        drugId={substituteForItem.drugId || substituteForItem.id}
+                        drugName={substituteForItem.name}
+                        storeId={storeId}
+                        onSelect={handleSubstituteSelect}
+                        onClose={() => {
+                            setShowSubstituteFinder(false);
+                            setSubstituteForItem(null);
+                            setSubstituteItemIndex(null);
+                        }}
+                    />
+                )}
             </div>
-
-            {showShortcuts && <ShortcutsOverlay onClose={() => setShowShortcuts(false)} />}
-            {showBatchModal && (
-                <BatchModal
-                    product={pendingProduct}
-                    onSelect={handleBatchSelect}
-                    onClose={() => {
-                        setShowBatchModal(false);
-                        setPendingProduct(null);
-                    }}
-                />
-            )}
-            {showCustomerModal && (
-                <CustomerModal
-                    onSelect={handleCustomerSelect}
-                    onClose={() => setShowCustomerModal(false)}
-                />
-            )}
-            {showPrescriptionModal && (
-                <PrescriptionImportModal
-                    onSelect={handleImportPrescription}
-                    onClose={() => setShowPrescriptionModal(false)}
-                />
-            )}
-            {showSplitPayment && (
-                <SplitPaymentModal
-                    total={calculateTotals().total}
-                    onClose={() => setShowSplitPayment(false)}
-                    onConfirm={(splits: any) => {
-                        setShowSplitPayment(false);
-                        handleFinalize('SPLIT', splits);
-                    }}
-                />
-            )}
-
-            {showLedgerModal && customer && (
-                <CustomerLedgerPanel
-                    isOpen={showLedgerModal}
-                    onClose={() => setShowLedgerModal(false)}
-                    customerId={customer.id}
-                    onBalanceUpdate={(newBalance) => {
-                        console.log('Refreshing POS customer balance:', newBalance);
-                        setCustomer((prev: any) => prev ? ({ ...prev, currentBalance: newBalance }) : null);
-                    }}
-                />
-            )}
-
-            {showDraftRestore && pendingDraft && (
-                <DraftRestoreModal
-                    draftDate={pendingDraft.createdAt}
-                    onRestore={handleRestoreDraft}
-                    onDiscard={handleDiscardDraft}
-                />
-            )}
-
-            {showSuccess && (
-                <SuccessScreen
-                    saleData={{ invoiceNo: saleId, total: totals.total, method: 'cash', saleId: lastSaleId }}
-                    onNewSale={handleNewSale}
-                    onClose={handleNewSale}
-                />
-            )}
-            {showScanner && (
-                <BarcodeScannerModal
-                    onClose={() => setShowScanner(false)}
-                    onScan={handleScan}
-                />
-            )}
-            {showSubstituteFinder && substituteForItem && (
-                <SubstituteFinder
-                    drugId={substituteForItem.drugId || substituteForItem.id}
-                    drugName={substituteForItem.name}
-                    storeId={storeId}
-                    onSelect={handleSubstituteSelect}
-                    onClose={() => {
-                        setShowSubstituteFinder(false);
-                        setSubstituteForItem(null);
-                        setSubstituteItemIndex(null);
-                    }}
-                />
-            )}
-            {/* Loading Overlay - Scoped and Minimal */}
-            {importStatus && (
-                <div className="absolute inset-0 z-[50] flex items-center justify-center pointer-events-none">
-                    {/* Backdrop only blurring, no color overlay to keep it clean */}
-                    <div className="absolute inset-0 bg-white/50 backdrop-blur-[2px]"></div>
-
-                    <div className="relative bg-white/90 backdrop-blur-md p-6 rounded-2xl shadow-xl border border-white/20 ring-1 ring-black/5 flex flex-col items-center space-y-4 min-w-[280px] pointer-events-auto transition-all animate-in fade-in zoom-in-95 duration-200">
-                        <div className="relative w-10 h-10">
-                            <svg className="animate-spin text-blue-600 w-10 h-10" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                        </div>
-
-                        <div className="text-center space-y-1">
-                            <h3 className="text-sm font-bold text-gray-900 tracking-wide uppercase">Importing Prescription</h3>
-                            <p className="text-xs text-blue-600 font-medium">{importStatus}</p>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     );
 }

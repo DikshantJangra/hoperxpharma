@@ -69,7 +69,7 @@ class DrugRepository {
                         id: true,
                         storeId: true,
                         batchNumber: true,
-                        quantityInStock: true,
+                        baseUnitQuantity: true,
                         mrp: true,
                         purchasePrice: true,
                         expiryDate: true,
@@ -113,7 +113,7 @@ class DrugRepository {
             select: {
                 id: true,
                 batchNumber: true,
-                quantityInStock: true,
+                baseUnitQuantity: true,
                 mrp: true,
                 purchasePrice: true,
                 expiryDate: true,
@@ -124,7 +124,7 @@ class DrugRepository {
             }
         });
 
-        const totalStock = batches.reduce((sum, batch) => sum + batch.quantityInStock, 0);
+        const totalStock = batches.reduce((sum, batch) => sum + Number(batch.baseUnitQuantity), 0);
 
         return {
             totalStock,
@@ -216,7 +216,7 @@ class DrugRepository {
                 COALESCE(d."lowStockThreshold", 10) as threshold,
                 d."gstRate" as "gstPercent",
                 d."defaultUnit" as "defaultUnit",
-                COALESCE(SUM(ib."quantityInStock"), 0)::int as "currentStock",
+                COALESCE(SUM(ib."baseUnitQuantity"), 0)::int as "currentStock",
                 (
                     SELECT poi."unitPrice"
                     FROM "PurchaseOrderItem" poi
@@ -234,10 +234,10 @@ class DrugRepository {
             WHERE d."storeId" = ${storeId}
                 -- Removed strict NULL check to allow smart defaults
             GROUP BY d.id, d.name, d.strength, d.form, d.manufacturer, d."lowStockThreshold", d."gstRate", d."defaultUnit"
-            HAVING COALESCE(SUM(ib."quantityInStock"), 0) < COALESCE(d."lowStockThreshold", 10)
+            HAVING COALESCE(SUM(ib."baseUnitQuantity"), 0) < COALESCE(d."lowStockThreshold", 10)
             ORDER BY 
-                CASE WHEN COALESCE(SUM(ib."quantityInStock"), 0) = 0 THEN 0 ELSE 1 END,
-                COALESCE(SUM(ib."quantityInStock"), 0)::float / NULLIF(COALESCE(d."lowStockThreshold", 10), 0)
+                CASE WHEN COALESCE(SUM(ib."baseUnitQuantity"), 0) = 0 THEN 0 ELSE 1 END,
+                COALESCE(SUM(ib."baseUnitQuantity"), 0)::float / NULLIF(COALESCE(d."lowStockThreshold", 10), 0)
             LIMIT 100
         `;
 
@@ -270,11 +270,11 @@ class DrugRepository {
                 deletedAt: null
             },
             _sum: {
-                quantityInStock: true
+                baseUnitQuantity: true
             }
         });
 
-        return result._sum.quantityInStock || 0;
+        return result._sum.baseUnitQuantity || 0;
     }
 }
 

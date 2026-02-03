@@ -291,12 +291,12 @@ class ReportsRepository {
             where: {
                 storeId,
                 deletedAt: null,
-                quantityInStock: {
+                baseUnitQuantity: {
                     gt: 0,
                 },
             },
             _sum: {
-                quantityInStock: true,
+                baseUnitQuantity: true,
             },
             _count: {
                 id: true,
@@ -308,12 +308,12 @@ class ReportsRepository {
             where: {
                 storeId,
                 deletedAt: null,
-                quantityInStock: {
+                baseUnitQuantity: {
                     gt: 0,
                 },
             },
             select: {
-                quantityInStock: true,
+                baseUnitQuantity: true,
                 purchasePrice: true,
                 drugId: true,
                 drug: {
@@ -325,7 +325,7 @@ class ReportsRepository {
         });
 
         const totalValue = batches.reduce((sum, batch) => {
-            return sum + (batch.quantityInStock * Number(batch.purchasePrice));
+            return sum + (Number(batch.baseUnitQuantity) * Number(batch.purchasePrice));
         }, 0);
 
         // Count low stock items
@@ -336,7 +336,7 @@ class ReportsRepository {
                     threshold: batch.drug.lowStockThreshold || 10,
                 };
             }
-            acc[batch.drugId].totalStock += batch.quantityInStock;
+            acc[batch.drugId].totalStock += Number(batch.baseUnitQuantity);
             return acc;
         }, {});
 
@@ -349,12 +349,12 @@ class ReportsRepository {
             SELECT 
                 d.form as category,
                 COUNT(DISTINCT d.id) as items,
-                SUM(ib."quantityInStock" * ib."purchasePrice") as value
+                SUM(ib."baseUnitQuantity" * ib."purchasePrice") as value
             FROM "InventoryBatch" ib
             JOIN "Drug" d ON ib."drugId" = d.id
             WHERE ib."storeId" = ${storeId}
                 AND ib."deletedAt" IS NULL
-                AND ib."quantityInStock" > 0
+                AND ib."baseUnitQuantity" > 0
             GROUP BY d.form
             ORDER BY value DESC
         `;

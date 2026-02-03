@@ -229,7 +229,6 @@ class GRNCompletionService {
                 }
             },
             update: {
-                quantityInStock: { increment: totalQty },
                 baseUnitQuantity: { increment: baseUnitQty },
                 mrp: item.mrp,
                 purchasePrice: item.unitPrice,
@@ -241,7 +240,6 @@ class GRNCompletionService {
                 drugId: item.drugId,
                 batchNumber: item.batchNumber,
                 expiryDate: item.expiryDate,
-                quantityInStock: totalQty,
                 baseUnitQuantity: baseUnitQty,
                 baseUnitReserved: 0,
                 receivedUnit,

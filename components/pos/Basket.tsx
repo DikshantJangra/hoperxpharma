@@ -201,7 +201,7 @@ export default function Basket({ items, onUpdateItem, onRemoveItem, onClear, onE
 
                     {/* OUT OF STOCK WARNING */}
                     {(() => {
-                      const stockVal = Number(item.stock) || Number(item.totalStock) || 0;
+                      const stockVal = Number(item.stock) || Number(item.totalStock) || Number(item.baseUnitQuantity) || 0;
                       if (isNaN(stockVal) || stockVal <= 0) {
                         return (
                           <div className="mt-2 p-2 bg-red-50 border border-red-300 rounded-lg flex items-center gap-2">
@@ -242,6 +242,7 @@ export default function Basket({ items, onUpdateItem, onRemoveItem, onClear, onE
                         stripUnitName={selectedUnit}
                         maxQuantity={item.stock || item.totalStock}
                         compact={true}
+                        disableUnitSwitch={true} // FORCE SIMPLE MODE
                       />
                     </div>
 
@@ -324,6 +325,8 @@ export default function Basket({ items, onUpdateItem, onRemoveItem, onClear, onE
                               const discountType = item.discountType || 'percentage';
                               const lineTotal = item.qty * unitPrice;
 
+                              console.log('🏷️ [DISCOUNT] Applying discount:', { value, discountType, lineTotal, unitPrice, qty: item.qty });
+
                               let discountAmount = 0;
                               if (discountType === 'percentage') {
                                 discountAmount = (lineTotal * value) / 100;
@@ -331,11 +334,15 @@ export default function Basket({ items, onUpdateItem, onRemoveItem, onClear, onE
                                 discountAmount = value;
                               }
 
+                              console.log('🏷️ [DISCOUNT] Calculated discount amount:', discountAmount);
+
                               // Cap discount at line total
                               if (discountAmount > lineTotal) {
                                 toast.error('Discount cannot exceed item total');
                                 return;
                               }
+
+                              console.log('🏷️ [DISCOUNT] Updating item with:', { discountValue: value, discount: discountAmount });
 
                               onUpdateItem(index, {
                                 discountValue: value,
@@ -375,7 +382,7 @@ export default function Basket({ items, onUpdateItem, onRemoveItem, onClear, onE
                         <span className="text-xs text-[#64748b]">Available Stock</span>
                         <span className="text-xs font-semibold text-[#0f172a]">
                           {renderStockQuantity({
-                            quantityInStock: item.stock || item.totalStock || 0,
+                            baseUnitQuantity: item.stock || item.totalStock || item.baseUnitQuantity || 0,
                             baseUnit: item.baseUnit,
                             displayUnit: item.displayUnit || item.unit,
                             drug: {

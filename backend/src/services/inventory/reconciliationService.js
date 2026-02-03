@@ -64,7 +64,7 @@ class ReconciliationService {
                     return sum + (m.baseUnitQuantity || m.quantity || 0);
                 }, 0);
 
-                const current = batch.baseUnitQuantity || batch.quantityInStock;
+                const current = batch.baseUnitQuantity;
                 const opening = current - todaysBaseMovements;
 
                 // Categorize movements
@@ -141,8 +141,7 @@ class ReconciliationService {
                     storeId,
                     deletedAt: null,
                     OR: [
-                        { baseUnitQuantity: { gt: 0 } },
-                        { quantityInStock: { gt: 0 } }
+                        { baseUnitQuantity: { gt: 0 } }
                     ]
                 },
                 include: {
@@ -163,7 +162,7 @@ class ReconciliationService {
             const items = [];
 
             for (const batch of batches) {
-                const baseQty = batch.baseUnitQuantity || batch.quantityInStock;
+                const baseQty = batch.baseUnitQuantity;
                 const batchCost = parseFloat(batch.purchasePrice) * baseQty;
                 const batchMrp = parseFloat(batch.mrp) * baseQty;
 

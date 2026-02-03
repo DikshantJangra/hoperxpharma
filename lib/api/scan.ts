@@ -24,7 +24,6 @@ export interface ScanProcessResponse {
     daysToExpiry: number;
     isExpiringSoon: boolean;
     isExpired: boolean;
-    quantityInStock: number;
     baseUnitQuantity: number;
     mrp: number;
     gstRate: number;

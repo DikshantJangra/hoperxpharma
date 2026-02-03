@@ -152,7 +152,7 @@ export default function BatchDetailDrawer({ batch, onClose }: any) {
                   <div>
                     <p className="text-xs text-[#64748b] mb-1">Reserved</p>
                     <div className="flex flex-col">
-                      {renderStockQuantity({ ...batch, quantityInStock: ((batch.qtyOnHand || batch.quantityInStock || 0) - (batch.qtyAvailable || batch.quantityInStock || 0)) || 0 }, { className: "text-lg font-semibold text-[#0f172a]" })}
+                      {renderStockQuantity({ ...batch, baseUnitQuantity: ((Number(batch.qtyOnHand || batch.baseUnitQuantity || 0)) - (Number(batch.qtyAvailable || batch.baseUnitQuantity || 0))) || 0 }, { className: "text-lg font-semibold text-[#0f172a]" })}
                     </div>
                   </div>
                   <div>
@@ -312,7 +312,7 @@ export default function BatchDetailDrawer({ batch, onClose }: any) {
                       <FiClock className="w-4 h-4 text-[#64748b] mt-0.5 shrink-0" />
                       <div className="flex-1">
                         <p className={`text-sm font-medium ${typeInfo.color}`}>
-                          {typeInfo.label} {movement.quantity > 0 ? '+' : ''}{formatStockQuantity({ ...batch, quantityInStock: Math.abs(movement.quantity) })}
+                          {typeInfo.label} {movement.quantity > 0 ? '+' : ''}{formatStockQuantity({ ...batch, baseUnitQuantity: Math.abs(movement.quantity) })}
                         </p>
                         <p className="text-xs text-[#64748b] mt-1">
                           {new Date(movement.createdAt).toLocaleString()}

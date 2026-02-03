@@ -37,7 +37,7 @@ export default function BatchesPage() {
 
       // Calculate stats
       const total = batchesData.length;
-      const onHand = batchesData.reduce((sum: number, b: any) => sum + (b.quantityInStock || 0), 0);
+      const onHand = batchesData.reduce((sum: number, b: any) => sum + (Number(b.baseUnitQuantity) || 0), 0);
       const expiringSoon = batchesData.filter((b: any) => {
         const daysToExpiry = Math.floor((new Date(b.expiryDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
         return daysToExpiry < 7 && daysToExpiry > 0;

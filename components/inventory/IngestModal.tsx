@@ -6,6 +6,7 @@ import { SaltSuggestionService, SuggestedSalt } from '@/lib/salt-intelligence/sa
 import { medicineSearchAdapter } from '@/lib/search/medicineSearchAdapter';
 import { scanApi } from '@/lib/api/scan';
 import { inventoryApi } from '@/lib/api/inventory';
+import { medicineApi } from '@/lib/api/medicineApi';
 import { supplierApi } from '@/lib/api/supplier';
 import type { Medicine } from '@/types/medicine';
 import { Button } from '@/components/ui/button';
@@ -13,7 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { FiLoader, FiUpload, FiPlus, FiTrash2, FiCheckCircle, FiX, FiSearch, FiPackage, FiDollarSign, FiCalendar, FiTruck, FiCheck, FiChevronDown, FiDroplet, FiCircle } from 'react-icons/fi';
+import { FiLoader, FiUpload, FiPlus, FiTrash2, FiCheckCircle, FiX, FiSearch, FiPackage, FiDollarSign, FiCalendar, FiTruck, FiCheck, FiChevronDown, FiDroplet, FiCircle, FiInfo, FiZap } from 'react-icons/fi';
 import { BsUpcScan, BsCapsule } from 'react-icons/bs';
 import { RiSyringeLine, RiMedicineBottleLine } from 'react-icons/ri';
 import AdvancedCamera from '@/components/camera/AdvancedCamera';
@@ -25,6 +26,7 @@ import { useAuthStore } from '@/lib/store/auth-store';
 import { toast } from 'sonner';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
+import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation';
 import UploadProgressOverlay from './UploadProgressOverlay';
 
 const BarcodeScannerModal = dynamic(() => import('@/components/pos/BarcodeScannerModal'), { ssr: false });
@@ -61,9 +63,10 @@ interface BatchFormData {
   mrp: string;
   quantity: string;
   expiryDate: string;
-  supplier: string;
+  supplierId: string;
   unit: string;
   packSize: string;
+  secondaryPackSize?: string; // For Box: size of individual containers (ML per bottle, tablets per strip, etc.)
   location: string;
 }
 
@@ -72,7 +75,7 @@ interface AddedMedicine {
   drugId?: string; // Real database ID if existing
   formData: MedicineFormData;
   salts: SaltEntry[];
-  batchData: BatchFormData;
+  batches: BatchFormData[]; // Changed from batchData to batches array
   status: 'editing' | 'complete' | 'minimized';
   createdAt: Date;
 }
@@ -105,6 +108,7 @@ export default function IngestModal({ isOpen, onClose, onSuccess, returnPath }: 
   const [errors, setErrors] = useState<string[]>([]);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [success, setSuccess] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Search helper state
   const [searchQuery, setSearchQuery] = useState('');
@@ -113,18 +117,19 @@ export default function IngestModal({ isOpen, onClose, onSuccess, returnPath }: 
   const [selectedFromCatalog, setSelectedFromCatalog] = useState<Medicine | null>(null);
   const searchInputRef = React.useRef<HTMLInputElement>(null); // Add ref for input
 
-  // Batch details state
-  const [batchData, setBatchData] = useState<BatchFormData>({
+  // Batch details state - now supports multiple batches
+  const [batches, setBatches] = useState<BatchFormData[]>([{
     batchNumber: '',
     purchaseRate: '',
     mrp: '',
     quantity: '',
     expiryDate: '',
-    supplier: '',
+    supplierId: '',
     unit: 'Tablet',
     packSize: '10',
     location: '',
-  });
+  }]);
+  const [activeBatchIndex, setActiveBatchIndex] = useState<number>(0);
 
   // State machine
   const [modalState, setModalState] = useState<ModalState>(ModalState.SEARCH_INITIAL);
@@ -139,11 +144,11 @@ export default function IngestModal({ isOpen, onClose, onSuccess, returnPath }: 
   const [currentMedicineIndex, setCurrentMedicineIndex] = useState<number | null>(null);
   const [showAddedMedicines, setShowAddedMedicines] = useState(true);
 
-  // Duplicate detection state
   const [duplicateCheckResult, setDuplicateCheckResult] = useState<any>(null);
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
   const [similarMedicines, setSimilarMedicines] = useState<any[]>([]);
   const [checkingDuplicate, setCheckingDuplicate] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false); // Inline confirm state
 
   // Supplier state
   const [suppliers, setSuppliers] = useState<any[]>([]);
@@ -175,6 +180,9 @@ export default function IngestModal({ isOpen, onClose, onSuccess, returnPath }: 
   // Get storeId from auth store
   const storeId = primaryStore?.id || '';
   const router = useRouter();
+
+  // Keyboard navigation hook
+  const { handleKeyDown: handleEnterNavigation } = useKeyboardNavigation();
 
   // Keyboard shortcuts
   React.useEffect(() => {
@@ -231,8 +239,13 @@ export default function IngestModal({ isOpen, onClose, onSuccess, returnPath }: 
         setSuppliers(response);
       }
     } catch (error) {
-      console.error('Failed to fetch suppliers:', error);
-      toast.error('Failed to load suppliers');
+      toast.error('Failed to load suppliers. Please refresh the page.', {
+        duration: 10000,
+        action: {
+          label: 'Refresh',
+          onClick: () => window.location.reload()
+        }
+      });
     } finally {
       setLoadingSuppliers(false);
     }
@@ -329,7 +342,7 @@ export default function IngestModal({ isOpen, onClose, onSuccess, returnPath }: 
       // Complete animation
       setUploadProgress(100);
       setUploadStage('complete');
-      
+
       // Hide overlay after completion
       setTimeout(() => {
         setProcessing(false);
@@ -412,32 +425,69 @@ export default function IngestModal({ isOpen, onClose, onSuccess, returnPath }: 
       try {
         const results = await medicineSearchAdapter.search(searchQuery, { limit: 50 });
 
-        // Enhanced sorting with better relevance scoring
+        // Enhanced sorting with intelligent word matching
         const query = searchQuery.trim().toLowerCase();
+        const queryWords = query.split(/\s+/).filter(w => w.length > 0); // Tokenize query
+
         const sorted = results.sort((a, b) => {
           const aName = (a.name || '').toLowerCase();
           const bName = (b.name || '').toLowerCase();
+          const aManufacturer = (a.manufacturerName || '').toLowerCase();
+          const bManufacturer = (b.manufacturerName || '').toLowerCase();
 
-          // EXACT match = 10000 points
-          const aExact = aName === query ? 10000 : 0;
-          const bExact = bName === query ? 10000 : 0;
+          // Score calculation
+          let aScore = 0;
+          let bScore = 0;
 
-          // Starts with = 1000 points
-          const aStarts = aName.startsWith(query) ? 1000 : 0;
-          const bStarts = bName.startsWith(query) ? 1000 : 0;
+          // 1. EXACT match (highest priority) = 10000 points
+          if (aName === query) aScore += 10000;
+          if (bName === query) bScore += 10000;
 
-          // Contains as word = 100 points
-          const aContains = aName.includes(` ${query}`) || aName.includes(`-${query}`) ? 100 : 0;
-          const bContains = bName.includes(` ${query}`) || bName.includes(`-${query}`) ? 100 : 0;
+          // 2. Starts with query = 5000 points
+          if (aName.startsWith(query)) aScore += 5000;
+          if (bName.startsWith(query)) bScore += 5000;
 
-          // API score = 0-1 range
+          // 3. Contains query as substring = 2000 points
+          if (aName.includes(query)) aScore += 2000;
+          if (bName.includes(query)) bScore += 2000;
+
+          // 4. ALL query words present (any order) = 1000 points
+          const aHasAllWords = queryWords.every(word =>
+            aName.includes(word) || aManufacturer.includes(word)
+          );
+          const bHasAllWords = queryWords.every(word =>
+            bName.includes(word) || bManufacturer.includes(word)
+          );
+          if (aHasAllWords) aScore += 1000;
+          if (bHasAllWords) bScore += 1000;
+
+          // 5. Word match count = 200 points per word
+          const aWordMatches = queryWords.filter(word =>
+            aName.includes(word) || aManufacturer.includes(word)
+          ).length;
+          const bWordMatches = queryWords.filter(word =>
+            bName.includes(word) || bManufacturer.includes(word)
+          ).length;
+          aScore += aWordMatches * 200;
+          bScore += bWordMatches * 200;
+
+          // 6. Word starts with query word = 100 points per word
+          queryWords.forEach(word => {
+            if (aName.split(/\s+/).some(w => w.startsWith(word))) aScore += 100;
+            if (bName.split(/\s+/).some(w => w.startsWith(word))) bScore += 100;
+          });
+
+          // 7. Manufacturer match = 50 points
+          if (aManufacturer.includes(query)) aScore += 50;
+          if (bManufacturer.includes(query)) bScore += 50;
+
+          // 8. API score (backend relevance) = 0-1 range
           const aApiScore = a.score || 0;
           const bApiScore = b.score || 0;
+          aScore += aApiScore;
+          bScore += bApiScore;
 
-          const aTotal = aExact + aStarts + aContains + aApiScore;
-          const bTotal = bExact + bStarts + bContains + bApiScore;
-
-          return bTotal - aTotal;
+          return bScore - aScore;
         });
 
         setSearchResults(sorted);
@@ -466,19 +516,28 @@ export default function IngestModal({ isOpen, onClose, onSuccess, returnPath }: 
 
   // Smart catalog detection - determines what to show based on existing data
   const handleSelectFromCatalog = async (medicine: Medicine) => {
-    // AUTO-SAVE: If there's unsaved data in the form, save it to queue first
-    if (formData.name && formData.name.trim()) {
+    // AUTO-SAVE: If the current form has valid data, save it to queue first
+    const { isValid } = validateForm(formData, salts, batches);
+    if (isValid) {
       const currentMedicine: AddedMedicine = {
         id: `med-${Date.now()}`,
         drugId: medicine.id,
         formData: { ...formData },
         salts: [...salts],
-        batchData: { ...batchData },
+        batches: [...batches],
         status: 'complete', // Mark as complete
         createdAt: new Date(),
       };
       setAddedMedicines(prev => [...prev, currentMedicine]);
-      toast.info('Current medicine saved to queue');
+      toast.info('Previous medicine saved to queue');
+    } else if (formData.name && formData.name.trim()) {
+      // Form has some data but is invalid - confirm with user or just warn?
+      // User explicitly asked to fix "validation error can be bypassed". 
+      // So we strictly DO NOT save if invalid. 
+      // We might want to clear the form so the new medicine can load cleanly.
+      // Or we could rely on the fact that handleSelectFromCatalog overwrites the state.
+      // Let's just log or show a small toast that previous work was discarded?
+      // Actually, if it's invalid, it's probably just abandoned search input.
     }
 
     setSelectedFromCatalog(medicine);
@@ -494,18 +553,84 @@ export default function IngestModal({ isOpen, onClose, onSuccess, returnPath }: 
       });
 
       const batches = (batchResponse as any).data || (batchResponse as any).batches || [];
-      const activeBatches = batches.filter((b: any) => Number(b.quantityInStock) >= 0);
+      const activeBatches = batches.filter((b: any) => Number(b.baseUnitQuantity) >= 0);
 
       setExistingBatches(activeBatches);
+
+      // Fetch full details including HSN and GST
+      let fullMedicine: any = medicine;
+      try {
+        const details = await medicineApi.getMedicineById(medicine.id);
+        if (details) {
+          fullMedicine = { ...medicine, ...details };
+        }
+      } catch (err) {
+        toast.error('Failed to load medicine details. Please refresh.', {
+          duration: 10000,
+          action: {
+            label: 'Refresh',
+            onClick: () => window.location.reload()
+          }
+        });
+        setLoadingDetection(false);
+        return;
+      }
 
       // Auto-fill medicine details from catalog
       setFormData({
         ...formData,
-        name: medicine.name || '',
-        manufacturer: medicine.manufacturerName || '',
-        form: medicine.type || formData.form,
-        requiresPrescription: medicine.requiresPrescription || false,
+        name: fullMedicine.name || '',
+        manufacturer: fullMedicine.manufacturerName || '',
+        form: fullMedicine.type || fullMedicine.form || formData.form,
+        hsnCode: fullMedicine.hsnCode || '',
+        gstRate: fullMedicine.gstRate ? Number(fullMedicine.gstRate) : 5,
+        requiresPrescription: fullMedicine.requiresPrescription || false,
       });
+
+      // Populate Salts from Master
+      if (fullMedicine.saltLinks && Array.isArray(fullMedicine.saltLinks) && fullMedicine.saltLinks.length > 0) {
+        setSalts(fullMedicine.saltLinks.map((link: any, idx: number) => ({
+          id: `salt-${Date.now()}-${idx}`,
+          saltId: link.saltId,
+          name: link.name || link.saltName || '',
+          strengthValue: link.strengthValue,
+          strengthUnit: link.strengthUnit,
+          confidence: 'HIGH'
+        })));
+      }
+
+      // Populate Batch Defaults (Pack Size, Unit)
+      // Logic: If form is Tablet/Capsule, default to Strip. Else Bottle/etc.
+      const defaultUnit = fullMedicine.defaultUnit ||
+        (fullMedicine.form === 'Tablet' || fullMedicine.form === 'Capsule' ? 'Strip' :
+          fullMedicine.form === 'Syrup' || fullMedicine.form === 'Suspension' ? 'Bottle' : 'Box');
+
+      const newBatches = [...batches];
+
+      // Ensure we have at least one batch entry
+      if (newBatches.length === 0) {
+        newBatches.push({
+          batchNumber: '',
+          purchaseRate: '',
+          mrp: '',
+          quantity: '',
+          expiryDate: '',
+          supplierId: '',
+          unit: defaultUnit,
+          packSize: (fullMedicine.packSize || fullMedicine.tabletsPerStrip || '10').toString(),
+          location: fullMedicine.location || '',
+        });
+      } else {
+        newBatches[0] = {
+          ...newBatches[0],
+          // Use master pack size or default to 10
+          packSize: (fullMedicine.packSize || fullMedicine.tabletsPerStrip || '10').toString(),
+          unit: defaultUnit,
+          // If we have a default location in master/store overlay, use it
+          location: fullMedicine.location || newBatches[0]?.location || ''
+        };
+      }
+      setBatches(newBatches);
 
       // Determine state based on batches
       if (activeBatches.length > 0) {
@@ -516,9 +641,18 @@ export default function IngestModal({ isOpen, onClose, onSuccess, returnPath }: 
         toast.info('Medicine found in catalog. Add first batch.');
       }
     } catch (error) {
-      console.error('Failed to fetch batches:', error);
-      setModalState(ModalState.EXISTING_NO_BATCHES);
-      toast.warning('Could not load existing batches. Proceeding as new batch.');
+      console.error('❌ Catalog loading error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      console.error('Error details:', errorMessage);
+
+      toast.error(`Failed to load catalog data: ${errorMessage}. Please refresh.`, {
+        duration: 10000,
+        action: {
+          label: 'Refresh',
+          onClick: () => window.location.reload()
+        }
+      });
+      setLoadingDetection(false);
     } finally {
       setLoadingDetection(false); // Always clear loading state
     }
@@ -611,121 +745,142 @@ export default function IngestModal({ isOpen, onClose, onSuccess, returnPath }: 
     return null;
   };
 
-  const handleSubmit = async () => {
-    setErrors([]);
-    setFieldErrors({});
-
+  const validateForm = (
+    currentFormData: MedicineFormData,
+    currentSalts: SaltEntry[],
+    currentBatches: BatchFormData[]
+  ): { isValid: boolean; validationErrors: string[]; newFieldErrors: Record<string, string> } => {
     const validationErrors: string[] = [];
     const newFieldErrors: Record<string, string> = {};
 
     // ===== MEDICINE VALIDATION =====
-    if (!formData.name || !formData.name.trim()) {
+    if (!currentFormData.name || !currentFormData.name.trim()) {
       validationErrors.push('Medicine name is required');
       newFieldErrors.name = 'Medicine name is required';
-    } else if (formData.name.trim().length < 2) {
+    } else if (currentFormData.name.trim().length < 2) {
       validationErrors.push('Medicine name must be at least 2 characters');
       newFieldErrors.name = 'Name must be at least 2 characters';
     }
 
-    if (formData.manufacturer && formData.manufacturer.trim().length < 2) {
+    if (currentFormData.manufacturer && currentFormData.manufacturer.trim().length < 2) {
       validationErrors.push('Manufacturer name must be at least 2 characters');
       newFieldErrors.manufacturer = 'Manufacturer name too short';
     }
 
     // ===== SALT COMPOSITION VALIDATION =====
-    if (salts.length === 0) {
-      validationErrors.push('Please add at least one salt composition');
-      newFieldErrors.salts = 'At least one salt is required';
-    }
+    // Salt composition is now OPTIONAL - users can submit medicines without salts
+    // if (currentSalts.length === 0) {
+    //   validationErrors.push('Please add at least one salt composition');
+    //   newFieldErrors.salts = 'At least one salt is required';
+    // }
 
-    salts.forEach((salt, index) => {
+    currentSalts.forEach((salt, index) => {
       if (!salt.name || !salt.name.trim()) {
         validationErrors.push(`Salt ${index + 1}: Name is required`);
-        toast.error(`Salt ${index + 1} needs a name`);
       }
 
       if (salt.strengthValue !== null) {
         if (salt.strengthValue <= 0) {
           validationErrors.push(`Salt ${index + 1}: Strength must be greater than 0`);
-          toast.error(`Salt ${index + 1}: Invalid strength value`);
         }
         if (!salt.strengthUnit || !salt.strengthUnit.trim()) {
           validationErrors.push(`Salt ${index + 1}: Unit is required when strength is provided`);
-          toast.error(`Salt ${index + 1}: Missing unit for strength`);
         }
       }
     });
 
     // ===== BATCH VALIDATION =====
-    if (!batchData.batchNumber || !batchData.batchNumber.trim()) {
-      validationErrors.push('Batch number is required');
-      newFieldErrors.batchNumber = 'Batch number is required';
-    } else if (batchData.batchNumber.trim().length < 3) {
-      validationErrors.push('Batch number must be at least 3 characters');
+    if (currentBatches.length === 0) {
+      validationErrors.push('At least one batch is required');
     }
 
-    if (!batchData.purchaseRate || parseFloat(batchData.purchaseRate) <= 0) {
-      validationErrors.push('Purchase rate must be greater than 0');
-      newFieldErrors.purchaseRate = 'Must be > 0';
-    }
+    currentBatches.forEach((currentBatchData, index) => {
+      const batchPrefix = currentBatches.length > 1 ? `Batch #${index + 1}: ` : '';
 
-    if (!batchData.mrp || parseFloat(batchData.mrp) <= 0) {
-      validationErrors.push('MRP must be greater than 0');
-      newFieldErrors.mrp = 'Must be > 0';
-    } else if (parseFloat(batchData.mrp) < parseFloat(batchData.purchaseRate || '0')) {
-      validationErrors.push('MRP must be ≥ Purchase Rate');
-      newFieldErrors.mrp = 'MRP must be ≥ Purchase Rate';
-    }
+      if (!currentBatchData.batchNumber || !currentBatchData.batchNumber.trim()) {
+        validationErrors.push(`${batchPrefix}Batch number is required`);
+        if (index === 0) newFieldErrors.batchNumber = 'Batch number is required';
+      } else if (currentBatchData.batchNumber.trim().length < 3) {
+        validationErrors.push(`${batchPrefix}Batch number must be at least 3 characters`);
+      }
 
-    if (!batchData.quantity || parseInt(batchData.quantity) <= 0) {
-      validationErrors.push('Quantity must be greater than 0');
-      newFieldErrors.quantity = 'Must be > 0';
-    }
+      if (!currentBatchData.purchaseRate || parseFloat(currentBatchData.purchaseRate) <= 0) {
+        validationErrors.push(`${batchPrefix}Purchase rate must be greater than 0`);
+        if (index === 0) newFieldErrors.purchaseRate = 'Must be > 0';
+      }
 
-    // Expiry date validation (MM/YYYY format)
-    if (!batchData.expiryDate || !batchData.expiryDate.trim()) {
-      validationErrors.push('Expiry date is required');
-      newFieldErrors.expiryDate = 'Expiry date is required';
-    } else {
-      const expiryPattern = /^(0[1-9]|1[0-2])\/(\d{4})$/;
-      if (!expiryPattern.test(batchData.expiryDate)) {
-        validationErrors.push('Expiry date must be in MM/YYYY format');
-        newFieldErrors.expiryDate = 'Use MM/YYYY format (e.g., 03/2025)';
+      if (!currentBatchData.mrp || parseFloat(currentBatchData.mrp) <= 0) {
+        validationErrors.push(`${batchPrefix}MRP must be greater than 0`);
+        if (index === 0) newFieldErrors.mrp = 'Must be > 0';
+      } else if (parseFloat(currentBatchData.mrp) < parseFloat(currentBatchData.purchaseRate || '0')) {
+        validationErrors.push(`${batchPrefix}MRP must be ≥ Purchase Rate`);
+        if (index === 0) newFieldErrors.mrp = 'MRP must be ≥ Purchase Rate';
+      }
+
+      if (!currentBatchData.quantity || parseInt(currentBatchData.quantity) <= 0) {
+        validationErrors.push(`${batchPrefix}Quantity must be greater than 0`);
+        if (index === 0) newFieldErrors.quantity = 'Must be > 0';
+      }
+
+      // Expiry date validation (MM/YYYY format)
+      if (!currentBatchData.expiryDate || !currentBatchData.expiryDate.trim()) {
+        validationErrors.push(`${batchPrefix}Expiry date is required`);
+        if (index === 0) newFieldErrors.expiryDate = 'Expiry date is required';
       } else {
-        const [month, year] = batchData.expiryDate.split('/');
-        const monthNum = parseInt(month);
-        const yearNum = parseInt(year);
-
-        if (monthNum < 1 || monthNum > 12) {
-          validationErrors.push('Month must be between 01-12');
-          newFieldErrors.expiryDate = 'Invalid month (01-12)';
-        } else if (yearNum < 2000 || yearNum > 2100) {
-          validationErrors.push('Year must be a 4-digit number');
-          newFieldErrors.expiryDate = 'Invalid year';
+        const expiryPattern = /^(0[1-9]|1[0-2])\/(\d{4})$/;
+        if (!expiryPattern.test(currentBatchData.expiryDate)) {
+          validationErrors.push(`${batchPrefix}Expiry date must be in MM/YYYY format`);
+          if (index === 0) newFieldErrors.expiryDate = 'Use MM/YYYY format (e.g., 03/2025)';
         } else {
-          const expiryDate = new Date(yearNum, monthNum - 1, 1);
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
+          const [month, year] = currentBatchData.expiryDate.split('/');
+          const monthNum = parseInt(month);
+          const yearNum = parseInt(year);
 
-          if (expiryDate <= today) {
-            validationErrors.push('Expiry date must be in the future');
-            newFieldErrors.expiryDate = 'Must be future date';
+          if (monthNum < 1 || monthNum > 12) {
+            validationErrors.push(`${batchPrefix}Month must be between 01-12`);
+            if (index === 0) newFieldErrors.expiryDate = 'Invalid month (01-12)';
+          } else if (yearNum < 2000 || yearNum > 2100) {
+            validationErrors.push(`${batchPrefix}Year must be a 4-digit number`);
+            if (index === 0) newFieldErrors.expiryDate = 'Invalid year';
+          } else {
+            const expiryDate = new Date(yearNum, monthNum - 1, 1);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            if (expiryDate <= today) {
+              validationErrors.push(`${batchPrefix}Expiry date must be in the future`);
+              if (index === 0) newFieldErrors.expiryDate = 'Must be future date';
+            }
           }
         }
       }
+
+      // Supplier
+      if (!currentBatchData.supplierId || !currentBatchData.supplierId.trim()) {
+        validationErrors.push(`${batchPrefix}Supplier is required`);
+        if (index === 0) newFieldErrors.supplierId = 'Supplier is required';
+      }
+    });
+
+    // Check for duplicate batch numbers within the same medicine
+    const batchNumbers = currentBatches.map(b => b.batchNumber?.trim()).filter(Boolean);
+    const duplicates = batchNumbers.filter((num, idx) => batchNumbers.indexOf(num) !== idx);
+    if (duplicates.length > 0) {
+      validationErrors.push(`Duplicate batch numbers detected: ${[...new Set(duplicates)].join(', ')}`);
     }
 
-    // Supplier
-    if (!batchData.supplier || !batchData.supplier.trim()) {
-      validationErrors.push('Supplier name is required');
-      newFieldErrors.supplier = 'Supplier name is required';
-    } else if (batchData.supplier.trim().length < 2) {
-      validationErrors.push('Supplier name must be at least 2 characters');
-      newFieldErrors.supplier = 'Name too short (min 2 chars)';
-    }
+
+    return { isValid: validationErrors.length === 0, validationErrors, newFieldErrors };
+  };
+
+  const handleSubmit = async () => {
+    setErrors([]);
+    setFieldErrors({});
+
+    const { isValid, validationErrors, newFieldErrors } = validateForm(formData, salts, batches);
 
     // Stop if there are validation errors
-    if (validationErrors.length > 0) {
+    if (!isValid) {
       setErrors(validationErrors);
       setFieldErrors(newFieldErrors);
       toast.error(`Please fix ${validationErrors.length} validation error${validationErrors.length > 1 ? 's' : ''}`);
@@ -738,15 +893,30 @@ export default function IngestModal({ isOpen, onClose, onSuccess, returnPath }: 
       drugId: selectedFromCatalog?.id,
       formData: { ...formData },
       salts: [...salts],
-      batchData: { ...batchData },
+      batches: [...batches],
       status: 'complete',
       createdAt: new Date(),
     };
-    
+
+    // Check for duplicates in the queue
+    const duplicate = addedMedicines.find(med =>
+      med.formData.name.toLowerCase().trim() === formData.name.toLowerCase().trim() &&
+      med.formData.manufacturer.toLowerCase().trim() === formData.manufacturer.toLowerCase().trim() &&
+      med.formData.form.toLowerCase().trim() === formData.form.toLowerCase().trim()
+    );
+
+    if (duplicate) {
+      toast.error(`❌ "${formData.name}" by ${formData.manufacturer} is already in the queue!`, {
+        duration: 4000,
+        description: 'Remove it first or edit the existing entry if you want to add more batches.'
+      });
+      return;
+    }
+
     setAddedMedicines(prev => [...prev, newMedicine]);
     clearCurrentForm();
     setSearchQuery('');
-    
+
     toast.success(`✓ Medicine added to queue! (${addedMedicines.length + 1} total)`, { duration: 2000 });
     setSuccess(true);
     setTimeout(() => setSuccess(false), 2000);
@@ -769,40 +939,114 @@ export default function IngestModal({ isOpen, onClose, onSuccess, returnPath }: 
   const clearCurrentForm = () => {
     setFormData({ name: '', manufacturer: '', form: 'Tablet', hsnCode: '', gstRate: 12, requiresPrescription: false });
     setSalts([]);
-    setBatchData({ batchNumber: '', purchaseRate: '', mrp: '', quantity: '', expiryDate: '', supplier: '', unit: 'Tablet', packSize: '10', location: '' });
+    setBatches([{ batchNumber: '', purchaseRate: '', mrp: '', quantity: '', expiryDate: '', supplierId: '', unit: 'Tablet', packSize: '10', location: '' }]);
+    setActiveBatchIndex(0);
     setImage(null);
     setFieldErrors({});
     setCurrentMedicineIndex(null);
     setSimilarMedicines([]); // Clear similar medicines warning
     setDuplicateCheckResult(null); // Clear duplicate check result
     setShowOtherFormInput(false); // Reset other form state
+    setShowClearConfirm(false); // Disable confirm mode
   };
 
   // Auto-save current form to queue before starting new medicine
   const autoSaveCurrentMedicine = () => {
     // Only auto-save if there's actual data and not already in edit mode
-    if (currentMedicineIndex === null && formData.name && formData.name.trim()) {
-      const newMedicine: AddedMedicine = {
-        id: `med-${Date.now()}`,
-        formData: { ...formData },
-        salts: [...salts],
-        batchData: { ...batchData },
-        status: 'complete',
-        createdAt: new Date(),
-      };
-      setAddedMedicines(prev => [...prev, newMedicine]);
-      toast.success(`Medicine saved to queue (${addedMedicines.length + 1} total)`);
-      return true;
+    // AND IF IT IS VALID
+    if (currentMedicineIndex === null) {
+      const { isValid } = validateForm(formData, salts, batches);
+
+      if (isValid) {
+        // Check for duplicates
+        const duplicate = addedMedicines.find(med =>
+          med.formData.name.toLowerCase().trim() === formData.name.toLowerCase().trim() &&
+          med.formData.manufacturer.toLowerCase().trim() === formData.manufacturer.toLowerCase().trim() &&
+          med.formData.form.toLowerCase().trim() === formData.form.toLowerCase().trim()
+        );
+
+        if (duplicate) {
+          toast.error(`❌ "${formData.name}" is already in queue!`);
+          return false;
+        }
+
+        const newMedicine: AddedMedicine = {
+          id: `med-${Date.now()}`,
+          formData: { ...formData },
+          salts: [...salts],
+          batches: [...batches],
+          status: 'complete',
+          createdAt: new Date(),
+        };
+        setAddedMedicines(prev => [...prev, newMedicine]);
+        toast.success(`Medicine saved to queue (${addedMedicines.length + 1} total)`);
+        return true;
+      }
     }
     return false;
   };
 
+  // ===== BATCH MANAGEMENT FUNCTIONS =====
+  const updateCurrentBatch = (field: keyof BatchFormData, value: string) => {
+    const newBatches = [...batches];
+    newBatches[activeBatchIndex] = { ...newBatches[activeBatchIndex], [field]: value };
+    setBatches(newBatches);
+  };
+
+  const addNewBatch = () => {
+    const lastBatch = batches[batches.length - 1];
+    const newBatch: BatchFormData = {
+      batchNumber: '',
+      quantity: '',
+      expiryDate: '',
+      // Smart defaults from last batch
+      supplierId: lastBatch.supplierId,
+      mrp: lastBatch.mrp,
+      purchaseRate: lastBatch.purchaseRate,
+      location: lastBatch.location,
+      unit: lastBatch.unit,
+      packSize: lastBatch.packSize,
+    };
+    setBatches([...batches, newBatch]);
+    setActiveBatchIndex(batches.length); // Switch to the new batch
+    toast.success('New batch added - same supplier & pricing auto-filled');
+  };
+
+  const removeBatch = (index: number) => {
+    if (batches.length === 1) {
+      toast.error('Cannot remove the last batch');
+      return;
+    }
+    const newBatches = batches.filter((_, i) => i !== index);
+    setBatches(newBatches);
+    // Adjust active index if needed
+    if (activeBatchIndex >= newBatches.length) {
+      setActiveBatchIndex(newBatches.length - 1);
+    } else if (activeBatchIndex > index) {
+      setActiveBatchIndex(activeBatchIndex - 1);
+    }
+    toast.success('Batch removed');
+  };
+
+
   const handleSaveAndAddAnother = () => {
+    // Check for duplicates
+    const duplicate = addedMedicines.find(med =>
+      med.formData.name.toLowerCase().trim() === formData.name.toLowerCase().trim() &&
+      med.formData.manufacturer.toLowerCase().trim() === formData.manufacturer.toLowerCase().trim() &&
+      med.formData.form.toLowerCase().trim() === formData.form.toLowerCase().trim()
+    );
+
+    if (duplicate) {
+      toast.error(`❌ "${formData.name}" is already in queue!`);
+      return;
+    }
+
     const newMedicine: AddedMedicine = {
       id: `med-${Date.now()}`,
       formData: { ...formData },
       salts: [...salts],
-      batchData: { ...batchData },
+      batches: [...batches],
       status: 'complete',
       createdAt: new Date(),
     };
@@ -821,7 +1065,8 @@ export default function IngestModal({ isOpen, onClose, onSuccess, returnPath }: 
     const med = addedMedicines[index];
     setFormData(med.formData);
     setSalts(med.salts);
-    setBatchData(med.batchData);
+    setBatches(med.batches);
+    setActiveBatchIndex(0);
     setCurrentMedicineIndex(index);
   };
 
@@ -832,7 +1077,7 @@ export default function IngestModal({ isOpen, onClose, onSuccess, returnPath }: 
       ...updated[currentMedicineIndex],
       formData: { ...formData },
       salts: [...salts],
-      batchData: { ...batchData },
+      batches: [...batches],
     };
     setAddedMedicines(updated);
     clearCurrentForm();
@@ -844,66 +1089,76 @@ export default function IngestModal({ isOpen, onClose, onSuccess, returnPath }: 
     toast.success('Removed');
   };
 
+  // Helper function to determine base unit from medicine form
+  const getBaseUnitFromForm = (form: string): string => {
+    const formLower = form?.toLowerCase() || '';
+
+    // Divisible products - store in smallest unit (can sell individual pieces)
+    if (formLower.includes('tablet') || formLower.includes('capsule') || formLower.includes('pill')) return 'Tablet';
+
+    // Indivisible liquid products - store in container count (bottles/vials sold as whole units)
+    if (formLower.includes('syrup') || formLower.includes('suspension') || formLower.includes('solution') || formLower.includes('liquid') || formLower.includes('drop')) return 'Bottle';
+    if (formLower.includes('injection')) return 'Vial';
+
+    // Indivisible semi-solid products - store in container count
+    if (formLower.includes('cream') || formLower.includes('ointment') || formLower.includes('gel')) return 'Tube';
+    if (formLower.includes('powder') || formLower.includes('granule')) return 'Sachet';
+
+    // Other forms
+    if (formLower.includes('inhaler')) return 'Inhaler';
+    if (formLower.includes('patch')) return 'Patch';
+
+    return 'Unit'; // Default fallback
+  };
+
   const handleSubmitAll = async () => {
     if (!storeId) {
       toast.error('Store not found');
       return;
     }
 
+    // Prevent double submission
+    if (isSubmitting) {
+      toast.error('Submission already in progress');
+      return;
+    }
+
+    setIsSubmitting(true);
     const toastId = toast.loading(`Submitting ${addedMedicines.length} medicine(s)...`);
     let successCount = 0;
     const createdDrugIds = new Set();
 
     try {
       for (const med of addedMedicines) {
-        const [month, year] = med.batchData.expiryDate.split('/');
-        const packSizeNum = parseInt(med.batchData.packSize || '1') || 1;
-        const quantityNum = parseInt(med.batchData.quantity);
-        const baseUnitQuantity = med.batchData.unit === 'Strip' ? quantityNum * packSizeNum : quantityNum;
-
-        const batchDetails = {
-          batchNumber: med.batchData.batchNumber.trim(),
-          purchaseRate: parseFloat(med.batchData.purchaseRate),
-          mrp: parseFloat(med.batchData.mrp),
-          quantity: quantityNum,
-          baseUnitQuantity,
-          receivedUnit: med.batchData.unit,
-          tabletsPerStrip: med.batchData.unit === 'Strip' ? packSizeNum : null,
-          expiryDate: `${year}-${month}-01`,
-          supplier: med.batchData.supplier.trim(),
-          location: med.batchData.location.trim(),
-        };
-
         let drugId = med.drugId;
+        const isTempId = !drugId || drugId.startsWith('med-') || drugId.startsWith('med_');
 
-        if (drugId) {
+        // Determine if we need to create or update the drug
+        if (drugId && !isTempId) {
+          // Update existing drug metadata
+          const firstBatch = med.batches[0];
+          const baseUnit = getBaseUnitFromForm(med.formData.form);
           await inventoryApi.updateDrug(drugId, {
             manufacturer: med.formData.manufacturer,
             form: med.formData.form,
             hsnCode: med.formData.hsnCode,
             gstRate: med.formData.gstRate,
             requiresPrescription: med.formData.requiresPrescription,
-            baseUnit: 'Tablet',
-            displayUnit: med.batchData.unit === 'Strip' ? 'Strip' : 'Tablet',
+            baseUnit: baseUnit,
+            displayUnit: firstBatch.unit,
           });
-
-          await inventoryApi.createBatch({
-            ...batchDetails,
-            drugId,
-            storeId,
-            quantityInStock: baseUnitQuantity,
-            purchasePrice: batchDetails.purchaseRate,
-          });
-          successCount++;
         } else {
+          // Create new drug
           const drugKey = `${med.formData.name}_${med.formData.manufacturer}_${med.formData.form}`;
-          
+
           if (createdDrugIds.has(drugKey)) {
             toast.warning(`Skipped duplicate: ${med.formData.name}`);
             continue;
           }
 
-          await inventoryApi.createDrug({
+          const firstBatch = med.batches[0];
+          const baseUnit = getBaseUnitFromForm(med.formData.form);
+          const createdDrug = await inventoryApi.createDrug({
             ...med.formData,
             saltLinks: med.salts.map((s, i) => ({
               saltId: s.saltId,
@@ -912,16 +1167,69 @@ export default function IngestModal({ isOpen, onClose, onSuccess, returnPath }: 
               strengthUnit: s.strengthUnit,
               order: i
             })),
-            batchDetails,
-            baseUnit: 'Tablet',
-            displayUnit: med.batchData.unit === 'Strip' ? 'Strip' : 'Tablet',
+            baseUnit: baseUnit,
+            displayUnit: firstBatch.unit,
           });
-          
+
+          drugId = createdDrug.id;
           createdDrugIds.add(drugKey);
-          successCount++;
         }
+
+        // Now create ALL batches for this drug
+        for (const batch of med.batches) {
+          const [month, year] = batch.expiryDate.split('/');
+          const packSizeNum = parseInt(batch.packSize || '1') || 1;
+          const quantityNum = parseInt(batch.quantity);
+          const baseUnit = getBaseUnitFromForm(med.formData.form);
+
+          // Calculate base unit quantity based on packaging type and whether product is divisible
+          let baseUnitQuantity;
+
+          if (batch.unit === 'Box') {
+            // CRITICAL FIX: Box is 3-level hierarchy (Box → Strip → Tablet)
+            // UI preview at line 2476 correctly shows: qty * packSize * secondaryPackSize
+            // Backend was only doing: qty * packSize (WRONG!)
+            // Example: 1 Box × 20 Strips/Box × 10 Tablets/Strip = 200 Tablets
+            const containersPerBox = packSizeNum; // strips per box (20)
+            const secondaryPackSize = Number(batch.secondaryPackSize) || 1; // tablets per strip (10)
+            baseUnitQuantity = quantityNum * containersPerBox * secondaryPackSize; // 1 × 20 × 10 = 200
+
+            console.log('📦 Box calculation:', {
+              boxes: quantityNum,
+              stripsPerBox: containersPerBox,
+              tabletsPerStrip: secondaryPackSize,
+              totalTablets: baseUnitQuantity
+            });
+          } else if (baseUnit === 'Tablet') {
+            // Divisible product (Tablets): Store as tablet count
+            // Strip: 10 Strips × 10 Tablets/Strip = 100 Tablets
+            baseUnitQuantity = quantityNum * packSizeNum;
+          } else {
+            // Indivisible products (Bottle/Vial/Tube/Sachet): Store as container count
+            // Bottle: 10 Bottles = 10 Bottles (ML is just size metadata)
+            baseUnitQuantity = quantityNum;
+          }
+
+          await inventoryApi.createBatch({
+            batchNumber: batch.batchNumber.trim(),
+            purchaseRate: parseFloat(batch.purchaseRate),
+            mrp: parseFloat(batch.mrp),
+            quantity: quantityNum,
+            baseUnitQuantity,
+            receivedUnit: batch.unit,
+            tabletsPerStrip: packSizeNum, // Keep for backward compatibility, but represents units per container
+            expiryDate: `${year}-${month}-01`,
+            supplierId: batch.supplierId.trim(),
+            location: batch.location.trim(),
+            drugId,
+            storeId,
+            purchasePrice: parseFloat(batch.purchaseRate),
+          });
+        }
+
+        successCount++;
       }
-      
+
       toast.success(`✓ ${successCount} medicine(s) added!`, { id: toastId });
       setAddedMedicines([]);
       clearCurrentForm();
@@ -932,6 +1240,8 @@ export default function IngestModal({ isOpen, onClose, onSuccess, returnPath }: 
     } catch (error: any) {
       console.error('Submission error:', error);
       toast.error(error?.message || 'Submission failed', { id: toastId });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -952,7 +1262,15 @@ export default function IngestModal({ isOpen, onClose, onSuccess, returnPath }: 
             implies just visual change. Keeping inset-0 to block interaction but removing color. 
         */}
       <div className="fixed inset-0 bg-transparent" onClick={onClose} />
-      <div className="fixed top-16 right-0 bottom-0 bg-white shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col">
+      <div
+        className="fixed top-16 right-0 bottom-0 bg-white shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col"
+        onKeyDown={(e) => {
+          // Allow Enter navigation if not handling a specific shortcut
+          if (e.key === 'Enter' && !e.metaKey && !e.ctrlKey) {
+            handleEnterNavigation(e);
+          }
+        }}
+      >
         {/* Clean Minimal Header */}
         <div className="border-b border-gray-200 px-6 py-4">
           <div className="flex items-center justify-between">
@@ -1187,7 +1505,7 @@ export default function IngestModal({ isOpen, onClose, onSuccess, returnPath }: 
                         <span className="font-semibold text-sm text-gray-900">{med.formData.name}</span>
                       </div>
                       <div className="text-xs text-gray-600 mt-1 ml-6">
-                        Batch: {med.batchData.batchNumber} • Qty: {med.batchData.quantity} {med.batchData.unit === 'Strip' ? `Strip(s) (${parseInt(med.batchData.quantity) * (parseInt(med.batchData.packSize) || 1)} Tabs)` : med.batchData.unit} • Exp: {med.batchData.expiryDate} • ₹{med.batchData.mrp} • GST: {med.formData.gstRate}%
+                        {med.batches.length} Batch{med.batches.length !== 1 ? 'es' : ''} • GST: {med.formData.gstRate}%
                       </div>
                     </div>
                     <button
@@ -1211,9 +1529,17 @@ export default function IngestModal({ isOpen, onClose, onSuccess, returnPath }: 
                       <div><span className="text-gray-600">Salts:</span> <span className="font-medium">{med.salts.length} salt{med.salts.length !== 1 ? 's' : ''}</span></div>
                       <div><span className="text-gray-600">HSN:</span> <span className="font-medium">{med.formData.hsnCode || 'N/A'}</span></div>
                       <div><span className="text-gray-600">GST:</span> <span className="font-medium">{med.formData.gstRate}%</span></div>
-                      <div><span className="text-gray-600">Location:</span> <span className="font-medium">{med.batchData.location || 'N/A'}</span></div>
-                      <div><span className="text-gray-600">Batch:</span> <span className="font-medium">{med.batchData.batchNumber}</span></div>
-                      <div><span className="text-gray-600">Expiry:</span> <span className="font-medium">{med.batchData.expiryDate}</span></div>
+                      <div><span className="text-gray-600">Batches:</span> <span className="font-medium">{med.batches.length}</span></div>
+                    </div>
+                    <div className="mt-3 space-y-2">
+                      {med.batches.map((batch, bIndex) => (
+                        <div key={bIndex} className="p-2 bg-gray-50 rounded border border-gray-200 text-xs">
+                          <div className="font-medium text-gray-900">Batch #{bIndex + 1}: {batch.batchNumber}</div>
+                          <div className="text-gray-600 mt-1">
+                            Qty: {batch.quantity} {batch.unit}s • Exp: {batch.expiryDate} • MRP: ₹{batch.mrp} • Location: {batch.location || 'N/A'}
+                          </div>
+                        </div>
+                      ))}
                     </div>
                     <button
                       onClick={() => handleEditMedicine(index)}
@@ -1231,353 +1557,333 @@ export default function IngestModal({ isOpen, onClose, onSuccess, returnPath }: 
 
 
           {/* Medicine Details - Conditional based on state */}
-          {(modalState === ModalState.EXISTING_WITH_BATCHES || modalState === ModalState.EXISTING_NO_BATCHES) && selectedFromCatalog ? (
-            /* Read-only medicine info for existing medicines */
-            <div className="mb-6 border-2 border-blue-200 rounded-lg p-5 bg-blue-50/30">
-              <div className="flex items-start justify-between mb-3">
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">{formData.name}</h3>
-                  <p className="text-sm text-gray-600 mt-1">
-                    {formData.manufacturer} • {formData.form}
-                    {formData.requiresPrescription && ' • Rx Required'}
-                  </p>
-                </div>
-                <div className="px-3 py-1 bg-emerald-100 text-emerald-700 text-xs font-medium rounded-full">
-                  In Catalog
-                </div>
+          {/* Medicine Details - Always Editable (User Request) */}
+
+          {/* Editable form for new medicines */}
+          <div className="mb-6 space-y-4 bg-gray-50 rounded-lg p-4">
+            <div>
+              <Label htmlFor="modal-name" className="text-sm font-medium text-gray-700">
+                Medicine Name *
+              </Label>
+              <Input
+                id="modal-name"
+                value={formData.name}
+                onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
+                onBlur={async () => {
+                  // Real-time duplicate check when user finishes typing name
+                  if (formData.name && formData.name.trim().length > 3 && salts.length > 0) {
+                    const result = await checkForDuplicates();
+                    if (result?.isDuplicate) {
+                      toast.warning('⚠️ This medicine may already exist in inventory');
+                    } else if (result?.similarMedicines && result.similarMedicines.length > 0) {
+                      toast.info(`Found ${result.similarMedicines.length} similar medicine(s)`);
+                    }
+                  }
+                }}
+                placeholder="e.g., Crocin 500"
+                className={`mt-1.5 ${fieldErrors.name ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
+              />
+              {fieldErrors.name && (
+                <p className="text-xs text-red-600 mt-1">{fieldErrors.name}</p>
+              )}
+            </div>
+
+            <div className="grid grid-cols-3 gap-3">
+              <div className="col-span-1">
+                <Label htmlFor="modal-manufacturer" className="text-sm font-medium text-gray-700">
+                  Manufacturer
+                </Label>
+                <Input
+                  id="modal-manufacturer"
+                  value={formData.manufacturer}
+                  onChange={(e) =>
+                    setFormData({ ...formData, manufacturer: e.target.value })
+                  }
+                  placeholder="e.g., GSK"
+                  className="mt-1.5"
+                />
               </div>
-              {selectedFromCatalog.genericName && (
-                <div className="mt-3 p-3 bg-white rounded border border-blue-200">
-                  <p className="text-xs font-medium text-gray-600 mb-1">Salt Composition</p>
-                  <p className="text-sm text-gray-800">{selectedFromCatalog.genericName}</p>
+              <div className="col-span-1">
+                <Label htmlFor="modal-hsn" className="text-sm font-medium text-gray-700">
+                  HSN Code
+                </Label>
+                <Input
+                  id="modal-hsn"
+                  value={formData.hsnCode}
+                  onChange={(e) =>
+                    setFormData({ ...formData, hsnCode: e.target.value })
+                  }
+                  placeholder="3004"
+                  className="mt-1.5"
+                />
+              </div>
+              <div className="col-span-1">
+                <Label htmlFor="modal-gst" className="text-sm font-medium text-gray-700">
+                  GST %
+                </Label>
+                <select
+                  id="modal-gst"
+                  value={formData.gstRate}
+                  onChange={(e) =>
+                    setFormData({ ...formData, gstRate: parseInt(e.target.value) || 0 })
+                  }
+                  className="mt-1.5 w-full h-10 px-3 py-2 bg-white border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value={0}>0%</option>
+                  <option value={5}>5%</option>
+                  <option value={12}>12%</option>
+                  <option value={18}>18%</option>
+                  <option value={28}>28%</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <Label className="text-sm font-medium text-gray-700 mb-2 block">
+                Form *
+              </Label>
+              <div className="grid grid-cols-6 gap-2">
+                {commonForms.map((item) => (
+                  <button
+                    key={item.label}
+                    type="button"
+                    onClick={() => {
+                      if (item.label === 'Other') {
+                        setShowOtherFormInput(true);
+                      } else {
+                        setShowOtherFormInput(false);
+                        setFormData({ ...formData, form: item.label });
+                      }
+                    }}
+                    className={`py-2 px-1 rounded-lg border-2 text-xs font-medium transition-all flex flex-col items-center gap-1 ${(formData.form === item.label && !showOtherFormInput) || (item.label === 'Other' && showOtherFormInput)
+                      ? 'border-blue-600 bg-blue-50 text-blue-700'
+                      : 'border-gray-200 bg-white text-gray-600 hover:border-blue-200'
+                      }`}
+                  >
+                    <span className={(formData.form === item.label && !showOtherFormInput) || (item.label === 'Other' && showOtherFormInput) ? 'text-blue-600' : 'text-gray-400'}>{item.icon}</span>
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+              {showOtherFormInput && (
+                <div className="mt-2 relative">
+                  <select
+                    className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-blue-500 transition-colors bg-white outline-none"
+                    value={otherFormsList.includes(formData.form) ? formData.form : ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === 'custom') {
+                        setFormData({ ...formData, form: '' });
+                      } else if (val) {
+                        setFormData({ ...formData, form: val });
+                      }
+                    }}
+                  >
+                    <option value="">Select specific form...</option>
+                    {otherFormsList.map(form => (
+                      <option key={form} value={form}>{form}</option>
+                    ))}
+                    <option value="custom">-- Custom Form --</option>
+                  </select>
+                  {(!otherFormsList.includes(formData.form) && formData.form !== 'Other' && formData.form !== '') && (
+                    <Input
+                      className="mt-2"
+                      placeholder="Type custom form name..."
+                      value={formData.form}
+                      onChange={(e) => setFormData({ ...formData, form: e.target.value })}
+                      autoFocus
+                    />
+                  )}
                 </div>
               )}
             </div>
-          ) : (
-            /* Editable form for new medicines */
-            <div className="mb-6 space-y-4 bg-gray-50 rounded-lg p-4">
-              <div>
-                <Label htmlFor="modal-name" className="text-sm font-medium text-gray-700">
-                  Medicine Name *
-                </Label>
-                <Input
-                  id="modal-name"
-                  value={formData.name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
-                  }
-                  onBlur={async () => {
-                    // Real-time duplicate check when user finishes typing name
-                    if (formData.name && formData.name.trim().length > 3 && salts.length > 0) {
-                      const result = await checkForDuplicates();
-                      if (result?.isDuplicate) {
-                        toast.warning('⚠️ This medicine may already exist in inventory');
-                      } else if (result?.similarMedicines && result.similarMedicines.length > 0) {
-                        toast.info(`Found ${result.similarMedicines.length} similar medicine(s)`);
-                      }
-                    }
-                  }}
-                  placeholder="e.g., Crocin 500"
-                  className={`mt-1.5 ${fieldErrors.name ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
-                />
-                {fieldErrors.name && (
-                  <p className="text-xs text-red-600 mt-1">{fieldErrors.name}</p>
-                )}
+
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="modal-requiresPrescription"
+                checked={formData.requiresPrescription}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    requiresPrescription: e.target.checked,
+                  })
+                }
+                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+              />
+              <Label htmlFor="modal-requiresPrescription" className="text-sm font-medium text-gray-700 cursor-pointer">
+                Requires Prescription (Rx)
+              </Label>
+            </div>
+
+            {/* Salt Composition - Integrated */}
+            <div className="pt-4 mt-4 border-t border-gray-300">
+              <div className="flex justify-between items-center mb-3">
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-800">Salt Composition</h4>
+                  <p className="text-xs text-gray-500 mt-0.5">Active ingredients and strengths</p>
+                  {fieldErrors.salts && (
+                    <p className="text-xs text-red-600 mt-1 font-medium">{fieldErrors.salts}</p>
+                  )}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={addSaltRow}
+                  className="text-xs h-8"
+                >
+                  <FiPlus className="mr-1.5 h-3 w-3" />
+                  Add Salt
+                </Button>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
-                <div className="col-span-1">
-                  <Label htmlFor="modal-manufacturer" className="text-sm font-medium text-gray-700">
-                    Manufacturer
-                  </Label>
-                  <Input
-                    id="modal-manufacturer"
-                    value={formData.manufacturer}
-                    onChange={(e) =>
-                      setFormData({ ...formData, manufacturer: e.target.value })
-                    }
-                    placeholder="e.g., GSK"
-                    className="mt-1.5"
-                  />
+              {salts.length === 0 ? (
+                <div className="text-center py-6 bg-white rounded-lg border-2 border-dashed border-gray-300">
+                  <p className="text-gray-600 mb-2 text-xs">No salts added yet</p>
+                  <div className="flex gap-2 justify-center">
+                    {formData.name && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setShowSuggestions(true)}
+                        className="border-violet-300 text-violet-700 hover:bg-violet-50 text-xs h-7"
+                      >
+                        <FiZap className="mr-1.5 h-3 w-3" />
+                        Get Suggestions
+                      </Button>
+                    )}
+                    <Button variant="outline" size="sm" onClick={addSaltRow} className="text-xs h-7">
+                      <FiPlus className="mr-1.5 h-3 w-3" />
+                      Add Manually
+                    </Button>
+                  </div>
                 </div>
-                <div className="col-span-1">
-                  <Label htmlFor="modal-hsn" className="text-sm font-medium text-gray-700">
-                    HSN Code
-                  </Label>
-                  <Input
-                    id="modal-hsn"
-                    value={formData.hsnCode}
-                    onChange={(e) =>
-                      setFormData({ ...formData, hsnCode: e.target.value })
-                    }
-                    placeholder="3004"
-                    className="mt-1.5"
-                  />
-                </div>
-                <div className="col-span-1">
-                  <Label htmlFor="modal-gst" className="text-sm font-medium text-gray-700">
-                    GST %
-                  </Label>
-                  <select
-                    id="modal-gst"
-                    value={formData.gstRate}
-                    onChange={(e) =>
-                      setFormData({ ...formData, gstRate: parseInt(e.target.value) || 0 })
-                    }
-                    className="mt-1.5 w-full h-10 px-3 py-2 bg-white border border-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value={0}>0%</option>
-                    <option value={5}>5%</option>
-                    <option value={12}>12%</option>
-                    <option value={18}>18%</option>
-                    <option value={28}>28%</option>
-                  </select>
-                </div>
-              </div>
+              ) : (
+                <div className="space-y-2">
+                  {salts.map((salt, saltIndex) => (
+                    <div key={salt.id} className="relative group">
+                      {editingSaltId === salt.id ? (
+                        <div className="p-3 bg-white rounded-lg border-2 border-blue-200 space-y-3">
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <Label className="text-xs font-medium text-gray-600 mb-1 block">
+                                Salt Name
+                              </Label>
+                              <Input
+                                value={salt.name || ''}
+                                onChange={(e) => updateSalt(salt.id, 'name', e.target.value)}
+                                placeholder="e.g., Paracetamol"
+                                className="h-8 text-sm"
+                              />
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeSaltRow(salt.id)}
+                              className="mt-4 ml-2 hover:bg-red-50 text-red-500 h-8 w-8 p-0"
+                            >
+                              <FiTrash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
 
-              <div>
-                <Label className="text-sm font-medium text-gray-700 mb-2 block">
-                  Form *
-                </Label>
-                <div className="grid grid-cols-6 gap-2">
-                  {commonForms.map((item) => (
-                    <button
-                      key={item.label}
-                      type="button"
-                      onClick={() => {
-                        if (item.label === 'Other') {
-                          setShowOtherFormInput(true);
-                        } else {
-                          setShowOtherFormInput(false);
-                          setFormData({ ...formData, form: item.label });
-                        }
-                      }}
-                      className={`py-2 px-1 rounded-lg border-2 text-xs font-medium transition-all flex flex-col items-center gap-1 ${(formData.form === item.label && !showOtherFormInput) || (item.label === 'Other' && showOtherFormInput)
-                        ? 'border-blue-600 bg-blue-50 text-blue-700'
-                        : 'border-gray-200 bg-white text-gray-600 hover:border-blue-200'
-                        }`}
-                    >
-                      <span className={(formData.form === item.label && !showOtherFormInput) || (item.label === 'Other' && showOtherFormInput) ? 'text-blue-600' : 'text-gray-400'}>{item.icon}</span>
-                      {item.label}
-                    </button>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <Label className="text-xs font-medium text-gray-600 mb-1 block">
+                                Strength
+                              </Label>
+                              <Input
+                                type="number"
+                                value={salt.strengthValue || ''}
+                                onChange={(e) =>
+                                  updateSalt(
+                                    salt.id,
+                                    'strengthValue',
+                                    e.target.value ? parseFloat(e.target.value) : null
+                                  )
+                                }
+                                placeholder="500"
+                                className="h-8 text-sm"
+                              />
+                            </div>
+                            <div>
+                              <Label className="text-xs font-medium text-gray-600 mb-1 block">
+                                Unit
+                              </Label>
+                              <Input
+                                value={salt.strengthUnit || ''}
+                                onChange={(e) =>
+                                  updateSalt(salt.id, 'strengthUnit', e.target.value)
+                                }
+                                placeholder="mg"
+                                className="h-8 text-sm"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="flex justify-end">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                if (!salt.name?.trim()) {
+                                  toast.error('Salt name is required');
+                                  return;
+                                }
+                                setEditingSaltId(null);
+                              }}
+                              className="text-xs h-7"
+                            >
+                              Save
+                            </Button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between p-2.5 bg-white border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-[10px]">
+                              {saltIndex + 1}
+                            </div>
+                            <div>
+                              <p className="text-xs font-semibold text-gray-900">{salt.name || 'Untitled Salt'}</p>
+                              <p className="text-[10px] text-gray-500">
+                                {salt.strengthValue && salt.strengthUnit ? `${salt.strengthValue} ${salt.strengthUnit}` : 'No strength set'}
+                                {salt.confidence && (
+                                  <span className={`ml-1.5 px-1 py-0.5 rounded-full text-[9px] ${salt.confidence === 'HIGH' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                    {salt.confidence === 'HIGH' ? '✓' : '⚠️'}
+                                  </span>
+                                )}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setEditingSaltId(salt.id)}
+                              className="h-7 px-2 text-blue-600 hover:bg-blue-50 text-xs"
+                            >
+                              Edit
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeSaltRow(salt.id)}
+                              className="h-7 px-2 text-red-500 hover:bg-red-50"
+                            >
+                              <FiTrash2 className="h-3 w-3" />
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   ))}
                 </div>
-                {showOtherFormInput && (
-                  <div className="mt-2 relative">
-                    <select
-                      className="w-full border-2 border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-blue-500 transition-colors bg-white outline-none"
-                      value={otherFormsList.includes(formData.form) ? formData.form : ''}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        if (val === 'custom') {
-                          setFormData({ ...formData, form: '' });
-                        } else if (val) {
-                          setFormData({ ...formData, form: val });
-                        }
-                      }}
-                    >
-                      <option value="">Select specific form...</option>
-                      {otherFormsList.map(form => (
-                        <option key={form} value={form}>{form}</option>
-                      ))}
-                      <option value="custom">-- Custom Form --</option>
-                    </select>
-                    {(!otherFormsList.includes(formData.form) && formData.form !== 'Other' && formData.form !== '') && (
-                      <Input
-                        className="mt-2"
-                        placeholder="Type custom form name..."
-                        value={formData.form}
-                        onChange={(e) => setFormData({ ...formData, form: e.target.value })}
-                        autoFocus
-                      />
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  id="modal-requiresPrescription"
-                  checked={formData.requiresPrescription}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      requiresPrescription: e.target.checked,
-                    })
-                  }
-                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                />
-                <Label htmlFor="modal-requiresPrescription" className="text-sm font-medium text-gray-700 cursor-pointer">
-                  Requires Prescription (Rx)
-                </Label>
-              </div>
-
-              {/* Salt Composition - Integrated */}
-              <div className="pt-4 mt-4 border-t border-gray-300">
-                <div className="flex justify-between items-center mb-3">
-                  <div>
-                    <h4 className="text-sm font-semibold text-gray-800">Salt Composition *</h4>
-                    <p className="text-xs text-gray-500 mt-0.5">Active ingredients and strengths</p>
-                    {fieldErrors.salts && (
-                      <p className="text-xs text-red-600 mt-1 font-medium">{fieldErrors.salts}</p>
-                    )}
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={addSaltRow}
-                    className="text-xs h-8"
-                  >
-                    <FiPlus className="mr-1.5 h-3 w-3" />
-                    Add Salt
-                  </Button>
-                </div>
-
-                {salts.length === 0 ? (
-                  <div className="text-center py-6 bg-white rounded-lg border-2 border-dashed border-gray-300">
-                    <p className="text-gray-600 mb-2 text-xs">No salts added yet</p>
-                    <div className="flex gap-2 justify-center">
-                      {formData.name && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setShowSuggestions(true)}
-                          className="border-violet-300 text-violet-700 hover:bg-violet-50 text-xs h-7"
-                        >
-                          💡 Get Suggestions
-                        </Button>
-                      )}
-                      <Button variant="outline" size="sm" onClick={addSaltRow} className="text-xs h-7">
-                        <FiPlus className="mr-1.5 h-3 w-3" />
-                        Add Manually
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {salts.map((salt, saltIndex) => (
-                      <div key={salt.id} className="relative group">
-                        {editingSaltId === salt.id ? (
-                          <div className="p-3 bg-white rounded-lg border-2 border-blue-200 space-y-3">
-                            <div className="flex items-center justify-between">
-                              <div className="flex-1">
-                                <Label className="text-xs font-medium text-gray-600 mb-1 block">
-                                  Salt Name
-                                </Label>
-                                <Input
-                                  value={salt.name || ''}
-                                  onChange={(e) => updateSalt(salt.id, 'name', e.target.value)}
-                                  placeholder="e.g., Paracetamol"
-                                  className="h-8 text-sm"
-                                />
-                              </div>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => removeSaltRow(salt.id)}
-                                className="mt-4 ml-2 hover:bg-red-50 text-red-500 h-8 w-8 p-0"
-                              >
-                                <FiTrash2 className="h-3.5 w-3.5" />
-                              </Button>
-                            </div>
-
-                            <div className="grid grid-cols-2 gap-2">
-                              <div>
-                                <Label className="text-xs font-medium text-gray-600 mb-1 block">
-                                  Strength
-                                </Label>
-                                <Input
-                                  type="number"
-                                  value={salt.strengthValue || ''}
-                                  onChange={(e) =>
-                                    updateSalt(
-                                      salt.id,
-                                      'strengthValue',
-                                      e.target.value ? parseFloat(e.target.value) : null
-                                    )
-                                  }
-                                  placeholder="500"
-                                  className="h-8 text-sm"
-                                />
-                              </div>
-                              <div>
-                                <Label className="text-xs font-medium text-gray-600 mb-1 block">
-                                  Unit
-                                </Label>
-                                <Input
-                                  value={salt.strengthUnit || ''}
-                                  onChange={(e) =>
-                                    updateSalt(salt.id, 'strengthUnit', e.target.value)
-                                  }
-                                  placeholder="mg"
-                                  className="h-8 text-sm"
-                                />
-                              </div>
-                            </div>
-
-                            <div className="flex justify-end">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => {
-                                  if (!salt.name?.trim()) {
-                                    toast.error('Salt name is required');
-                                    return;
-                                  }
-                                  setEditingSaltId(null);
-                                }}
-                                className="text-xs h-7"
-                              >
-                                Save
-                              </Button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="flex items-center justify-between p-2.5 bg-white border border-gray-200 rounded-lg hover:border-blue-300 transition-colors">
-                            <div className="flex items-center gap-2">
-                              <div className="w-6 h-6 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-[10px]">
-                                {saltIndex + 1}
-                              </div>
-                              <div>
-                                <p className="text-xs font-semibold text-gray-900">{salt.name || 'Untitled Salt'}</p>
-                                <p className="text-[10px] text-gray-500">
-                                  {salt.strengthValue && salt.strengthUnit ? `${salt.strengthValue} ${salt.strengthUnit}` : 'No strength set'}
-                                  {salt.confidence && (
-                                    <span className={`ml-1.5 px-1 py-0.5 rounded-full text-[9px] ${salt.confidence === 'HIGH' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                                      {salt.confidence === 'HIGH' ? '✓' : '⚠️'}
-                                    </span>
-                                  )}
-                                </p>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setEditingSaltId(salt.id)}
-                                className="h-7 px-2 text-blue-600 hover:bg-blue-50 text-xs"
-                              >
-                                Edit
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => removeSaltRow(salt.id)}
-                                className="h-7 px-2 text-red-500 hover:bg-red-50"
-                              >
-                                <FiTrash2 className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+              )}
             </div>
-          )}
+          </div>
+
 
           {/* Salt Suggestions */}
           {formData.name && salts.length === 0 && !showSuggestions && (
@@ -1587,7 +1893,8 @@ export default function IngestModal({ isOpen, onClose, onSuccess, returnPath }: 
                 onClick={() => setShowSuggestions(true)}
                 className="w-full border-violet-300 bg-violet-50 text-violet-700 hover:bg-violet-100"
               >
-                💡 Get Salt Suggestions for "{formData.name}"
+                <FiZap className="mr-2 h-4 w-4" />
+                Get Salt Suggestions for "{formData.name}"
               </Button>
             </div>
           )}
@@ -1606,174 +1913,6 @@ export default function IngestModal({ isOpen, onClose, onSuccess, returnPath }: 
             </div>
           )}
 
-          {/* Salt Composition - Elevated Priority */}
-          <div className="mb-6 border-2 border-gray-200 rounded-lg p-5 bg-white">
-            <div className="flex justify-between items-center mb-4">
-              <div className="flex items-center gap-2">
-                <FiPackage className="h-5 w-5 text-emerald-600" />
-                <div>
-                  <h3 className="text-base font-semibold text-gray-800">Salt Composition *</h3>
-                  <p className="text-xs text-gray-500 mt-1">Add the active ingredients and their strengths</p>
-                  {fieldErrors.salts && (
-                    <p className="text-xs text-red-600 mt-1 font-medium">{fieldErrors.salts}</p>
-                  )}
-                </div>
-              </div>
-              <Button
-                variant="default"
-                size="sm"
-                onClick={addSaltRow}
-                className="bg-emerald-600 hover:bg-emerald-700 text-xs"
-              >
-                <FiPlus className="mr-1.5 h-3.5 w-3.5" />
-                Add Salt
-              </Button>
-            </div>
-
-            {salts.length === 0 ? (
-              <div className="text-center py-8 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-                <p className="text-gray-600 mb-3 text-sm">No salts added yet</p>
-                <div className="flex gap-2 justify-center">
-                  {formData.name && (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowSuggestions(true)}
-                      className="border-violet-300 text-violet-700 hover:bg-violet-50"
-                    >
-                      💡 Get Suggestions
-                    </Button>
-                  )}
-                  <Button variant="outline" size="sm" onClick={addSaltRow}>
-                    <FiPlus className="mr-2 h-4 w-4" />
-                    Add Manually
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {salts.map((salt, saltIndex) => (
-                  <div key={salt.id} className="relative group">
-                    {editingSaltId === salt.id ? (
-                      /* Full editing view */
-                      <div className="p-4 bg-gray-50 rounded-lg border-2 border-blue-200 space-y-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <Label className="text-xs font-medium text-gray-600 mb-1.5 block">
-                              Salt Name
-                            </Label>
-                            <Input
-                              value={salt.name || ''}
-                              onChange={(e) => updateSalt(salt.id, 'name', e.target.value)}
-                              placeholder="e.g., Paracetamol"
-                              className="h-9 text-sm"
-                            />
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeSaltRow(salt.id)}
-                            className="mt-5 ml-2 hover:bg-red-50 text-red-500"
-                          >
-                            <FiTrash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <Label className="text-xs font-medium text-gray-600 mb-1.5 block">
-                              Strength
-                            </Label>
-                            <Input
-                              type="number"
-                              value={salt.strengthValue || ''}
-                              onChange={(e) =>
-                                updateSalt(
-                                  salt.id,
-                                  'strengthValue',
-                                  e.target.value ? parseFloat(e.target.value) : null
-                                )
-                              }
-                              placeholder="500"
-                              className="h-9 text-sm"
-                            />
-                          </div>
-                          <div>
-                            <Label className="text-xs font-medium text-gray-600 mb-1.5 block">
-                              Unit
-                            </Label>
-                            <Input
-                              value={salt.strengthUnit || ''}
-                              onChange={(e) =>
-                                updateSalt(salt.id, 'strengthUnit', e.target.value)
-                              }
-                              placeholder="mg"
-                              className="h-9 text-sm"
-                            />
-                          </div>
-                        </div>
-
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              if (!salt.name || !salt.name.trim()) {
-                                toast.error('Salt name is required');
-                                return;
-                              }
-                              setEditingSaltId(null);
-                            }}
-                            className="bg-blue-600 hover:bg-blue-700 text-white text-xs h-8 border-none"
-                          >
-                            Add to Composition
-                          </Button>
-                        </div>
-                      </div>
-                    ) : (
-                      /* Compact summary view */
-                      <div className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg hover:border-blue-300 transition-colors shadow-sm">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-600 font-bold text-xs">
-                            {saltIndex + 1}
-                          </div>
-                          <div>
-                            <p className="text-sm font-semibold text-gray-900">{salt.name || 'Untitled Salt'}</p>
-                            <p className="text-xs text-gray-500">
-                              {salt.strengthValue && salt.strengthUnit ? `${salt.strengthValue} ${salt.strengthUnit}` : 'No strength set'}
-                              {salt.confidence && (
-                                <span className={`ml-2 px-1.5 py-0.5 rounded-full text-[10px] ${salt.confidence === 'HIGH' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
-                                  {salt.confidence === 'HIGH' ? '✓ Verified' : '⚠️ Check'}
-                                </span>
-                              )}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setEditingSaltId(salt.id)}
-                            className="h-8 px-2 text-blue-600 hover:bg-blue-50"
-                          >
-                            Edit
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeSaltRow(salt.id)}
-                            className="h-8 px-2 text-red-500 hover:bg-red-50"
-                          >
-                            <FiTrash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
 
           {/* Batch Details - MANDATORY */}
           <div className="mb-6 border-2 border-emerald-200 rounded-lg p-5 bg-emerald-50/30">
@@ -1814,17 +1953,19 @@ export default function IngestModal({ isOpen, onClose, onSuccess, returnPath }: 
                             setSelectedBatchId(batch.id);
                             setCreateNewBatch(false);
                             // Pre-fill batch data from selected batch
-                            setBatchData({
+                            const newBatches = [{
                               batchNumber: batch.batchNumber,
                               purchaseRate: batch.purchasePrice?.toString() || '',
                               mrp: batch.mrp?.toString() || '',
                               quantity: '', // User will add quantity
                               expiryDate: batch.expiryDate?.split('T')[0] || '',
-                              supplier: batch.supplier?.name || '',
-                              unit: batch.receivedUnit || 'Tablet',
+                              supplierId: batch.supplier?.id || '',
+                              unit: 'Tablet',
                               packSize: batch.tabletsPerStrip?.toString() || '10',
-                              location: batch.location || '',
-                            });
+                              location: batch.location || ''
+                            }];
+                            setBatches(newBatches);
+                            setActiveBatchIndex(0);
                           }}
                           className="w-4 h-4 text-emerald-600 focus:ring-emerald-500"
                         />
@@ -1838,7 +1979,7 @@ export default function IngestModal({ isOpen, onClose, onSuccess, returnPath }: 
                             </span>
                           </div>
                           <div className="text-xs text-gray-600 mt-1">
-                            Stock: {batch.quantityInStock} units • MRP: ₹{batch.mrp}
+                            Stock: {batch.baseUnitQuantity} units • MRP: ₹{batch.mrp}
                           </div>
                         </div>
                       </div>
@@ -1861,17 +2002,18 @@ export default function IngestModal({ isOpen, onClose, onSuccess, returnPath }: 
                         setCreateNewBatch(true);
                         setSelectedBatchId(null);
                         // Clear batch data for new entry
-                        setBatchData({
+                        setBatches([{
                           batchNumber: '',
                           purchaseRate: '',
                           mrp: '',
                           quantity: '',
                           expiryDate: '',
-                          supplier: '',
+                          supplierId: '',
                           unit: 'Tablet',
                           packSize: '10',
                           location: '',
-                        });
+                        }]);
+                        setActiveBatchIndex(0);
                       }}
                       className="w-4 h-4 text-blue-600 focus:ring-blue-500"
                     />
@@ -1890,444 +2032,816 @@ export default function IngestModal({ isOpen, onClose, onSuccess, returnPath }: 
               modalState === ModalState.NEW_MEDICINE ||
               (modalState === ModalState.EXISTING_WITH_BATCHES && createNewBatch)) && (
 
-                <div className="grid grid-cols-2 gap-4">
-                  {/* Batch Number */}
-                  <div>
-                    <Label htmlFor="batchNumber" className="text-sm font-medium text-gray-700 flex items-center gap-1">
-                      <FiPackage className="h-3.5 w-3.5" />
-                      Batch Number *
-                    </Label>
-                    <Input
-                      id="batchNumber"
-                      value={batchData.batchNumber}
-                      onChange={(e) => setBatchData({ ...batchData, batchNumber: e.target.value })}
-                      placeholder="e.g., LOT2024001"
-                      className={`mt-1.5 ${fieldErrors.batchNumber ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
-                    />
-                    {fieldErrors.batchNumber && (
-                      <p className="text-xs text-red-600 mt-1">{fieldErrors.batchNumber}</p>
-                    )}
-                  </div>
-
-                  {/* Expiry Date (MM/YYYY) */}
-                  <div>
-                    <Label htmlFor="expiryDate" className="text-sm font-medium text-gray-700 flex items-center gap-1">
-                      <FiCalendar className="h-3.5 w-3.5" />
-                      Expiry (MM/YYYY) *
-                    </Label>
-                    <Input
-                      id="expiryDate"
-                      type="text"
-                      value={batchData.expiryDate}
-                      onChange={(e) => {
-                        let value = e.target.value.replace(/[^\d]/g, ''); // Only digits
-
-                        // Auto-format as MM/YYYY
-                        if (value.length >= 2) {
-                          const month = value.substring(0, 2);
-                          let year = value.substring(2, 6);
-
-                          // Auto-prepend '20' if user types year
-                          if (year.length > 0 && year.length <= 2 && !year.startsWith('20')) {
-                            year = '20' + year;
-                          }
-
-                          value = month + (year ? '/' + year : '');
-                        }
-
-                        // Limit to MM/YYYY format
-                        if (value.length > 7) value = value.substring(0, 7);
-
-                        setBatchData({ ...batchData, expiryDate: value });
-                      }}
-                      placeholder="MM/YYYY (e.g., 03/2025)"
-                      maxLength={7}
-                      className={`mt-1.5 ${fieldErrors.expiryDate ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
-                    />
-                    {fieldErrors.expiryDate && (
-                      <p className="text-xs text-red-600 mt-1">{fieldErrors.expiryDate}</p>
-                    )}
-                  </div>
-
-                  {/* Purchase Rate */}
-                  <div>
-                    <Label htmlFor="purchaseRate" className="text-sm font-medium text-gray-700 flex items-center gap-1">
-                      <FiDollarSign className="h-3.5 w-3.5" />
-                      Purchase Rate (per unit) *
-                    </Label>
-                    <Input
-                      id="purchaseRate"
-                      type="number"
-                      step="0.01"
-                      min="0.01"
-                      value={batchData.purchaseRate}
-                      onChange={(e) => setBatchData({ ...batchData, purchaseRate: e.target.value })}
-                      onKeyDown={(e) => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
-                      placeholder="0.00"
-                      className={`mt-1.5 ${fieldErrors.purchaseRate ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
-                    />
-                    {fieldErrors.purchaseRate && (
-                      <p className="text-xs text-red-600 mt-1">{fieldErrors.purchaseRate}</p>
-                    )}
-                  </div>
-
-                  {/* MRP */}
-                  <div>
-                    <Label htmlFor="mrp" className="text-sm font-medium text-gray-700 flex items-center gap-1">
-                      <FiDollarSign className="h-3.5 w-3.5" />
-                      MRP (Selling Price) *
-                    </Label>
-                    <Input
-                      id="mrp"
-                      type="number"
-                      step="0.01"
-                      min="0.01"
-                      value={batchData.mrp}
-                      onChange={(e) => setBatchData({ ...batchData, mrp: e.target.value })}
-                      onKeyDown={(e) => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
-                      placeholder="0.00"
-                      className={`mt-1.5 ${fieldErrors.mrp ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
-                    />
-                    {fieldErrors.mrp && (
-                      <p className="text-xs text-red-600 mt-1">{fieldErrors.mrp}</p>
-                    )}
-                  </div>
-
-                  {/* Location */}
-                  <div>
-                    <Label htmlFor="location" className="text-sm font-medium text-gray-700">
-                      Location / Shelf
-                    </Label>
-                    <Input
-                      id="location"
-                      value={batchData.location}
-                      onChange={(e) => setBatchData({ ...batchData, location: e.target.value })}
-                      placeholder="e.g., A1, Rack 4"
-                      className="mt-1.5"
-                    />
-                  </div>
-
-                  {/* Pack Size & Unit */}
-                  <div className="md:col-span-2 space-y-4">
-                    <div>
-                      <Label className="text-sm font-medium text-gray-700 mb-2 block">
-                        Inventory Unit *
-                      </Label>
-                      <div className="flex flex-wrap gap-2 p-1.5 bg-gray-50 border border-gray-200 rounded-lg w-full">
-                        {['Strip', 'Tablet'].map((u) => (
-                          <button
-                            key={u}
-                            type="button"
-                            onClick={() => setBatchData({
-                              ...batchData,
-                              unit: u,
-                              packSize: u === 'Strip' ? (batchData.packSize || '10') : '1'
-                            })}
-                            className={`flex-1 px-4 py-2 rounded-md text-xs font-bold transition-all border ${batchData.unit === u
-                              ? 'bg-white text-blue-600 border-blue-200 shadow-sm'
-                              : 'bg-transparent text-gray-500 border-transparent hover:text-gray-700'
-                              }`}
-                          >
-                            {u}
-                          </button>
-                        ))}
-                        <select
-                          value={['Strip', 'Tablet'].includes(batchData.unit) ? '' : batchData.unit}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            if (val) {
-                              setBatchData({ ...batchData, unit: val, packSize: val === 'Bottle' || val === 'Box' ? '10' : '1' });
-                            }
-                          }}
-                          className={`flex-1 min-w-[120px] bg-white border rounded-md px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 ${!['Strip', 'Tablet'].includes(batchData.unit) ? 'text-blue-600 border-blue-200' : 'text-gray-500 border-gray-200'
-                            }`}
-                        >
-                          <option value="">Other Units...</option>
-                          <option value="Bottle">Bottle</option>
-                          <option value="Box">Box</option>
-                          <option value="Vial">Vial</option>
-                          <option value="ML">ML</option>
-                          <option value="GM">GM</option>
-                        </select>
-                      </div>
-                      <p className="text-[10px] text-gray-500 mt-1 pl-1">
-                        {batchData.unit === 'Strip' ? 'Add stock as Strips' : `Add stock as individual ${batchData.unit}s`}
-                      </p>
-                    </div>
-
-                    {(batchData.unit === 'Strip' || batchData.unit === 'Box' || batchData.unit === 'Bottle') && (
-                      <div className="bg-blue-50/50 p-4 rounded-lg border border-blue-100 flex items-center justify-between gap-4">
-                        <div className="flex-1">
-                          <Label htmlFor="packSize" className="text-sm font-semibold text-blue-900 flex items-center gap-1.5 ">
-                            Pack Size (Conversion) *
-                          </Label>
-                          <p className="text-xs text-blue-700 mt-0.5">
-                            {batchData.unit === 'Strip' && 'How many tablets in one strip?'}
-                            {batchData.unit === 'Bottle' && 'How many tablets/units in one bottle?'}
-                            {batchData.unit === 'Box' && 'How many tablets/units in one box?'}
-                            {!['Strip', 'Bottle', 'Box'].includes(batchData.unit) && `How many tablets/units in one ${batchData.unit}?`}
-                          </p>
-                        </div>
-                        <div className="w-32 relative">
-                          <Input
-                            id="packSize"
-                            type="number"
-                            min="1"
-                            value={batchData.packSize}
-                            onChange={(e) => setBatchData({ ...batchData, packSize: e.target.value })}
-                            placeholder="10"
-                            className="bg-white border-blue-200 focus:ring-blue-500 h-10 text-center font-bold"
-                          />
-                          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-blue-400">TABS</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Quantity */}
-                  <div>
-                    <Label htmlFor="quantity" className="text-sm font-medium text-gray-700 flex items-center gap-1">
-                      <FiPackage className="h-3.5 w-3.5" />
-                      Quantity ({batchData.unit}s) *
-                    </Label>
-                    <Input
-                      id="quantity"
-                      type="number"
-                      min="1"
-                      step="1"
-                      value={batchData.quantity}
-                      onChange={(e) => setBatchData({ ...batchData, quantity: e.target.value })}
-                      onKeyDown={(e) => { if (e.key === '-' || e.key === '.' || e.key === 'e') e.preventDefault(); }}
-                      placeholder="0"
-                      className={`mt-1.5 ${fieldErrors.quantity ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
-                    />
-                    {fieldErrors.quantity && (
-                      <p className="text-xs text-red-600 mt-1">{fieldErrors.quantity}</p>
-                    )}
-                  </div>
-
-                  {/* Supplier */}
-                  <div className="md:col-span-2">
-                    <Label htmlFor="supplier" className="text-sm font-medium text-gray-700 flex items-center gap-1">
-                      Supplier *
-                    </Label>
-                    {loadingSuppliers ? (
-                      <div className="mt-1.5 h-10 w-full bg-gray-100 rounded animate-pulse" />
-                    ) : (
-                      <div className="flex gap-2 mt-1.5">
-                        <div className="relative flex-1">
-                          <select
-                            id="supplier"
-                            value={batchData.supplier}
-                            onChange={(e) => setBatchData({ ...batchData, supplier: e.target.value })}
-                            className={`w-full h-10 px-3 py-2 bg-white border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent appearance-none ${fieldErrors.supplier ? 'border-red-500' : 'border-gray-200'
-                              }`}
-                          >
-                            <option value="">Select Supplier</option>
-                            {suppliers.map((supplier) => (
-                              <option key={supplier.id} value={supplier.name}>
-                                {supplier.name}
-                              </option>
-                            ))}
-                          </select>
-                          <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-gray-500">
-                            <FiChevronDown className="w-4 h-4" />
-                          </div>
-                        </div>
-
+                <React.Fragment>
+                  {/* Batch Selector - show if multiple batches exist */}
+                  {batches.length > 0 && (
+                    <div className="mb-6">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-sm font-semibold text-gray-700">Batches ({batches.length})</h4>
                         <button
-                          onClick={() => setShowSupplierDrawer(true)}
-                          className="flex items-center justify-center w-10 h-10 bg-emerald-50 border border-emerald-200 rounded-md text-emerald-600 hover:bg-emerald-100 hover:border-emerald-300 transition-colors"
-                          title="Add New Supplier"
                           type="button"
+                          onClick={addNewBatch}
+                          className="flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-xs font-medium transition-colors"
                         >
-                          <FiPlus className="w-5 h-5" />
+                          <FiPlus className="h-3.5 w-3.5" />
+                          Add Batch
                         </button>
                       </div>
-                    )}
-                    {fieldErrors.supplier && (
-                      <p className="text-xs text-red-600 mt-1">{fieldErrors.supplier}</p>
-                    )}
-                  </div>
-                </div>
-              )}
-          </div>
-
-          {/* Optional: Strip Image - Collapsed by Default */}
-          <details className="mb-6 border border-gray-200 rounded-lg overflow-hidden">
-            <summary className="cursor-pointer px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors flex items-center gap-2 text-sm font-medium text-gray-700">
-              <BsUpcScan className="h-4 w-4" />
-              <span>Strip Image (optional)</span>
-              <span className="text-xs text-gray-500 ml-auto">Upload or capture for OCR help</span>
-            </summary>
-
-            <div className="p-4 bg-white">
-              {!image ? (
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center bg-gray-50">
-                  <BsUpcScan className="mx-auto h-10 w-10 text-gray-400 mb-3" />
-                  <p className="text-sm text-gray-600 mb-4">We'll try to auto-read salt composition</p>
-                  <div className="flex gap-3 justify-center">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => document.getElementById('modal-file-upload')?.click()}
-                      className="text-sm"
-                    >
-                      <FiUpload className="mr-2 h-4 w-4" />
-                      Upload Image
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={handleCameraCapture}
-                      className="text-sm"
-                    >
-                      <BsUpcScan className="mr-2 h-4 w-4" />
-                      Use Camera
-                    </Button>
-                  </div>
-                  <input
-                    id="modal-file-upload"
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleFileChange}
-                  />
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <img
-                    src={image}
-                    alt="Medicine Strip"
-                    className="w-full rounded-lg max-h-48 object-contain border border-gray-200"
-                  />
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setImage(null);
-                      setSalts([]);
-                      setOcrConfidence(0);
-                      setErrors([]);
-                    }}
-                    className="w-full text-sm"
-                  >
-                    <FiX className="mr-2 h-4 w-4" />
-                    Remove Image
-                  </Button>
-                  {ocrConfidence > 0 && (
-                    <p className="text-xs text-green-600 text-center">
-                      ✓ OCR processed with {ocrConfidence}% confidence
-                    </p>
+                      <div className="flex flex-wrap gap-2">
+                        {batches.map((batch, index) => (
+                          <div
+                            key={index}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => setActiveBatchIndex(index)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' || e.key === ' ') {
+                                e.preventDefault();
+                                setActiveBatchIndex(index);
+                              }
+                            }}
+                            className={`relative px-3 py-2 rounded-md text-xs font-medium transition-all cursor-pointer ${activeBatchIndex === index
+                              ? 'bg-blue-600 text-white shadow-md'
+                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                              }`}
+                          >
+                            <div className="flex items-center gap-2">
+                              <span>
+                                {batch.batchNumber || `Batch #${index + 1}`}
+                              </span>
+                              {batches.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    removeBatch(index);
+                                  }}
+                                  className="hover:text-red-500 transition-colors"
+                                  title="Remove batch"
+                                >
+                                  <FiTrash2 className="h-3 w-3" />
+                                </button>
+                              )}
+                            </div>
+                            {batch.expiryDate && (
+                              <div className="text-[10px] opacity-75 mt-0.5">
+                                Exp: {batch.expiryDate}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   )}
-                </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Batch Number */}
+                    <div>
+                      <Label htmlFor="batchNumber" className="text-sm font-medium text-gray-700 flex items-center gap-1">
+                        <FiPackage className="h-3.5 w-3.5" />
+                        Batch Number *
+                      </Label>
+                      <Input
+                        id="batchNumber"
+                        value={batches[activeBatchIndex].batchNumber}
+                        onChange={(e) => updateCurrentBatch('batchNumber', e.target.value)}
+                        placeholder="e.g., LOT2024001"
+                        className={`mt-1.5 ${fieldErrors.batchNumber ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
+                      />
+                      {fieldErrors.batchNumber && (
+                        <p className="text-xs text-red-600 mt-1">{fieldErrors.batchNumber}</p>
+                      )}
+                    </div>
+
+                    {/* Expiry Date (MM/YYYY) */}
+                    <div>
+                      <Label htmlFor="expiryDate" className="text-sm font-medium text-gray-700 flex items-center gap-1">
+                        <FiCalendar className="h-3.5 w-3.5" />
+                        Expiry (MM/YYYY) *
+                      </Label>
+                      <Input
+                        id="expiryDate"
+                        type="text"
+                        value={batches[activeBatchIndex].expiryDate}
+                        onChange={(e) => {
+                          let value = e.target.value.replace(/[^\d]/g, ''); // Only digits
+
+                          // Auto-format as MM/YYYY
+                          if (value.length >= 2) {
+                            const month = value.substring(0, 2);
+                            let year = value.substring(2, 6);
+
+                            // Auto-prepend '20' if user types year
+                            if (year.length > 0 && year.length <= 2 && !year.startsWith('20')) {
+                              year = '20' + year;
+                            }
+
+                            value = month + (year ? '/' + year : '');
+                          }
+
+                          // Limit to MM/YYYY format
+                          if (value.length > 7) value = value.substring(0, 7);
+
+                          updateCurrentBatch('expiryDate', value);
+                        }}
+                        placeholder="MM/YYYY (e.g., 03/2025)"
+                        maxLength={7}
+                        className={`mt-1.5 ${fieldErrors.expiryDate ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
+                      />
+                      {fieldErrors.expiryDate && (
+                        <p className="text-xs text-red-600 mt-1">{fieldErrors.expiryDate}</p>
+                      )}
+                    </div>
+
+                    {/* Purchase Rate */}
+                    <div>
+                      <Label htmlFor="purchaseRate" className="text-sm font-medium text-gray-700 flex items-center gap-1">
+                        <FiDollarSign className="h-3.5 w-3.5" />
+                        Purchase Rate (per unit) *
+                      </Label>
+                      <Input
+                        id="purchaseRate"
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        value={batches[activeBatchIndex].purchaseRate}
+                        onChange={(e) => updateCurrentBatch('purchaseRate', e.target.value)}
+                        onKeyDown={(e) => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
+                        placeholder="0.00"
+                        className={`mt-1.5 ${fieldErrors.purchaseRate ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
+                      />
+                      {fieldErrors.purchaseRate && (
+                        <p className="text-xs text-red-600 mt-1">{fieldErrors.purchaseRate}</p>
+                      )}
+                    </div>
+
+                    {/* MRP */}
+                    <div>
+                      <Label htmlFor="mrp" className="text-sm font-medium text-gray-700 flex items-center gap-1">
+                        <FiDollarSign className="h-3.5 w-3.5" />
+                        MRP (Selling Price) *
+                      </Label>
+                      <Input
+                        id="mrp"
+                        type="number"
+                        step="0.01"
+                        min="0.01"
+                        value={batches[activeBatchIndex].mrp}
+                        onChange={(e) => updateCurrentBatch('mrp', e.target.value)}
+                        onKeyDown={(e) => { if (e.key === '-' || e.key === 'e') e.preventDefault(); }}
+                        placeholder="0.00"
+                        className={`mt-1.5 ${fieldErrors.mrp ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
+                      />
+                      {fieldErrors.mrp && (
+                        <p className="text-xs text-red-600 mt-1">{fieldErrors.mrp}</p>
+                      )}
+                    </div>
+
+                    {/* Location */}
+                    <div>
+                      <Label htmlFor="location" className="text-sm font-medium text-gray-700">
+                        Location / Shelf
+                      </Label>
+                      <Input
+                        id="location"
+                        value={batches[activeBatchIndex].location}
+                        onChange={(e) => updateCurrentBatch('location', e.target.value)}
+                        placeholder="e.g., A1, Rack 4"
+                        className="mt-1.5"
+                      />
+                    </div>
+
+                    {/* Pack Size & Unit */}
+                    <div className="md:col-span-2 space-y-4">
+                      <div>
+                        <Label className="text-sm font-medium text-gray-700 mb-2 block flex items-center gap-1.5">
+                          Packaging Unit *
+                        </Label>
+                        <div className="flex items-start gap-2 mb-2 p-2 bg-blue-50 border border-blue-100 rounded-md">
+                          <FiInfo className="h-3.5 w-3.5 text-blue-600 mt-0.5 flex-shrink-0" />
+                          <p className="text-[11px] text-blue-700 leading-relaxed">
+                            {(() => {
+                              const form = formData.form?.toLowerCase() || '';
+                              let baseUnit = 'Units';
+
+                              if (form.includes('tablet') || form.includes('capsule')) baseUnit = 'Tablets';
+                              else if (form.includes('syrup') || form.includes('suspension') || form.includes('solution') || form.includes('liquid') || form.includes('drop') || form.includes('injection')) baseUnit = 'ML';
+                              else if (form.includes('cream') || form.includes('ointment') || form.includes('gel') || form.includes('powder')) baseUnit = 'GM';
+
+                              return `Stock will be stored in ${baseUnit}. Choose how you want to add it (by packaging).`;
+                            })()}
+                          </p>
+                        </div>
+                        <div className="flex flex-wrap gap-2 p-1.5 bg-gray-50 border border-gray-200 rounded-lg w-full">
+                          {(() => {
+                            // Smart packaging suggestions based on medicine form
+                            const form = formData.form?.toLowerCase() || '';
+                            let packagingOptions: string[] = [];
+                            let baseUnit = 'Unit';
+
+                            if (form.includes('tablet') || form.includes('capsule') || form.includes('pill')) {
+                              packagingOptions = ['Strip', 'Box'];
+                              baseUnit = 'Tablet';
+                            } else if (form.includes('syrup') || form.includes('suspension') || form.includes('solution') || form.includes('liquid')) {
+                              packagingOptions = ['Bottle', 'Box'];
+                              baseUnit = 'ML';
+                            } else if (form.includes('injection') || form.includes('vial') || form.includes('ampoule')) {
+                              packagingOptions = ['Vial', 'Box'];
+                              baseUnit = 'ML';
+                            } else if (form.includes('cream') || form.includes('ointment') || form.includes('gel') || form.includes('paste')) {
+                              packagingOptions = ['Tube', 'Box'];
+                              baseUnit = 'GM';
+                            } else if (form.includes('powder') || form.includes('granule')) {
+                              packagingOptions = ['Sachet', 'Bottle', 'Box'];
+                              baseUnit = 'GM';
+                            } else if (form.includes('drop') || form.includes('nasal spray') || form.includes('eye drop')) {
+                              packagingOptions = ['Bottle', 'Box'];
+                              baseUnit = 'ML';
+                            } else if (form.includes('inhaler')) {
+                              packagingOptions = ['Inhaler', 'Box'];
+                              baseUnit = 'Dose';
+                            } else if (form.includes('patch')) {
+                              packagingOptions = ['Box'];
+                              baseUnit = 'Patch';
+                            } else if (form.includes('suppository') || form.includes('pessary')) {
+                              packagingOptions = ['Strip', 'Box'];
+                              baseUnit = 'Unit';
+                            } else {
+                              // Default fallback
+                              packagingOptions = ['Strip', 'Box', 'Bottle'];
+                              baseUnit = 'Tablet';
+                            }
+
+                            return (
+                              <>
+                                {packagingOptions.map((u) => (
+                                  <button
+                                    key={u}
+                                    type="button"
+                                    onClick={() => {
+                                      const newBatches = [...batches];
+                                      newBatches[activeBatchIndex] = {
+                                        ...newBatches[activeBatchIndex],
+                                        unit: u,
+                                        packSize: u === 'Strip' ? '10' : u === 'Bottle' ? '100' : u === 'Tube' ? '30' : u === 'Vial' ? '2' : u === 'Box' ? '10' : '1'
+                                      };
+                                      setBatches(newBatches);
+                                    }}
+                                    className={`flex-1 px-4 py-2 rounded-md text-xs font-bold transition-all border ${batches[activeBatchIndex].unit === u
+                                      ? 'bg-white text-blue-600 border-blue-200 shadow-sm'
+                                      : 'bg-transparent text-gray-500 border-transparent hover:text-gray-700'
+                                      }`}
+                                  >
+                                    {u}
+                                  </button>
+                                ))}
+                                <select
+                                  value={packagingOptions.includes(batches[activeBatchIndex].unit) ? '' : batches[activeBatchIndex].unit}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    if (val) {
+                                      const newBatches = [...batches];
+                                      newBatches[activeBatchIndex] = {
+                                        ...newBatches[activeBatchIndex],
+                                        unit: val,
+                                        packSize: (val === 'Bottle' || val === 'Box' || val === 'Strip') ? '10' : '1'
+                                      };
+                                      setBatches(newBatches);
+                                    }
+                                  }}
+                                  className={`flex-1 min-w-[120px] bg-white border rounded-md px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 ${!packagingOptions.includes(batches[activeBatchIndex].unit) ? 'text-blue-600 border-blue-200' : 'text-gray-500 border-gray-200'
+                                    }`}
+                                >
+                                  <option value="">Other...</option>
+                                  <option value="Vial">Vial</option>
+                                  <option value="Tube">Tube</option>
+                                  <option value="Sachet">Sachet</option>
+                                  <option value="Inhaler">Inhaler</option>
+                                  <option value="Ampoule">Ampoule</option>
+                                  <option value="Jar">Jar</option>
+                                  <option value="Can">Can</option>
+                                </select>
+                              </>
+                            );
+                          })()}
+                        </div>
+                        <p className="text-[10px] text-gray-500 mt-1 pl-1">
+                          Enter quantity in {batches[activeBatchIndex].unit}s
+                        </p>
+                      </div>
+
+                      {(batches[activeBatchIndex].unit === 'Strip' || batches[activeBatchIndex].unit === 'Bottle' || batches[activeBatchIndex].unit === 'Vial' || batches[activeBatchIndex].unit === 'Tube' || batches[activeBatchIndex].unit === 'Sachet') && (
+                        <div className="bg-blue-50/50 p-4 rounded-lg border border-blue-100 flex items-center justify-between gap-4">
+                          <div className="flex-1">
+                            <Label htmlFor="packSize" className="text-sm font-semibold text-blue-900 flex items-center gap-1.5 ">
+                              {(() => {
+                                const form = formData.form?.toLowerCase() || '';
+                                const unit = batches[activeBatchIndex].unit;
+                                let baseUnit = 'Units';
+
+                                if (form.includes('tablet') || form.includes('capsule')) baseUnit = 'Tablets';
+                                else if (form.includes('syrup') || form.includes('suspension') || form.includes('solution') || form.includes('liquid') || form.includes('drop') || form.includes('injection')) baseUnit = 'ML';
+                                else if (form.includes('cream') || form.includes('ointment') || form.includes('gel')) baseUnit = 'GM';
+                                else if (form.includes('powder')) baseUnit = 'GM';
+
+                                return `${baseUnit} per ${unit} *`;
+                              })()}
+                            </Label>
+                            <p className="text-xs text-blue-700 mt-0.5">
+                              {(() => {
+                                const unit = batches[activeBatchIndex].unit;
+
+                                if (unit === 'Strip') return 'Tablets per strip (e.g., 10)';
+                                if (unit === 'Bottle') return 'Total ML in one bottle (check label)';
+                                if (unit === 'Vial') return 'Total ML in one vial (check label)';
+                                if (unit === 'Tube') return 'Total GM in one tube (check label)';
+                                if (unit === 'Sachet') return 'Total GM in one sachet (check label)';
+                                return 'Quantity per unit';
+                              })()}
+                            </p>
+                          </div>
+                          <div className="w-32 relative">
+                            <Input
+                              id="packSize"
+                              type="number"
+                              min="1"
+                              value={batches[activeBatchIndex].packSize}
+                              onChange={(e) => updateCurrentBatch('packSize', e.target.value)}
+                              placeholder="10"
+                              className="bg-white border-blue-200 focus:ring-blue-500 h-10 text-center font-bold"
+                            />
+                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-blue-400">
+                              {(() => {
+                                const form = formData.form?.toLowerCase() || '';
+
+                                if (form.includes('tablet') || form.includes('capsule')) return 'TABS';
+                                else if (form.includes('syrup') || form.includes('suspension') || form.includes('solution') || form.includes('liquid') || form.includes('drop') || form.includes('injection')) return 'ML';
+                                else if (form.includes('cream') || form.includes('ointment') || form.includes('gel')) return 'GM';
+                                else if (form.includes('powder')) return 'GM';
+                                else return 'UNITS';
+                              })()}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+
+                      {batches[activeBatchIndex].unit === 'Box' && (
+                        <div className="space-y-3">
+                          {/* Container Count per Box */}
+                          <div className="bg-amber-50/50 p-4 rounded-lg border border-amber-100 flex items-center justify-between gap-4">
+                            <div className="flex-1">
+                              <Label htmlFor="packSize" className="text-sm font-semibold text-amber-900 flex items-center gap-1.5 ">
+                                {(() => {
+                                  const form = formData.form?.toLowerCase() || '';
+
+                                  if (form.includes('tablet') || form.includes('capsule')) return 'Strips per Box *';
+                                  else if (form.includes('syrup') || form.includes('suspension') || form.includes('solution') || form.includes('liquid') || form.includes('drop')) return 'Bottles per Box *';
+                                  else if (form.includes('injection')) return 'Vials per Box *';
+                                  else if (form.includes('cream') || form.includes('ointment') || form.includes('gel')) return 'Tubes per Box *';
+                                  else if (form.includes('powder')) return 'Sachets per Box *';
+                                  else return 'Units per Box *';
+                                })()}
+                              </Label>
+                              <p className="text-xs text-amber-700 mt-0.5">
+                                Count how many items are in one box
+                              </p>
+                            </div>
+                            <div className="w-32 relative">
+                              <Input
+                                id="packSize"
+                                type="number"
+                                min="1"
+                                value={batches[activeBatchIndex].packSize}
+                                onChange={(e) => updateCurrentBatch('packSize', e.target.value)}
+                                placeholder="10"
+                                className="bg-white border-amber-200 focus:ring-amber-500 h-10 text-center font-bold"
+                              />
+                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-amber-400">
+                                {(() => {
+                                  const form = formData.form?.toLowerCase() || '';
+
+                                  if (form.includes('tablet') || form.includes('capsule')) return 'STRIPS';
+                                  else if (form.includes('syrup') || form.includes('suspension') || form.includes('solution') || form.includes('liquid') || form.includes('drop')) return 'BTLS';
+                                  else if (form.includes('injection')) return 'VIALS';
+                                  else if (form.includes('cream') || form.includes('ointment') || form.includes('gel')) return 'TUBES';
+                                  else if (form.includes('powder')) return 'SCHS';
+                                  else return 'UNITS';
+                                })()}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Container Size (ML/GM/Tablets per individual container) */}
+                          <div className="bg-blue-50/50 p-4 rounded-lg border border-blue-100 flex items-center justify-between gap-4">
+                            <div className="flex-1">
+                              <Label htmlFor="secondaryPackSize" className="text-sm font-semibold text-blue-900 flex items-center gap-1.5">
+                                {(() => {
+                                  const form = formData.form?.toLowerCase() || '';
+
+                                  if (form.includes('tablet') || form.includes('capsule')) return 'Tablets per Strip *';
+                                  else if (form.includes('syrup') || form.includes('suspension') || form.includes('solution') || form.includes('liquid') || form.includes('drop')) return 'ML per Bottle *';
+                                  else if (form.includes('injection')) return 'ML per Vial *';
+                                  else if (form.includes('cream') || form.includes('ointment') || form.includes('gel')) return 'GM per Tube *';
+                                  else if (form.includes('powder')) return 'GM per Sachet *';
+                                  else return 'Units per Container *';
+                                })()}
+                              </Label>
+                              <p className="text-xs text-blue-700 mt-0.5">
+                                {(() => {
+                                  const form = formData.form?.toLowerCase() || '';
+
+                                  if (form.includes('tablet') || form.includes('capsule')) return 'Tablets in each strip';
+                                  else if (form.includes('syrup') || form.includes('suspension') || form.includes('solution') || form.includes('liquid') || form.includes('drop')) return 'Total ML in one bottle (check label)';
+                                  else if (form.includes('injection')) return 'Total ML in one vial (check label)';
+                                  else if (form.includes('cream') || form.includes('ointment') || form.includes('gel')) return 'Total GM in one tube (check label)';
+                                  else if (form.includes('powder')) return 'Total GM in one sachet (check label)';
+                                  else return 'Size of individual container';
+                                })()}
+                              </p>
+                            </div>
+                            <div className="w-32 relative">
+                              <Input
+                                id="secondaryPackSize"
+                                type="number"
+                                min="1"
+                                value={batches[activeBatchIndex].secondaryPackSize || ''}
+                                onChange={(e) => updateCurrentBatch('secondaryPackSize', e.target.value)}
+                                placeholder="100"
+                                className="bg-white border-blue-200 focus:ring-blue-500 h-10 text-center font-bold"
+                              />
+                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-blue-400">
+                                {(() => {
+                                  const form = formData.form?.toLowerCase() || '';
+
+                                  if (form.includes('tablet') || form.includes('capsule')) return 'TABS';
+                                  else if (form.includes('syrup') || form.includes('suspension') || form.includes('solution') || form.includes('liquid') || form.includes('drop') || form.includes('injection')) return 'ML';
+                                  else if (form.includes('cream') || form.includes('ointment') || form.includes('gel') || form.includes('powder')) return 'GM';
+                                  else return 'UNITS';
+                                })()}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Quantity */}
+                    <div>
+                      <Label htmlFor="quantity" className="text-sm font-medium text-gray-700 flex items-center gap-1">
+                        <FiPackage className="h-3.5 w-3.5" />
+                        Quantity ({batches[activeBatchIndex].unit}s) *
+                      </Label>
+                      <Input
+                        id="quantity"
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={batches[activeBatchIndex].quantity}
+                        onChange={(e) => updateCurrentBatch('quantity', e.target.value)}
+                        onKeyDown={(e) => { if (e.key === '-' || e.key === '.' || e.key === 'e') e.preventDefault(); }}
+                        placeholder="0"
+                        className={`mt-1.5 ${fieldErrors.quantity ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}`}
+                      />
+                      {fieldErrors.quantity && (
+                        <p className="text-xs text-red-600 mt-1">{fieldErrors.quantity}</p>
+                      )}
+                      {batches[activeBatchIndex].quantity && batches[activeBatchIndex].packSize && (
+                        <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-md">
+                          <p className="text-xs font-semibold text-green-800">
+                            📦 Total Stock Added: <span className="text-green-900">
+                              {(() => {
+                                const form = formData.form?.toLowerCase() || '';
+                                const unit = batches[activeBatchIndex].unit;
+                                const qty = parseInt(batches[activeBatchIndex].quantity);
+                                const packSize = parseInt(batches[activeBatchIndex].packSize || '1');
+                                const secondaryPackSize = parseInt(batches[activeBatchIndex].secondaryPackSize || '1');
+
+                                // Determine base unit and quantity
+                                let baseUnit = '';
+                                let totalQty = 0;
+
+                                if (form.includes('tablet') || form.includes('capsule')) {
+                                  baseUnit = 'Tablets';
+                                  if (unit === 'Box') {
+                                    totalQty = qty * packSize * secondaryPackSize; // Boxes × Strips/Box × Tablets/Strip
+                                  } else {
+                                    totalQty = qty * packSize; // Strips × Tablets/Strip
+                                  }
+                                } else if (form.includes('syrup') || form.includes('suspension') || form.includes('liquid') || form.includes('solution') || form.includes('drop')) {
+                                  baseUnit = 'Bottles';
+                                  if (unit === 'Box') {
+                                    totalQty = qty * packSize; // Boxes × Bottles/Box
+                                  } else {
+                                    totalQty = qty; // Direct bottle count
+                                  }
+                                } else if (form.includes('injection')) {
+                                  baseUnit = 'Vials';
+                                  if (unit === 'Box') {
+                                    totalQty = qty * packSize; // Boxes × Vials/Box
+                                  } else {
+                                    totalQty = qty; // Direct vial count
+                                  }
+                                } else if (form.includes('cream') || form.includes('ointment') || form.includes('gel')) {
+                                  baseUnit = 'Tubes';
+                                  if (unit === 'Box') {
+                                    totalQty = qty * packSize; // Boxes × Tubes/Box
+                                  } else {
+                                    totalQty = qty; // Direct tube count
+                                  }
+                                } else if (form.includes('powder') || form.includes('granule')) {
+                                  baseUnit = 'Sachets';
+                                  if (unit === 'Box') {
+                                    totalQty = qty * packSize; // Boxes × Sachets/Box
+                                  } else {
+                                    totalQty = qty; // Direct sachet count
+                                  }
+                                } else {
+                                  baseUnit = 'Units';
+                                  totalQty = qty * packSize;
+                                }
+
+                                return `${totalQty} ${baseUnit}`;
+                              })()}
+                            </span>
+                          </p>
+                          <p className="text-[10px] text-green-700 mt-0.5">This is how it will be stored and sold</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Supplier */}
+                    <div className="md:col-span-2">
+                      <Label htmlFor="supplier" className="text-sm font-medium text-gray-700 flex items-center gap-1">
+                        Supplier *
+                      </Label>
+                      {loadingSuppliers ? (
+                        <div className="mt-1.5 h-10 w-full bg-gray-100 rounded animate-pulse" />
+                      ) : (
+                        <div className="flex gap-2 mt-1.5">
+                          <div className="relative flex-1">
+                            <select
+                              id="supplier"
+                              value={batches[activeBatchIndex].supplierId}
+                              onChange={(e) => updateCurrentBatch('supplierId', e.target.value)}
+                              className={`w-full h-10 px-3 py-2 bg-white border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent appearance-none ${fieldErrors.supplierId ? 'border-red-500' : 'border-gray-200'
+                                }`}
+                            >
+                              <option value="">Select Supplier</option>
+                              {suppliers.map((supplier) => (
+                                <option key={supplier.id} value={supplier.id}>
+                                  {supplier.name}
+                                </option>
+                              ))}
+                            </select>
+                            <div className="absolute inset-y-0 right-0 flex items-center px-2 pointer-events-none text-gray-500">
+                              <FiChevronDown className="w-4 h-4" />
+                            </div>
+                          </div>
+
+                          <button
+                            onClick={() => setShowSupplierDrawer(true)}
+                            className="flex items-center justify-center w-10 h-10 bg-emerald-50 border border-emerald-200 rounded-md text-emerald-600 hover:bg-emerald-100 hover:border-emerald-300 transition-colors"
+                            title="Add New Supplier"
+                            type="button"
+                          >
+                            <FiPlus className="w-5 h-5" />
+                          </button>
+                        </div>
+                      )}
+                      {fieldErrors.supplierId && (
+                        <p className="text-xs text-red-600 mt-1">{fieldErrors.supplierId}</p>
+                      )}
+                    </div>
+                  </div>
+                </React.Fragment>
               )}
-            </div>
-          </details>
+
+            {/* Optional: Strip Image - Collapsed by Default */}
+            <details className="mb-6 border border-gray-200 rounded-lg overflow-hidden">
+              <summary className="cursor-pointer px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors flex items-center gap-2 text-sm font-medium text-gray-700">
+                <BsUpcScan className="h-4 w-4" />
+                <span>Strip Image (optional)</span>
+                <span className="text-xs text-gray-500 ml-auto">Upload or capture for OCR help</span>
+              </summary>
+
+              <div className="p-4 bg-white">
+                {!image ? (
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center bg-gray-50">
+                    <BsUpcScan className="mx-auto h-10 w-10 text-gray-400 mb-3" />
+                    <p className="text-sm text-gray-600 mb-4">We'll try to auto-read salt composition</p>
+                    <div className="flex gap-3 justify-center">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => document.getElementById('modal-file-upload')?.click()}
+                        className="text-sm"
+                      >
+                        <FiUpload className="mr-2 h-4 w-4" />
+                        Upload Image
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleCameraCapture}
+                        className="text-sm"
+                      >
+                        <BsUpcScan className="mr-2 h-4 w-4" />
+                        Use Camera
+                      </Button>
+                    </div>
+                    <input
+                      id="modal-file-upload"
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleFileChange}
+                    />
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <img
+                      src={image}
+                      alt="Medicine Strip"
+                      className="w-full rounded-lg max-h-48 object-contain border border-gray-200"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setImage(null);
+                        setSalts([]);
+                        setOcrConfidence(0);
+                        setErrors([]);
+                      }}
+                      className="w-full text-sm"
+                    >
+                      <FiX className="mr-2 h-4 w-4" />
+                      Remove Image
+                    </Button>
+                    {ocrConfidence > 0 && (
+                      <p className="text-xs text-green-600 text-center">
+                        ✓ OCR processed with {ocrConfidence}% confidence
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </details>
 
 
-          {/* Action Buttons - Sticky Footer */}
-          <div className="sticky bottom-0 bg-white border-t border-gray-200 px-6 py-4">
-            <p className="text-xs text-gray-500 mb-3">
-              Press <kbd className="px-2 py-1 bg-gray-100 border border-gray-300 rounded text-xs">Esc</kbd> to cancel
-              or <kbd className="px-2 py-1 bg-gray-100 border border-gray-300 rounded text-xs">⌘↵</kbd> to save
-            </p>
-            <div className="flex justify-between items-center"> {/* Adjusted this div to contain both p and buttons */}
-              {/* The original p tag content is now part of the sticky footer's p tag */}
-              <div className="flex gap-3 ml-auto"> {/* Pushed buttons to the right */}
-                <Button variant="outline" onClick={onClose} className="border-gray-300 text-gray-700 hover:bg-gray-50">
-                  Cancel
-                </Button>
-
-                {currentMedicineIndex !== null ? (
-                  <Button onClick={handleUpdateMedicine} className="bg-blue-600 hover:bg-blue-700 text-white">
-                    <FiCheckCircle className="mr-2 h-4 w-4" />
-                    Update Medicine
+            {/* Action Buttons - Sticky Footer */}
+            <div className="sticky bottom-0 bg-white border-t border-gray-200 px-6 py-4">
+              <p className="text-xs text-gray-500 mb-3">
+                Press <kbd className="px-2 py-1 bg-gray-100 border border-gray-300 rounded text-xs">Esc</kbd> to cancel
+                or <kbd className="px-2 py-1 bg-gray-100 border border-gray-300 rounded text-xs">⌘↵</kbd> to save
+              </p>
+              <div className="flex justify-between items-center">
+                {!showClearConfirm ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowClearConfirm(true)}
+                    className="text-gray-500 hover:bg-gray-100 hover:text-gray-900 px-2"
+                  >
+                    <FiTrash2 className="h-4 w-4 mr-1.5" />
+                    Clear Form
                   </Button>
                 ) : (
-                  <>
-                    {addedMedicines.length > 0 && (
-                      <Button onClick={handleSubmitAll} className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-md">
-                        <FiCheckCircle className="mr-2 h-4 w-4" />
-                        Submit All ({addedMedicines.length})
-                      </Button>
-                    )}
+                  <div className="flex items-center gap-2">
                     <Button
-                      onClick={async () => {
-                        // Submit current form directly without auto-saving
-                        await handleSubmit();
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        clearCurrentForm();
+                        setSelectedFromCatalog(null);
+                        setModalState(ModalState.NEW_MEDICINE);
+                        setExistingBatches([]);
+                        setSearchResults([]);
+                        setSearchQuery('');
                       }}
-                      disabled={processing || checkingDuplicate}
-                      className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-md"
+                      className="bg-red-50 text-red-600 hover:bg-red-100 hover:text-red-700 font-medium px-3 animate-in fade-in slide-in-from-left-2 duration-200"
                     >
-                      {processing || checkingDuplicate ? (
-                        <>
-                          <FiLoader className="mr-2 h-4 w-4 animate-spin" />
-                          {checkingDuplicate ? 'Checking...' : 'Saving...'}
-                        </>
-                      ) : (
-                        <>
-                          <FiCheckCircle className="mr-2 h-4 w-4" />
-                          Add Medicine{addedMedicines.length > 0 ? ` (${addedMedicines.length})` : ''}
-                        </>
-                      )}
+                      Are you sure?
                     </Button>
-                  </>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowClearConfirm(false)}
+                      className="text-xs text-gray-400 hover:text-gray-600"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
                 )}
+                <div className="flex gap-3">
+                  <Button variant="outline" onClick={onClose} className="border-gray-300 text-gray-700 hover:bg-gray-50">
+                    Cancel
+                  </Button>
+
+                  {currentMedicineIndex !== null ? (
+                    <Button onClick={handleUpdateMedicine} className="bg-blue-600 hover:bg-blue-700 text-white">
+                      <FiCheckCircle className="mr-2 h-4 w-4" />
+                      Update Medicine
+                    </Button>
+                  ) : (
+                    <>
+                      {addedMedicines.length > 0 && (
+                        <Button onClick={handleSubmitAll} disabled={isSubmitting} className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-md disabled:opacity-50 disabled:cursor-not-allowed">
+                          <FiCheckCircle className="mr-2 h-4 w-4" />
+                          {isSubmitting ? 'Submitting...' : `Submit All (${addedMedicines.length})`}
+                        </Button>
+                      )}
+                      <Button
+                        onClick={async () => {
+                          // Submit current form directly without auto-saving
+                          await handleSubmit();
+                        }}
+                        disabled={processing || checkingDuplicate}
+                        className="bg-emerald-600 hover:bg-emerald-700 text-white shadow-md"
+                      >
+                        {processing || checkingDuplicate ? (
+                          <>
+                            <FiLoader className="mr-2 h-4 w-4 animate-spin" />
+                            {checkingDuplicate ? 'Checking...' : 'Saving...'}
+                          </>
+                        ) : (
+                          <>
+                            <FiCheckCircle className="mr-2 h-4 w-4" />
+                            Add Medicine{addedMedicines.length > 0 ? ` (${addedMedicines.length})` : ''}
+                          </>
+                        )}
+                      </Button>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
 
-      {/* Camera Modal */}
-      {
-        showCamera && (
-          <AdvancedCamera
-            onCapture={handleCameraPhoto}
-            onClose={() => setShowCamera(false)}
-            title="Capture Medicine Strip"
+        {/* Camera Modal */}
+        {
+          showCamera && (
+            <AdvancedCamera
+              onCapture={handleCameraPhoto}
+              onClose={() => setShowCamera(false)}
+              title="Capture Medicine Strip"
+            />
+          )
+        }
+
+        {/* Barcode Scanner Modal */}
+        {showScanner && (
+          <BarcodeScannerModal
+            onClose={() => setShowScanner(false)}
+            onScan={handleBarcodeScan}
           />
-        )
-      }
+        )}
 
-      {/* Barcode Scanner Modal */}
-      {showScanner && (
-        <BarcodeScannerModal
-          onClose={() => setShowScanner(false)}
-          onScan={handleBarcodeScan}
-        />
-      )}
+        {/* Duplicate Detected Modal */}
+        {showDuplicateModal && duplicateCheckResult?.existingMedicine && (
+          <DuplicateDetectedModal
+            isOpen={showDuplicateModal}
+            existingMedicine={duplicateCheckResult.existingMedicine}
+            onAddBatch={() => {
+              // Close the duplicate modal and the main modal
+              setShowDuplicateModal(false);
+              onClose();
 
-      {/* Duplicate Detected Modal */}
-      {showDuplicateModal && duplicateCheckResult?.existingMedicine && (
-        <DuplicateDetectedModal
-          isOpen={showDuplicateModal}
-          existingMedicine={duplicateCheckResult.existingMedicine}
-          onAddBatch={() => {
-            // Close the duplicate modal and the main modal
-            setShowDuplicateModal(false);
-            onClose();
+              // Show a toast guiding the user
+              toast.info('Medicine already exists!', {
+                description: 'Go to Inventory → Stock and select the medicine to add a new batch.',
+                duration: 6000,
+              });
+            }}
+            onViewDetails={() => {
+              // TODO: Open medicine detail sidebar
+              setShowDuplicateModal(false);
+              toast.info('Medicine details feature coming soon');
+            }}
+            onCancel={() => {
+              setShowDuplicateModal(false);
+              setDuplicateCheckResult(null);
+            }}
+          />
+        )}
 
-            // Show a toast guiding the user
-            toast.info('Medicine already exists!', {
-              description: 'Go to Inventory → Stock and select the medicine to add a new batch.',
-              duration: 6000,
-            });
-          }}
-          onViewDetails={() => {
-            // TODO: Open medicine detail sidebar
-            setShowDuplicateModal(false);
-            toast.info('Medicine details feature coming soon');
-          }}
-          onCancel={() => {
-            setShowDuplicateModal(false);
-            setDuplicateCheckResult(null);
-          }}
-        />
-      )}
+        {/* Similar Medicine Warning (shown in form content area, not as modal) */}
 
-      {/* Similar Medicine Warning (shown in form content area, not as modal) */}
+        {/* Supplier Drawer */}
+        {showSupplierDrawer && (
+          <SupplierDrawer
+            isOpen={showSupplierDrawer}
+            onClose={() => setShowSupplierDrawer(false)}
+            onSuccess={(newSupplier) => {
+              setSuppliers(prev => [...prev, newSupplier]);
+              updateCurrentBatch('supplierId', newSupplier.id);
+              setShowSupplierDrawer(false);
+              toast.success('Supplier added!');
+            }}
+          />
+        )}
+      </div>
     </div>
   );
-}
+};

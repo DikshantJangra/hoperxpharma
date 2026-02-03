@@ -6,6 +6,7 @@ const validate = require('../../middlewares/validate');
 const auditLogger = require('../../middlewares/auditLogger');
 const {
     drugSchema,
+    drugUpdateSchema,
     batchCreateSchema,
     batchUpdateSchema,
     stockAdjustmentSchema,
@@ -23,7 +24,7 @@ router.use(authenticate);
 router.get('/drugs', requireStoreAccess, validate(inventoryQuerySchema, 'query'), inventoryController.getDrugs);
 router.get('/drugs/:id', inventoryController.getDrugById);
 router.post('/drugs', requirePharmacist, validate(drugSchema), auditLogger.logActivity('DRUG_CREATED', 'drug'), inventoryController.createDrug);
-router.put('/drugs/:id', requirePharmacist, validate(drugSchema), auditLogger.logActivity('DRUG_UPDATED', 'drug'), inventoryController.updateDrug);
+router.put('/drugs/:id', requirePharmacist, validate(drugUpdateSchema), auditLogger.logActivity('DRUG_UPDATED', 'drug'), inventoryController.updateDrug);
 router.delete('/drugs/:id', requirePharmacist, auditLogger.logActivity('DRUG_DELETED', 'drug'), inventoryController.deleteDrug);
 
 /**

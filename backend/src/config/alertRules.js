@@ -31,7 +31,7 @@ const INVENTORY_RULES = [
         message: (payload) =>
             `This batch has crossed its expiry date and cannot be sold.\n\n` +
             `Batch ${payload.batchNumber} of ${payload.drugName} expired on ${new Date(payload.expiryDate).toLocaleDateString()}. ` +
-            `${payload.quantityInStock} units remaining.\n\n` +
+            `${payload.baseUnitQuantity} units remaining.\n\n` +
             `Action required: Remove the batch from active stock.`,
 
         actionLabel: 'View Batch',
@@ -65,7 +65,7 @@ const INVENTORY_RULES = [
 
             return `${urgency}\n\n` +
                 `${payload.drugName} batch ${payload.batchNumber} expires on ${expiryDate}. ` +
-                `${payload.quantityInStock} units in stock.\n\n` +
+                `${payload.baseUnitQuantity} units in stock.\n\n` +
                 `Consider a discount sale or supplier return to minimize loss.`;
         },
 
@@ -89,7 +89,7 @@ const INVENTORY_RULES = [
         message: (payload) =>
             `Plan ahead to avoid stock loss.\n\n` +
             `${payload.drugName} batch ${payload.batchNumber} expires on ${new Date(payload.expiryDate).toLocaleDateString()}. ` +
-            `${payload.quantityInStock} units in stock.`,
+            `${payload.baseUnitQuantity} units in stock.`,
 
         actionLabel: 'View Batch',
         actionUrl: (payload) => `/inventory/batches/${payload.entityId}`,

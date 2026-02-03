@@ -156,7 +156,7 @@ class DuplicateDetectionService {
                         select: {
                             id: true,
                             batchNumber: true,
-                            quantityInStock: true,
+                            baseUnitQuantity: true,
                             baseUnitQuantity: true
                         }
                     }
@@ -188,7 +188,7 @@ class DuplicateDetectionService {
                 if (nameMatch && manufacturerMatch && formMatch && saltMatch) {
                     // Calculate total stock
                     const totalStock = candidate.inventory?.reduce((sum, batch) => {
-                        return sum + (batch.baseUnitQuantity || batch.quantityInStock || 0);
+                        return sum + (batch.baseUnitQuantity || 0);
                     }, 0) || 0;
 
                     logger.info('[Duplicate Detection] EXACT DUPLICATE FOUND:', {
@@ -251,7 +251,7 @@ class DuplicateDetectionService {
                         where: { deletedAt: null },
                         select: {
                             id: true,
-                            quantityInStock: true,
+                            baseUnitQuantity: true,
                             baseUnitQuantity: true
                         }
                     }
@@ -281,7 +281,7 @@ class DuplicateDetectionService {
 
                 if (nameSimilar || saltMatch) {
                     const totalStock = candidate.inventory?.reduce((sum, batch) => {
-                        return sum + (batch.baseUnitQuantity || batch.quantityInStock || 0);
+                        return sum + (batch.baseUnitQuantity || 0);
                     }, 0) || 0;
 
                     similarMedicines.push({
@@ -338,7 +338,7 @@ class DuplicateDetectionService {
                 return {
                     batchExists: true,
                     batchId: existing.id,
-                    currentStock: existing.baseUnitQuantity || existing.quantityInStock,
+                    currentStock: existing.baseUnitQuantity,
                     expiryDate: existing.expiryDate,
                     message: `Batch ${batchNumber} already exists for ${existing.drug.name}`,
                     suggestedAction: 'UPDATE_BATCH'

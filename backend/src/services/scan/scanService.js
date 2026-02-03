@@ -159,7 +159,7 @@ class ScanService {
             id: barcodeData.batch.id,
             drugName: barcodeData.batch.drug?.name,
             batchNumber: barcodeData.batch.batchNumber,
-            qty: barcodeData.batch.quantityInStock,
+            qty: barcodeData.batch.baseUnitQuantity,
             deleted: barcodeData.batch.deletedAt
         })}`);
 
@@ -169,8 +169,8 @@ class ScanService {
         }
 
         // Check stock availability
-        if (barcodeData.batch.quantityInStock <= 0) {
-            throw ApiError.badRequest(`No stock available for ${barcodeData.batch.drug.name} (Batch: ${barcodeData.batch.batchNumber})`);
+        if (barcodeData.batch.baseUnitQuantity <= 0) {
+            throw new Error(`No stock available for ${barcodeData.batch.drug.name} (Batch: ${barcodeData.batch.batchNumber})`);
         }
 
         // Check expiry
@@ -219,7 +219,6 @@ class ScanService {
             daysToExpiry,
             isExpiringSoon: daysToExpiry <= 90,
             isExpired: daysToExpiry < 0,
-            quantityInStock: batch.quantityInStock,
             baseUnitQuantity: batch.baseUnitQuantity,
             mrp: batch.mrp,
             gstRate: batch.drug.gstRate,
@@ -291,7 +290,7 @@ class ScanService {
 
         const batch = barcodeData.batch;
         const isExpired = dayjs(batch.expiryDate).isBefore(dayjs());
-        const hasStock = batch.quantityInStock > 0;
+        const hasStock = batch.baseUnitQuantity > 0;
 
         return {
             valid: !isExpired && hasStock && !batch.deletedAt,

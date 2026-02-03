@@ -219,7 +219,7 @@ test.describe('Prescription - Dispense', () => {
                 where: { id: batch.id },
             });
 
-            expect(updatedBatch!.quantityInStock).toBe(90); // 100 - 10
+            expect(Number(updatedBatch!.baseUnitQuantity)).toBe(90); // 100 - 10
             console.log('✅ Dispense completed, inventory verified');
 
             // VERIFY: Prescription completed

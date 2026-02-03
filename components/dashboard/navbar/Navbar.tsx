@@ -276,7 +276,7 @@ function RightSection({ showNotifications, setShowNotifications, showUserMenu, s
                     <span className="hidden lg:inline">New Rx</span>
                 </Link>
                 <Link
-                    href="/pos"
+                    href="/pos/new-sale"
                     data-tour="quick-pos"
                     className={`p-2 md:px-3 md:py-1.5 ${isPremium
                         ? 'bg-white/10 text-white/90 hover:bg-white/20 backdrop-blur-sm border border-white/10 hover:border-white/20'

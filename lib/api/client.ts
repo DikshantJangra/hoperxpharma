@@ -186,7 +186,7 @@ async function baseFetch(
 ): Promise<any> {
     // CRITICAL: Only refresh for non-auth endpoints AND only if we have a token
     const shouldRefresh = !endpoint.includes('/auth/') && tokenManager.getAccessToken();
-    
+
     if (shouldRefresh) {
         try {
             await refreshTokenIfNeeded();
@@ -263,7 +263,7 @@ async function baseFetch(
             }
             throw new ApiRequestError(
                 response.status,
-                data.message || 'Request failed',
+                data.error?.message || data.message || 'Request failed',
                 data
             );
         }
@@ -291,7 +291,7 @@ async function baseFetch(
         // Check for offline/network error
         const isNetError = isNetworkError(error);
         const isMutation = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(options.method || 'GET');
-        
+
         // CRITICAL: Never queue auth endpoints - they should fail immediately
         const isAuthEndpoint = endpoint.includes('/auth/');
 

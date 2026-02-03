@@ -17,6 +17,8 @@ export interface Medicine {
     composition?: string; // Alias for compositionText
     type?: string; // Alias for form
     discontinued?: boolean; // Derived from status
+    hsnCode?: string; // HSN Code for GST
+    gstRate?: number; // GST Tax Rate
 }
 
 export interface MedicineSearchIndex {

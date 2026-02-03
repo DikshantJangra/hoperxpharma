@@ -71,7 +71,7 @@ export default function MedicationsTab({ prescription, onUpdate, isLoading = fal
                 <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Quantity Prescribed</label>
                 <p className="text-sm font-semibold text-gray-900 mt-1">
                   {formatStockQuantity({
-                    quantityInStock: medication.quantityPrescribed || medication.quantity || 0,
+                    baseUnitQuantity: medication.quantityPrescribed || medication.quantity || 0,
                     baseUnit: medication.drug?.baseUnit || medication.baseUnit || 'Tablet',
                     displayUnit: medication.unit || medication.drug?.displayUnit || 'Strip',
                     // Default to 10 if no conversion factor - consistent with SmartQuantityInput
@@ -125,7 +125,7 @@ export default function MedicationsTab({ prescription, onUpdate, isLoading = fal
                     </label>
                     <p className="text-sm font-medium text-gray-900 mt-1">
                       {formatStockQuantity({
-                        quantityInStock: medication.batch.quantityInStock,
+                        quantityInStock: Number(medication.batch.baseUnitQuantity),
                         baseUnit: medication.drug?.baseUnit || medication.baseUnit || 'Tablet',
                         displayUnit: medication.drug?.displayUnit || medication.drug?.unit || 'Strip',
                         // Default to 10 if no conversion factor - consistent with SmartQuantityInput

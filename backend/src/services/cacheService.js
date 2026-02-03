@@ -8,7 +8,7 @@ class CacheService {
     constructor() {
         this.cache = new Map();
         this.ttls = new Map();
-        
+
         // Cleanup expired entries every 5 minutes
         this.cleanupInterval = setInterval(() => {
             this.cleanup();
@@ -24,7 +24,7 @@ class CacheService {
         // Check if key exists and is not expired
         if (this.cache.has(key)) {
             const expiresAt = this.ttls.get(key);
-            
+
             if (expiresAt && Date.now() > expiresAt) {
                 // Expired, remove it
                 this.cache.delete(key);
@@ -32,11 +32,11 @@ class CacheService {
                 logger.debug(`Cache expired: ${key}`);
                 return null;
             }
-            
+
             logger.debug(`Cache hit: ${key}`);
             return this.cache.get(key);
         }
-        
+
         logger.debug(`Cache miss: ${key}`);
         return null;
     }
@@ -49,12 +49,12 @@ class CacheService {
      */
     set(key, value, ttlSeconds = 3600) {
         this.cache.set(key, value);
-        
+
         if (ttlSeconds > 0) {
             const expiresAt = Date.now() + (ttlSeconds * 1000);
             this.ttls.set(key, expiresAt);
         }
-        
+
         logger.debug(`Cache set: ${key} (TTL: ${ttlSeconds}s)`);
     }
 
@@ -66,11 +66,11 @@ class CacheService {
         const existed = this.cache.has(key);
         this.cache.delete(key);
         this.ttls.delete(key);
-        
+
         if (existed) {
             logger.debug(`Cache deleted: ${key}`);
         }
-        
+
         return existed;
     }
 
@@ -81,7 +81,7 @@ class CacheService {
     deletePattern(pattern) {
         const regex = new RegExp('^' + pattern.replace(/\*/g, '.*') + '$');
         let deletedCount = 0;
-        
+
         for (const key of this.cache.keys()) {
             if (regex.test(key)) {
                 this.cache.delete(key);
@@ -89,11 +89,11 @@ class CacheService {
                 deletedCount++;
             }
         }
-        
+
         if (deletedCount > 0) {
             logger.debug(`Cache pattern deleted: ${pattern} (${deletedCount} keys)`);
         }
-        
+
         return deletedCount;
     }
 
@@ -113,7 +113,7 @@ class CacheService {
     cleanup() {
         const now = Date.now();
         let cleanedCount = 0;
-        
+
         for (const [key, expiresAt] of this.ttls.entries()) {
             if (now > expiresAt) {
                 this.cache.delete(key);
@@ -121,7 +121,7 @@ class CacheService {
                 cleanedCount++;
             }
         }
-        
+
         if (cleanedCount > 0) {
             logger.debug(`Cache cleanup: ${cleanedCount} expired entries removed`);
         }
@@ -149,6 +149,30 @@ class CacheService {
         this.clear();
         logger.info('Cache service shutdown');
     }
+
+    // CRITICAL FIX: Add keys helper for structured cache keys
+    keys = {
+        storeSettings: (storeId) => `store:${storeId}:settings`,
+        storeDrugs: (storeId) => `store:${storeId}:drugs`,
+        drugStock: (drugId) => `drug:${drugId}:stock`,
+        userPermissions: (userId) => `user:${userId}:permissions`,
+    };
+
+    // CRITICAL FIX: Add invalidate helper for clearing store-related cache
+    invalidate = {
+        storeData: async (storeId) => {
+            this.deletePattern(`store:${storeId}:*`);
+        },
+        drugData: async (drugId) => {
+            this.deletePattern(`drug:${drugId}:*`);
+        },
+        userData: async (userId) => {
+            this.deletePattern(`user:${userId}:*`);
+        }
+    };
+
+    // Alias for backward compatibility
+    flush = () => this.clear();
 }
 
 // Export singleton instance

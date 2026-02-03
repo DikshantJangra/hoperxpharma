@@ -60,7 +60,7 @@ const SORTABLE_FIELDS = {
     inventory: [
         'batchNumber',
         'expiryDate',
-        'quantityInStock',
+        'baseUnitQuantity',
         'mrp',
         'purchasePrice',
         'createdAt',

@@ -50,6 +50,13 @@ const getDrugs = asyncHandler(async (req, res) => {
 const getDrugById = asyncHandler(async (req, res) => {
     const drug = await inventoryService.getDrugById(req.params.id);
 
+    console.log('🔍 getDrugById Controller Response:', {
+        id: drug?.id,
+        name: drug?.name,
+        inventoryCount: drug?.inventory?.length || 0,
+        inventoryKeys: drug?.inventory?.[0] ? Object.keys(drug.inventory[0]) : []
+    });
+
     const response = ApiResponse.success(drug);
     res.status(response.statusCode).json(response);
 });

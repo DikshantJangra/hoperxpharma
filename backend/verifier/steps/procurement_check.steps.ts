@@ -365,9 +365,9 @@ export const procurementSteps = {
 
                 if (!batch) {
                     mismatches.push(`Batch ${expected.batchNumber} not found`);
-                } else if (batch.quantityInStock !== expected.quantity) {
+                } else if (Number(batch.baseUnitQuantity) !== expected.quantity) {
                     mismatches.push(
-                        `Batch ${expected.batchNumber}: expected ${expected.quantity}, got ${batch.quantityInStock}`
+                        `Batch ${expected.batchNumber}: expected ${expected.quantity}, got ${batch.baseUnitQuantity}`
                     );
                 }
             }

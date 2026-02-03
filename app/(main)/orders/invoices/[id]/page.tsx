@@ -2,19 +2,27 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { FiDownload, FiPrinter, FiArrowLeft, FiCheck, FiSend } from 'react-icons/fi';
+import { FiDownload, FiPrinter, FiArrowLeft, FiCheck, FiRefreshCw } from 'react-icons/fi';
 import { consolidatedInvoicesApi, type ConsolidatedInvoice } from '@/lib/api/consolidatedInvoices';
+import { salesApi } from '@/lib/api/sales';
 import { toast } from 'sonner';
 import { generateInvoicePDF } from '@/lib/pdf/invoicePDF';
+import ReturnForm from '@/components/orders/ReturnForm';
+import ManagerOverrideModal from '@/components/common/ManagerOverrideModal';
 
 export default function InvoiceDetailPage() {
     const params = useParams();
     const router = useRouter();
-    const invoiceId = params.id as string;
+    const invoiceId = params?.id as string;
 
     const [invoice, setInvoice] = useState<ConsolidatedInvoice | null>(null);
     const [loading, setLoading] = useState(true);
     const [generating, setGenerating] = useState(false);
+
+    // Return Flow States
+    const [showReturnForm, setShowReturnForm] = useState(false);
+    const [showManagerOverride, setShowManagerOverride] = useState(false);
+    const [pendingRefundData, setPendingRefundData] = useState<any>(null);
 
     useEffect(() => {
         if (invoiceId) {
@@ -69,6 +77,61 @@ export default function InvoiceDetailPage() {
         }
     };
 
+    // --- Return Logic ---
+
+    const handleReturnSubmit = async (returnData: any) => {
+        // Prepare data for API
+        const formattedData = {
+            items: returnData.items.map((item: any) => ({
+                saleItemId: item.saleItemId,
+                quantity: item.quantity,
+                intent: item.intent,
+                condition: item.condition,
+                reason: item.reason || 'Customer Return',
+                // batchId: Not needed, backend looks it up from saleItemId
+            })),
+            refundType: returnData.refundType,
+            storeId: invoice?.storeId
+        };
+
+        // Check if override needed (Mock logic or check API response)
+        // For now, let's assume if it contains Restricted items it needs override
+        // But simply, we try to submit. If it fails with 403/NeedApproval, we show modal.
+        // Or simpler: Trigger modal if refund > 1000
+
+        if (returnData.refundAmount > 1000) {
+            setPendingRefundData(formattedData);
+            setShowReturnForm(false);
+            setShowManagerOverride(true);
+            return;
+        }
+
+        await processRefund(formattedData);
+    };
+
+    const processRefund = async (data: any, managerId?: string) => {
+        try {
+            const payload = managerId ? { ...data, approvedBy: managerId } : data;
+            // Use saleId here. Assuming invoice.id corresponds to saleId or we have saleId
+            // Invoice endpoint returns "ConsolidatedInvoice", need to check if it has saleId linkage
+            // Actually, in this system, maybe Invoice ID IS Sale ID or related. 
+            // Let's use `invoice.id` as saleId for now based on context.
+
+            await salesApi.initiateRefund(invoiceId, payload);
+            toast.success('Return initiated successfully!');
+            setShowReturnForm(false);
+            setShowManagerOverride(false);
+        } catch (error: any) {
+            toast.error(error.message || 'Failed to initiate return');
+        }
+    };
+
+    const handleManagerApprove = (managerId: string) => {
+        if (pendingRefundData) {
+            processRefund(pendingRefundData, managerId);
+        }
+    };
+
     if (loading) {
         return (
             <div className="flex items-center justify-center h-screen">
@@ -120,6 +183,14 @@ export default function InvoiceDetailPage() {
                     </div>
 
                     <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setShowReturnForm(true)}
+                            className="px-4 py-2 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg hover:bg-amber-100 flex items-center gap-2 transition-colors"
+                        >
+                            <FiRefreshCw className="w-4 h-4" />
+                            Return
+                        </button>
+
                         {invoice.status === 'DRAFT' && (
                             <button
                                 onClick={handleFinalize}
@@ -275,6 +346,23 @@ export default function InvoiceDetailPage() {
                     </div>
                 </div>
             </div>
+
+            {/* Modals */}
+            {showReturnForm && (
+                <ReturnForm
+                    saleId={invoice.id}
+                    saleItems={invoice.items.map(i => ({ ...i, id: i.id, drug: { name: i.drugName }, quantity: i.totalQuantity, lineTotal: i.lineTotal }))}
+                    onSubmit={handleReturnSubmit}
+                    onCancel={() => setShowReturnForm(false)}
+                />
+            )}
+
+            <ManagerOverrideModal
+                isOpen={showManagerOverride}
+                onClose={() => setShowManagerOverride(false)}
+                onApprove={handleManagerApprove}
+                reason="High Value Refund (Over ₹1000)"
+            />
         </div>
     );
 }

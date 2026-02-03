@@ -20,10 +20,9 @@ export default function AddDrugModal({ isOpen, onClose, onSuccess }: AddDrugModa
         strength: '',
         form: '',
         hsnCode: '',
-        gstRate: '12',
+        gstRate: '5',
         requiresPrescription: false,
         defaultUnit: 'Strip',
-        lowStockThreshold: '10',
         lowStockThreshold: '10',
         schedule: '',
         addOpeningStock: false,
@@ -32,7 +31,8 @@ export default function AddDrugModal({ isOpen, onClose, onSuccess }: AddDrugModa
             expiryDate: '',
             quantity: '',
             mrp: '',
-            purchaseRate: ''
+            purchaseRate: '',
+            tabletsPerUnit: '10'
         }
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -50,14 +50,20 @@ export default function AddDrugModal({ isOpen, onClose, onSuccess }: AddDrugModa
                 ...formData,
                 gstRate: parseFloat(formData.gstRate),
                 lowStockThreshold: parseInt(formData.lowStockThreshold),
+                // Map defaultUnit to both displayUnit and baseUnit
+                displayUnit: formData.defaultUnit,
+                baseUnit: formData.form || 'Tablet',
                 // Only include initialStock if the checkbox is checked
                 initialStock: formData.addOpeningStock ? {
                     ...formData.initialStock,
                     quantity: parseFloat(formData.initialStock.quantity),
                     mrp: parseFloat(formData.initialStock.mrp),
-                    purchaseRate: parseFloat(formData.initialStock.purchaseRate || '0')
+                    purchaseRate: parseFloat(formData.initialStock.purchaseRate || '0'),
+                    // Add unit configuration to batch
+                    receivedUnit: formData.defaultUnit,
+                    tabletsPerStrip: parseInt(formData.initialStock.tabletsPerUnit) || 1
                 } : undefined
-            });
+            } as any);
 
             if (response.success) {
                 toast.success('Drug added successfully!');
@@ -71,11 +77,20 @@ export default function AddDrugModal({ isOpen, onClose, onSuccess }: AddDrugModa
                     strength: '',
                     form: '',
                     hsnCode: '',
-                    gstRate: '12',
+                    gstRate: '5',
                     requiresPrescription: false,
                     defaultUnit: 'Strip',
                     lowStockThreshold: '10',
-                    schedule: ''
+                    schedule: '',
+                    addOpeningStock: false,
+                    initialStock: {
+                        batchNumber: '',
+                        expiryDate: '',
+                        quantity: '',
+                        mrp: '',
+                        purchaseRate: '',
+                        tabletsPerUnit: '10'
+                    }
                 });
             }
         } catch (error: any) {
@@ -379,6 +394,28 @@ export default function AddDrugModal({ isOpen, onClose, onSuccess }: AddDrugModa
                                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0ea5a3]"
                                             placeholder="0.00"
                                         />
+                                    </div>
+
+                                    {/* Tablets Per Unit */}
+                                    <div className="col-span-2">
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            {formData.form || 'Units'} per {formData.defaultUnit} <span className="text-red-500">*</span>
+                                        </label>
+                                        <input
+                                            type="number"
+                                            required={formData.addOpeningStock}
+                                            min="1"
+                                            value={formData.initialStock?.tabletsPerUnit || ''}
+                                            onChange={(e) => setFormData({
+                                                ...formData,
+                                                initialStock: { ...formData.initialStock!, tabletsPerUnit: e.target.value }
+                                            })}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0ea5a3]"
+                                            placeholder="e.g., 10 tablets per strip"
+                                        />
+                                        <p className="text-xs text-gray-500 mt-1">
+                                            How many {formData.form?.toLowerCase() || 'units'} are in one {formData.defaultUnit.toLowerCase()}?
+                                        </p>
                                     </div>
                                 </div>
                             )}

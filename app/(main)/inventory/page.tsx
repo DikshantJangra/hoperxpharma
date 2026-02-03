@@ -161,7 +161,7 @@ export default function InventoryPage() {
                         <td className="px-4 py-3 text-sm text-[#64748b]">{item.batchNumber}</td>
                         <td className="px-4 py-3 text-sm text-[#64748b]">{format(expiryDate, 'dd MMM yyyy')}</td>
                         <td className="px-4 py-3 text-sm font-bold text-amber-600">{daysLeft} days</td>
-                        <td className="px-4 py-3 text-sm text-[#64748b]">{item.quantityInStock}</td>
+                        <td className="px-4 py-3 text-sm text-[#64748b]">{Number(item.baseUnitQuantity)}</td>
                     </tr>
                 );
             });

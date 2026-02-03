@@ -135,9 +135,9 @@ export default function StockTable({
             </>
           ) : drugs.length > 0 ? (
             drugs.map((drug) => {
-              const totalStock = drug.inventory?.reduce((sum: number, batch: any) => sum + batch.quantityInStock, 0) || 0;
+              const totalStock = drug.inventory?.reduce((sum: number, batch: any) => sum + (batch.baseUnitQuantity || 0), 0) || 0;
               const batchCount = drug.inventory?.length || 0;
-              const totalStockFormatted = formatStockQuantity({ ...drug, quantityInStock: totalStock });
+              const totalStockFormatted = formatStockQuantity({ ...drug, baseUnitQuantity: totalStock });
               const lowStock = totalStock <= (drug.lowStockThresholdBase || drug.lowStockThreshold || 10);
 
               return (
@@ -176,7 +176,7 @@ export default function StockTable({
                             {drug.requiresColdStorage && <BsSnow className="w-3 h-3 text-[#3b82f6]" title="Cold chain" />}
                           </div>
                           <div className="text-xs text-[#64748b]">{drug.strength} • {drug.form}</div>
-                          <div className="text-xs text-[#94a3b8]">Generic: {drug.genericName || 'N/A'}</div>
+                          {drug.genericName && <div className="text-xs text-[#94a3b8]">Generic: {drug.genericName}</div>}
                         </div>
                       </div>
                     </td>
@@ -185,12 +185,12 @@ export default function StockTable({
                       <span className="px-2 py-1 bg-[#f1f5f9] text-[#64748b] text-xs rounded">{batchCount}</span>
                     </td>
                     <td className="px-4 py-3 text-right">
-                      {renderStockQuantity({ totalStock, drug })}
+                      {renderStockQuantity({ baseUnitQuantity: totalStock, drug })}
                     </td>
                     <td className="px-4 py-3 text-right text-[#64748b]">{drug.gstRate}%</td>
                     <td className="px-4 py-3 text-right">
                       <span className={lowStock ? 'text-[#ef4444] font-semibold' : 'text-[#64748b]'}>
-                        {formatStockQuantity({ ...drug, quantityInStock: drug.lowStockThresholdBase || drug.lowStockThreshold || 10 })}
+                        {formatStockQuantity({ ...drug, baseUnitQuantity: drug.lowStockThresholdBase || drug.lowStockThreshold || 10 })}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-center">
@@ -209,6 +209,7 @@ export default function StockTable({
                   {/* Expanded Batch Rows */}
                   {expandedRows.has(drug.id) && drug.inventory?.map((batch: any) => {
                     const daysToExpiry = Math.floor((new Date(batch.expiryDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                    const batchWithDrug = { ...batch, drug };
 
                     return (
                       <tr key={batch.id} className="bg-[#f8fafc] border-b border-[#f1f5f9]">
@@ -231,7 +232,7 @@ export default function StockTable({
                           </div>
                         </td>
                         <td className="px-4 py-2 text-right text-sm text-[#64748b]">
-                          {renderStockQuantity(batch)}
+                          {renderStockQuantity(batchWithDrug)}
                         </td>
                         <td className="px-4 py-2 text-right text-sm text-[#64748b]">₹{Number(batch.purchasePrice).toFixed(2)}</td>
                         <td className="px-4 py-2 text-right text-sm text-[#64748b]">₹{Number(batch.mrp).toFixed(2)}</td>

@@ -21,7 +21,7 @@ class InventoryDisplayHelper {
      */
     async formatQuantityForDisplay(batch, drug) {
         try {
-            const baseQty = batch.baseUnitQuantity || batch.quantityInStock || 0;
+            const baseQty = batch.baseUnitQuantity || 0;
             const targetUnit = drug.displayUnit || drug.baseUnit || 'unit';
 
             // If already in display unit or no conversion configured, return as-is
@@ -48,7 +48,7 @@ class InventoryDisplayHelper {
         } catch (error) {
             // Fallback: show base quantity
             logger.warn(`Failed to format inventory display for drug ${drug.id}:`, error.message);
-            const baseQty = batch.baseUnitQuantity || batch.quantityInStock || 0;
+            const baseQty = batch.baseUnitQuantity || 0;
             return {
                 quantity: parseFloat(baseQty),
                 unit: drug.baseUnit || 'unit',
@@ -137,7 +137,7 @@ class InventoryDisplayHelper {
     async summarizeTotalStock(batches, drug) {
         try {
             const totalBaseQty = batches.reduce((sum, b) => {
-                return sum + (b.baseUnitQuantity || b.quantityInStock || 0);
+                return sum + (Number(b.baseUnitQuantity) || 0);
             }, 0);
 
             const display = await this.formatWithBothUnits(totalBaseQty, drug);
@@ -150,7 +150,7 @@ class InventoryDisplayHelper {
         } catch (error) {
             logger.error('Error summarizing total stock:', error);
             const totalBaseQty = batches.reduce((sum, b) => {
-                return sum + (b.quantityInStock || 0);
+                return sum + (Number(b.baseUnitQuantity) || 0);
             }, 0);
 
             return {
@@ -169,14 +169,14 @@ class InventoryDisplayHelper {
      */
     async formatStockMovement(movement) {
         try {
-            const quantity = movement.baseUnitQuantity || movement.quantity || 0;
+            const quantity = movement.baseUnitQuantity || 0;
             const unit = movement.movementUnit || 'unit';
             const origQty = movement.originalQuantity || Math.abs(quantity);
 
             const direction = quantity >= 0 ? '+' : '';
             return `${direction}${origQty} ${unit}${origQty !== 1 ? 's' : ''}`;
         } catch (error) {
-            const quantity = movement.quantity || 0;
+            const quantity = movement.baseUnitQuantity || 0;
             return `${quantity >= 0 ? '+' : ''}${quantity} units`;
         }
     }

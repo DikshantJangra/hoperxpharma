@@ -16,9 +16,9 @@ export const inventoryAssert = {
         });
 
         return {
-            passed: batch !== null && batch.quantityInStock >= 0,
+            passed: batch !== null && Number(batch.baseUnitQuantity) >= 0,
             expected: '>= 0',
-            actual: batch?.quantityInStock ?? 'Batch not found',
+            actual: batch?.baseUnitQuantity ?? 'Batch not found',
             message: 'Stock quantity must never be negative'
         };
     },
@@ -30,13 +30,13 @@ export const inventoryAssert = {
         const negativeBatches = await prisma.inventoryBatch.findMany({
             where: {
                 storeId: ctx.storeId,
-                quantityInStock: { lt: 0 },
+                baseUnitQuantity: { lt: 0 },
                 deletedAt: null
             },
             select: {
                 id: true,
                 batchNumber: true,
-                quantityInStock: true,
+                baseUnitQuantity: true,
                 drug: { select: { name: true } }
             }
         });
@@ -45,7 +45,7 @@ export const inventoryAssert = {
             passed: negativeBatches.length === 0,
             expected: 'No batches with negative stock',
             actual: negativeBatches.length > 0
-                ? negativeBatches.map((b: any) => `${b.drug.name} (${b.batchNumber}): ${b.quantityInStock}`)
+                ? negativeBatches.map((b: any) => `${b.drug.name} (${b.batchNumber}): ${b.baseUnitQuantity}`)
                 : 'All batches OK',
             message: 'All inventory batches must have non-negative stock'
         };
@@ -90,9 +90,9 @@ export const inventoryAssert = {
 
             if (!batch) {
                 mismatches.push(`Batch ${expected.batchNumber} not created`);
-            } else if (batch.quantityInStock !== expected.quantity) {
+            } else if (Number(batch.baseUnitQuantity) !== expected.quantity) {
                 mismatches.push(
-                    `Batch ${expected.batchNumber}: expected ${expected.quantity}, got ${batch.quantityInStock}`
+                    `Batch ${expected.batchNumber}: expected ${expected.quantity}, got ${batch.baseUnitQuantity}`
                 );
             }
         }

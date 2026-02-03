@@ -11,6 +11,7 @@ interface SmartQuantityInputProps {
     maxQuantity?: number; // Optional max limit in base units
     disabled?: boolean;
     compact?: boolean; // For tight spaces like tables
+    disableUnitSwitch?: boolean; // Force base unit only
 }
 
 export default function SmartQuantityInput({
@@ -21,7 +22,8 @@ export default function SmartQuantityInput({
     stripUnitName,
     maxQuantity,
     disabled = false,
-    compact = false
+    compact = false,
+    disableUnitSwitch = false
 }: SmartQuantityInputProps) {
     // Mode state: 'tablets' (total base units) or 'strips' (strips + remainder)
     // Default to 'tablets' as per user request
@@ -67,6 +69,7 @@ export default function SmartQuantityInput({
     };
 
     const toggleMode = () => {
+        if (disableUnitSwitch) return;
         setMode(prev => prev === 'tablets' ? 'strips' : 'tablets');
     };
 
@@ -76,7 +79,7 @@ export default function SmartQuantityInput({
         const remCalc = value % effectiveConversionFactor;
 
         // Simpler breakdown string
-        const breakdown = stripsCalc > 0
+        const breakdown = stripsCalc > 0 && !disableUnitSwitch
             ? `${stripsCalc} ${formatUnitName(displayStripUnit)} + ${remCalc} ${formatUnitName(displayBaseUnit)}`
             : '';
 
@@ -93,13 +96,15 @@ export default function SmartQuantityInput({
                             className={`border border-gray-300 rounded text-center focus:outline-none focus:ring-1 focus:ring-teal-500 disabled:bg-gray-100 font-bold text-gray-900 ${compact ? 'w-16 h-7 text-xs px-0.5' : 'w-24 py-1.5 text-sm'}`}
                             placeholder="0"
                         />
-                        <button
-                            onClick={toggleMode}
-                            className="ml-1 p-1 text-gray-400 hover:text-teal-600 transition-colors"
-                            title={`Switch to ${displayStripUnit} mode`}
-                        >
-                            <FiRepeat className="w-3 h-3" />
-                        </button>
+                        {!disableUnitSwitch && (
+                            <button
+                                onClick={toggleMode}
+                                className="ml-1 p-1 text-gray-400 hover:text-teal-600 transition-colors"
+                                title={`Switch to ${displayStripUnit} mode`}
+                            >
+                                <FiRepeat className="w-3 h-3" />
+                            </button>
+                        )}
                     </div>
                     {/* Helper text showing breakdown */}
                     {!compact && value > 0 && breakdown && (

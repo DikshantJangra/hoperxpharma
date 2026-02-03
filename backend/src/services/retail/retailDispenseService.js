@@ -167,7 +167,7 @@ class RetailDispenseService {
                                     batchNumber: true,
                                     expiryDate: true,
                                     mrp: true,
-                                    quantityInStock: true,
+                                    baseUnitQuantity: true,
                                 },
                             },
                         },

@@ -1,8 +1,9 @@
 
 const ApiError = require('../../utils/ApiError');
 const logger = require('../../config/logger');
-
 const prisma = require('../../db/prisma');
+const returnEligibilityService = require('./returnEligibilityService');
+const creditNoteService = require('./creditNoteService');
 
 /**
  * Sale Refund Service - Handles refund workflow for sales
@@ -12,7 +13,7 @@ class SaleRefundService {
      * Initiate a refund request
      */
     async initiateRefund(saleId, refundData) {
-        const { items, reason, requestedBy, storeId } = refundData;
+        const { items, refundType, requestedBy, storeId, refundAmount: frontendRefundAmount } = refundData;
 
         // Verify sale exists
         const sale = await prisma.sale.findUnique({
@@ -31,71 +32,124 @@ class SaleRefundService {
             throw ApiError.notFound('Sale not found');
         }
 
-        if (sale.status === 'REFUNDED') {
-            throw ApiError.badRequest('Sale has already been fully refunded');
-        }
+        // Use frontend refund amount if provided, otherwise calculate
+        let refundAmount = frontendRefundAmount || 0;
 
-        // Calculate refund amount
-        let refundAmount = 0;
-        const refundItems = [];
+        // Prepare refund items data
+        const refundItemsData = await Promise.all(items.map(async (item) => {
+            // 1. Check Eligibility
+            const eligibility = await returnEligibilityService.checkEligibility(item.saleItemId, item.intent, item.quantity);
+            if (!eligibility.isEligible) {
+                throw ApiError.badRequest(`Item ineligible for return: ${eligibility.reasons.join(', ')}`);
+            }
 
-        for (const item of items) {
             const saleItem = sale.items.find(si => si.id === item.saleItemId);
             if (!saleItem) {
                 throw ApiError.badRequest(`Sale item ${item.saleItemId} not found`);
             }
 
+            // Validate quantity
             if (item.quantity > saleItem.quantity) {
-                throw ApiError.badRequest(`Refund quantity exceeds sold quantity for item ${saleItem.drug.name}`);
+                throw ApiError.badRequest(
+                    `Cannot refund ${item.quantity} units of ${saleItem.drug.name}. Only ${saleItem.quantity} were sold.`
+                );
             }
 
-            const itemRefundAmount = (saleItem.lineTotal / saleItem.quantity) * item.quantity;
-            refundAmount += itemRefundAmount;
+            // 2. Calculate Refund Amount for this item
+            const unitPrice = Number(saleItem.lineTotal) / saleItem.quantity;
+            const itemRefundAmount = unitPrice * item.quantity;
 
-            refundItems.push({
+            // Only accumulate if frontend didn't provide total
+            if (!frontendRefundAmount) {
+                refundAmount += itemRefundAmount;
+            }
+
+            // Calculate resellability based on intent and condition
+            const isResellable = item.intent === 'UNOPENED_UNUSED' && item.condition === 'Sealed';
+
+            return {
                 saleItemId: item.saleItemId,
                 drugId: saleItem.drugId,
                 batchId: saleItem.batchId,
                 quantity: item.quantity,
                 refundAmount: itemRefundAmount,
-                reason: item.reason || reason,
-            });
-        }
+                isResellable: isResellable,
+                reason: `${item.reason || 'Customer Return'} [${item.intent}${item.condition ? ', ' + item.condition : ''}]`
+            };
+        }));
 
         // Generate refund number
         const refundNumber = await this.generateRefundNumber(storeId);
 
-        // Create refund in transaction
-        const refund = await prisma.$transaction(async (tx) => {
-            const newRefund = await tx.saleRefund.create({
-                data: {
-                    refundNumber,
-                    originalSaleId: saleId,
-                    storeId,
-                    refundAmount,
-                    refundReason: reason,
-                    requestedBy,
-                    status: 'PENDING',
-                },
-            });
-
-            // Create refund items
-            await Promise.all(
-                refundItems.map(item =>
-                    tx.saleRefundItem.create({
-                        data: {
-                            ...item,
-                            refundId: newRefund.id,
-                        },
-                    })
-                )
-            );
-
-            return newRefund;
+        // Create refund and auto-approve to update inventory
+        const refund = await prisma.saleRefund.create({
+            data: {
+                refundNumber,
+                originalSaleId: saleId,
+                storeId,
+                refundAmount,
+                refundReason: items.map(i => `${i.reason || 'Customer Return'} (${i.intent})`).join('; ') || 'Customer Return',
+                status: 'APPROVED',
+                requestedBy,
+                approvedBy: requestedBy,
+                approvedAt: new Date(),
+                completedAt: new Date(),
+                items: {
+                    create: refundItemsData
+                }
+            },
+            include: {
+                items: true,
+            }
         });
 
-        logger.info(`Refund initiated: ${refundNumber} for sale ${sale.invoiceNumber}`);
-        return await this.getRefundById(refund.id);
+        // Process inventory impact immediately
+        await this.processInventoryImpact(refundItemsData.map((item, idx) => ({
+            ...item,
+            refundId: refund.id,
+            batchId: refundItemsData[idx].batchId
+        })), storeId);
+
+        // Handle credit note if needed
+        if (refundType === 'STORE_CREDIT') {
+            await creditNoteService.issueCreditNote({
+                storeId,
+                amount: Number(refundAmount),
+                issuedToId: sale.patientId || undefined,
+                issuedById: requestedBy,
+                refundId: refund.id,
+                notes: `Refund for Sale #${sale.invoiceNumber}`
+            });
+            logger.info(`Credit note issued for refund ${refundNumber}, patient: ${sale.patientId}`);
+        }
+
+        // Create audit log for refund
+        await prisma.auditLog.create({
+            data: {
+                storeId,
+                userId: requestedBy,
+                action: 'REFUND_PROCESSED',
+                entityType: 'Sale',
+                entityId: saleId,
+                metadata: {
+                    refundId: refund.id,
+                    refundNumber,
+                    refundAmount,
+                    itemCount: items.length,
+                    refundType
+                },
+                changes: {
+                    items: items.map(i => ({
+                        saleItemId: i.saleItemId,
+                        quantity: i.quantity,
+                        intent: i.intent
+                    }))
+                }
+            }
+        });
+
+        logger.info(`Refund initiated and approved: ${refundNumber} for sale ${sale.invoiceNumber}`);
+        return refund;
     }
 
     /**
@@ -104,6 +158,7 @@ class SaleRefundService {
     async approveRefund(refundId, approverId) {
         const refund = await prisma.saleRefund.findUnique({
             where: { id: refundId },
+            include: { items: true, originalSale: true }
         });
 
         if (!refund) {
@@ -114,17 +169,33 @@ class SaleRefundService {
             throw ApiError.badRequest(`Refund is already ${refund.status.toLowerCase()}`);
         }
 
+        // 1. Process Inventory Impact (The Bucket Strategy)
+        await this.processInventoryImpact(refund.items, refund.storeId);
+
+        // 2. Financial Handling: Credit Note vs Cash
+        if (refund.refundType === 'STORE_CREDIT') {
+            await creditNoteService.issueCreditNote({
+                storeId: refund.storeId,
+                amount: Number(refund.refundAmount),
+                issuedToId: refund.originalSale.customerId || undefined,
+                issuedById: approverId,
+                refundId: refund.id, // Link to this refund
+                notes: `Refund for Sale #${refund.originalSale.invoiceNumber}`
+            });
+        }
+
         const updatedRefund = await prisma.saleRefund.update({
             where: { id: refundId },
             data: {
                 status: 'APPROVED',
                 approvedBy: approverId,
                 approvedAt: new Date(),
+                completedAt: new Date() // Immediate completion
             },
         });
 
         logger.info(`Refund approved: ${refund.refundNumber} by ${approverId}`);
-        return await this.getRefundById(updatedRefund.id);
+        return updatedRefund;
     }
 
     /**
@@ -147,96 +218,53 @@ class SaleRefundService {
             where: { id: refundId },
             data: {
                 status: 'REJECTED',
-                refundReason: `${refund.refundReason}\n\nRejection Reason: ${reason}`,
+                refundReason: `${refund.refundReason || ''}\n\nRejection Reason: ${reason}`,
             },
         });
 
         logger.info(`Refund rejected: ${refund.refundNumber}`);
-        return await this.getRefundById(updatedRefund.id);
+        return updatedRefund;
     }
 
     /**
-     * Process refund (complete and restore inventory)
+     * Process inventory impact
      */
-    async processRefund(refundId) {
-        const refund = await prisma.saleRefund.findUnique({
-            where: { id: refundId },
-            include: {
-                items: true,
-                originalSale: true,
-            },
-        });
-
-        if (!refund) {
-            throw ApiError.notFound('Refund not found');
-        }
-
-        if (refund.status !== 'APPROVED') {
-            throw ApiError.badRequest('Refund must be approved before processing');
-        }
-
-        // Process refund in transaction
-        const result = await prisma.$transaction(async (tx) => {
-            // Restore inventory for each item
-            for (const item of refund.items) {
-                // Increment batch quantity
-                await tx.inventoryBatch.update({
+    async processInventoryImpact(items, storeId) {
+        for (const item of items) {
+            if (item.isResellable) {
+                // Add back to main stock
+                await prisma.inventoryBatch.update({
                     where: { id: item.batchId },
                     data: {
-                        quantityInStock: {
-                            increment: item.quantity,
-                        },
-                    },
+                        baseUnitQuantity: { increment: item.quantity }
+                    }
                 });
-
-                // Create stock movement
-                await tx.stockMovement.create({
+                // Log movement
+                await prisma.stockMovement.create({
                     data: {
                         batchId: item.batchId,
                         movementType: 'IN',
                         quantity: item.quantity,
-                        reason: 'Refund',
+                        reason: 'Refund (Restock)',
                         referenceType: 'refund',
-                        referenceId: refund.id,
-                    },
+                        referenceId: item.refundId
+                    }
                 });
+            } else {
+                // Log quarantined items (not added back to stock)
+                await prisma.stockMovement.create({
+                    data: {
+                        batchId: item.batchId,
+                        movementType: 'OUT',
+                        quantity: item.quantity,
+                        reason: 'Refund (Quarantine - Not Resellable)',
+                        referenceType: 'refund',
+                        referenceId: item.refundId
+                    }
+                });
+                logger.info(`Item quarantined (not restocked): Batch ${item.batchId}, Qty: ${item.quantity}`);
             }
-
-            // Update refund status
-            const updatedRefund = await tx.saleRefund.update({
-                where: { id: refundId },
-                data: {
-                    status: 'COMPLETED',
-                    completedAt: new Date(),
-                },
-            });
-
-            // Update original sale status
-            const totalRefunded = await tx.saleRefund.aggregate({
-                where: {
-                    originalSaleId: refund.originalSaleId,
-                    status: 'COMPLETED',
-                },
-                _sum: {
-                    refundAmount: true,
-                },
-            });
-
-            const saleStatus =
-                totalRefunded._sum.refundAmount >= refund.originalSale.total
-                    ? 'REFUNDED'
-                    : 'PARTIALLY_REFUNDED';
-
-            await tx.sale.update({
-                where: { id: refund.originalSaleId },
-                data: { status: saleStatus },
-            });
-
-            return updatedRefund;
-        });
-
-        logger.info(`Refund processed: ${refund.refundNumber}, inventory restored`);
-        return await this.getRefundById(result.id);
+        }
     }
 
     /**
@@ -291,6 +319,7 @@ class SaleRefundService {
                         patient: true,
                     },
                 },
+                creditNote: true, // Include generated Credit Note
             },
         });
 
