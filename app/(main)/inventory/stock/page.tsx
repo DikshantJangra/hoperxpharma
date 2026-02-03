@@ -17,7 +17,9 @@ const StatCard = ({ label, value, loading, colorClass = 'bg-[#f1f5f9]' }: any) =
     {loading ? (
       <span className="inline-block h-4 w-12 bg-gray-300 rounded-md animate-pulse"></span>
     ) : (
-      <span className="font-semibold text-[#0f172a]">{value}</span>
+      <span className="font-semibold text-[#0f172a]">
+        {value !== undefined && value !== null ? value : '-'}
+      </span>
     )}
   </div>
 )
@@ -81,13 +83,13 @@ export default function StockPage() {
           inventoryApi.getExpiringItems()
         ]);
 
-        if (summaryResponse.success) {
-          const summary = summaryResponse.data;
+        // summaryResponse is already the data object (unwrapped by inventoryApi.getSummary)
+        if (summaryResponse) {
           setStats({
-            totalSKUs: summary.uniqueDrugs || 0,
-            onHand: summary.totalUnits || 0,
-            lowStock: lowStockResponse.success ? lowStockResponse.data.length : 0,
-            expiring: expiringResponse.success ? expiringResponse.data.length : 0,
+            totalSKUs: summaryResponse.uniqueDrugs || 0,
+            onHand: summaryResponse.totalUnits || 0,
+            lowStock: lowStockResponse.success ? lowStockResponse.data.length : (summaryResponse.lowStockCount || 0),
+            expiring: expiringResponse.success ? expiringResponse.data.length : (summaryResponse.expiringCount || 0),
           });
         }
 

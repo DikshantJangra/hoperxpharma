@@ -96,10 +96,7 @@ export default function StockFilters({
                   </button>
                 ))}
 
-                <button className="w-full mt-3 px-3 py-2 border border-dashed border-[#cbd5e1] rounded-lg text-sm text-[#0ea5a3] hover:border-[#0ea5a3] hover:bg-[#f0fdfa] flex items-center justify-center gap-2 transition-colors">
-                  <FiSave className="w-4 h-4" />
-                  Save View
-                </button>
+                
               </div>
             )}
           </div>

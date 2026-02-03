@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { FiCheck, FiX, FiHelpCircle, FiArrowRight, FiShield, FiZap, FiTarget, FiLayers, FiDollarSign, FiFileText, FiUsers, FiLock } from 'react-icons/fi';
+import { FiCheck, FiX, FiHelpCircle, FiArrowRight, FiLock, FiZap, FiTarget, FiLayers, FiDollarSign, FiFileText, FiUsers, FiLock } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { FadeIn, FadeInStagger, FadeInItem } from '@/components/landing/animations/FadeIn';
 import { useAuthStore } from '@/lib/store/auth-store';
@@ -47,7 +47,7 @@ const Pricing = () => {
                     <div className="flex flex-wrap justify-center gap-6 mb-10">
                         {[
                             { icon: FiCheck, text: 'No forced bundles' },
-                            { icon: FiShield, text: 'No data silos' },
+                            { icon: FiLock, text: 'No data silos' },
                             { icon: FiZap, text: 'Grows with your business' },
                         ].map((prop, idx) => (
                             <div key={idx} className="flex items-center gap-2 bg-white px-4 py-2 rounded-full border border-slate-200 shadow-sm">

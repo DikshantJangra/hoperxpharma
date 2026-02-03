@@ -462,6 +462,7 @@ SUM(ib."baseUnitQuantity" * ib."purchasePrice") as "totalValue",
     `;
 
         const data = result[0];
+        console.log('🔍 Repo getInventoryValue raw result:', data);
         return {
             totalValue: data.totalValue ? Number(data.totalValue) : 0,
             uniqueDrugs: data.uniqueDrugs ? Number(data.uniqueDrugs) : 0,

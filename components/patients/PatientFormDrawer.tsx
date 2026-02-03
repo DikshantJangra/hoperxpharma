@@ -2,7 +2,7 @@
 
 import { Fragment, useState, useEffect } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
-import { FiX, FiUser, FiHeart, FiShield } from 'react-icons/fi';
+import { FiX, FiUser, FiHeart, FiLock } from 'react-icons/fi';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -459,7 +459,7 @@ export default function PatientFormDrawer({
                                                     {/* Consent Switch */}
                                                     <div className="flex items-center justify-between rounded-lg border border-gray-200 p-4 bg-gray-50">
                                                         <div className="flex items-center">
-                                                            <FiShield className="h-5 w-5 text-emerald-600 mr-3" />
+                                                            <FiLock className="h-5 w-5 text-emerald-600 mr-3" />
                                                             <span className="text-sm font-medium text-gray-900">Enable SMS/WhatsApp Alerts</span>
                                                         </div>
                                                         <input

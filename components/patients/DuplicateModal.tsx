@@ -1,4 +1,4 @@
-import { FiX, FiAlertTriangle } from "react-icons/fi";
+import { FiX, FiAlertCircle } from "react-icons/fi";
 
 export default function DuplicateModal({ duplicates, onClose, onCreateNew }: any) {
   return (
@@ -6,7 +6,7 @@ export default function DuplicateModal({ duplicates, onClose, onCreateNew }: any
       <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <div className="flex items-center gap-3">
-            <FiAlertTriangle className="text-orange-500" size={24} />
+            <FiAlertCircle className="text-orange-500" size={24} />
             <h2 className="text-xl font-semibold text-gray-900">Similar record(s) found</h2>
           </div>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">

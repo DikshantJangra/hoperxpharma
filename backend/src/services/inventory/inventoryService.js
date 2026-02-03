@@ -467,6 +467,12 @@ class InventoryService {
                 inventoryRepository.getExpiringItems(storeId, 30).catch(() => []),
             ]);
 
+
+            console.log('🔍 Service getInventorySummary result:', {
+                totalValue: value?.totalValue,
+                uniqueDrugs: value?.uniqueDrugs,
+                totalUnits: value?.totalUnits
+            });
             return {
                 totalValue: value?.totalValue || 0,
                 uniqueDrugs: value?.uniqueDrugs || 0,
@@ -584,7 +590,13 @@ class InventoryService {
             await prisma.prescriptionItem.deleteMany({ where: { drugId: id } });
             await prisma.prescriptionItemVersion.deleteMany({ where: { drugId: id } });
             await prisma.purchaseOrderItem.deleteMany({ where: { drugId: id } });
+
+            // Fix for GRNItem self-relation (splits)
+            // First delete items that are splits (have a parentItemId)
+            await prisma.gRNItem.deleteMany({ where: { drugId: id, parentItemId: { not: null } } });
+            // Then delete the parent items
             await prisma.gRNItem.deleteMany({ where: { drugId: id } });
+
             await prisma.supplierReturnItem.deleteMany({ where: { drugId: id } });
             await prisma.consolidatedInvoiceItem.deleteMany({ where: { drugId: id } });
             await prisma.pOTemplateItem.deleteMany({ where: { drugId: id } });

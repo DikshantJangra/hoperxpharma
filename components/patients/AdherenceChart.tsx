@@ -3,7 +3,8 @@
 import React, { useEffect, useState } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { patientsApi } from '@/lib/api/patients';
-import { FiTrendingUp, FiTrendingDown, FiActivity } from 'react-icons/fi';
+import { FiActivity } from 'react-icons/fi';
+import { TrendingUp, TrendingDown } from 'lucide-react';
 
 interface AdherenceData {
     month: string;
@@ -85,7 +86,7 @@ export default function AdherenceChart({ patientId }: AdherenceChartProps) {
                         <div className={`text-xs font-medium flex items-center justify-end gap-1 ${stats.trend === 'up' ? 'text-green-600' :
                                 stats.trend === 'down' ? 'text-red-600' : 'text-gray-600'
                             }`}>
-                            {stats.trend === 'up' ? <FiTrendingUp /> : <FiTrendingDown />}
+                            {stats.trend === 'up' ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
                             {stats.trend === 'up' ? 'Improving' : 'Declining'}
                         </div>
                     </div>

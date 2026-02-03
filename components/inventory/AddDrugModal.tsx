@@ -204,11 +204,21 @@ export default function AddDrugModal({ isOpen, onClose, onSuccess }: AddDrugModa
                             onChange={(e) => setFormData({ ...formData, defaultUnit: e.target.value })}
                             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#0ea5a3] focus:border-[#0ea5a3]"
                         >
-                            <option value="Strip">Strip</option>
-                            <option value="Bottle">Bottle</option>
-                            <option value="Vial">Vial</option>
-                            <option value="Tube">Tube</option>
-                            <option value="Unit">Unit</option>
+                            <optgroup label="Standard Units">
+                                <option value="Strip">Strip</option>
+                                <option value="Bottle">Bottle</option>
+                                <option value="Vial">Vial</option>
+                                <option value="Tube">Tube</option>
+                                <option value="Ampoule">Ampoule</option>
+                                <option value="Sachet">Sachet</option>
+                                <option value="Unit">Unit/Piece</option>
+                            </optgroup>
+                            <optgroup label="Bulk / Pack">
+                                <option value="Box">Box</option>
+                                <option value="Carton">Carton</option>
+                                <option value="Pack">Pack</option>
+                                <option value="Kit">Kit</option>
+                            </optgroup>
                         </select>
                     </div>
 

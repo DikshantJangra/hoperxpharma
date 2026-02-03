@@ -118,8 +118,7 @@ export default function StockTable({
             <th className="text-left px-4 py-3 text-xs font-semibold text-[#64748b] uppercase">HSN</th>
             <th className="text-center px-4 py-3 text-xs font-semibold text-[#64748b] uppercase">Batches</th>
             <th className="text-right px-4 py-3 text-xs font-semibold text-[#64748b] uppercase">Stock</th>
-            <th className="text-right px-4 py-3 text-xs font-semibold text-[#64748b] uppercase">GST %</th>
-            <th className="text-right px-4 py-3 text-xs font-semibold text-[#64748b] uppercase">Reorder</th>
+            <th className="text-right px-4 py-4 text-xs font-semibold text-[#64748b] uppercase">GST%</th>
             <th className="text-center px-4 py-3 text-xs font-semibold text-[#64748b] uppercase">Status</th>
             <th className="text-left px-4 py-3 text-xs font-semibold text-[#64748b] uppercase">Manufacturer</th>
           </tr>
@@ -135,7 +134,7 @@ export default function StockTable({
             </>
           ) : drugs.length > 0 ? (
             drugs.map((drug) => {
-              const totalStock = drug.inventory?.reduce((sum: number, batch: any) => sum + (batch.baseUnitQuantity || 0), 0) || 0;
+              const totalStock = drug.inventory?.reduce((sum: number, batch: any) => sum + Number(batch.baseUnitQuantity || 0), 0) || 0;
               const batchCount = drug.inventory?.length || 0;
               const totalStockFormatted = formatStockQuantity({ ...drug, baseUnitQuantity: totalStock });
               const lowStock = totalStock <= (drug.lowStockThresholdBase || drug.lowStockThreshold || 10);
@@ -188,11 +187,6 @@ export default function StockTable({
                       {renderStockQuantity({ baseUnitQuantity: totalStock, drug })}
                     </td>
                     <td className="px-4 py-3 text-right text-[#64748b]">{drug.gstRate}%</td>
-                    <td className="px-4 py-3 text-right">
-                      <span className={lowStock ? 'text-[#ef4444] font-semibold' : 'text-[#64748b]'}>
-                        {formatStockQuantity({ ...drug, baseUnitQuantity: drug.lowStockThresholdBase || drug.lowStockThreshold || 10 })}
-                      </span>
-                    </td>
                     <td className="px-4 py-3 text-center">
                       {lowStock ? (
                         <span className="px-2 py-1 bg-[#fee2e2] text-[#991b1b] text-xs rounded flex items-center gap-1 justify-center">

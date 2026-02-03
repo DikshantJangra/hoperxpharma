@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { FiShield, FiCheckCircle, FiX, FiAlertCircle } from "react-icons/fi";
+import { FiLock, FiCheckCircle, FiX, FiAlertCircle } from "react-icons/fi";
 import { patientsApi } from "@/lib/api/patients";
 import { toast } from "react-hot-toast"; // Assuming react-hot-toast is used, or I'll use simple alert/console for now if not sure.
 // Actually, I'll use a local error state or simple alert for simplicity if toast isn't set up.
@@ -95,7 +95,7 @@ export default function PatientConsentsTab({ patient, onUpdate }: PatientConsent
                 ))
             ) : (
                 <div className="bg-white rounded-lg shadow-sm p-12 text-center border border-gray-100 border-dashed">
-                    <FiShield className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                    <FiLock className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                     <h3 className="text-lg font-semibold text-gray-900 mb-2">No Consents</h3>
                     <p className="text-gray-500">No consent records found for this patient.</p>
                 </div>

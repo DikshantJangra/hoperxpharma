@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { FiAlertTriangle, FiX } from 'react-icons/fi';
+import { FiAlertCircle, FiX } from 'react-icons/fi';
 import ModalWrapper from './ModalWrapper';
 
 interface ConfirmDialogProps {
@@ -77,7 +77,7 @@ export default function ConfirmDialog({
 
                 {/* Icon */}
                 <div className={`mx-auto flex h-12 w-12 items-center justify-center rounded-full ${styles.iconBg}`}>
-                    <FiAlertTriangle className={`h-6 w-6 ${styles.icon}`} />
+                    <FiAlertCircle className={`h-6 w-6 ${styles.icon}`} />
                 </div>
 
                 {/* Content */}

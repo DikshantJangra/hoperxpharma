@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { FiEye, FiEyeOff, FiShield, FiAlertTriangle } from 'react-icons/fi';
+import { FiEye, FiEyeOff, FiLock, FiAlertCircle } from 'react-icons/fi';
 
 interface SensitiveRevealProps {
   onReveal: () => void;
@@ -38,7 +38,7 @@ export default function SensitiveReveal({ onReveal, data }: SensitiveRevealProps
       <div className="border border-orange-200 bg-orange-50 rounded-lg p-4">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2 text-orange-800">
-            <FiShield className="w-4 h-4" />
+            <FiLock className="w-4 h-4" />
             <span className="text-sm font-medium">Sensitive Data Revealed</span>
           </div>
           <button
@@ -57,7 +57,7 @@ export default function SensitiveReveal({ onReveal, data }: SensitiveRevealProps
         </div>
         
         <div className="mt-2 text-xs text-orange-700 flex items-center gap-1">
-          <FiAlertTriangle className="w-3 h-3" />
+          <FiAlertCircle className="w-3 h-3" />
           This action has been logged for audit purposes
         </div>
       </div>
@@ -68,7 +68,7 @@ export default function SensitiveReveal({ onReveal, data }: SensitiveRevealProps
     <div className="border border-gray-200 bg-gray-50 rounded-lg p-4">
       <div className="text-center">
         <div className="w-12 h-12 mx-auto mb-3 bg-gray-200 rounded-full flex items-center justify-center">
-          <FiShield className="w-6 h-6 text-gray-500" />
+          <FiLock className="w-6 h-6 text-gray-500" />
         </div>
         
         <h4 className="text-sm font-medium text-gray-900 mb-2">Sensitive Data Protected</h4>

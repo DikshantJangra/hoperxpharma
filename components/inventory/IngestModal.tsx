@@ -67,6 +67,7 @@ interface BatchFormData {
   unit: string;
   packSize: string;
   secondaryPackSize?: string; // For Box: size of individual containers (ML per bottle, tablets per strip, etc.)
+  innerUnit?: string; // e.g., Strip, Bottle, Tube
   location: string;
 }
 
@@ -125,8 +126,10 @@ export default function IngestModal({ isOpen, onClose, onSuccess, returnPath }: 
     quantity: '',
     expiryDate: '',
     supplierId: '',
-    unit: 'Tablet',
+    unit: 'Box',
+    innerUnit: 'Strip',
     packSize: '10',
+    secondaryPackSize: '10',
     location: '',
   }]);
   const [activeBatchIndex, setActiveBatchIndex] = useState<number>(0);
@@ -1005,7 +1008,9 @@ export default function IngestModal({ isOpen, onClose, onSuccess, returnPath }: 
       purchaseRate: lastBatch.purchaseRate,
       location: lastBatch.location,
       unit: lastBatch.unit,
+      innerUnit: lastBatch.innerUnit || 'Strip',
       packSize: lastBatch.packSize,
+      secondaryPackSize: lastBatch.secondaryPackSize,
     };
     setBatches([...batches, newBatch]);
     setActiveBatchIndex(batches.length); // Switch to the new batch
@@ -2232,257 +2237,165 @@ export default function IngestModal({ isOpen, onClose, onSuccess, returnPath }: 
                             })()}
                           </p>
                         </div>
-                        <div className="flex flex-wrap gap-2 p-1.5 bg-gray-50 border border-gray-200 rounded-lg w-full">
-                          {(() => {
-                            // Smart packaging suggestions based on medicine form
-                            const form = formData.form?.toLowerCase() || '';
-                            let packagingOptions: string[] = [];
-                            let baseUnit = 'Unit';
-
-                            if (form.includes('tablet') || form.includes('capsule') || form.includes('pill')) {
-                              packagingOptions = ['Strip', 'Box'];
-                              baseUnit = 'Tablet';
-                            } else if (form.includes('syrup') || form.includes('suspension') || form.includes('solution') || form.includes('liquid')) {
-                              packagingOptions = ['Bottle', 'Box'];
-                              baseUnit = 'ML';
-                            } else if (form.includes('injection') || form.includes('vial') || form.includes('ampoule')) {
-                              packagingOptions = ['Vial', 'Box'];
-                              baseUnit = 'ML';
-                            } else if (form.includes('cream') || form.includes('ointment') || form.includes('gel') || form.includes('paste')) {
-                              packagingOptions = ['Tube', 'Box'];
-                              baseUnit = 'GM';
-                            } else if (form.includes('powder') || form.includes('granule')) {
-                              packagingOptions = ['Sachet', 'Bottle', 'Box'];
-                              baseUnit = 'GM';
-                            } else if (form.includes('drop') || form.includes('nasal spray') || form.includes('eye drop')) {
-                              packagingOptions = ['Bottle', 'Box'];
-                              baseUnit = 'ML';
-                            } else if (form.includes('inhaler')) {
-                              packagingOptions = ['Inhaler', 'Box'];
-                              baseUnit = 'Dose';
-                            } else if (form.includes('patch')) {
-                              packagingOptions = ['Box'];
-                              baseUnit = 'Patch';
-                            } else if (form.includes('suppository') || form.includes('pessary')) {
-                              packagingOptions = ['Strip', 'Box'];
-                              baseUnit = 'Unit';
-                            } else {
-                              // Default fallback
-                              packagingOptions = ['Strip', 'Box', 'Bottle'];
-                              baseUnit = 'Tablet';
-                            }
-
-                            return (
-                              <>
-                                {packagingOptions.map((u) => (
-                                  <button
-                                    key={u}
-                                    type="button"
-                                    onClick={() => {
-                                      const newBatches = [...batches];
-                                      newBatches[activeBatchIndex] = {
-                                        ...newBatches[activeBatchIndex],
-                                        unit: u,
-                                        packSize: u === 'Strip' ? '10' : u === 'Bottle' ? '100' : u === 'Tube' ? '30' : u === 'Vial' ? '2' : u === 'Box' ? '10' : '1'
-                                      };
-                                      setBatches(newBatches);
-                                    }}
-                                    className={`flex-1 px-4 py-2 rounded-md text-xs font-bold transition-all border ${batches[activeBatchIndex].unit === u
-                                      ? 'bg-white text-blue-600 border-blue-200 shadow-sm'
-                                      : 'bg-transparent text-gray-500 border-transparent hover:text-gray-700'
-                                      }`}
-                                  >
-                                    {u}
-                                  </button>
-                                ))}
-                                <select
-                                  value={packagingOptions.includes(batches[activeBatchIndex].unit) ? '' : batches[activeBatchIndex].unit}
-                                  onChange={(e) => {
-                                    const val = e.target.value;
-                                    if (val) {
-                                      const newBatches = [...batches];
-                                      newBatches[activeBatchIndex] = {
-                                        ...newBatches[activeBatchIndex],
-                                        unit: val,
-                                        packSize: (val === 'Bottle' || val === 'Box' || val === 'Strip') ? '10' : '1'
-                                      };
-                                      setBatches(newBatches);
-                                    }
-                                  }}
-                                  className={`flex-1 min-w-[120px] bg-white border rounded-md px-3 py-2 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500 ${!packagingOptions.includes(batches[activeBatchIndex].unit) ? 'text-blue-600 border-blue-200' : 'text-gray-500 border-gray-200'
-                                    }`}
-                                >
-                                  <option value="">Other...</option>
-                                  <option value="Vial">Vial</option>
-                                  <option value="Tube">Tube</option>
-                                  <option value="Sachet">Sachet</option>
-                                  <option value="Inhaler">Inhaler</option>
-                                  <option value="Ampoule">Ampoule</option>
-                                  <option value="Jar">Jar</option>
-                                  <option value="Can">Can</option>
-                                </select>
-                              </>
-                            );
-                          })()}
+                        <div className="flex flex-col md:flex-row gap-4 items-end bg-gray-50 p-4 rounded-lg border border-gray-200 w-full mb-4">
+                          <div className="flex-1 w-full">
+                            <Label className="text-xs font-bold text-gray-500 mb-1.5 block">Item Type (Unit)</Label>
+                            <select
+                              value={batches[activeBatchIndex].innerUnit || 'Strip'}
+                              onChange={(e) => {
+                                const newBatches = [...batches];
+                                newBatches[activeBatchIndex].innerUnit = e.target.value;
+                                if (!['Box', 'Carton', 'Pack', 'Kit'].includes(newBatches[activeBatchIndex].unit)) {
+                                  newBatches[activeBatchIndex].unit = e.target.value;
+                                }
+                                setBatches(newBatches);
+                              }}
+                              className="w-full h-10 px-3 bg-white border border-gray-300 rounded-md text-sm font-semibold focus:ring-2 focus:ring-blue-500"
+                            >
+                              <optgroup label="Common">
+                                <option value="Strip">Strip</option>
+                                <option value="Bottle">Bottle</option>
+                                <option value="Tube">Tube</option>
+                                <option value="Vial">Vial</option>
+                                <option value="Sachet">Sachet</option>
+                                <option value="Unit">Unit/Piece</option>
+                              </optgroup>
+                              <optgroup label="Specialized">
+                                <option value="Ampoule">Ampoule</option>
+                                <option value="Inhaler">Inhaler</option>
+                                <option value="Jar">Jar</option>
+                                <option value="Can">Can</option>
+                                <option value="Kit">Kit</option>
+                              </optgroup>
+                            </select>
+                          </div>
+                          <div className="hidden md:flex items-center pb-3">
+                            <FiX className="text-gray-400 h-4 w-4" />
+                          </div>
+                          <div className="flex-1 w-full">
+                            <Label className="text-xs font-bold text-gray-500 mb-1.5 block">Bulk Packaging</Label>
+                            <select
+                              value={['Box', 'Carton', 'Pack', 'Kit'].includes(batches[activeBatchIndex].unit) ? batches[activeBatchIndex].unit : 'None'}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                const newBatches = [...batches];
+                                if (val === 'None') {
+                                  newBatches[activeBatchIndex].unit = newBatches[activeBatchIndex].innerUnit || 'Strip';
+                                } else {
+                                  newBatches[activeBatchIndex].unit = val;
+                                }
+                                setBatches(newBatches);
+                              }}
+                              className={`w-full h-10 px-3 border rounded-md text-sm font-bold focus:ring-2 focus:ring-blue-500 ${['Box', 'Carton', 'Pack', 'Kit'].includes(batches[activeBatchIndex].unit)
+                                ? 'bg-blue-50 border-blue-200 text-blue-700'
+                                : 'bg-white border-gray-300 text-gray-600'
+                                }`}
+                            >
+                              <option value="None">None (Buying in {batches[activeBatchIndex].innerUnit || 'Strips'})</option>
+                              <optgroup label="Bulk / Outer">
+                                <option value="Box">Box</option>
+                                <option value="Carton">Carton</option>
+                                <option value="Pack">Pack</option>
+                                <option value="Kit">Kit</option>
+                              </optgroup>
+                            </select>
+                          </div>
                         </div>
                         <p className="text-[10px] text-gray-500 mt-1 pl-1">
                           Enter quantity in {batches[activeBatchIndex].unit}s
                         </p>
                       </div>
 
-                      {(batches[activeBatchIndex].unit === 'Strip' || batches[activeBatchIndex].unit === 'Bottle' || batches[activeBatchIndex].unit === 'Vial' || batches[activeBatchIndex].unit === 'Tube' || batches[activeBatchIndex].unit === 'Sachet') && (
-                        <div className="bg-blue-50/50 p-4 rounded-lg border border-blue-100 flex items-center justify-between gap-4">
-                          <div className="flex-1">
-                            <Label htmlFor="packSize" className="text-sm font-semibold text-blue-900 flex items-center gap-1.5 ">
-                              {(() => {
-                                const form = formData.form?.toLowerCase() || '';
-                                const unit = batches[activeBatchIndex].unit;
-                                let baseUnit = 'Units';
+                      {/* Dynamic Conversion Labels (Tablets per Strip / Strips per Box etc) */}
+                      {(() => {
+                        const unit = batches[activeBatchIndex].unit;
+                        const innerUnit = batches[activeBatchIndex].innerUnit || 'Strip';
+                        const isBulk = ['Box', 'Carton', 'Pack', 'Kit'].includes(unit);
+                        const form = formData.form?.toLowerCase() || '';
 
-                                if (form.includes('tablet') || form.includes('capsule')) baseUnit = 'Tablets';
-                                else if (form.includes('syrup') || form.includes('suspension') || form.includes('solution') || form.includes('liquid') || form.includes('drop') || form.includes('injection')) baseUnit = 'ML';
-                                else if (form.includes('cream') || form.includes('ointment') || form.includes('gel')) baseUnit = 'GM';
-                                else if (form.includes('powder')) baseUnit = 'GM';
+                        let baseUnitLabel = 'Units';
+                        if (form.includes('tablet') || form.includes('capsule')) baseUnitLabel = 'Tablets';
+                        else if (form.includes('syrup') || form.includes('suspension') || form.includes('solution') || form.includes('liquid') || form.includes('drop') || form.includes('injection')) baseUnitLabel = 'ML';
+                        else if (form.includes('cream') || form.includes('ointment') || form.includes('gel')) baseUnitLabel = 'GM';
+                        else if (form.includes('powder')) baseUnitLabel = 'GM';
 
-                                return `${baseUnit} per ${unit} *`;
-                              })()}
-                            </Label>
-                            <p className="text-xs text-blue-700 mt-0.5">
-                              {(() => {
-                                const unit = batches[activeBatchIndex].unit;
+                        if (isBulk) {
+                          return (
+                            <div className="space-y-4">
+                              {/* Inner Units per Bulk (e.g., Strips per Box) */}
+                              <div className="bg-amber-50/50 p-4 rounded-lg border border-amber-100 flex items-center justify-between gap-4">
+                                <div className="flex-1">
+                                  <Label className="text-sm font-semibold text-amber-900">
+                                    {innerUnit}s per {unit} *
+                                  </Label>
+                                  <p className="text-xs text-amber-700 mt-0.5">
+                                    How many {innerUnit.toLowerCase()}s in one {unit.toLowerCase()}?
+                                  </p>
+                                </div>
+                                <div className="w-32 relative">
+                                  <Input
+                                    value={batches[activeBatchIndex].packSize}
+                                    onChange={(e) => updateCurrentBatch('packSize', e.target.value)}
+                                    placeholder="10"
+                                    className="h-10 text-center font-bold border-amber-200 focus:ring-amber-500 bg-white"
+                                  />
+                                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-amber-400">
+                                    {innerUnit.toUpperCase()}S
+                                  </span>
+                                </div>
+                              </div>
 
-                                if (unit === 'Strip') return 'Tablets per strip (e.g., 10)';
-                                if (unit === 'Bottle') return 'Total ML in one bottle (check label)';
-                                if (unit === 'Vial') return 'Total ML in one vial (check label)';
-                                if (unit === 'Tube') return 'Total GM in one tube (check label)';
-                                if (unit === 'Sachet') return 'Total GM in one sachet (check label)';
-                                return 'Quantity per unit';
-                              })()}
-                            </p>
-                          </div>
-                          <div className="w-32 relative">
-                            <Input
-                              id="packSize"
-                              type="number"
-                              min="1"
-                              value={batches[activeBatchIndex].packSize}
-                              onChange={(e) => updateCurrentBatch('packSize', e.target.value)}
-                              placeholder="10"
-                              className="bg-white border-blue-200 focus:ring-blue-500 h-10 text-center font-bold"
-                            />
-                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-blue-400">
-                              {(() => {
-                                const form = formData.form?.toLowerCase() || '';
+                              {/* Base Units per Inner Unit (e.g., Tablets per Strip) */}
+                              <div className="bg-blue-50/50 p-4 rounded-lg border border-blue-100 flex items-center justify-between gap-4">
+                                <div className="flex-1">
+                                  <Label className="text-sm font-semibold text-blue-900">
+                                    {baseUnitLabel} per {innerUnit} *
+                                  </Label>
+                                  <p className="text-xs text-blue-700 mt-0.5">
+                                    Count of {baseUnitLabel.toLowerCase()} in each {innerUnit.toLowerCase()}
+                                  </p>
+                                </div>
+                                <div className="w-32 relative">
+                                  <Input
+                                    value={batches[activeBatchIndex].secondaryPackSize || ''}
+                                    onChange={(e) => updateCurrentBatch('secondaryPackSize', e.target.value)}
+                                    placeholder="10"
+                                    className="h-10 text-center font-bold border-blue-200 focus:ring-blue-500 bg-white"
+                                  />
+                                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-blue-400">
+                                    {baseUnitLabel.toUpperCase()}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        }
 
-                                if (form.includes('tablet') || form.includes('capsule')) return 'TABS';
-                                else if (form.includes('syrup') || form.includes('suspension') || form.includes('solution') || form.includes('liquid') || form.includes('drop') || form.includes('injection')) return 'ML';
-                                else if (form.includes('cream') || form.includes('ointment') || form.includes('gel')) return 'GM';
-                                else if (form.includes('powder')) return 'GM';
-                                else return 'UNITS';
-                              })()}
-                            </span>
-                          </div>
-                        </div>
-                      )}
-
-                      {batches[activeBatchIndex].unit === 'Box' && (
-                        <div className="space-y-3">
-                          {/* Container Count per Box */}
-                          <div className="bg-amber-50/50 p-4 rounded-lg border border-amber-100 flex items-center justify-between gap-4">
+                        // Individual Unit Mode
+                        return (
+                          <div className="bg-blue-50/50 p-4 rounded-lg border border-blue-100 flex items-center justify-between gap-4">
                             <div className="flex-1">
-                              <Label htmlFor="packSize" className="text-sm font-semibold text-amber-900 flex items-center gap-1.5 ">
-                                {(() => {
-                                  const form = formData.form?.toLowerCase() || '';
-
-                                  if (form.includes('tablet') || form.includes('capsule')) return 'Strips per Box *';
-                                  else if (form.includes('syrup') || form.includes('suspension') || form.includes('solution') || form.includes('liquid') || form.includes('drop')) return 'Bottles per Box *';
-                                  else if (form.includes('injection')) return 'Vials per Box *';
-                                  else if (form.includes('cream') || form.includes('ointment') || form.includes('gel')) return 'Tubes per Box *';
-                                  else if (form.includes('powder')) return 'Sachets per Box *';
-                                  else return 'Units per Box *';
-                                })()}
+                              <Label className="text-sm font-semibold text-blue-900">
+                                {baseUnitLabel} per {unit} *
                               </Label>
-                              <p className="text-xs text-amber-700 mt-0.5">
-                                Count how many items are in one box
+                              <p className="text-xs text-blue-700 mt-0.5">
+                                Total {baseUnitLabel.toLowerCase()} in one {unit.toLowerCase()}
                               </p>
                             </div>
                             <div className="w-32 relative">
                               <Input
-                                id="packSize"
-                                type="number"
-                                min="1"
                                 value={batches[activeBatchIndex].packSize}
                                 onChange={(e) => updateCurrentBatch('packSize', e.target.value)}
                                 placeholder="10"
-                                className="bg-white border-amber-200 focus:ring-amber-500 h-10 text-center font-bold"
-                              />
-                              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-amber-400">
-                                {(() => {
-                                  const form = formData.form?.toLowerCase() || '';
-
-                                  if (form.includes('tablet') || form.includes('capsule')) return 'STRIPS';
-                                  else if (form.includes('syrup') || form.includes('suspension') || form.includes('solution') || form.includes('liquid') || form.includes('drop')) return 'BTLS';
-                                  else if (form.includes('injection')) return 'VIALS';
-                                  else if (form.includes('cream') || form.includes('ointment') || form.includes('gel')) return 'TUBES';
-                                  else if (form.includes('powder')) return 'SCHS';
-                                  else return 'UNITS';
-                                })()}
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* Container Size (ML/GM/Tablets per individual container) */}
-                          <div className="bg-blue-50/50 p-4 rounded-lg border border-blue-100 flex items-center justify-between gap-4">
-                            <div className="flex-1">
-                              <Label htmlFor="secondaryPackSize" className="text-sm font-semibold text-blue-900 flex items-center gap-1.5">
-                                {(() => {
-                                  const form = formData.form?.toLowerCase() || '';
-
-                                  if (form.includes('tablet') || form.includes('capsule')) return 'Tablets per Strip *';
-                                  else if (form.includes('syrup') || form.includes('suspension') || form.includes('solution') || form.includes('liquid') || form.includes('drop')) return 'ML per Bottle *';
-                                  else if (form.includes('injection')) return 'ML per Vial *';
-                                  else if (form.includes('cream') || form.includes('ointment') || form.includes('gel')) return 'GM per Tube *';
-                                  else if (form.includes('powder')) return 'GM per Sachet *';
-                                  else return 'Units per Container *';
-                                })()}
-                              </Label>
-                              <p className="text-xs text-blue-700 mt-0.5">
-                                {(() => {
-                                  const form = formData.form?.toLowerCase() || '';
-
-                                  if (form.includes('tablet') || form.includes('capsule')) return 'Tablets in each strip';
-                                  else if (form.includes('syrup') || form.includes('suspension') || form.includes('solution') || form.includes('liquid') || form.includes('drop')) return 'Total ML in one bottle (check label)';
-                                  else if (form.includes('injection')) return 'Total ML in one vial (check label)';
-                                  else if (form.includes('cream') || form.includes('ointment') || form.includes('gel')) return 'Total GM in one tube (check label)';
-                                  else if (form.includes('powder')) return 'Total GM in one sachet (check label)';
-                                  else return 'Size of individual container';
-                                })()}
-                              </p>
-                            </div>
-                            <div className="w-32 relative">
-                              <Input
-                                id="secondaryPackSize"
-                                type="number"
-                                min="1"
-                                value={batches[activeBatchIndex].secondaryPackSize || ''}
-                                onChange={(e) => updateCurrentBatch('secondaryPackSize', e.target.value)}
-                                placeholder="100"
-                                className="bg-white border-blue-200 focus:ring-blue-500 h-10 text-center font-bold"
+                                className="h-10 text-center font-bold border-blue-200 focus:ring-blue-500 bg-white"
                               />
                               <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-blue-400">
-                                {(() => {
-                                  const form = formData.form?.toLowerCase() || '';
-
-                                  if (form.includes('tablet') || form.includes('capsule')) return 'TABS';
-                                  else if (form.includes('syrup') || form.includes('suspension') || form.includes('solution') || form.includes('liquid') || form.includes('drop') || form.includes('injection')) return 'ML';
-                                  else if (form.includes('cream') || form.includes('ointment') || form.includes('gel') || form.includes('powder')) return 'GM';
-                                  else return 'UNITS';
-                                })()}
+                                {baseUnitLabel.toUpperCase()}
                               </span>
                             </div>
                           </div>
-                        </div>
-                      )}
+                        );
+                      })()}
                     </div>
 
                     {/* Quantity */}
@@ -2842,6 +2755,6 @@ export default function IngestModal({ isOpen, onClose, onSuccess, returnPath }: 
           />
         )}
       </div>
-    </div>
+    </div >
   );
 };

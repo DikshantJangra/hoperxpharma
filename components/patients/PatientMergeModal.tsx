@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { FiX, FiSearch, FiAlertTriangle, FiArrowRight, FiCheck } from "react-icons/fi";
+import { FiX, FiSearch, FiAlertCircle, FiArrowRight, FiCheck } from "react-icons/fi";
 import { usePatientSearch } from "@/hooks/usePatientSearch";
 import { patientsApi } from "@/lib/api/patients";
 import { toast } from "react-hot-toast";
@@ -74,7 +74,7 @@ export default function PatientMergeModal({
                 <div className="bg-gray-50 px-6 py-4 border-b border-gray-200 flex justify-between items-center">
                     <div>
                         <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                            <FiAlertTriangle className="text-amber-500" />
+                            <FiAlertCircle className="text-amber-500" />
                             Merge Duplicate Patients
                         </h2>
                         <p className="text-sm text-gray-500">Merge a duplicate record into the current patient profile.</p>
@@ -181,7 +181,7 @@ export default function PatientMergeModal({
 
                             <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-800">
                                 <p className="font-medium mb-1 flex items-center gap-2">
-                                    <FiAlertTriangle />
+                                    <FiAlertCircle />
                                     Warning: This action is irreversible
                                 </p>
                                 <ul className="list-disc list-inside space-y-1 ml-1 opacity-90">

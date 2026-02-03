@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { FiCheckCircle, FiClock, FiFileText, FiShoppingCart, FiShield, FiAlertCircle } from 'react-icons/fi';
+import { FiCheckCircle, FiClock, FiFileText, FiShoppingCart, FiLock, FiAlertCircle } from 'react-icons/fi';
 import { patientsApi } from '@/lib/api/patients';
 
 interface TimelineEvent {
@@ -132,7 +132,7 @@ function getEventIcon(type: string) {
     switch (type) {
         case 'prescription': return <FiFileText className="text-blue-500" />;
         case 'sale': return <FiShoppingCart className="text-green-500" />;
-        case 'consent': return <FiShield className="text-purple-500" />;
+        case 'consent': return <FiLock className="text-purple-500" />;
         case 'adherence': return <FiCheckCircle className="text-amber-500" />;
         default: return <FiClock className="text-gray-400" />;
     }

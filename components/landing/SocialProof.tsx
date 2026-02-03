@@ -1,6 +1,6 @@
 'use client';
 
-import { FiStar, FiShield, FiCheck, FiLock, FiCloud, FiClock } from 'react-icons/fi';
+import { FiStar, FiLock, FiCheck, FiLock, FiCloud, FiClock } from 'react-icons/fi';
 
 const SocialProofSection = () => {
     const stats = [
@@ -38,15 +38,15 @@ const SocialProofSection = () => {
 
     const badges = [
         { icon: FiLock, text: "Bank-Level Security", color: "text-blue-600" },
-        { icon: FiShield, text: "DPDPA Compliant", color: "text-emerald-600" },
+        { icon: FiLock, text: "DPDPA Compliant", color: "text-emerald-600" },
         { icon: FiCheck, text: "ISO Certified", color: "text-purple-600" },
         { icon: FiCloud, text: "WhatsApp Cloud API", color: "text-green-600" },
         { icon: FiClock, text: "24/7 Support", color: "text-orange-600" },
-        { icon: FiShield, text: "GST Compliant", color: "text-indigo-600" },
+        { icon: FiLock, text: "GST Compliant", color: "text-indigo-600" },
         { icon: FiLock, text: "AES-256 Encryption", color: "text-red-600" },
         { icon: FiCloud, text: "Daily Auto Backups", color: "text-teal-600" },
         { icon: FiCheck, text: "99.9% Uptime SLA", color: "text-blue-600" },
-        { icon: FiShield, text: "HIPAA Ready", color: "text-emerald-600" }
+        { icon: FiLock, text: "HIPAA Ready", color: "text-emerald-600" }
     ];
 
     return (

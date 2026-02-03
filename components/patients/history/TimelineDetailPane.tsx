@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { FiX, FiDownload, FiUser, FiClock, FiFileText, FiActivity, FiAlertTriangle, FiEdit, FiRefreshCw } from 'react-icons/fi';
+import { FiX, FiDownload, FiUser, FiClock, FiFileText, FiActivity, FiAlertCircle, FiEdit, FiRefreshCw } from 'react-icons/fi';
 import { HistoryEvent } from '@/hooks/usePatientHistory';
 
 interface TimelineDetailPaneProps {
@@ -20,7 +20,7 @@ const EVENT_ICONS: Record<string, any> = {
   CONSENT: FiFileText,
   MESSAGE: FiEdit,
   NOTE: FiEdit,
-  CLINICAL_FLAG: FiAlertTriangle
+  CLINICAL_FLAG: FiAlertCircle
 };
 
 const EVENT_COLORS: Record<string, string> = {

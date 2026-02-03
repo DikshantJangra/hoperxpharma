@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { FiFileText, FiUser, FiActivity, FiAlertTriangle, FiEdit, FiRefreshCw, FiDollarSign, FiMail, FiFlag, FiMoreHorizontal, FiExternalLink } from 'react-icons/fi';
+import { FiFileText, FiUser, FiActivity, FiAlertCircle, FiEdit, FiRefreshCw, FiDollarSign, FiMail, FiFlag, FiMoreHorizontal, FiExternalLink } from 'react-icons/fi';
 import { HistoryEvent } from '@/hooks/usePatientHistory';
 
 interface EventCardProps {
@@ -21,7 +21,7 @@ const EVENT_ICONS = {
   CONSENT: FiFlag,
   MESSAGE: FiMail,
   NOTE: FiEdit,
-  CLINICAL_FLAG: FiAlertTriangle
+  CLINICAL_FLAG: FiAlertCircle
 };
 
 const EVENT_COLORS = {
