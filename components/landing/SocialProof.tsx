@@ -1,6 +1,6 @@
 'use client';
 
-import { FiStar, FiLock, FiCheck, FiLock, FiCloud, FiClock } from 'react-icons/fi';
+import { FiStar, FiLock, FiCheck, FiCloud, FiClock } from 'react-icons/fi';
 
 const SocialProofSection = () => {
     const stats = [

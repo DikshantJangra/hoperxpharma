@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { FiCheck, FiX, FiHelpCircle, FiArrowRight, FiLock, FiZap, FiTarget, FiLayers, FiDollarSign, FiFileText, FiUsers, FiLock } from 'react-icons/fi';
+import { FiCheck, FiX, FiHelpCircle, FiArrowRight, FiLock, FiZap, FiTarget, FiLayers, FiDollarSign, FiFileText, FiUsers } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { FadeIn, FadeInStagger, FadeInItem } from '@/components/landing/animations/FadeIn';
 import { useAuthStore } from '@/lib/store/auth-store';
