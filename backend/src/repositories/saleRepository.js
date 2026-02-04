@@ -91,6 +91,7 @@ class SaleRepository {
                     refunds: {
                         include: {
                             items: true,
+                            creditNote: true,
                         },
                     },
                 },
@@ -126,6 +127,7 @@ class SaleRepository {
                 refunds: {
                     include: {
                         items: true,
+                        creditNote: true,
                     },
                 },
             },
@@ -206,7 +208,8 @@ class SaleRepository {
                 data: {
                     ...saleDataForDB,
                     roundOff: saleDataForDB.roundOff || 0, // Ensure roundOff is always set
-                    attachments: attachments.length > 0 ? attachments : undefined
+                    attachments: attachments.length > 0 ? attachments : undefined,
+                    expectedPaymentDate: saleData.expectedPaymentDate ? new Date(saleData.expectedPaymentDate) : undefined
                 },
             });
 
@@ -249,7 +252,7 @@ class SaleRepository {
             await Promise.all([saleItemsPromise, paymentsPromise]);
 
             // Handle credit payments
-            const creditPayment = paymentSplits.find(p => p.paymentMethod?.toUpperCase() === 'CREDIT');
+            const creditPayment = paymentSplits.find(p => (p.method || p.paymentMethod)?.toUpperCase() === 'CREDIT');
             const creditAmount = creditPayment ? parseFloat(creditPayment.amount) : 0;
 
             if (creditAmount > 0) {
@@ -272,7 +275,7 @@ class SaleRepository {
                     data: { currentBalance: { increment: creditAmount } }
                 });
 
-                tx.customerLedger.create({
+                await tx.customerLedger.create({
                     data: {
                         storeId: saleData.storeId,
                         patientId: saleData.patientId,
@@ -284,6 +287,74 @@ class SaleRepository {
                         notes: `Credit Sale: ${saleData.invoiceNumber}`
                     }
                 });
+            }
+
+            // Handle Wallet payments (Redeeming Store Credit/Credit Notes)
+            const walletPayment = paymentSplits.find(p => (p.method || p.paymentMethod)?.toUpperCase() === 'WALLET');
+            const walletAmount = walletPayment ? parseFloat(walletPayment.amount) : 0;
+
+            if (walletAmount > 0) {
+                if (!saleData.patientId) {
+                    throw new Error("Customer required for wallet payments");
+                }
+
+                // Fetch active credit notes for the patient
+                const activeCreditNotes = await tx.creditNote.findMany({
+                    where: {
+                        issuedToId: saleData.patientId,
+                        status: 'ACTIVE',
+                        balance: { gt: 0 },
+                        OR: [
+                            { expiresAt: null },
+                            { expiresAt: { gt: new Date() } }
+                        ]
+                    },
+                    orderBy: { expiresAt: 'asc' } // Consume oldest/soonest to expire first
+                });
+
+                let remainingToCover = walletAmount;
+
+                // Double check if enough balance exists (extra safety beyond frontend check)
+                const totalAvailable = activeCreditNotes.reduce((sum, cn) => sum + Number(cn.balance), 0);
+                if (totalAvailable < walletAmount) {
+                    throw new Error(`Insufficient wallet balance. Available: ${totalAvailable}, Required: ${walletAmount}`);
+                }
+
+                for (const cn of activeCreditNotes) {
+                    if (remainingToCover <= 0) break;
+
+                    const cnBalance = Number(cn.balance);
+                    const amountFromThisCN = Math.min(cnBalance, remainingToCover);
+
+                    const newBalance = cnBalance - amountFromThisCN;
+                    const newStatus = newBalance === 0 ? 'REDEEMED' : 'ACTIVE';
+
+                    await tx.creditNote.update({
+                        where: { id: cn.id },
+                        data: {
+                            balance: newBalance,
+                            status: newStatus
+                        }
+                    });
+
+                    // Log the redemption in CustomerLedger as a CREDIT to offset the sale's implicit debit
+                    await tx.customerLedger.create({
+                        data: {
+                            storeId: saleData.storeId,
+                            patientId: saleData.patientId,
+                            type: 'CREDIT',
+                            amount: amountFromThisCN,
+                            balanceAfter: 0, // Wallet isn't part of currentBalance debt
+                            referenceType: 'PAYMENT',
+                            referenceId: sale.id,
+                            notes: `Wallet Payment (CN: ${cn.code}) for Sale: ${saleData.invoiceNumber}`
+                        }
+                    });
+
+                    remainingToCover -= amountFromThisCN;
+                }
+
+                logger.info(`[Wallet] Successfully redeemed ₹${walletAmount} from credit notes for patient ${saleData.patientId}`);
             }
 
             // Update inventory (skip for estimates)
@@ -818,7 +889,8 @@ class SaleRepository {
                 createdAt: true,
                 total: true,
                 balance: true,
-                paymentStatus: true
+                paymentStatus: true,
+                expectedPaymentDate: true
             }
         });
     }

@@ -53,9 +53,18 @@ class UnitConversionService {
                 throw new ApiError(400, `Drug ${drugId} has no base unit configured. Please configure unit settings first.`);
             }
 
-            // If already in base units, return as-is (case-insensitive comparison)
-            const normalizeUnit = (u) => (u || '').toLowerCase().trim();
-            if (normalizeUnit(fromUnit) === normalizeUnit(drug.baseUnit)) {
+            // Improved normalization with synonym handling
+            const normalizeUnit = (u) => {
+                const normalized = (u || '').toLowerCase().trim();
+                if (normalized === 'units' || normalized === 'unit') return 'generic_unit';
+                return normalized;
+            };
+
+            const fromUnitNormalized = normalizeUnit(fromUnit);
+            const baseUnitNormalized = normalizeUnit(drug.baseUnit);
+
+            // If already in base units, or if using a generic 'unit' label, return as-is
+            if (fromUnitNormalized === baseUnitNormalized || fromUnitNormalized === 'generic_unit') {
                 return {
                     baseQuantity: quantity,
                     baseUnit: drug.baseUnit
@@ -64,14 +73,19 @@ class UnitConversionService {
 
             // Find conversion path
             const conversion = drug.unitConfigurations.find(
-                c => c.parentUnit === fromUnit && c.childUnit === drug.baseUnit
+                c => normalizeUnit(c.parentUnit) === fromUnitNormalized &&
+                    normalizeUnit(c.childUnit) === baseUnitNormalized
             );
 
             if (!conversion) {
-                throw new ApiError(
+                // Return a specific error type that callers can handle without stack traces if desired
+                const err = new ApiError(
                     400,
-                    `No conversion found from ${fromUnit} to ${drug.baseUnit} for drug ${drugId}. Please configure conversion.`
+                    `No conversion found from ${fromUnit} to ${drug.baseUnit} for drug ${drugId}`
                 );
+                err.isOperational = true;
+                err.code = 'CONFIG_MISSING';
+                throw err;
             }
 
             // Apply conversion
@@ -90,7 +104,12 @@ class UnitConversionService {
             };
 
         } catch (error) {
-            logger.error('Error in convertToBaseUnits:', error);
+            // Only log full error for non-operational errors
+            if (error.isOperational) {
+                logger.warn(`Unit conversion failed: ${error.message} (Drug: ${drugId})`);
+            } else {
+                logger.error('Unexpected error in convertToBaseUnits:', error);
+            }
             throw error;
         }
     }

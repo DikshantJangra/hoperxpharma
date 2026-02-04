@@ -213,6 +213,21 @@ const searchDrugsForPOS = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Get bulk stock refresh for POS
+ */
+const getBulkStock = asyncHandler(async (req, res) => {
+    const { drugIds } = req.body;
+
+    if (!drugIds || !Array.isArray(drugIds)) {
+        return res.status(400).json(ApiResponse.error('drugIds array is required'));
+    }
+
+    const stockMap = await inventoryService.getBulkStock(req.storeId, drugIds);
+    const response = ApiResponse.success(stockMap);
+    res.status(response.statusCode).json(response);
+});
+
+/**
  * Update batch location
  */
 const updateBatchLocation = asyncHandler(async (req, res) => {
@@ -307,10 +322,11 @@ module.exports = {
     getLowStockAlerts,
     getExpiringItems,
     getInventorySummary,
-    searchDrugsForPOS,
-    updateBatchLocation,
-    getBatchesWithSuppliers,
-    getBatchHistory,
     checkBatch,
     checkBatchesBulk,
+    getBatchHistory,
+    searchDrugsForPOS,
+    getBulkStock,
+    updateBatchLocation,
+    getBatchesWithSuppliers,
 };

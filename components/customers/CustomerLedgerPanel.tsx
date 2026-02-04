@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -14,6 +14,7 @@ interface CustomerLedgerPanelProps {
     onClose: () => void;
     customerId: string;
     onBalanceUpdate?: (newBalance: number) => void;
+    isInline?: boolean;
 }
 
 type Tab = 'unpaid' | 'history';
@@ -22,10 +23,12 @@ export default function CustomerLedgerPanel({
     isOpen,
     onClose,
     customerId,
-    onBalanceUpdate
+    onBalanceUpdate,
+    isInline = false
 }: CustomerLedgerPanelProps) {
     const [activeTab, setActiveTab] = useState<Tab>('unpaid');
     const [loading, setLoading] = useState(false);
+    const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
     const queryClient = useQueryClient();
 
@@ -75,17 +78,37 @@ export default function CustomerLedgerPanel({
     }, [isOpen, customerId]);
 
     const fetchData = async () => {
+        console.log('🔄 fetchData called for customer:', customerId);
         try {
             setLoading(true);
+            console.log('📡 Starting API calls...');
             const [ledgerData, invoicesData] = await Promise.all([
                 customerLedgerApi.getLedger(customerId),
                 customerLedgerApi.getUnpaidInvoices(customerId)
             ]);
+            console.log('✅ API calls completed');
+            console.log('📊 Ledger Data:', ledgerData);
+            console.log('🔍 Unpaid Invoices Raw:', invoicesData);
+
+            // Log each invoice individually
+            if (invoicesData && Array.isArray(invoicesData)) {
+                invoicesData.forEach((inv: any, idx: number) => {
+                    console.log(`📋 Invoice ${idx + 1}:`, {
+                        number: inv.invoiceNumber,
+                        total: inv.total,
+                        balance: inv.balance,
+                        expectedDate: inv.expectedPaymentDate,
+                        status: inv.paymentStatus
+                    });
+                });
+            }
+
             // setCustomer(patientData.data); // Handled by useQuery
             setLedger(ledgerData.data || []);
             setUnpaidInvoices(invoicesData || []);
+            console.log('✅ State updated - unpaidInvoices count:', invoicesData?.length || 0);
         } catch (error) {
-            console.error("Error fetching ledger:", error);
+            console.error("❌ Error fetching ledger:", error);
             toast.error("Failed to load customer ledger.");
         } finally {
             setLoading(false);
@@ -322,21 +345,70 @@ export default function CustomerLedgerPanel({
         }
     };
 
+    const Shimmer = () => (
+        <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/60 to-transparent animate-shimmer" />
+    );
+
+    const LedgerSkeleton = () => (
+        <div className="flex-1 space-y-3 p-1">
+            {[...Array(6)].map((_, i) => (
+                <div key={i} className="bg-white rounded-lg p-3 border border-gray-100 shadow-sm relative overflow-hidden">
+                    <div className="flex justify-between items-center">
+                        <div className="space-y-2 flex-1">
+                            <div className="h-4 bg-gray-100 rounded w-1/3 relative overflow-hidden">
+                                <Shimmer />
+                            </div>
+                            <div className="h-3 bg-gray-50 rounded w-1/2 relative overflow-hidden">
+                                <Shimmer />
+                            </div>
+                        </div>
+                        <div className="text-right space-y-2">
+                            <div className="h-4 bg-gray-100 rounded w-16 ml-auto relative overflow-hidden">
+                                <Shimmer />
+                            </div>
+                            <div className="h-3 bg-gray-50 rounded w-10 ml-auto relative overflow-hidden">
+                                <Shimmer />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+
     const currentBalance = customer?.currentBalance ? Number(customer.currentBalance) : 0;
     const totalUnpaidInvoices = unpaidInvoices.reduce((sum, inv) => sum + Number(inv.balance), 0);
     const canSettle = currentBalance > 0 || totalUnpaidInvoices > 0;
 
-    return (
-        <RightPanel
-            isOpen={isOpen}
-            onClose={onClose}
-            title="Customer Ledger"
-            width="w-full md:w-[700px]" // Increased width for table
-        >
-            <div className="flex flex-col h-full space-y-4">
+    const content = (
+        <div className={`flex flex-col h-full space-y-4 ${isInline ? 'bg-[#f8fafc] p-4' : ''}`}>
+            {isInline && (
+                <div className="flex items-center justify-between mb-2">
+                    <h2 className="text-lg font-bold text-gray-900">Customer Ledger</h2>
+                    <button
+                        onClick={onClose}
+                        className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
+                    >
+                        <FiX className="w-5 h-5" />
+                    </button>
+                </div>
+            )}
 
-                {/* Header Summary */}
-                <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
+            {/* Header Summary */}
+            <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm shrink-0 relative overflow-hidden">
+                {isLoadingCustomer ? (
+                    <div className="space-y-3">
+                        <div className="h-3 bg-gray-100 rounded w-24 relative overflow-hidden">
+                            <Shimmer />
+                        </div>
+                        <div className="h-10 bg-gray-100 rounded w-48 relative overflow-hidden">
+                            <Shimmer />
+                        </div>
+                        <div className="h-4 bg-gray-50 rounded w-32 relative overflow-hidden">
+                            <Shimmer />
+                        </div>
+                    </div>
+                ) : (
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                         <div>
                             <h3 className="text-gray-500 text-xs font-bold uppercase tracking-wider flex items-center gap-2">
@@ -349,254 +421,375 @@ export default function CustomerLedgerPanel({
                                     <FiRefreshCw className="w-3 h-3" />
                                 </button>
                             </h3>
-                            <div className={`text-4xl font-bold mt-1 ${currentBalance > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                            <div className={`text-3xl font-bold mt-1 ${currentBalance > 0 ? 'text-red-600' : 'text-green-600'}`}>
                                 ₹{currentBalance.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                             </div>
                             {customer && (
-                                <div className="mt-1 text-gray-600 text-sm">
+                                <div className="mt-1 text-gray-600 text-xs">
                                     {customer.firstName} {customer.lastName} • {customer.phoneNumber}
                                 </div>
                             )}
                         </div>
 
                         {!showPaymentForm && (
-                            <div className="flex flex-col sm:flex-row gap-2 w-full md:w-auto">
+                            <div className="flex flex-col gap-2 w-full md:w-auto">
                                 <button
                                     onClick={handleSettleFull}
                                     disabled={!canSettle}
-                                    className="px-5 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-semibold hover:bg-indigo-700 disabled:opacity-50 shadow-sm flex items-center justify-center gap-2"
+                                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg text-xs font-semibold hover:bg-indigo-700 disabled:opacity-50 shadow-sm flex items-center justify-center gap-2"
                                 >
                                     <FiCheckCircle /> Settle Full
                                 </button>
                                 <button
                                     onClick={() => { setPaymentAmount(''); setShowPaymentForm(true); }}
-                                    className="px-5 py-2.5 bg-white border border-gray-300 text-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-50 shadow-sm flex items-center justify-center gap-2"
+                                    className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg text-xs font-semibold hover:bg-gray-50 shadow-sm flex items-center justify-center gap-2"
                                 >
                                     <FiDollarSign /> Make Payment
                                 </button>
                             </div>
                         )}
                     </div>
-                </div>
+                )}
 
-                {/* Payment Form */}
+                {/* Inline Payment Form Overlay */}
                 {showPaymentForm && (
-                    <div className="bg-indigo-50/50 border border-indigo-100 rounded-xl p-5 shadow-sm animate-in zoom-in-95 duration-200">
-                        <div className="flex justify-between items-start mb-4">
-                            <div>
-                                <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                                    <FiDollarSign className="text-indigo-600" />
-                                    {selectedInvoiceIds.size > 0 ? `Pay for ${selectedInvoiceIds.size} Invoice(s)` : 'New Payment'}
-                                </h3>
-                                {selectedInvoiceIds.size > 0 && (
-                                    <p className="text-xs text-indigo-600 mt-1 font-medium">Auto-calculated from selection</p>
-                                )}
-                            </div>
-                            <button onClick={() => setShowPaymentForm(false)} className="text-gray-400 hover:text-gray-600">
-                                <FiX className="w-5 h-5" />
+                    <div className="mt-4 pt-4 border-t border-gray-200 space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                        <div className="flex items-center justify-between">
+                            <h4 className="text-sm font-bold text-gray-700 flex items-center gap-2">
+                                <FiDollarSign className="text-indigo-600" />
+                                {selectedInvoiceIds.size > 0 ? `Pay for ${selectedInvoiceIds.size} Invoice(s)` : 'New Payment'}
+                            </h4>
+                            <button
+                                onClick={() => {
+                                    setShowPaymentForm(false);
+                                    setSelectedInvoiceIds(new Set());
+                                    setPaymentAmount('');
+                                }}
+                                className="p-1 hover:bg-gray-100 rounded-md text-gray-400 hover:text-gray-600 transition-colors"
+                            >
+                                <FiX className="w-4 h-4" />
                             </button>
                         </div>
 
-                        <form onSubmit={handlePayment} className="space-y-4">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Amount (₹)
-                                        {selectedInvoiceIds.size === 0 && currentBalance > 0 && (
-                                            <span className="text-xs text-gray-500 ml-2 font-normal">
-                                                (Max: ₹{currentBalance})
-                                            </span>
-                                        )}
-                                    </label>
-                                    <input
-                                        type="number"
-                                        required
-                                        min="1"
-                                        // max={selectedInvoiceIds.size > 0 ? undefined : currentBalance} // Allow overpayment or partial payment freely
-                                        step="0.01"
-                                        value={paymentAmount}
-                                        onChange={(e) => {
-                                            // Allow editing regardless of selection
-                                            const val = e.target.value;
-                                            setPaymentAmount(val);
-                                            setIsManualAmount(true);
-                                        }}
-                                        // readOnly={selectedInvoiceIds.size > 0} // REMOVED: Allow partial payment
-                                        className="w-full p-2.5 border rounded-lg font-bold text-lg bg-white border-gray-300 focus:ring-2 focus:ring-indigo-500"
-                                    />
-                                    {selectedInvoiceIds.size > 0 && parseFloat(paymentAmount) < unpaidInvoices.filter(i => selectedInvoiceIds.has(i.id)).reduce((sum, i) => sum + Number(i.balance), 0) && (
-                                        <p className="text-xs text-amber-600 mt-1">Partial payment: Amount will be allocated to oldest invoices first.</p>
-                                    )}
-                                    {parseFloat(paymentAmount) > currentBalance && (
-                                        <p className="text-xs text-red-500 mt-1 font-medium">
-                                            Warning: Amount exceeds outstanding balance.
-                                        </p>
-                                    )}
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
-                                    <select
-                                        value={paymentMethod}
-                                        onChange={(e) => setPaymentMethod(e.target.value)}
-                                        className="w-full p-3 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-indigo-500"
-                                    >
-                                        <option value="CASH">Cash</option>
-                                        <option value="UPI">UPI</option>
-                                        <option value="CARD">Card</option>
-                                        <option value="WALLET">Wallet</option>
-                                    </select>
-                                </div>
+                        <form onSubmit={handlePayment} className="space-y-3">
+                            <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1.5">Amount (₹)</label>
+                                <input
+                                    type="number"
+                                    required
+                                    min="1"
+                                    step="0.01"
+                                    value={paymentAmount}
+                                    onChange={(e) => {
+                                        setPaymentAmount(e.target.value);
+                                        setIsManualAmount(true);
+                                    }}
+                                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-xs font-medium text-gray-700 mb-1.5">Method</label>
+                                <select
+                                    value={paymentMethod}
+                                    onChange={(e) => setPaymentMethod(e.target.value)}
+                                    className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                                >
+                                    <option value="CASH">Cash</option>
+                                    <option value="UPI">UPI</option>
+                                    <option value="CARD">Card</option>
+                                    <option value="WALLET">Wallet</option>
+                                </select>
                             </div>
 
                             <button
                                 type="submit"
                                 disabled={submitting}
-                                className="w-full bg-indigo-600 text-white py-3 rounded-lg hover:bg-indigo-700 font-bold shadow-md transition-all active:scale-[0.98]"
+                                className="w-full bg-indigo-600 text-white py-2.5 rounded-lg hover:bg-indigo-700 font-bold text-sm shadow-md transition-all active:scale-[0.98]"
                             >
-                                {submitting ? 'Processing...' : `Confirm Value of ₹${paymentAmount || '0'} `}
+                                {submitting ? 'Processing...' : `Confirm • ₹${paymentAmount || '0'}`}
                             </button>
                         </form>
                     </div>
                 )}
+            </div>
 
-                {/* Tabs */}
-                <div className="flex border-b border-gray-200">
-                    <button
-                        onClick={() => setActiveTab('unpaid')}
-                        className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors flex items-center justify-center gap-2 ${activeTab === 'unpaid'
-                            ? 'border-indigo-600 text-indigo-600'
-                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                            }`}
-                    >
-                        <FiList /> Unpaid Invoices ({unpaidInvoices.length})
-                    </button>
-                    <button
-                        onClick={() => setActiveTab('history')}
-                        className={`flex-1 py-3 text-sm font-medium border-b-2 transition-colors flex items-center justify-center gap-2 ${activeTab === 'history'
-                            ? 'border-indigo-600 text-indigo-600'
-                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                            }`}
-                    >
-                        <FiClock /> Ledger History
-                    </button>
-                </div>
+            {/* Tabs */}
+            <div className="flex border-b border-gray-200 shrink-0">
+                <button
+                    onClick={() => setActiveTab('unpaid')}
+                    className={`flex-1 py-2.5 text-xs font-medium border-b-2 transition-colors flex items-center justify-center gap-2 ${activeTab === 'unpaid'
+                        ? 'border-indigo-600 text-indigo-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        }`}
+                >
+                    <FiList /> Unpaid ({unpaidInvoices.length})
+                </button>
+                <button
+                    onClick={() => setActiveTab('history')}
+                    className={`flex-1 py-2.5 text-xs font-medium border-b-2 transition-colors flex items-center justify-center gap-2 ${activeTab === 'history'
+                        ? 'border-indigo-600 text-indigo-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                        }`}
+                >
+                    <FiClock /> History
+                </button>
+            </div>
 
-                {/* Tab Content */}
-                <div className="flex-1 overflow-hidden flex flex-col min-h-0 bg-white rounded-b-xl border border-t-0 border-gray-200 shadow-sm">
-                    {activeTab === 'unpaid' ? (
-                        <div className="flex-1 overflow-y-auto">
-                            {unpaidInvoices.length === 0 ? (
-                                <div className="p-8 text-center text-gray-500 flex flex-col items-center gap-3">
-                                    <FiCheckCircle className="w-10 h-10 text-green-200" />
-                                    <p>No unpaid invoices! Customer is all clear.</p>
-                                </div>
-                            ) : (
-                                <table className="w-full text-sm text-left">
-                                    <thead className="bg-gray-50 text-gray-600 sticky top-0 font-medium z-10">
-                                        <tr>
-                                            <th className="p-3 w-10">
-                                                <input
-                                                    type="checkbox"
-                                                    className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                                                    checked={unpaidInvoices.length > 0 && selectedInvoiceIds.size === unpaidInvoices.length}
-                                                    onChange={handleSelectAll}
-                                                />
-                                            </th>
-                                            <th className="p-3">Invoice</th>
-                                            <th className="p-3">Date</th>
-                                            <th className="p-3 text-right">Total</th>
-                                            <th className="p-3 text-right">Due Balance</th>
-                                            <th className="p-3 text-center">Status</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-100">
-                                        {unpaidInvoices.map((inv) => (
+            {/* Tab Content */}
+            <div className="flex-1 overflow-hidden flex flex-col min-h-0 bg-white rounded-b-xl border border-t-0 border-gray-200 shadow-sm">
+                {loading ? (
+                    <LedgerSkeleton />
+                ) : activeTab === 'unpaid' ? (
+                    <div className="flex-1 overflow-y-auto">
+                        {unpaidInvoices.length === 0 ? (
+                            <div className="p-8 text-center text-gray-500 flex flex-col items-center gap-3">
+                                <FiCheckCircle className="w-10 h-10 text-green-200" />
+                                <p className="text-sm">No unpaid invoices!</p>
+                            </div>
+                        ) : (
+                            <table className="w-full text-xs text-left">
+                                <thead className="bg-gray-50 text-gray-600 sticky top-0 font-medium z-10">
+                                    <tr>
+                                        <th className="p-2 w-8">
+                                            <input
+                                                type="checkbox"
+                                                className="w-3.5 h-3.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                                checked={unpaidInvoices.length > 0 && selectedInvoiceIds.size === unpaidInvoices.length}
+                                                onChange={handleSelectAll}
+                                            />
+                                        </th>
+                                        <th className="p-2">Invoice</th>
+                                        <th className="p-2 text-right">Due</th>
+                                        <th className="p-2">Expected</th>
+                                        <th className="p-2 text-right">Days</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                    {unpaidInvoices.map((inv) => {
+                                        const expectedDate = inv.expectedPaymentDate ? new Date(inv.expectedPaymentDate) : null;
+                                        const today = new Date();
+                                        today.setHours(0, 0, 0, 0);
+
+                                        let daysInfo = null;
+                                        let urgencyClass = '';
+                                        let urgencyBg = '';
+
+                                        if (expectedDate) {
+                                            const expDate = new Date(expectedDate);
+                                            expDate.setHours(0, 0, 0, 0);
+                                            const diffTime = expDate.getTime() - today.getTime();
+                                            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                                            if (diffDays < 0) {
+                                                // Overdue
+                                                const overdueDays = Math.abs(diffDays);
+                                                daysInfo = `${overdueDays}d overdue`;
+                                                urgencyClass = 'text-red-700';
+                                                urgencyBg = 'bg-red-50 border-red-200';
+                                            } else if (diffDays === 0) {
+                                                daysInfo = 'Due today';
+                                                urgencyClass = 'text-orange-700';
+                                                urgencyBg = 'bg-orange-50 border-orange-200';
+                                            } else if (diffDays <= 7) {
+                                                daysInfo = `${diffDays}d left`;
+                                                urgencyClass = 'text-amber-700';
+                                                urgencyBg = 'bg-amber-50 border-amber-200';
+                                            } else {
+                                                daysInfo = `${diffDays}d left`;
+                                                urgencyClass = 'text-green-700';
+                                                urgencyBg = 'bg-green-50 border-green-200';
+                                            }
+                                        }
+
+                                        return (
                                             <tr key={inv.id} className={`hover:bg-gray-50 transition-colors ${selectedInvoiceIds.has(inv.id) ? 'bg-indigo-50/30' : ''}`}>
-                                                <td className="p-3">
+                                                <td className="p-2">
                                                     <input
                                                         type="checkbox"
-                                                        className="w-4 h-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                                        className="w-3.5 h-3.5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
                                                         checked={selectedInvoiceIds.has(inv.id)}
                                                         onChange={() => toggleInvoiceSelection(inv.id)}
                                                     />
                                                 </td>
-                                                <td className="p-3 font-medium text-gray-700">#{inv.invoiceNumber}</td>
-                                                <td className="p-3 text-gray-500">{format(new Date(inv.createdAt), 'dd MMM yyyy')}</td>
-                                                <td className="p-3 text-right text-gray-500">₹{Number(inv.total).toFixed(2)}</td>
-                                                <td className="p-3 text-right font-bold text-red-600">₹{Number(inv.balance).toFixed(2)}</td>
-                                                <td className="p-3 text-center">
-                                                    <span className={`inline-flex px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wide
-                                                        ${inv.paymentStatus === 'OVERDUE' ? 'bg-red-100 text-red-700' :
-                                                            inv.paymentStatus === 'PARTIAL' ? 'bg-amber-100 text-amber-700' : 'bg-red-50 text-red-600'}`}>
-                                                        {inv.paymentStatus}
-                                                    </span>
+                                                <td className="p-2">
+                                                    <div className="font-medium text-gray-700">#{inv.invoiceNumber}</div>
+                                                    <div className="text-[10px] text-gray-400 mt-0.5">
+                                                        {format(new Date(inv.createdAt), 'dd MMM yy')}
+                                                    </div>
+                                                </td>
+                                                <td className="p-2 text-right font-bold text-red-600">₹{Number(inv.balance).toFixed(0)}</td>
+                                                <td className="p-2">
+                                                    {expectedDate ? (
+                                                        <div className="text-[11px] text-gray-500">
+                                                            {format(expectedDate, 'dd MMM')}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-[10px] text-gray-300">-</span>
+                                                    )}
+                                                </td>
+                                                <td className="p-2 text-right">
+                                                    {daysInfo ? (
+                                                        <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-bold border ${urgencyClass} ${urgencyBg}`}>
+                                                            {daysInfo}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-[10px] text-gray-400">No date</span>
+                                                    )}
                                                 </td>
                                             </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            )}
-                        </div>
-                    ) : (
-                        <div className="flex-1 overflow-y-auto">
-                            {ledger.length === 0 ? (
-                                <div className="text-center py-12 text-gray-500">
-                                    <p>No transaction history found.</p>
-                                </div>
-                            ) : (
-                                <table className="w-full text-sm text-left">
-                                    <thead className="bg-gray-50 text-gray-600 sticky top-0 font-medium">
-                                        <tr>
-                                            <th className="p-3 border-b">Date</th>
-                                            <th className="p-3 border-b">Type</th>
-                                            <th className="p-3 border-b text-right">Amount</th>
-                                            <th className="p-3 border-b text-right">Balance</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody className="divide-y divide-gray-100">
-                                        {ledger.map((entry) => {
-                                            const isDebit = entry.type === 'DEBIT';
-                                            return (
-                                                <tr key={entry.id} className="hover:bg-gray-50/50">
-                                                    <td className="p-3 text-gray-500">
-                                                        <div>{format(new Date(entry.createdAt), 'dd MMM yyyy')}</div>
-                                                        <div className="text-xs text-gray-400">{format(new Date(entry.createdAt), 'hh:mm a')}</div>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        )}
+                    </div>
+                ) : (
+                    <div className="flex-1 overflow-y-auto">
+                        {ledger.length === 0 ? (
+                            <div className="text-center py-12 text-gray-500">
+                                <p className="text-sm">No transaction history.</p>
+                            </div>
+                        ) : (
+                            <table className="w-full text-xs text-left">
+                                <thead className="bg-gray-50 text-gray-600 sticky top-0 font-medium border-b border-gray-200">
+                                    <tr>
+                                        <th className="p-3">Date</th>
+                                        <th className="p-3">Type</th>
+                                        <th className="p-3 text-right">Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                    {ledger.map((entry) => {
+                                        const isDebit = entry.type === 'DEBIT';
+                                        const isExpanded = expandedRows.has(entry.id);
+
+                                        // Relatable Description Logic
+                                        let relatableTitle = entry.notes || 'Transaction';
+                                        if (relatableTitle.startsWith('Purchase: ')) {
+                                            relatableTitle = relatableTitle.split(' (')[0].replace('Purchase: ', 'Order ');
+                                        } else if (entry.referenceType === 'SALE') {
+                                            relatableTitle = `Order #${entry.referenceId?.slice(-6).toUpperCase()}`;
+                                        } else if (entry.referenceType === 'PAYMENT') {
+                                            relatableTitle = `Receipt #${entry.id?.slice(-6).toUpperCase()}`;
+                                        } else if (entry.referenceType === 'RETURN') {
+                                            relatableTitle = `Return #${entry.referenceId?.slice(-6).toUpperCase()}`;
+                                        }
+
+                                        return (
+                                            <Fragment key={entry.id}>
+                                                <tr
+                                                    className="hover:bg-gray-50/50 cursor-pointer transition-colors"
+                                                    onClick={() => {
+                                                        const newSet = new Set(expandedRows);
+                                                        if (newSet.has(entry.id)) {
+                                                            newSet.delete(entry.id);
+                                                        } else {
+                                                            newSet.add(entry.id);
+                                                        }
+                                                        setExpandedRows(newSet);
+                                                    }}
+                                                >
+                                                    <td className="p-3">
+                                                        <div className="text-gray-700 font-medium">{format(new Date(entry.createdAt), 'dd MMM yy')}</div>
+                                                        <div className="text-[10px] text-gray-400 uppercase">{format(new Date(entry.createdAt), 'hh:mm a')}</div>
                                                     </td>
                                                     <td className="p-3">
-                                                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${isDebit ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
-                                                            {isDebit ? 'Purchase' : 'Payment'}
+                                                        <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-tight border ${entry.referenceType === 'SALE' ? 'bg-indigo-50 text-indigo-700 border-indigo-100' :
+                                                            entry.referenceType === 'PAYMENT' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
+                                                                (entry.referenceType === 'RETURN' || entry.referenceType === 'REFUND') ? 'bg-orange-50 text-orange-700 border-orange-100' :
+                                                                    isDebit ? 'bg-red-50 text-red-700 border-red-100' : 'bg-gray-50 text-gray-700 border-gray-100'
+                                                            }`}>
+                                                            {entry.referenceType === 'SALE' ? 'Purchase' :
+                                                                entry.referenceType === 'PAYMENT' ? 'Payment' :
+                                                                    entry.referenceType === 'RETURN' ? 'Return' :
+                                                                        entry.referenceType === 'REFUND' ? 'Refund' :
+                                                                            entry.referenceType === 'ADJUSTMENT' ? 'Adjust' :
+                                                                                entry.referenceType === 'OPENING_BALANCE' ? 'Opening' :
+                                                                                    isDebit ? 'Debit' : 'Credit'}
                                                         </span>
-                                                        {entry.notes && (
-                                                            <div className="text-xs text-gray-400 mt-1 max-w-[150px] truncate" title={entry.notes}>
-                                                                {entry.notes}
-                                                            </div>
-                                                        )}
-                                                        {entry.allocations && entry.allocations.length > 0 && (
-                                                            <div className="mt-1 flex flex-wrap gap-1">
-                                                                {entry.allocations.map((alloc, idx) => (
-                                                                    <span key={idx} className="text-[10px] bg-indigo-50 text-indigo-700 px-1.5 py-0.5 rounded border border-indigo-100">
-                                                                        #{alloc.sale.invoiceNumber}
-                                                                    </span>
-                                                                ))}
-                                                            </div>
-                                                        )}
                                                     </td>
-                                                    <td className={`p-3 text-right font-medium ${isDebit ? 'text-red-600' : 'text-green-600'}`}>
-                                                        {isDebit ? '+' : '-'}₹{Number(entry.amount).toFixed(2)}
-                                                    </td>
-                                                    <td className="p-3 text-right font-bold text-gray-700">
-                                                        ₹{Number(entry.balanceAfter).toFixed(2)}
+                                                    <td className={`p-3 text-right font-bold ${isDebit ? 'text-red-600' : 'text-green-600'}`}>
+                                                        {isDebit ? '+' : '-'}&#8377;{Number(entry.amount).toFixed(0)}
                                                     </td>
                                                 </tr>
-                                            );
-                                        })}
-                                    </tbody>
-                                </table>
-                            )}
-                        </div>
-                    )}
-                </div>
+                                                {isExpanded && (
+                                                    <tr key={`${entry.id}-expand`}>
+                                                        <td colSpan={3} className="p-0 bg-gray-50/50">
+                                                            <div className="p-4 border-t border-gray-100 space-y-3">
+                                                                <div className="flex justify-between items-start">
+                                                                    <div>
+                                                                        <div className="text-[10px] text-gray-400 font-bold uppercase mb-1 tracking-wider">Detailed Description</div>
+                                                                        <div className="text-sm font-bold text-gray-800">{relatableTitle}</div>
+                                                                        {entry.notes && entry.notes.includes('(') && (
+                                                                            <div className="text-xs text-gray-500 mt-1 pl-2 border-l-2 border-indigo-200">
+                                                                                {entry.notes.split('(')[1].replace(')', '')}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                    <div className="text-right">
+                                                                        <div className="text-[10px] text-gray-400 font-bold uppercase mb-1 tracking-wider">Balance After</div>
+                                                                        <div className="text-sm font-bold text-gray-900">&#8377;{Number(entry.balanceAfter).toFixed(0)}</div>
+                                                                    </div>
+                                                                </div>
+
+                                                                <div className="grid grid-cols-2 gap-4 pt-3 border-t border-gray-200/50">
+                                                                    <div>
+                                                                        <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">Reference ID</div>
+                                                                        <div className="text-[11px] font-mono text-gray-500 break-all bg-gray-100 p-1.5 rounded">{entry.referenceId || entry.id}</div>
+                                                                    </div>
+
+                                                                    {entry.allocations && entry.allocations.length > 0 && (
+                                                                        <div className="col-span-2 space-y-2">
+                                                                            <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Allocations (Payment for)</div>
+                                                                            <div className="grid grid-cols-1 gap-1.5">
+                                                                                {entry.allocations.map((alloc, i) => (
+                                                                                    <div key={i} className="flex justify-between items-center bg-white px-3 py-2 rounded-lg border border-gray-200 shadow-sm">
+                                                                                        <span className="text-xs font-semibold text-gray-700">Invoice #{alloc.sale.invoiceNumber}</span>
+                                                                                        <span className="text-xs font-bold text-indigo-600">&#8377;{alloc.amount.toFixed(0)}</span>
+                                                                                    </div>
+                                                                                ))}
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+
+                                                                {entry.referenceType === 'PAYMENT' && (
+                                                                    <div className="flex justify-end pt-2">
+                                                                        <button className="flex items-center gap-1.5 text-[10px] font-bold text-orange-600 hover:text-orange-700 uppercase bg-orange-50 px-2 py-1 rounded transition-colors">
+                                                                            <FiRefreshCw className="w-3 h-3" />
+                                                                            Refund Payment
+                                                                        </button>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                )}
+                                            </Fragment>
+                                        );
+                                    })}
+                                </tbody>
+                            </table>
+                        )}
+                    </div>
+                )}
             </div>
+        </div>
+    );
+
+    if (isInline) {
+        return content;
+    }
+
+    return (
+        <RightPanel
+            isOpen={isOpen}
+            onClose={onClose}
+            title="Customer Ledger"
+            width="w-full md:w-[700px]"
+        >
+            {content}
         </RightPanel>
     );
 }

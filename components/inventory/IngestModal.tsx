@@ -2129,25 +2129,28 @@ export default function IngestModal({ isOpen, onClose, onSuccess, returnPath }: 
                         type="text"
                         value={batches[activeBatchIndex].expiryDate}
                         onChange={(e) => {
-                          let value = e.target.value.replace(/[^\d]/g, ''); // Only digits
+                          let val = e.target.value.replace(/\D/g, '');
 
-                          // Auto-format as MM/YYYY
-                          if (value.length >= 2) {
-                            const month = value.substring(0, 2);
-                            let year = value.substring(2, 6);
+                          // Smart logic: if first digit > 1, make it 0X/
+                          if (val.length === 1 && parseInt(val) > 1) {
+                            val = `0${val}20`;
+                          } else if (val.length === 3 && !val.startsWith('20', 2)) {
+                            // typed first digit of year
+                            const month = val.slice(0, 2);
+                            const yearDigit = val.slice(2);
+                            val = `${month}20${yearDigit}`;
+                          }
 
-                            // Auto-prepend '20' if user types year
-                            if (year.length > 0 && year.length <= 2 && !year.startsWith('20')) {
-                              year = '20' + year;
-                            }
-
-                            value = month + (year ? '/' + year : '');
+                          // Format with slash
+                          let formatted = val;
+                          if (val.length >= 2) {
+                            formatted = val.slice(0, 2) + '/' + val.slice(2, 6);
                           }
 
                           // Limit to MM/YYYY format
-                          if (value.length > 7) value = value.substring(0, 7);
+                          if (formatted.length > 7) formatted = formatted.substring(0, 7);
 
-                          updateCurrentBatch('expiryDate', value);
+                          updateCurrentBatch('expiryDate', formatted);
                         }}
                         placeholder="MM/YYYY (e.g., 03/2025)"
                         maxLength={7}

@@ -146,16 +146,32 @@ class PatientRepository {
                     take: 5,
                     orderBy: { createdAt: 'desc' },
                 },
+                creditNotes: {
+                    where: {
+                        status: 'ACTIVE',
+                        OR: [
+                            { expiresAt: null },
+                            { expiresAt: { gt: new Date() } }
+                        ]
+                    },
+                },
             },
         });
 
         if (!patient) return null;
 
         // Convert Decimal fields to numbers for JSON serialization
+        const walletBalance = patient.creditNotes
+            ? patient.creditNotes.reduce((sum, cn) => sum + Number(cn.balance), 0)
+            : 0;
+
+        logger.info(`[PatientRepo] Calculated wallet balance for patient ${id}: ₹${walletBalance}`);
+
         return {
             ...patient,
             currentBalance: Number(patient.currentBalance),
-            creditLimit: Number(patient.creditLimit)
+            creditLimit: Number(patient.creditLimit),
+            walletBalance: Number(walletBalance.toFixed(2))
         };
     }
 
@@ -233,6 +249,28 @@ class PatientRepository {
             },
             take: 10, // Limit to 10 results for autocomplete
             orderBy: { createdAt: 'desc' },
+            include: {
+                creditNotes: {
+                    where: {
+                        status: 'ACTIVE',
+                        OR: [
+                            { expiresAt: null },
+                            { expiresAt: { gt: new Date() } }
+                        ]
+                    }
+                }
+            }
+        });
+
+        // Add walletBalance to each patient
+        return patients.map(p => {
+            const walletBalance = p.creditNotes
+                ? p.creditNotes.reduce((sum, cn) => sum + Number(cn.balance), 0)
+                : 0;
+            return {
+                ...p,
+                walletBalance: Number(walletBalance.toFixed(2))
+            };
         });
     }
 
@@ -724,38 +762,92 @@ class PatientRepository {
     }
 
     /**
-     * Get patient ledger history
+     * Get patient ledger history (Unified View of all Purchases and Payments)
      */
     async getLedger({ patientId, storeId, page = 1, limit = 20 }) {
         const skip = (page - 1) * limit;
+        const take = parseInt(limit);
 
-        const where = {
-            patientId,
-            ...(storeId && { storeId }), // Optional for now as patientId is unique, but good for safety
+        // We use a UNION to combine actual Sales (all purchases) 
+        // with Ledger entries (payments, returns, adjustments)
+        // This ensures the "History" tab shows everything the customer ever did.
+
+        // Note: For Sales, we show the FULL total as a DEBIT.
+        // For Ledger entries, we exclude 'SALE' reference types to avoid double-counting 
+        // credit sales which were already captured by the Sales query part.
+
+        const history = await prisma.$queryRaw`
+            WITH combined AS (
+                SELECT 
+                    s.id, 
+                    s."createdAt", 
+                    'DEBIT' as "type", 
+                    s."total"::float as amount, 
+                    'SALE' as "referenceType", 
+                    s."id" as "referenceId",
+                    'Purchase: ' || s."invoiceNumber" || ' (' || (
+                        SELECT COALESCE(STRING_AGG(d.name, ', '), 'Items') 
+                        FROM "SaleItem" si 
+                        JOIN "Drug" d ON d.id = si."drugId" 
+                        WHERE si."saleId" = s.id
+                    ) || ')' as notes,
+                    s."createdAt" as sort_time
+                FROM "Sale" s
+                WHERE s."patientId" = ${patientId} 
+                  AND s."deletedAt" IS NULL
+                  AND (s."storeId" = ${storeId} OR ${storeId} IS NULL)
+                
+                UNION ALL
+                
+                SELECT 
+                    id, 
+                    "createdAt", 
+                    "type"::text as "type", 
+                    "amount"::float as amount, 
+                    "referenceType"::text as "referenceType", 
+                    "referenceId",
+                    "notes",
+                    "createdAt" as sort_time
+                FROM "CustomerLedger"
+                WHERE "patientId" = ${patientId} 
+                  AND "referenceType" != 'SALE'
+                  AND ("storeId" = ${storeId} OR ${storeId} IS NULL)
+            )
+            SELECT 
+                id,
+                "createdAt",
+                type,
+                amount,
+                "referenceType",
+                "referenceId",
+                notes,
+                SUM(CASE WHEN type = 'DEBIT' THEN amount ELSE -amount END) 
+                    OVER (ORDER BY sort_time ASC, id ASC)::float as "balanceAfter"
+            FROM combined
+            ORDER BY sort_time DESC, id DESC
+            LIMIT ${take} OFFSET ${skip}
+        `;
+
+        // Get total count for pagination
+        const totalCountRaw = await prisma.$queryRaw`
+            SELECT (
+                SELECT COUNT(*)::int FROM "Sale" WHERE "patientId" = ${patientId} AND "deletedAt" IS NULL AND ("storeId" = ${storeId} OR ${storeId} IS NULL)
+            ) + (
+                SELECT COUNT(*)::int FROM "CustomerLedger" WHERE "patientId" = ${patientId} AND "referenceType" != 'SALE' AND ("storeId" = ${storeId} OR ${storeId} IS NULL)
+            ) as total
+        `;
+
+        const total = Number(totalCountRaw[0].total);
+
+        return {
+            ledger: history.map(item => ({
+                ...item,
+                amount: Number(item.amount),
+                balanceAfter: Number(item.balanceAfter),
+                createdAt: item.createdAt.toISOString()
+            })),
+            total
         };
-
-        const [ledger, total] = await Promise.all([
-            prisma.customerLedger.findMany({
-                where,
-                skip,
-                take: limit,
-                orderBy: { createdAt: 'desc' },
-                include: {
-                    allocations: {
-                        include: {
-                            sale: {
-                                select: {
-                                    invoiceNumber: true
-                                }
-                            }
-                        }
-                    }
-                }
-            }),
-            prisma.customerLedger.count({ where }),
-        ]);
-
-        return { ledger, total };
     }
 
     /**

@@ -62,6 +62,7 @@ const saleCreateSchema = z.object({
     prescriptionId: z.string().optional().nullable(),
     invoiceNumber: z.string().optional(), // Allow manual override or auto-generated
     shouldCreateRefill: z.boolean().optional(),
+    expectedPaymentDate: z.string().datetime().optional(), // For credit sales - when payment is expected
 }).refine((sale) => {
     // Validate overall discount doesn't exceed subtotal
     if (sale.discountAmount > sale.subtotal) {

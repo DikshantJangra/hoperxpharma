@@ -133,11 +133,19 @@ function calculateMilestoneProgress(currentStatus, purchaseCount, consistencySco
     const nextStatus = STATUS_ORDER[currentIndex + 1];
     const nextThreshold = STATUS_THRESHOLDS[nextStatus];
 
-    // Calculate progress for each dimension
-    const purchaseProgress = (purchaseCount / nextThreshold.minPurchases) * 100;
-    const consistencyProgress = (consistencyScore / nextThreshold.minConsistency) * 100;
-    const engagementProgress = (engagementScore / nextThreshold.minEngagement) * 100;
-    const timeProgress = (daysSinceFirst / nextThreshold.minDays) * 100;
+    // Calculate progress for each dimension - avoid division by zero
+    const purchaseProgress = nextThreshold.minPurchases > 0
+        ? (purchaseCount / nextThreshold.minPurchases) * 100
+        : 100;
+    const consistencyProgress = nextThreshold.minConsistency > 0
+        ? (consistencyScore / nextThreshold.minConsistency) * 100
+        : 100;
+    const engagementProgress = nextThreshold.minEngagement > 0
+        ? (engagementScore / nextThreshold.minEngagement) * 100
+        : 100;
+    const timeProgress = nextThreshold.minDays > 0
+        ? (daysSinceFirst / nextThreshold.minDays) * 100
+        : 100;
 
     // Take the minimum - all must be met
     const progress = Math.min(
@@ -145,7 +153,7 @@ function calculateMilestoneProgress(currentStatus, purchaseCount, consistencySco
         Math.min(purchaseProgress, consistencyProgress, engagementProgress, timeProgress)
     );
 
-    return Math.round(progress * 100) / 100; // Round to 2 decimals
+    return isNaN(progress) ? 0 : Math.round(progress * 100) / 100; // Round to 2 decimals
 }
 
 /**

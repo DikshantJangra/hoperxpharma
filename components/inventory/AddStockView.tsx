@@ -6,6 +6,7 @@ import { useKeyboardNavigation } from '@/hooks/useKeyboardNavigation';
 import { inventoryApi } from '@/lib/api/inventory';
 import SupplierSelect from '@/components/orders/SupplierSelect';
 import { Supplier } from '@/types/po';
+import { useAuthStore } from '@/lib/store/auth-store';
 
 interface AddStockViewProps {
     drugId: string;
@@ -29,6 +30,7 @@ export default function AddStockView({ drugId, drugName, onClose, onSuccess }: A
     const [selectedSupplier, setSelectedSupplier] = useState<Supplier | undefined>(undefined);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
+    const { primaryStore } = useAuthStore();
 
     // Enable enhanced keyboard navigation
     const { handleKeyDown } = useKeyboardNavigation();
@@ -87,22 +89,31 @@ export default function AddStockView({ drugId, drugName, onClose, onSuccess }: A
             // Helper for last day of month
             const getExpiryISO = (dateStr: string) => {
                 if (!dateStr) return '';
+                // Handle MM/YYYY format
+                if (dateStr.includes('/')) {
+                    const [m, y] = dateStr.split('/');
+                    const month = parseInt(m);
+                    const year = parseInt(y);
+                    // new Date(year, month, 0) gives last day of 'month' when month is 1-indexed
+                    return new Date(year, month, 0).toISOString();
+                }
+                // Fallback for YYYY-MM
                 const [y, m] = dateStr.split('-');
-                // Month is 0-indexed in Date constructor, so m is already correct for 1-12
-                // Passing 0 as the day gets the last day of the previous month (m-1)
-                // So, new Date(year, month, 0) gives the last day of (month-1)
-                // To get the last day of the selected month 'm', we need to use 'm' as the month index
-                // and 0 as the day, which gives the last day of the (m-1)th month.
-                // So, for 'YYYY-MM', we want the last day of 'MM'.
-                // new Date(year, monthIndex, 0) gives the last day of (monthIndex-1).
-                // To get the last day of month 'm', we use new Date(year, m, 0).
                 return new Date(parseInt(y), parseInt(m), 0).toISOString();
             };
+
+            // Calculate baseUnitQuantity
+            const baseUnitQuantity = formData.unit === 'Strip'
+                ? formData.quantity * formData.tabletsPerStrip
+                : formData.quantity;
 
             // 1. Create Batch
             promises.push(inventoryApi.createBatch({
                 ...formData,
+                storeId: primaryStore?.id,
                 drugId,
+                baseUnitQuantity,
+                purchasePrice: formData.purchaseRate, // Backend expects purchasePrice
                 supplierId: selectedSupplier?.id,
                 expiryDate: getExpiryISO(formData.expiryDate),
             }));
@@ -173,13 +184,36 @@ export default function AddStockView({ drugId, drugName, onClose, onSuccess }: A
                         <div className="col-span-1">
                             <label className="block text-sm font-medium text-gray-700 mb-2">Expiry Date *</label>
                             <input
-                                type="month"
+                                type="text"
                                 required
+                                placeholder="MM/YYYY"
                                 value={formData.expiryDate}
                                 onChange={(e) => {
-                                    setFormData({ ...formData, expiryDate: e.target.value });
+                                    let val = e.target.value.replace(/\D/g, '');
+
+                                    // Smart logic: if first digit > 1, make it 0X/
+                                    if (val.length === 1 && parseInt(val) > 1) {
+                                        val = `0${val}20`;
+                                    } else if (val.length === 2) {
+                                        // If month > 12, cap it or just allow it for now
+                                        val = val;
+                                    } else if (val.length === 3 && !val.startsWith('20', 2)) {
+                                        // typed first digit of year
+                                        const month = val.slice(0, 2);
+                                        const yearDigit = val.slice(2);
+                                        val = `${month}20${yearDigit}`;
+                                    }
+
+                                    // Format with slash
+                                    let formatted = val;
+                                    if (val.length >= 2) {
+                                        formatted = val.slice(0, 2) + '/' + val.slice(2, 6);
+                                    }
+
+                                    setFormData({ ...formData, expiryDate: formatted });
                                     if (errors.expiryDate) setErrors({ ...errors, expiryDate: '' });
                                 }}
+                                maxLength={7} // MM/YYYY
                                 className={inputClasses('expiryDate')}
                                 disabled={isSubmitting}
                             />

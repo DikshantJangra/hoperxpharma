@@ -277,7 +277,7 @@ export default function ProductSearch({ onAddProduct, searchFocus, setSearchFocu
                   <div className={`mt-1 ${product.totalStock > 0 ? 'text-[#64748b]' : 'text-red-500 font-medium'}`}>
                     {product.totalStock > 0 ? (
                       <div className="flex flex-col items-end">
-                        {renderStockQuantity({ totalStock: product.totalStock, drug: product }, { className: "text-sm font-semibold" })}
+                        {renderStockQuantity({ baseUnitQuantity: Number(product.totalStock), drug: product }, { className: "text-sm font-semibold" })}
                         <span className="text-[10px] text-[#64748b]">{product.batchCount} batches</span>
                       </div>
                     ) : (

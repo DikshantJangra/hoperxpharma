@@ -45,7 +45,7 @@ export function formatStockQuantity(
     } = options;
 
     // Use baseUnitQuantity as the single source of truth
-    const baseQuantity = Number(batch.baseUnitQuantity ?? 0);
+    const baseQuantity = Number(batch.baseUnitQuantity ?? batch.totalStock ?? batch.stock ?? 0);
 
     // Get unit information - support both nested and flat structures
     const baseUnit = batch.drug?.baseUnit || batch.baseUnit || (batch.drug?.form && batch.drug.form !== 'Tablet' ? batch.drug.form : 'Tablet');
@@ -123,7 +123,7 @@ export function renderStockQuantity(
         forceBoth = true
     } = options;
 
-    const baseQuantity = Number(batch.baseUnitQuantity ?? 0);
+    const baseQuantity = Number(batch.baseUnitQuantity ?? batch.totalStock ?? batch.stock ?? 0);
     const baseUnit = batch.drug?.baseUnit || batch.baseUnit || (batch.drug?.form && batch.drug.form !== 'Tablet' ? batch.drug.form : 'Tablet');
     const displayUnit = batch.drug?.displayUnit || batch.displayUnit || batch.unit || baseUnit;
 

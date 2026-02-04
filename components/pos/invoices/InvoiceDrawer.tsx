@@ -83,13 +83,13 @@ export default function InvoiceDrawer({ invoice, onClose, isLoading, startInRetu
 
   const generateAuditLogs = (sale: any) => {
     const logs = [];
-    
+
     // Sale created
     logs.push({
       action: 'Sale Created',
-      time: new Date(sale.createdAt).toLocaleString('en-IN', { 
-        dateStyle: 'medium', 
-        timeStyle: 'short' 
+      time: new Date(sale.createdAt).toLocaleString('en-IN', {
+        dateStyle: 'medium',
+        timeStyle: 'short'
       }),
       user: 'System',
       details: `Invoice ${sale.invoiceNumber} created`,
@@ -108,12 +108,12 @@ export default function InvoiceDrawer({ invoice, onClose, isLoading, startInRetu
           const saleItem = sale.items?.find((si: any) => si.id === ri.saleItemId);
           return `${saleItem?.drug?.name || 'Item'} (${ri.quantity}x)`;
         }).join(', ');
-        
+
         logs.push({
           action: 'Return Processed',
-          time: new Date(refund.createdAt).toLocaleString('en-IN', { 
-            dateStyle: 'medium', 
-            timeStyle: 'short' 
+          time: new Date(refund.createdAt).toLocaleString('en-IN', {
+            dateStyle: 'medium',
+            timeStyle: 'short'
           }),
           user: 'Staff',
           details: `${refund.items?.length || 0} item(s) returned - ₹${refund.refundAmount} refunded`,
@@ -121,7 +121,8 @@ export default function InvoiceDrawer({ invoice, onClose, isLoading, startInRetu
             refundNumber: refund.refundNumber,
             items: itemDetails,
             restocked: refundItems.filter((ri: any) => ri.isResellable).length,
-            quarantined: refundItems.filter((ri: any) => !ri.isResellable).length
+            quarantined: refundItems.filter((ri: any) => !ri.isResellable).length,
+            creditNote: refund.creditNote?.code
           }
         });
       });
@@ -177,7 +178,7 @@ export default function InvoiceDrawer({ invoice, onClose, isLoading, startInRetu
     // Get user role from auth store
     const user = useAuthStore.getState().user;
     const userRole = user?.role || 'STAFF';
-    
+
     // Prepare data for API
     const formattedData = {
       items: returnData.items.map((item: any) => ({
@@ -212,11 +213,11 @@ export default function InvoiceDrawer({ invoice, onClose, isLoading, startInRetu
 
       await salesApi.initiateRefund(saleId, payload);
       toast.success('Return processed successfully!');
-      
+
       // Close modals
       setShowReturnModal(false);
       setShowManagerOverride(false);
-      
+
       // Close drawer to trigger parent refresh
       onClose();
     } catch (error: any) {
@@ -253,13 +254,20 @@ export default function InvoiceDrawer({ invoice, onClose, isLoading, startInRetu
       return sum + (refundItem?.quantity || 0);
     }, 0) || 0;
 
+    // FIX: Calculate refundable amount from MRP * qty, not inflated lineTotal
+    // MRP is always what the customer paid (tax-inclusive)
+    const mrp = Number(item.mrp || item.price || 0);
+    const qty = Number(item.qty || 0);
+    const correctLineTotal = mrp * qty;
+
     return {
       id: item.id || item.saleItemId,
       drug: { name: item.name },
       batch: item.batch || 'N/A',
-      quantity: item.qty,
+      quantity: qty,
+      mrp: mrp,
       returnedQty,
-      lineTotal: item.total
+      lineTotal: correctLineTotal // Use MRP-based calculation, not inflated total
     };
   });
 
@@ -361,21 +369,20 @@ export default function InvoiceDrawer({ invoice, onClose, isLoading, startInRetu
                 }, 0) || 0;
                 const isFullyReturned = returnedQty >= item.qty;
                 const isPartiallyReturned = returnedQty > 0 && returnedQty < item.qty;
-                
+
                 // Get refund details for this item
-                const refundDetails = invoice.refunds?.flatMap((refund: any) => 
+                const refundDetails = invoice.refunds?.flatMap((refund: any) =>
                   refund.items?.filter((ri: any) => ri.saleItemId === item.id) || []
                 ) || [];
                 const hasResellable = refundDetails.some((rd: any) => rd.isResellable);
                 const hasQuarantined = refundDetails.some((rd: any) => !rd.isResellable);
 
                 return (
-                  <div key={idx} className={`bg-white border rounded-xl p-3 relative transition-all ${
-                    isFullyReturned
-                      ? 'border-red-300 bg-red-50/60 opacity-60'
-                      : isPartiallyReturned
-                        ? 'border-amber-300 bg-amber-50/40'
-                        : 'border-[#e2e8f0]'
+                  <div key={idx} className={`bg-white border rounded-xl p-3 relative transition-all ${isFullyReturned
+                    ? 'border-red-300 bg-red-50/60 opacity-60'
+                    : isPartiallyReturned
+                      ? 'border-amber-300 bg-amber-50/40'
+                      : 'border-[#e2e8f0]'
                     }`}>
                     {/* Fully Returned Overlay Badge */}
                     {isFullyReturned && (
@@ -392,9 +399,8 @@ export default function InvoiceDrawer({ invoice, onClose, isLoading, startInRetu
                     <div className="flex justify-between gap-3">
                       <div className="min-w-0 flex-1">
                         <div className="flex items-start gap-2 flex-wrap">
-                          <p className={`text-sm font-medium leading-tight ${
-                            isFullyReturned ? 'text-gray-400 line-through' : 'text-[#0f172a]'
-                          }`}>
+                          <p className={`text-sm font-medium leading-tight ${isFullyReturned ? 'text-gray-400 line-through' : 'text-[#0f172a]'
+                            }`}>
                             {item.name}
                             {item.strength && <span className="text-[#64748b]"> • {item.strength}</span>}
                             {item.pack && <span className="text-[#64748b]"> • {item.pack}</span>}
@@ -405,15 +411,13 @@ export default function InvoiceDrawer({ invoice, onClose, isLoading, startInRetu
                             </span>
                           )}
                         </div>
-                        <p className={`text-xs mt-1.5 leading-relaxed ${
-                          isFullyReturned ? 'text-gray-400' : 'text-[#64748b]'
-                        }`}>
+                        <p className={`text-xs mt-1.5 leading-relaxed ${isFullyReturned ? 'text-gray-400' : 'text-[#64748b]'
+                          }`}>
                           Batch: {item.batch} • Exp: {item.expiry} • GST: {item.gst}%
                         </p>
                         {item.discount > 0 && (
-                          <p className={`text-xs mt-1 font-medium ${
-                            isFullyReturned ? 'text-gray-400' : 'text-[#10b981]'
-                          }`}>
+                          <p className={`text-xs mt-1 font-medium ${isFullyReturned ? 'text-gray-400' : 'text-[#10b981]'
+                            }`}>
                             Discount: -₹{item.discount}
                           </p>
                         )}
@@ -434,12 +438,10 @@ export default function InvoiceDrawer({ invoice, onClose, isLoading, startInRetu
                         )}
                       </div>
                       <div className="text-right shrink-0">
-                        <p className={`text-sm font-semibold ${
-                          isFullyReturned ? 'text-gray-400 line-through' : 'text-[#0f172a]'
-                        }`}>₹{item.total}</p>
-                        <p className={`text-xs ${
-                          isFullyReturned ? 'text-gray-400' : 'text-[#64748b]'
-                        }`}>₹{item.price} × {item.qty}</p>
+                        <p className={`text-sm font-semibold ${isFullyReturned ? 'text-gray-400 line-through' : 'text-[#0f172a]'
+                          }`}>₹{item.total}</p>
+                        <p className={`text-xs ${isFullyReturned ? 'text-gray-400' : 'text-[#64748b]'
+                          }`}>₹{item.price} × {item.qty}</p>
                       </div>
                     </div>
                   </div>
@@ -463,9 +465,20 @@ export default function InvoiceDrawer({ invoice, onClose, isLoading, startInRetu
                 <span className="text-[#64748b]">Round-off</span>
                 <span className="text-[#0f172a]">{invoice.summary.roundOff < 0 ? '-' : ''}₹{Math.abs(invoice.summary.roundOff)}</span>
               </div>
+              {invoice.refunds?.length > 0 && (
+                <div className="flex justify-between pt-2 mt-2 border-t border-red-100 italic">
+                  <span className="text-red-600 font-medium">Total Refunded</span>
+                  <span className="text-red-700 font-bold">-₹{invoice.refunds.reduce((sum: number, r: any) => sum + Number(r.refundAmount || 0), 0).toFixed(2)}</span>
+                </div>
+              )}
               <div className="border-t border-[#e2e8f0] pt-3 mt-3 flex justify-between items-center">
-                <span className="font-semibold text-[#0f172a]">Total</span>
-                <span className="font-bold text-xl md:text-2xl text-[#0ea5a3]">₹{invoice.amount}</span>
+                <span className="font-semibold text-[#0f172a]">{invoice.refunds?.length > 0 ? 'Net Total' : 'Total'}</span>
+                <span className="font-bold text-xl md:text-2xl text-[#0ea5a3]">
+                  ₹{invoice.refunds?.length > 0
+                    ? (Number(invoice.amount) - invoice.refunds.reduce((sum: number, r: any) => sum + Number(r.refundAmount || 0), 0)).toFixed(2)
+                    : invoice.amount
+                  }
+                </span>
               </div>
               <div className="pt-2 mt-2 border-t border-[#e2e8f0]">
                 <p className="text-xs text-[#64748b] italic">GST ₹{invoice.summary.gst} included in total</p>
@@ -560,7 +573,7 @@ export default function InvoiceDrawer({ invoice, onClose, isLoading, startInRetu
               </div>
               <span className={`text-[#64748b] transition-transform ${showAuditLog ? 'rotate-180' : ''}`}>▼</span>
             </button>
-            
+
             {showAuditLog && (
               <div className="p-4 bg-white max-h-[300px] overflow-y-auto">
                 {loadingAudit ? (
@@ -588,6 +601,9 @@ export default function InvoiceDrawer({ invoice, onClose, isLoading, startInRetu
                               )}
                               {log.metadata.refundNumber && (
                                 <p className="text-xs text-[#64748b]">• Refund #: {log.metadata.refundNumber}</p>
+                              )}
+                              {log.metadata.creditNote && (
+                                <p className="text-xs text-teal-600 font-bold">• Store Credit: {log.metadata.creditNote}</p>
                               )}
                               {(log.metadata.restocked > 0 || log.metadata.quarantined > 0) && (
                                 <p className="text-xs text-[#64748b]">
@@ -649,6 +665,7 @@ export default function InvoiceDrawer({ invoice, onClose, isLoading, startInRetu
         {/* Return Overlay (Slides up within sidebar) */}
         {showReturnModal && (
           <ReturnForm
+            key={returnFormItems.map((i: any) => i.id).join('-')}
             saleId={invoice.saleId || invoice.id}
             invoiceNumber={invoice.id}
             saleItems={returnFormItems}
@@ -659,7 +676,7 @@ export default function InvoiceDrawer({ invoice, onClose, isLoading, startInRetu
             customerName={invoice.customer.name}
           />
         )}
-        
+
         {/* Manager Override Overlay (Full overlay within drawer) */}
         {showManagerOverride && (
           <div className="absolute inset-0 z-[70] bg-white/30 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">

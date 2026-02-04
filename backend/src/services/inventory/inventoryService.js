@@ -91,6 +91,35 @@ class InventoryService {
     }
 
     /**
+     * Get bulk stock information for multiple drugs
+     * Returns a map of drugId -> { totalStock, baseUnit, displayUnit, unitConfigurations }
+     */
+    async getBulkStock(storeId, drugIds) {
+        if (!drugIds || drugIds.length === 0) return {};
+
+        const drugs = await inventoryRepository.findDrugsByIds(drugIds, storeId);
+
+        const stockMap = {};
+        drugs.forEach(d => {
+            const totalStock = d.inventory
+                ? d.inventory.reduce((sum, batch) => sum + (batch.baseUnitQuantity || 0), 0)
+                : 0;
+
+            stockMap[d.id] = {
+                id: d.id,
+                stock: totalStock,
+                totalStock: totalStock,
+                baseUnit: d.baseUnit,
+                displayUnit: d.displayUnit,
+                unitConfigurations: d.unitConfigurations,
+                mrp: d.inventory?.[0]?.mrp || 0 // Use latest batch MRP for display
+            };
+        });
+
+        return stockMap;
+    }
+
+    /**
      * Create new drug
      */
     async createDrug(drugData, userId) {
@@ -512,42 +541,45 @@ class InventoryService {
     async searchDrugsForPOS(storeId, query, limit = 10) {
         const drugs = await inventoryRepository.searchDrugsWithStock(storeId, query, limit);
 
-        // Transform results to match what frontend expects (similar to getDrugs)
+        // Transform results to return INDIVIDUAL BATCHES as distinguished options
         return drugs
-            .map(d => {
-                // Calculate total stock from inventory batches
-                const totalStock = d.inventory
+            .flatMap(d => {
+                const totalAggregateStock = d.inventory
                     ? d.inventory.reduce((sum, batch) => sum + (batch.baseUnitQuantity || 0), 0)
                     : 0;
 
-                const batchCount = d.inventory ? d.inventory.length : 0;
-
-                // Get unit config if available
-                let baseUnit = d.baseUnit || d.defaultUnit || 'Tablet';
-                let displayUnit = d.displayUnit || d.defaultUnit || d.form || 'Tablet';
-
-                // Return enriched object
-                return {
-                    ...d,
-                    totalStock,
-                    batchCount,
-                    baseUnit,
-                    displayUnit,
-                    // Include batch info if available (for UI that shows batch details)
-                    batchId: d.inventory && d.inventory.length > 0 ? d.inventory[0].id : null, // <--- CRITICAL: Pass Batch ID
-                    batchNumber: d.inventory && d.inventory.length > 0 ? d.inventory[0].batchNumber : null,
-                    expiryDate: d.inventory && d.inventory.length > 0 ? d.inventory[0].expiryDate : null,
-                    mrp: d.inventory && d.inventory.length > 0 ? d.inventory[0].mrp : d.mrp || 0,
-                };
-            })
-            // CRITICAL FIX: Filter out medicines without valid batches
-            // This ensures POS never receives medicines that can't be sold
-            .filter(drug => {
-                const hasValidBatch = drug.batchId && drug.totalStock > 0;
-                if (!hasValidBatch) {
-                    logger.warn(`[POS Search] Filtering out ${drug.name} - No valid batches (batchId: ${drug.batchId}, stock: ${drug.totalStock})`);
+                // If drug has no stock, still return one entry for "Out of Stock" / Substitutes
+                if (!d.inventory || d.inventory.length === 0) {
+                    return [{
+                        ...d,
+                        totalStock: 0,
+                        batchCount: 0,
+                        batchId: null,
+                        batchNumber: 'N/A',
+                        expiryDate: null,
+                        mrp: d.mrp || 0,
+                    }];
                 }
-                return hasValidBatch;
+
+                // If drug has stock, return one entry per batch
+                // This makes each batch a "distinguished option" in search results
+                return d.inventory.map(batch => ({
+                    ...d,
+                    totalStock: batch.baseUnitQuantity, // CORRECT FIX: Show specific batch stock
+                    totalAggregateStock: totalAggregateStock, // Keep aggregate available
+                    batchStock: batch.baseUnitQuantity, // Also provide batch-specific stock if needed
+                    batchCount: d.inventory.length,
+                    batchId: batch.id,
+                    batchNumber: batch.batchNumber,
+                    expiryDate: batch.expiryDate,
+                    mrp: batch.mrp,
+                    inventory: undefined // Clear array to keep response clean
+                }));
+            })
+            .filter(drug => {
+                // Filter out invalid items but allow out-of-stock items for Substitute feature
+                const isValid = drug.id;
+                return isValid;
             });
     }
 

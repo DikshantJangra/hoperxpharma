@@ -69,6 +69,7 @@ router.get('/summary', requireStoreAccess, inventoryController.getInventorySumma
  * POS specific routes
  */
 router.get('/pos/search', requireStoreAccess, inventoryController.searchDrugsForPOS);
+router.post('/pos/stock-refresh', requireStoreAccess, inventoryController.getBulkStock);
 
 module.exports = router;
 

@@ -6,6 +6,8 @@ import { FiUser, FiCreditCard, FiSmartphone, FiDollarSign, FiUserPlus, FiClock, 
 import { BsWallet2 } from 'react-icons/bs';
 import ProcessingLoader from './animations/ProcessingLoader';
 import ExposeMarginEstimate from './ExposeMarginEstimate';
+import CreditSuccessAnimation from './CreditSuccessAnimation';
+import SplitPaymentOverlay from './SplitPaymentOverlay';
 
 export default function PaymentPanel({
   basketItems,
@@ -24,9 +26,13 @@ export default function PaymentPanel({
 }: any) {
   const [invoiceType, setInvoiceType] = useState<'GST_INVOICE' | 'ESTIMATE'>('GST_INVOICE');
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'upi' | 'wallet' | 'credit'>('cash');
+  const [isPayLaterMode, setIsPayLaterMode] = useState(false);
+  const [showSuccessAnimation, setShowSuccessAnimation] = useState(false);
+  const [successAmount, setSuccessAmount] = useState(0);
   const [showFinalizeModal, setShowFinalizeModal] = useState(false);
   const [overallDiscount, setOverallDiscount] = useState(0);
   const [discountType, setDiscountType] = useState<'amount' | 'percentage'>('percentage');
+  const [showSplitOverlay, setShowSplitOverlay] = useState(false);
 
   // Action states for buttons
   const [actionState, setActionState] = useState<{ name: string | null, status: 'idle' | 'loading' | 'success' }>({ name: null, status: 'idle' });
@@ -60,8 +66,9 @@ export default function PaymentPanel({
   const [isCreatingCustomer, setIsCreatingCustomer] = useState(false);
 
   const [showAddRelation, setShowAddRelation] = useState(false);
-  const [newRelationData, setNewRelationData] = useState({ firstName: '', lastName: '', phoneNumber: '', relationType: 'CHILD' });
+  const [newRelationData, setNewRelationData] = useState({ firstName: '', lastName: '', phoneNumber: '', relationType: '' });
   const [isCreatingRelation, setIsCreatingRelation] = useState(false);
+  const [expectedPaymentDays, setExpectedPaymentDays] = useState<string>('7'); // Default 7 days
 
   const [relationSearchQuery, setRelationSearchQuery] = useState('');
   const [relationSearchResults, setRelationSearchResults] = useState<any[]>([]);
@@ -214,8 +221,16 @@ export default function PaymentPanel({
     }
   };
 
+  const [selectedRelationPatient, setSelectedRelationPatient] = useState<any>(null);
+
   const handleLinkExistingRelation = async (patient: any) => {
     if (!customer) return;
+
+    if (!newRelationData.relationType) {
+      setSelectedRelationPatient(patient);
+      setShowRelationSearch(false);
+      return;
+    }
 
     try {
       const { apiClient } = await import('@/lib/api/client');
@@ -230,7 +245,8 @@ export default function PaymentPanel({
       setShowAddRelation(false);
       setShowRelationSearch(false);
       setRelationSearchQuery('');
-      setNewRelationData({ firstName: '', lastName: '', phoneNumber: '', relationType: 'CHILD' });
+      setNewRelationData({ firstName: '', lastName: '', phoneNumber: '', relationType: '' });
+      setSelectedRelationPatient(null);
     } catch (err) {
       toast.error("Failed to link family member");
     }
@@ -281,7 +297,7 @@ export default function PaymentPanel({
           await fetchRelations(customer.id);
           onDispenseForChange(createdRelation);
           setShowAddRelation(false);
-          setNewRelationData({ firstName: '', lastName: '', phoneNumber: '', relationType: 'CHILD' });
+          setNewRelationData({ firstName: '', lastName: '', phoneNumber: '', relationType: '' });
         } else {
           toast.error("Failed to create family member");
         }
@@ -342,7 +358,18 @@ export default function PaymentPanel({
 
   const confirmFinalize = async () => {
     await triggerAction('complete_sale', async () => {
-      await onFinalize(paymentMethod.toUpperCase(), undefined, invoiceType);
+      // Calculate expected date
+      let expectedDate: string | undefined = undefined;
+
+      // Use isPayLaterMode instead of checking paymentMethod === 'credit'
+      // because Pay Later sets both isPayLaterMode AND paymentMethod
+      if (isPayLaterMode || paymentMethod === 'credit') {
+        const date = new Date();
+        date.setDate(date.getDate() + parseInt(expectedPaymentDays || '0'));
+        expectedDate = date.toISOString();
+      }
+
+      await onFinalize(paymentMethod.toUpperCase(), undefined, invoiceType, expectedDate);
       setShowFinalizeModal(false); // Close on success? Or wait? 
       // Ideally close after success. If onFinalize throws, we stay open.
     });
@@ -443,13 +470,60 @@ export default function PaymentPanel({
                               Or create new
                             </button>
                           </div>
+                        ) : selectedRelationPatient ? (
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-2 p-1.5 bg-indigo-50 rounded-lg border border-indigo-100">
+                              <div className="w-6 h-6 rounded-full bg-indigo-200 flex items-center justify-center text-[10px] font-bold text-indigo-700">
+                                {selectedRelationPatient.firstName[0]}
+                              </div>
+                              <div className="flex-1">
+                                <div className="text-xs font-semibold text-indigo-900">{selectedRelationPatient.firstName} {selectedRelationPatient.lastName}</div>
+                                <div className="text-[9px] text-indigo-500">{selectedRelationPatient.phoneNumber}</div>
+                              </div>
+                              <button onClick={() => setSelectedRelationPatient(null)} className="text-indigo-400 hover:text-indigo-600">
+                                <FiX className="w-3 h-3" />
+                              </button>
+                            </div>
+
+                            <label className="text-[10px] font-bold text-gray-400 uppercase">What's the relation?</label>
+                            <select
+                              className="w-full text-xs p-1.5 border border-indigo-300 rounded focus:border-indigo-500 outline-none bg-white shadow-sm"
+                              value={newRelationData.relationType}
+                              onChange={e => setNewRelationData({ ...newRelationData, relationType: e.target.value })}
+                              autoFocus
+                            >
+                              <option value="">Select Relation...</option>
+                              <option value="FAMILY">Family Member</option>
+                              <option value="PARENT">Parent</option>
+                              <option value="CHILD">Child</option>
+                              <option value="SPOUSE">Spouse</option>
+                              <option value="BROTHER">Brother</option>
+                              <option value="SISTER">Sister</option>
+                              <option value="SIBLING">Sibling</option>
+                              <option value="GRANDPARENT">Grandparent</option>
+                              <option value="GRANDCHILD">Grandchild</option>
+                              <option value="FRIEND">Friend</option>
+                              <option value="CAREGIVER">Caregiver</option>
+                              <option value="OTHER">Other</option>
+                            </select>
+
+                            <button
+                              onClick={() => handleLinkExistingRelation(selectedRelationPatient)}
+                              disabled={!newRelationData.relationType}
+                              className="w-full bg-indigo-600 text-white text-xs font-bold py-1.5 rounded hover:bg-indigo-700 disabled:opacity-50 shadow-md transition-all active:scale-[0.98]"
+                            >
+                              {isCreatingRelation ? 'Linking...' : 'Confirm Link'}
+                            </button>
+                          </div>
                         ) : (
                           <div className="space-y-2">
+                            <label className="text-[10px] font-bold text-gray-400 uppercase">Relation</label>
                             <select
                               className="w-full text-xs p-1.5 border border-gray-300 rounded focus:border-indigo-500 outline-none"
                               value={newRelationData.relationType}
                               onChange={e => setNewRelationData({ ...newRelationData, relationType: e.target.value })}
                             >
+                              <option value="">Select Relation...</option>
                               <option value="FAMILY">Family Member</option>
                               <option value="PARENT">Parent</option>
                               <option value="CHILD">Child</option>
@@ -492,8 +566,8 @@ export default function PaymentPanel({
                             />
                             <button
                               onClick={handleCreateRelation}
-                              disabled={isCreatingRelation}
-                              className="w-full bg-indigo-600 text-white text-xs font-bold py-1 rounded hover:bg-indigo-700 disabled:opacity-50"
+                              disabled={isCreatingRelation || !newRelationData.relationType}
+                              className="w-full bg-indigo-600 text-white text-xs font-bold py-1.5 rounded hover:bg-indigo-700 disabled:opacity-50"
                             >
                               {isCreatingRelation ? 'Adding...' : 'Add & Select'}
                             </button>
@@ -802,182 +876,311 @@ export default function PaymentPanel({
           </div>
         </div>
 
-        <div>
-          <span className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-2">Payment Mode</span>
-          <div className="grid grid-cols-2 gap-2">
-            {[
-              { id: 'cash', icon: FiDollarSign, label: 'Cash' },
-              { id: 'upi', icon: FiSmartphone, label: 'UPI' },
-              { id: 'card', icon: FiCreditCard, label: 'Card' },
-              { id: 'wallet', icon: BsWallet2, label: 'Wallet' }
-            ].map((method) => (
-              <button
-                key={method.id}
-                onClick={() => setPaymentMethod(method.id as any)}
-                className={`p-3 rounded-lg border-2 flex flex-col items-center justify-center gap-1 transition-all duration-300 ${paymentMethod === method.id
-                  ? 'border-teal-500 bg-teal-50 text-teal-700 shadow-md'
-                  : 'border-transparent bg-white text-gray-600 hover:bg-gray-50'
-                  } active:scale-95 text-center`}
-              >
-                <style jsx>{`
-                  @keyframes pop {
-                    0% { transform: scale(1); }
-                    50% { transform: scale(1.5); }
-                    100% { transform: scale(1); }
-                  }
-                  .animate-pop {
-                    animation: pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-                  }
-                `}</style>
-                <div className={paymentMethod === method.id ? 'animate-pop' : ''}>
-                  <method.icon className="w-5 h-5 mx-auto" />
-                </div>
-                <span className="text-xs font-semibold">{method.label}</span>
-              </button>
-            ))}
+        <div className="space-y-3">
+          <div>
+            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-2">Payment Mode</span>
+            <div className="grid grid-cols-2 gap-2">
+              {[
+                { id: 'cash', icon: FiDollarSign, label: 'Cash' },
+                { id: 'upi', icon: FiSmartphone, label: 'UPI' },
+                { id: 'card', icon: FiCreditCard, label: 'Card' },
+                { id: 'wallet', icon: BsWallet2, label: 'Wallet', balance: customer?.walletBalance }
+              ].map((method) => {
+                const isWallet = method.id === 'wallet';
+                const balanceNum = Number(method.balance || 0);
+                const hasBalance = isWallet ? (balanceNum > 0) : true;
+                const isDisabled = isWallet && !hasBalance;
+
+                if (isWallet) {
+                  console.log(`[PaymentPanel] Wallet Balance for ${customer?.firstName}: ₹${balanceNum}`);
+                }
+
+                return (
+                  <button
+                    key={method.id}
+                    disabled={isDisabled}
+                    onClick={() => {
+                      setPaymentMethod(method.id as any);
+                      setIsPayLaterMode(false);
+                    }}
+                    className={`p-3 rounded-lg border-2 flex flex-col items-center justify-center gap-1 transition-all duration-300 ${paymentMethod === method.id
+                      ? 'border-teal-500 bg-teal-50 text-teal-700 shadow-md'
+                      : isDisabled
+                        ? 'border-gray-100 bg-gray-50 text-gray-300 cursor-not-allowed opacity-80'
+                        : 'border-transparent bg-white text-gray-600 hover:bg-gray-50'
+                      } active:scale-95 text-center`}
+                  >
+                    <style jsx>{`
+                      @keyframes pop {
+                        0% { transform: scale(1); }
+                        50% { transform: scale(1.5); }
+                        100% { transform: scale(1); }
+                      }
+                      .animate-pop {
+                        animation: pop 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+                      }
+                    `}</style>
+                    <div className={paymentMethod === method.id ? 'animate-pop' : ''}>
+                      <method.icon className="w-5 h-5 mx-auto" />
+                    </div>
+                    <div className="flex flex-col items-center">
+                      <span className="text-xs font-semibold">{method.label}</span>
+                      {isWallet && (
+                        <span className={`text-[10px] font-bold ${balanceNum > 0 ? 'text-teal-600' : 'text-gray-400'}`}>
+                          ₹{balanceNum}
+                        </span>
+                      )}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Removed inline credit days selector as it's now in the bottom overlay */}
           </div>
           {/* Provisional Profit Check (Owner Only) - Hidden below scroll (Confidential) */}
           <ExposeMarginEstimate items={basketItems} additionalDiscount={safeTotals.overallDiscountAmount || 0} />
         </div>
       </div>
 
-      <div className="border-t border-gray-200 p-4 bg-white space-y-3 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
-        <div className="grid grid-cols-[1fr,1fr] gap-3">
-          <button
-            onClick={async () => {
-              if (!customer) {
-                toast.error('Customer Required for Pay Later!');
-                toast.info("Please search or add a customer");
-                return;
-              }
-              await triggerAction('pay_later', () => onFinalize('CREDIT', undefined, invoiceType));
-            }}
-            disabled={basketItems.length === 0 || actionState.status !== 'idle' || hasOutOfStockItems}
-            className={`w-full py-4 rounded-xl font-bold text-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${actionState.name === 'pay_later' && actionState.status === 'success' ? 'bg-green-100 text-green-700 border border-green-200' : 'bg-indigo-100 text-indigo-700 border border-indigo-200 hover:bg-indigo-200 active:scale-[0.98]'
-              }`}
-          >
-            {actionState.name === 'pay_later' && actionState.status === 'loading' ? (
-              <ProcessingLoader size="sm" color="blue" />
-            ) : actionState.name === 'pay_later' && actionState.status === 'success' ? (
-              <FiCheck className="w-5 h-5" />
-            ) : (
-              <FiClock className="w-5 h-5" />
-            )}
-            <span>
-              {actionState.name === 'pay_later' ? (
-                actionState.status === 'loading' ? 'Processing...' : (actionState.status === 'success' ? 'Success' : 'Pay Later')
-              ) : 'Pay Later'}
-            </span>
-          </button>
+      <div className="border-t border-gray-200 p-4 pb-4 bg-white shadow-[0_-8px_30px_rgb(0,0,0,0.04)] relative">
+        <div className="relative overflow-hidden min-h-[120px]">
+          {/* standard button grid */}
+          {!isPayLaterMode ? (
+            <div className="space-y-3 animate-in fade-in slide-in-from-left-4 duration-300">
+              <div className="grid grid-cols-[1fr,1fr] gap-3">
+                <button
+                  onClick={() => {
+                    if (!customer) {
+                      toast.error('Customer Required for Pay Later!');
+                      toast.info("Please search or add a customer");
+                      return;
+                    }
+                    setPaymentMethod('credit');
+                    setIsPayLaterMode(true);
+                  }}
+                  disabled={basketItems.length === 0 || actionState.status !== 'idle' || hasOutOfStockItems}
+                  className="group w-full py-4 rounded-xl font-bold text-lg bg-indigo-50 text-indigo-700 border border-indigo-100 hover:bg-indigo-100 hover:border-indigo-200 active:scale-[0.98] transition-all flex items-center justify-center gap-2"
+                >
+                  <FiClock className="w-5 h-5 group-hover:rotate-12 transition-transform" />
+                  <span>Pay Later</span>
+                </button>
 
-          <button
-            onClick={handleFinalize} // Opens modal
-            disabled={basketItems.length === 0 || actionState.status !== 'idle' || hasOutOfStockItems}
-            className="w-full py-4 bg-teal-600 text-white rounded-xl font-bold text-lg hover:bg-teal-700 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-teal-600/20 flex items-center justify-center gap-2"
-          >
-            <span>Collect</span>
-            <span>₹{safeTotals.total}</span>
-          </button>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            onClick={() => {
-              if (basketItems.length === 0) {
-                toast.error('Cannot split payment with empty basket!');
-                return;
-              }
-              triggerAction('split', async () => {
-                onSplitPayment();
-              });
-            }}
-            disabled={basketItems.length === 0 || actionState.status !== 'idle'}
-            className={`py-2.5 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2 ${actionState.name === 'split' && actionState.status === 'loading'
-              ? 'bg-gray-100 text-gray-700 border border-gray-300'
-              : 'text-gray-700 bg-gray-50 border border-gray-200 hover:bg-gray-100'
-              }`}
-          >
-            {actionState.name === 'split' && actionState.status === 'loading' && <ProcessingLoader size="sm" color="gray" />}
-            <span>Split (F9)</span>
-          </button>
-          <button
-            onClick={() => {
-              // F2 triggers the shortcut logic in parent, effectively calling saveDraft
-              // But we want to show feedback here. Ideally we call onSaveDraft directly.
-              if (onSaveDraft) {
-                triggerAction('draft', async () => await onSaveDraft());
-              } else {
-                window.dispatchEvent(new KeyboardEvent('keydown', { key: 'F2' }));
-              }
-            }}
-            disabled={basketItems.length === 0 || actionState.status !== 'idle'}
-            className={`py-2.5 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2 ${actionState.name === 'draft' && actionState.status === 'success'
-              ? 'bg-green-100 text-green-700 border border-green-200'
-              : 'bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100'
-              }`}
-          >
-            {actionState.name === 'draft' && actionState.status === 'loading' && <ProcessingLoader size="sm" color="teal" />}
-            {actionState.name === 'draft' && actionState.status === 'success' && <FiCheck className="w-4 h-4" />}
-            <span>Draft (F2)</span>
-          </button>
+                <button
+                  onClick={handleFinalize} // Opens modal
+                  disabled={basketItems.length === 0 || actionState.status !== 'idle' || hasOutOfStockItems}
+                  className="w-full py-4 bg-teal-600 text-white rounded-xl font-bold text-lg hover:bg-teal-700 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-teal-600/20 flex items-center justify-center gap-2"
+                >
+                  <span>Collect</span>
+                  <span>₹{safeTotals.total}</span>
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => {
+                    if (basketItems.length === 0) {
+                      toast.error('Cannot split payment with empty basket!');
+                      return;
+                    }
+                    setShowSplitOverlay(true);
+                  }}
+                  disabled={basketItems.length === 0 || actionState.status !== 'idle'}
+                  className={`py-2.5 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2 ${actionState.name === 'split' && actionState.status === 'loading'
+                    ? 'bg-gray-100 text-gray-700 border border-gray-300'
+                    : 'text-gray-700 bg-gray-50 border border-gray-200 hover:bg-gray-100'
+                    }`}
+                >
+                  {actionState.name === 'split' && actionState.status === 'loading' && <ProcessingLoader size="sm" color="gray" />}
+                  <span>Split (F9)</span>
+                </button>
+                <button
+                  onClick={() => {
+                    if (onSaveDraft) {
+                      triggerAction('draft', async () => await onSaveDraft());
+                    } else {
+                      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'F2' }));
+                    }
+                  }}
+                  disabled={basketItems.length === 0 || actionState.status !== 'idle'}
+                  className={`py-2.5 text-sm font-medium rounded-lg transition-colors flex items-center justify-center gap-2 ${actionState.name === 'draft' && actionState.status === 'success'
+                    ? 'bg-green-100 text-green-700 border border-green-200'
+                    : 'bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100'
+                    }`}
+                >
+                  {actionState.name === 'draft' && actionState.status === 'loading' && <ProcessingLoader size="sm" color="teal" />}
+                  {actionState.name === 'draft' && actionState.status === 'success' && <FiCheck className="w-4 h-4" />}
+                  <span>Draft (F2)</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* Pay Later View - Minimal */
+            <div className="space-y-4 animate-in fade-in slide-in-from-right-4 duration-300">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-semibold text-gray-700">Payment expected in</span>
+                <button
+                  onClick={() => {
+                    setIsPayLaterMode(false);
+                    setPaymentMethod('cash');
+                  }}
+                  className="p-1 hover:bg-gray-100 rounded-md text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <FiX className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {['7', '15', '30', '45'].map(days => (
+                  <button
+                    key={days}
+                    onClick={() => setExpectedPaymentDays(days)}
+                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${expectedPaymentDays === days ? 'bg-indigo-600 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                  >
+                    {days}d
+                  </button>
+                ))}
+                <input
+                  type="number"
+                  value={expectedPaymentDays}
+                  onChange={(e) => setExpectedPaymentDays(e.target.value)}
+                  className="flex-1 px-3 py-1.5 text-sm font-semibold rounded-lg border border-gray-200 bg-white focus:border-indigo-400 outline-none transition-all text-center"
+                  placeholder="Days"
+                />
+              </div>
+
+              <button
+                onClick={async () => {
+                  const date = new Date();
+                  date.setDate(date.getDate() + parseInt(expectedPaymentDays || '0'));
+                  const expectedDate = date.toISOString();
+
+                  await triggerAction('pay_later', async () => {
+                    await onFinalize('CREDIT', undefined, invoiceType, expectedDate);
+                    // Show success animation
+                    setSuccessAmount(safeTotals.total);
+                    setShowSuccessAnimation(true);
+
+                    // Reset after animation
+                    setTimeout(() => {
+                      setShowSuccessAnimation(false);
+                      setIsPayLaterMode(false);
+                      setPaymentMethod('cash');
+                    }, 2500);
+                  });
+                }}
+                disabled={actionState.status !== 'idle'}
+                className={`w-full py-2.5 rounded-xl font-semibold text-sm shadow-lg transition-all flex items-center justify-center gap-2 ${actionState.name === 'pay_later' && actionState.status === 'success' ? 'bg-green-600 text-white' : 'bg-indigo-600 text-white hover:bg-indigo-700 active:scale-[0.98] shadow-indigo-600/20'}`}
+              >
+                {actionState.name === 'pay_later' && actionState.status === 'loading' ? (
+                  <ProcessingLoader size="sm" color="white" />
+                ) : actionState.name === 'pay_later' && actionState.status === 'success' ? (
+                  <FiCheck className="w-5 h-5" />
+                ) : (
+                  <>
+                    <span>Confirm</span>
+                    <span className="opacity-40">•</span>
+                    <span>₹{safeTotals.total}</span>
+                  </>
+                )}
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
-      {showFinalizeModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] animate-in fade-in duration-200">
-          <div className="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl scale-100 animate-in zoom-in-95 duration-200">
-            <h3 className="text-xl font-bold text-gray-900 mb-6 text-center">Confirm Sale</h3>
+      {
+        showFinalizeModal && (
+          <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] animate-in fade-in duration-200">
+            <div className="bg-white rounded-2xl p-6 max-w-sm w-full mx-4 shadow-2xl scale-100 animate-in zoom-in-95 duration-200">
+              <h3 className="text-xl font-bold text-gray-900 mb-6 text-center">Confirm Sale</h3>
 
-            <div className="space-y-4 mb-8">
-              <div className="bg-gray-50 rounded-xl p-4">
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-gray-500 text-sm">Customer</span>
-                  <span className="font-medium text-gray-900">{customer ? `${customer.firstName} ${customer.lastName}` : 'Guest (Walk-in)'}</span>
+              <div className="space-y-4 mb-8">
+                <div className="bg-gray-50 rounded-xl p-4">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className="text-gray-500 text-sm">Customer</span>
+                    <span className="font-medium text-gray-900 truncate">
+                      {customer ? `${customer.firstName} ${customer.lastName}` : 'Guest (Walk-in)'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-500 text-sm">Total Items</span>
+                    <span className="font-medium text-gray-900">{basketItems.length}</span>
+                  </div>
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-500 text-sm">Total Items</span>
-                  <span className="font-medium text-gray-900">{basketItems.length}</span>
+
+                <div className="text-center">
+                  <div className="text-sm text-gray-500 uppercase tracking-wider font-semibold mb-1">Total Payable</div>
+                  <div className="text-4xl font-black text-teal-600">₹{safeTotals.total}</div>
+                  <div className="text-sm text-gray-400 mt-1 capitalize">via {paymentMethod}</div>
+                  {paymentMethod === 'credit' && (
+                    <div className="text-xs text-indigo-500 font-bold mt-1">Due in {expectedPaymentDays} days</div>
+                  )}
                 </div>
               </div>
 
-              <div className="text-center">
-                <div className="text-sm text-gray-500 uppercase tracking-wider font-semibold mb-1">Total Payable</div>
-                <div className="text-4xl font-black text-teal-600">₹{safeTotals.total}</div>
-                <div className="text-sm text-gray-400 mt-1 capitalize">via {paymentMethod}</div>
-              </div>
-            </div>
+              <div className="grid grid-cols-2 gap-3 transition-all duration-300">
+                {actionState.status === 'idle' && (
+                  <button
+                    onClick={() => setShowFinalizeModal(false)}
+                    className="py-3 px-4 border border-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                )}
 
-            <div className="grid grid-cols-2 gap-3 transition-all duration-300">
-              {/* Hide Cancel button when processing or success */}
-              {actionState.status === 'idle' && (
                 <button
-                  onClick={() => setShowFinalizeModal(false)}
-                  className="py-3 px-4 border border-gray-200 text-gray-700 rounded-xl font-semibold hover:bg-gray-50 transition-colors"
+                  onClick={confirmFinalize}
+                  disabled={actionState.status !== 'idle'}
+                  className={`py-3 px-4 rounded-xl font-semibold transition-all duration-300 shadow-lg flex items-center justify-center gap-2
+                      ${actionState.status !== 'idle' ? 'col-span-2 scale-105' : ''}
+                      ${actionState.name === 'complete_sale' && actionState.status === 'success'
+                      ? 'bg-green-600 text-white shadow-green-600/20'
+                      : 'bg-teal-600 text-white hover:bg-teal-700 shadow-teal-600/20'
+                    }`}
                 >
-                  Cancel
+                  {actionState.name === 'complete_sale' && actionState.status === 'loading' ? (
+                    <ProcessingLoader size="sm" color="white" />
+                  ) : actionState.name === 'complete_sale' && actionState.status === 'success' ? (
+                    <FiCheck className="w-5 h-5 animate-bounce" />
+                  ) : null}
+                  <span>
+                    {actionState.name === 'complete_sale' && actionState.status === 'success'
+                      ? ''
+                      : (actionState.status === 'loading' ? 'Processing...' : 'Complete Sale')}
+                  </span>
                 </button>
-              )}
-
-              <button
-                onClick={confirmFinalize}
-                disabled={actionState.status !== 'idle'}
-                className={`py-3 px-4 rounded-xl font-semibold transition-all duration-300 shadow-lg flex items-center justify-center gap-2 
-                  ${actionState.status !== 'idle' ? 'col-span-2 scale-105' : ''} 
-                  ${actionState.name === 'complete_sale' && actionState.status === 'success'
-                    ? 'bg-green-600 text-white shadow-green-600/20'
-                    : 'bg-teal-600 text-white hover:bg-teal-700 shadow-teal-600/20'
-                  }`}
-              >
-                {actionState.name === 'complete_sale' && actionState.status === 'loading' ? (
-                  <ProcessingLoader size="sm" color="white" />
-                ) : actionState.name === 'complete_sale' && actionState.status === 'success' ? (
-                  <FiCheck className="w-5 h-5 animate-bounce" />
-                ) : null}
-                <span>{actionState.name === 'complete_sale' && actionState.status === 'success' ? 'Sale Completed!' : (actionState.status === 'loading' ? 'Processing...' : 'Complete Sale')}</span>
-              </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
-    </div>
+        )
+      }
+
+      {/* Success Animation */}
+      {
+        showSuccessAnimation && (
+          <CreditSuccessAnimation
+            amount={successAmount}
+            onComplete={() => setShowSuccessAnimation(false)}
+          />
+        )
+      }
+
+      {/* Split Payment Overlay */}
+      {
+        showSplitOverlay && (
+          <SplitPaymentOverlay
+            total={safeTotals.total}
+            walletBalance={customer?.walletBalance || 0}
+            onClose={() => setShowSplitOverlay(false)}
+            onConfirm={async (splits) => {
+              await triggerAction('complete_sale', async () => {
+                await onFinalize('SPLIT', splits, invoiceType);
+                setShowSplitOverlay(false);
+              });
+            }}
+          />
+        )
+      }
+    </div >
   );
 }

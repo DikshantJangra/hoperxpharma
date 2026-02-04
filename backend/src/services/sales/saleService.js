@@ -97,13 +97,22 @@ class SaleService {
             let saleTaxTotal = 0;
 
             items.forEach(item => {
-                const basePrice = item.mrp * item.quantity;
-                const discountAmount = (item.discount / 100) * basePrice;
-                const taxableAmount = basePrice - discountAmount;
-                const gstAmount = (item.gstRate / 100) * taxableAmount;
-                item.lineTotal = taxableAmount + gstAmount;
+                const grossAmount = item.mrp * item.quantity;
+                const discountAmount = (item.discount / 100) * grossAmount;
+                const lineTotal = Math.max(0, grossAmount - discountAmount);
 
-                saleTotal += item.lineTotal;
+                // Extract taxableAmount and gstAmount (inclusive formula)
+                const gstRate = item.gstRate || 0;
+                const taxableAmount = lineTotal / (1 + gstRate / 100);
+                const gstAmount = lineTotal - taxableAmount;
+
+                item.lineTotal = lineTotal;
+                item.taxableAmount = taxableAmount;
+                item.cgstAmount = gstAmount / 2;
+                item.sgstAmount = gstAmount / 2;
+                item.igstAmount = 0; // Assuming local dispense, or determine from context if needed
+
+                saleTotal += lineTotal;
                 saleTaxTotal += gstAmount;
             });
 
@@ -136,7 +145,8 @@ class SaleService {
                 prescriptionId: prescription.id, // Legacy: Keep for backward compatibility
                 patientId: prescription.patientId,
                 soldBy: userId, // Add soldBy field
-                status: 'COMPLETED'
+                status: 'COMPLETED',
+                expectedPaymentDate: saleData.expectedPaymentDate
             };
 
             // 4. Create sale using existing repository method
@@ -245,8 +255,19 @@ class SaleService {
      * PRODUCTION-GRADE: Fast + Scalable + Auditable
      */
     async createQuickSale(saleData, userId) {
+        logger.info('createQuickSale called', {
+            hasExpectedDate: !!saleData.expectedPaymentDate,
+            expectedDateValue: saleData.expectedPaymentDate
+        });
+
         try {
+            // 1. Validate & Prepare Items
             const { items, paymentSplits, patientId, ...saleInfo } = saleData;
+
+            logger.debug('Sale info extracted', {
+                hasExpectedDate: !!saleInfo.expectedPaymentDate,
+                expectedDateValue: saleInfo.expectedPaymentDate
+            });
 
             logger.info('createQuickSale: Starting quick sale creation', { storeId: saleInfo.storeId, userId, itemCount: items.length });
 
@@ -318,6 +339,11 @@ class SaleService {
             );
 
             // 5. Enrich Sale Data
+            logger.debug('Before enrichSaleDataWithGST', {
+                hasExpectedDate: !!saleData.expectedPaymentDate,
+                expectedDateValue: saleData.expectedPaymentDate
+            });
+
             const enrichedSaleData = await this.enrichSaleDataWithGST(
                 {
                     ...saleInfo,
@@ -326,8 +352,14 @@ class SaleService {
                     status: 'COMPLETED'
                 },
                 gstResult.saleTotals,
-                saleData.buyerGstin
+                saleData.buyerGstin,
+                saleData.expectedPaymentDate
             );
+
+            logger.debug('After enrichSaleDataWithGST', {
+                hasExpectedDate: !!enrichedSaleData.expectedPaymentDate,
+                expectedDateValue: enrichedSaleData.expectedPaymentDate
+            });
 
             // 6. Generate Invoice Number
             const invoiceNumber = await saleRepository.generateInvoiceNumber(saleInfo.storeId);
@@ -644,7 +676,7 @@ class SaleService {
      * Enrich sale data with GST fields and handle rounding
      * @private
      */
-    async enrichSaleDataWithGST(saleData, gstTotals, customerGstin = null) {
+    async enrichSaleDataWithGST(saleData, gstTotals, customerGstin = null, expectedPaymentDate = null) {
         let total = saleData.total;
         let roundOff = 0;
 
@@ -673,7 +705,8 @@ class SaleService {
                 buyerGstin: customerGstin,
                 total: total,
                 isExport: false
-            })
+            }),
+            expectedPaymentDate: expectedPaymentDate ? new Date(expectedPaymentDate) : null
         };
     }
 }

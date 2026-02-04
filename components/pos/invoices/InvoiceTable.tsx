@@ -156,6 +156,7 @@ export default function InvoiceTable({ searchQuery, onSelectInvoice, onInitiateR
       expiry: item.batch?.expiryDate ? new Date(item.batch.expiryDate).toLocaleDateString('en-IN', { month: '2-digit', year: 'numeric' }).replace('/', '/20').slice(0, 5) : '-',
       gst: item.gstRate,
       qty: item.quantity,
+      mrp: item.mrp, // Preserve original MRP for refund capping
       price: item.mrp,
       discount: item.discountAmount || 0,
       total: item.lineTotal,
@@ -251,9 +252,13 @@ export default function InvoiceTable({ searchQuery, onSelectInvoice, onInitiateR
                   </div>
                 </td>
                 <td className="px-4 py-3">
-                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${invoice.status === 'REFUNDED' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'
+                  <span className={`px-2 py-1 text-xs font-medium rounded-full ${invoice.status === 'REFUNDED'
+                    ? 'bg-red-100 text-red-700'
+                    : invoice.status === 'PARTIALLY_REFUNDED'
+                      ? 'bg-amber-100 text-amber-700'
+                      : 'bg-green-100 text-green-700'
                     }`}>
-                    {invoice.status}
+                    {invoice.status.replace('_', ' ')}
                   </span>
                 </td>
                 <td className="px-4 py-3">

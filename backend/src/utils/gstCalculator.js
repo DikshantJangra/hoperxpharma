@@ -13,56 +13,63 @@
 function computeItemTax(item, taxSlab, isIgst = false) {
     const { quantity, mrp, discount = 0 } = item;
 
-    // Calculate taxable amount (base before tax)
+    // In a retail pharmacy context, MRP is ALWAYS tax-inclusive.
+    // Line Total (what customer pays) = (MRP * quantity) - discount
     const grossAmount = mrp * quantity;
-    const taxableAmount = grossAmount - discount;
+    const lineTotal = Math.max(0, grossAmount - discount);
+
+    // Rounding helper
+    const round = (val) => Math.round(val * 100) / 100;
 
     // Handle exempt/zero-rated items
-    if (taxSlab.taxType === 'EXEMPT' || taxSlab.rate === 0) {
+    if (!taxSlab || taxSlab.taxType === 'EXEMPT' || taxSlab.rate === 0) {
         return {
-            taxableAmount,
+            taxableAmount: round(lineTotal),
             cgstAmount: 0,
             sgstAmount: 0,
             igstAmount: 0,
             cessAmount: 0,
             totalTax: 0,
-            lineTotal: taxableAmount
+            lineTotal: round(lineTotal)
         };
     }
 
+    // Extraction formula: Taxable Base = Total / (1 + Rate/100)
+    const gstRate = taxSlab.rate || 0;
+    const taxableAmount = lineTotal / (1 + gstRate / 100);
+    const totalTax = lineTotal - taxableAmount;
+
     let cgstAmount = 0;
     let sgstAmount = 0;
-    igstAmount = 0;
+    let igstAmount = 0;
     let cessAmount = 0;
 
+    // Distribute tax components
     if (isIgst) {
         // Interstate: Apply IGST
-        const igstRate = taxSlab.igstRate || taxSlab.rate;
-        igstAmount = (taxableAmount * igstRate) / 100;
+        igstAmount = totalTax;
     } else {
-        // Intrastate: Apply CGST + SGST
-        const cgstRate = taxSlab.cgstRate || (taxSlab.rate / 2);
-        const sgstRate = taxSlab.sgstRate || (taxSlab.rate / 2);
-        cgstAmount = (taxableAmount * cgstRate) / 100;
-        sgstAmount = (taxableAmount * sgstRate) / 100;
+        // Intrastate: Apply CGST + SGST (50/50 split)
+        // If specific rates are provided in slab, use them (but usually it's just half the total rate)
+        cgstAmount = totalTax / 2;
+        sgstAmount = totalTax / 2;
     }
 
-    // Apply cess if configured
+    // Cess usually applies on the taxable value if configured
     if (taxSlab.cessRate && taxSlab.cessRate > 0) {
         cessAmount = (taxableAmount * taxSlab.cessRate) / 100;
+        // In some cases cess is added ON TOP of the inclusive price, but usually it's part of it or handled separately.
+        // For pharmacy, cess is rarely used/inclusive in drug prices.
     }
 
-    const totalTax = cgstAmount + sgstAmount + igstAmount + cessAmount;
-    const lineTotal = taxableAmount + totalTax;
-
     return {
-        taxableAmount: parseFloat(taxableAmount.toFixed(2)),
-        cgstAmount: parseFloat(cgstAmount.toFixed(2)),
-        sgstAmount: parseFloat(sgstAmount.toFixed(2)),
-        igstAmount: parseFloat(igstAmount.toFixed(2)),
-        cessAmount: parseFloat(cessAmount.toFixed(2)),
-        totalTax: parseFloat(totalTax.toFixed(2)),
-        lineTotal: parseFloat(lineTotal.toFixed(2))
+        taxableAmount: round(taxableAmount),
+        cgstAmount: round(cgstAmount),
+        sgstAmount: round(sgstAmount),
+        igstAmount: round(igstAmount),
+        cessAmount: round(cessAmount),
+        totalTax: round(totalTax),
+        lineTotal: round(lineTotal)
     };
 }
 

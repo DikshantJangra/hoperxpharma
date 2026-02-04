@@ -1625,6 +1625,7 @@ model Sale {
   isIgst               Boolean             @default(false)
   sgstAmount           Decimal             @default(0) @db.Decimal(10, 2)
   taxableAmount        Decimal             @default(0) @db.Decimal(10, 2)
+  expectedPaymentDate  DateTime?
   store                Store               @relation(fields: [storeId], references: [id], onDelete: Cascade)
   prescription         Prescription?       @relation(fields: [prescriptionId], references: [id])
   dispense             Dispense?           @relation(fields: [dispenseId], references: [id])

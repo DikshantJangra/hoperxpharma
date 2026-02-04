@@ -40,18 +40,23 @@ class GSTCalculationService {
             // Calculate GST for each item
             const enrichedItems = items.map(item => {
                 const {
-                    drugId,
-                    drugName,
                     quantity,
                     price,
                     discount = 0,
                     gstRate
                 } = item;
 
-                // Calculate taxable amount (after discount)
+                // In retail pharmacy, price (MRP) is ALWAYS tax-inclusive.
+                // finalAmount (what customer pays) = (price * quantity) - discountAmount
                 const grossAmount = quantity * price;
-                const discountAmount = (grossAmount * discount) / 100;
-                const taxableAmount = grossAmount - discountAmount;
+                // Note: Frontend discount is usually an amount, but here it seems to be treated as a percentage in some places?
+                // Let's check the context. Line 53 says (grossAmount * discount) / 100.
+                const discountAmount = (grossAmount * (item.discount || 0)) / 100;
+                const finalAmount = Math.max(0, grossAmount - discountAmount);
+
+                // Extraction formula: Base = Final / (1 + Rate/100)
+                const taxableAmount = finalAmount / (1 + gstRate / 100);
+                const totalTax = finalAmount - taxableAmount;
 
                 // Calculate GST breakdown
                 let cgst = 0;
@@ -59,33 +64,30 @@ class GSTCalculationService {
                 let igst = 0;
 
                 if (isIntraState) {
-                    // Intra-state: CGST + SGST
-                    cgst = (taxableAmount * gstRate) / 200; // Half of GST rate
-                    sgst = (taxableAmount * gstRate) / 200; // Half of GST rate
+                    // Intra-state: CGST + SGST (50/50 split)
+                    cgst = totalTax / 2;
+                    sgst = totalTax / 2;
                 } else {
-                    // Inter-state: IGST
-                    igst = (taxableAmount * gstRate) / 100; // Full GST rate
+                    // Inter-state: IGST (Full)
+                    igst = totalTax;
                 }
-
-                const totalTax = cgst + sgst + igst;
-                const finalAmount = taxableAmount + totalTax;
 
                 return {
                     ...item,
                     grossAmount,
                     discountAmount,
-                    taxableAmount,
-                    cgst,
-                    sgst,
-                    igst,
-                    totalTax,
-                    finalAmount,
+                    taxableAmount: parseFloat(taxableAmount.toFixed(2)),
+                    cgst: parseFloat(cgst.toFixed(2)),
+                    sgst: parseFloat(sgst.toFixed(2)),
+                    igst: parseFloat(igst.toFixed(2)),
+                    totalTax: parseFloat(totalTax.toFixed(2)),
+                    finalAmount: parseFloat(finalAmount.toFixed(2)),
                     gstBreakdown: {
                         rate: gstRate,
-                        cgst,
-                        sgst,
-                        igst,
-                        total: totalTax,
+                        cgst: parseFloat(cgst.toFixed(2)),
+                        sgst: parseFloat(sgst.toFixed(2)),
+                        igst: parseFloat(igst.toFixed(2)),
+                        total: parseFloat(totalTax.toFixed(2)),
                         isIntraState
                     }
                 };

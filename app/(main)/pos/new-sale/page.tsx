@@ -396,7 +396,21 @@ export default function NewSalePage() {
 
             let response;
             if (currentDraftId) {
-                response = await salesApi.updateDraft(currentDraftId, draftData);
+                try {
+                    response = await salesApi.updateDraft(currentDraftId, draftData);
+                } catch (error: any) {
+                    // If draft was deleted or is stale, try creating a new one
+                    if (error.status === 404 || error.message?.includes('not found')) {
+                        console.warn('Draft not found, creating new one');
+                        response = await salesApi.saveDraft(draftData);
+                        if (response.data?.id) {
+                            setCurrentDraftId(response.data.id);
+                            localStorage.setItem('currentDraftId', response.data.id);
+                        }
+                    } else {
+                        throw error;
+                    }
+                }
             } else {
                 response = await salesApi.saveDraft(draftData);
                 if (response.data?.id) {
@@ -550,6 +564,7 @@ export default function NewSalePage() {
                 ...product,
                 drugId: product.drugId || product.id, // Ensure drugId is set
                 batchId: product.batchId || targetBatchId,
+                batchNumber: product.batchNumber || (targetBatchId === product.batchList?.[0]?.id ? product.batchList?.[0]?.batchNumber : undefined),
                 unit: initialUnit, // Store normalized unit
                 qty: 1,
                 gstRate: product.gstRate ? Number(product.gstRate) : 5
@@ -1175,7 +1190,7 @@ export default function NewSalePage() {
 
     const totals = calculateTotals();
 
-    const handleFinalize = async (paymentMethod: string = 'CASH', splits?: any, invoiceType: string = 'RECEIPT') => {
+    const handleFinalize = async (paymentMethod: string = 'CASH', splits?: any, invoiceType: string = 'RECEIPT', expectedPaymentDate?: string) => {
         if (basketItems.length === 0) {
             toast.error('Please add items to the basket');
             return;
@@ -1254,16 +1269,12 @@ export default function NewSalePage() {
                 dispenseForPatientId: dispenseFor?.id || null, // Persist who it is dispensed for
                 shouldCreateRefill, // Pass the flag to backend
                 invoiceNumber, // Pass the invoice number (manually edited or auto-fetched)
+                expectedPaymentDate, // Link expected payment date for credit sales
             };
 
-            // Ensure prescriptionId is undefined if null to match interface
-            console.log('Creating sale with data:', {
-                ...saleData,
-                itemCount: saleData.items.length,
-                hasCustomer: !!saleData.patientId,
-                hasPrescription: !!saleData.prescriptionId,
-                prescriptionIdValue: saleData.prescriptionId, // Explicitly log value
-                shouldCreateRefill // Add refill creation flag
+            console.log('🔍 [HANDLE FINALIZE] Sale data prepared:', {
+                hasExpectedDate: !!saleData.expectedPaymentDate,
+                expectedDateValue: saleData.expectedPaymentDate
             });
 
             const response = await salesApi.createSale({
@@ -1425,12 +1436,12 @@ export default function NewSalePage() {
                         </div>
 
                         {/* Right Panel - 35% */}
-                        <div className="w-[35%] bg-white flex flex-col min-h-0" data-tour="pos-payment">
+                        <div className="w-[35%] bg-white flex flex-col min-h-0 relative overflow-hidden" data-tour="pos-payment">
                             <PaymentPanel
                                 basketItems={basketItems}
                                 customer={customer}
                                 onCustomerChange={setCustomer}
-                                onFinalize={(method: string, splits?: any, invoiceType?: string) => handleFinalize(method, splits, invoiceType)}
+                                onFinalize={(method: string, splits?: any, invoiceType?: string, expectedDate?: string) => handleFinalize(method, splits, invoiceType, expectedDate)}
                                 onOpenCustomer={() => setShowCustomerModal(true)}
                                 onOpenLedger={() => customer ? setShowLedgerModal(true) : toast.error("Select a customer first")}
                                 onSplitPayment={() => setShowSplitPayment(true)}
@@ -1444,6 +1455,21 @@ export default function NewSalePage() {
                                 dispenseFor={dispenseFor}
                                 onDispenseForChange={setDispenseFor}
                             />
+
+                            {/* Customer Ledger Inline Overlay */}
+                            {showLedgerModal && customer && (
+                                <div className="absolute inset-0 z-50 bg-[#f8fafc] flex flex-col animate-in slide-in-from-right duration-300">
+                                    <CustomerLedgerPanel
+                                        isOpen={true}
+                                        onClose={() => setShowLedgerModal(false)}
+                                        customerId={customer.id}
+                                        onBalanceUpdate={(newBal) => {
+                                            setCustomer((prev: any) => prev ? { ...prev, currentBalance: newBal } : null);
+                                        }}
+                                        isInline={true}
+                                    />
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -1464,28 +1490,9 @@ export default function NewSalePage() {
                         onClose={() => setShowCustomerModal(false)}
                     />
                 )}
-                {showSplitPayment && (
-                    <SplitPaymentModal
-                        total={calculateTotals().total}
-                        onClose={() => setShowSplitPayment(false)}
-                        onConfirm={(splits: any) => {
-                            setShowSplitPayment(false);
-                            handleFinalize('SPLIT', splits);
-                        }}
-                    />
-                )}
+                {/* Split Payment Modal removed - now handled inline in PaymentPanel */}
 
-                {showLedgerModal && customer && (
-                    <CustomerLedgerPanel
-                        isOpen={showLedgerModal}
-                        onClose={() => setShowLedgerModal(false)}
-                        customerId={customer.id}
-                        onBalanceUpdate={(newBalance) => {
-                            console.log('Refreshing POS customer balance:', newBalance);
-                            setCustomer((prev: any) => prev ? ({ ...prev, currentBalance: newBalance }) : null);
-                        }}
-                    />
-                )}
+                {/* Modal-style Ledger removed from here as it's now inline in the right panel */}
 
                 {showDraftRestore && pendingDraft && (
                     <DraftRestoreModal

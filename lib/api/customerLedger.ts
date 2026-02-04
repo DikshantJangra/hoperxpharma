@@ -10,7 +10,7 @@ export interface Customer {
 }
 
 export type LedgerType = 'DEBIT' | 'CREDIT';
-export type LedgerReferenceType = 'SALE' | 'PAYMENT' | 'RETURN' | 'OPENING_BALANCE' | 'ADJUSTMENT';
+export type LedgerReferenceType = 'SALE' | 'PAYMENT' | 'RETURN' | 'OPENING_BALANCE' | 'ADJUSTMENT' | 'REFUND';
 
 export interface CustomerLedgerEntry {
     id: string;
@@ -74,4 +74,5 @@ export interface UnpaidInvoice {
     total: number;
     balance: number;
     paymentStatus: 'UNPAID' | 'PARTIAL' | 'OVERDUE';
+    expectedPaymentDate?: string;
 }

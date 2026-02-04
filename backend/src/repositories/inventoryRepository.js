@@ -207,6 +207,31 @@ class InventoryRepository {
     }
 
     /**
+     * Find multiple drugs by IDs with their inventory and unit configurations
+     * Useful for refreshing stock in UI grids like POS Quick Actions
+     */
+    async findDrugsByIds(ids, storeId) {
+        if (!ids || ids.length === 0) return [];
+
+        return await prisma.drug.findMany({
+            where: {
+                id: { in: ids },
+                storeId
+            },
+            include: {
+                unitConfigurations: true,
+                inventory: {
+                    where: {
+                        storeId,
+                        deletedAt: null
+                    },
+                    orderBy: { expiryDate: 'asc' }
+                }
+            }
+        });
+    }
+
+    /**
      * Find drug by name and manufacturer for duplicate detection
      */
     async findDrugByNameAndManufacturer(name, manufacturer, storeId) {

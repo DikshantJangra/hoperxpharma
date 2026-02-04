@@ -31,7 +31,7 @@ export default function ReturnForm({ saleId, invoiceNumber, saleItems, onSubmit,
     const [refundAmount, setRefundAmount] = useState(0);
     const [refundType, setRefundType] = useState('CASH');
     const [refundPercentage, setRefundPercentage] = useState(100);
-    
+
     // Check if walk-in customer
     const isWalkInCustomer = customerName === 'Walk-in Customer' || !customerName;
 
@@ -41,10 +41,18 @@ export default function ReturnForm({ saleId, invoiceNumber, saleItems, onSubmit,
         if (saleItems && saleItems.length > 0 && returnItems.length === 0) {
             setReturnItems(saleItems.map(si => {
                 const lineTotal = Number(si.lineTotal || si.total || 0);
-                const originalQuantity = si.quantity || si.qty || 0;
-                const returnedQuantity = si.returnedQty || 0;
+                const originalQuantity = Number(si.quantity || si.qty || 0);
+                const returnedQuantity = Number(si.returnedQty || 0);
                 const remainingQuantity = Math.max(0, originalQuantity - returnedQuantity);
-                const unitPrice = originalQuantity > 0 ? lineTotal / originalQuantity : 0;
+
+                // Calculate unit price, but CAP at MRP to prevent over-refunds from legacy tax bugs
+                let unitPrice = originalQuantity > 0 ? lineTotal / originalQuantity : 0;
+                if (si.mrp && Number(si.mrp) > 0) {
+                    unitPrice = Math.min(unitPrice, Number(si.mrp));
+                }
+
+                // Ensure calculatedRefund matches this unit price logic
+                const calculatedMax = unitPrice * remainingQuantity;
 
                 return {
                     saleItemId: si.id || si.saleItemId,
@@ -170,7 +178,7 @@ export default function ReturnForm({ saleId, invoiceNumber, saleItems, onSubmit,
             })),
             refundAmount
         });
-        
+
         // Don't reset form - parent will close modal on success
     };
 
@@ -207,7 +215,7 @@ export default function ReturnForm({ saleId, invoiceNumber, saleItems, onSubmit,
                                     <div key={index} className={`p-4 rounded-lg border transition-colors ${item.selected ? 'bg-emerald-50 border-emerald-200' : 'bg-gray-50 border-gray-200'}`}>
                                         <div className="flex items-start justify-between mb-3">
                                             <div className="flex items-center gap-3 flex-1 min-w-0">
-                                <input
+                                                <input
                                                     type="checkbox"
                                                     checked={item.selected}
                                                     onChange={() => toggleSelectItem(index)}
@@ -221,8 +229,8 @@ export default function ReturnForm({ saleId, invoiceNumber, saleItems, onSubmit,
                                                         </p>
                                                         {item.returnedQuantity > 0 && (
                                                             <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${item.remainingQuantity <= 0
-                                                                    ? 'bg-red-50 text-red-600 border-red-100'
-                                                                    : 'bg-amber-50 text-amber-600 border-amber-100'
+                                                                ? 'bg-red-50 text-red-600 border-red-100'
+                                                                : 'bg-amber-50 text-amber-600 border-amber-100'
                                                                 }`}>
                                                                 {item.remainingQuantity <= 0 ? 'RETURNED' : 'PARTIALLY RETURNED'}
                                                             </span>
@@ -256,15 +264,15 @@ export default function ReturnForm({ saleId, invoiceNumber, saleItems, onSubmit,
                                                     {/* Quantity */}
                                                     <div>
                                                         <label className="block text-xs font-bold text-slate-700 mb-1.5">Return Qty</label>
-                                                    <input
-                                                        type="number"
-                                                        min="1"
-                                                        max={item.remainingQuantity}
-                                                        value={item.quantity}
-                                                        onChange={(e) => updateReturnItem(index, 'quantity', parseInt(e.target.value) || 0)}
-                                                        className="w-full text-sm px-3 py-2 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white shadow-sm font-semibold"
-                                                        required
-                                                    />
+                                                        <input
+                                                            type="number"
+                                                            min="1"
+                                                            max={item.remainingQuantity}
+                                                            value={item.quantity}
+                                                            onChange={(e) => updateReturnItem(index, 'quantity', parseInt(e.target.value) || 0)}
+                                                            className="w-full text-sm px-3 py-2 border-2 border-slate-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white shadow-sm font-semibold"
+                                                            required
+                                                        />
                                                     </div>
 
                                                     {/* Intent */}
@@ -401,13 +409,12 @@ export default function ReturnForm({ saleId, invoiceNumber, saleItems, onSubmit,
                                     <div className="text-xs text-gray-500 mt-0.5">Return cash to customer</div>
                                 </label>
 
-                                <label className={`relative border rounded-lg p-3 transition-all ${
-                                    isWalkInCustomer 
-                                        ? 'border-gray-200 bg-gray-100 opacity-60 cursor-not-allowed' 
-                                        : refundType === 'STORE_CREDIT' 
-                                            ? 'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-500 cursor-pointer' 
-                                            : 'border-gray-200 hover:border-gray-300 cursor-pointer'
-                                }`}>
+                                <label className={`relative border rounded-lg p-3 transition-all ${isWalkInCustomer
+                                    ? 'border-gray-200 bg-gray-100 opacity-60 cursor-not-allowed'
+                                    : refundType === 'STORE_CREDIT'
+                                        ? 'border-emerald-500 bg-emerald-50 ring-2 ring-emerald-500 cursor-pointer'
+                                        : 'border-gray-200 hover:border-gray-300 cursor-pointer'
+                                    }`}>
                                     <input
                                         type="radio"
                                         name="refundType"
@@ -450,11 +457,10 @@ export default function ReturnForm({ saleId, invoiceNumber, saleItems, onSubmit,
                                                     +{item.quantity}
                                                 </span>
                                             </div>
-                                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                                                item.isResellable 
-                                                    ? 'bg-green-100 text-green-700' 
-                                                    : 'bg-orange-100 text-orange-700'
-                                            }`}>
+                                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${item.isResellable
+                                                ? 'bg-green-100 text-green-700'
+                                                : 'bg-orange-100 text-orange-700'
+                                                }`}>
                                                 {item.isResellable ? 'RESTOCK' : 'QUARANTINE'}
                                             </span>
                                         </div>
@@ -462,7 +468,7 @@ export default function ReturnForm({ saleId, invoiceNumber, saleItems, onSubmit,
                                 </div>
                                 <div className="mt-3 pt-3 border-t border-slate-200">
                                     <p className="text-[10px] text-slate-600">
-                                        • Resellable items will be added back to available stock<br/>
+                                        • Resellable items will be added back to available stock<br />
                                         • Non-resellable items will be moved to quarantine
                                     </p>
                                 </div>

@@ -30,12 +30,19 @@ class PatientRelationController {
                 return res.status(404).json({ success: false, message: "One or both patients not found" });
             }
 
-            // Create bidirectional link or single? 
-            // Requirement says "Patient Connections". Usually family links are mutual context, but logic might be directional "Is Father Of".
-            // For now, let's just create the record as requested. If we want bidirectional, we can create two records or query efficiently.
-
-            const relation = await prisma.patientRelation.create({
-                data: {
+            // Use upsert to handle existing relations gracefully
+            // This prevents the unique constraint error (P2002) if they try to link again
+            const relation = await prisma.patientRelation.upsert({
+                where: {
+                    patientId_relatedPatientId: {
+                        patientId: id,
+                        relatedPatientId: relatedPatientId
+                    }
+                },
+                update: {
+                    relationType, // Update type if it already exists
+                },
+                create: {
                     patientId: id,
                     relatedPatientId,
                     relationType,
@@ -52,10 +59,7 @@ class PatientRelationController {
                 }
             });
 
-            // Also create the reverse link if it's a family unit?
-            // Let's stick to simple directional for now, UI can handle "fetch relations where id=A OR relatedId=A"
-
-            res.status(201).json({ success: true, data: relation });
+            res.status(201).json({ success: true, data: relation, message: "Relation updated successfully" });
         } catch (error) {
             logger.error('Add Relation Error:', error);
             if (error instanceof z.ZodError) {
@@ -65,36 +69,28 @@ class PatientRelationController {
         }
     }
 
-    // Get connections for a patient
+    // Get connections for a patient (Strictly Unidirectional)
     async getRelations(req, res) {
         try {
             const { id } = req.params;
 
-            // Fetch both "related to" and "related from" to show full family
-            const [relatedTo, relatedFrom] = await Promise.all([
-                prisma.patientRelation.findMany({
-                    where: { patientId: id },
-                    include: {
-                        relatedPatient: {
-                            select: { id: true, firstName: true, lastName: true, phoneNumber: true, email: true }
-                        }
+            // FETCH ONLY "related to" (OUT) relations.
+            // Requirement specifies strictly one-directional until the other side is decided.
+            const relations = await prisma.patientRelation.findMany({
+                where: { patientId: id },
+                include: {
+                    relatedPatient: {
+                        select: { id: true, firstName: true, lastName: true, phoneNumber: true, email: true }
                     }
-                }),
-                prisma.patientRelation.findMany({
-                    where: { relatedPatientId: id },
-                    include: {
-                        patient: {
-                            select: { id: true, firstName: true, lastName: true, phoneNumber: true, email: true }
-                        }
-                    }
-                })
-            ]);
+                }
+            });
 
             // Normalize structure
-            const connections = [
-                ...relatedTo.map(r => ({ ...r.relatedPatient, relationType: r.relationType, direction: 'OUT' })),
-                ...relatedFrom.map(r => ({ ...r.patient, relationType: r.relationType, direction: 'IN' }))
-            ];
+            const connections = relations.map(r => ({
+                ...r.relatedPatient,
+                relationType: r.relationType,
+                direction: 'OUT'
+            }));
 
             res.json({ success: true, data: connections });
         } catch (error) {

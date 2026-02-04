@@ -23,6 +23,41 @@ export default function Basket({ items, onUpdateItem, onRemoveItem, onClear, onE
   const [showClearDialog, setShowClearDialog] = useState(false);
   const { isPremium } = usePremiumTheme();
   const [availableUnits, setAvailableUnits] = useState<Record<string, any[]>>({});
+  const [openBatchIndex, setOpenBatchIndex] = useState<number | null>(null);
+  const [batchOptions, setBatchOptions] = useState<any[]>([]);
+  const [isLoadingBatches, setIsLoadingBatches] = useState(false);
+
+  const handleBatchOpen = async (item: any, index: number) => {
+    if (openBatchIndex === index) {
+      setOpenBatchIndex(null);
+      return;
+    }
+    setOpenBatchIndex(index);
+    setBatchOptions([]);
+    setIsLoadingBatches(true);
+    try {
+      const { inventoryApi } = await import('@/lib/api/inventory');
+      const response = await inventoryApi.getBatches({ drugId: item.drugId || item.id, minQuantity: 0 });
+      const data = response?.data || response || [];
+      setBatchOptions(data);
+    } catch (e) {
+      toast.error("Failed to load batches");
+    } finally {
+      setIsLoadingBatches(false);
+    }
+  };
+
+  const selectBatch = (index: number, batch: any) => {
+    onUpdateItem(index, {
+      batchId: batch.id,
+      batchNumber: batch.batchNumber,
+      expiryDate: batch.expiryDate,
+      mrp: batch.mrp,
+      stock: batch.baseUnitQuantity,
+      location: batch.location
+    });
+    setOpenBatchIndex(null);
+  };
 
   // Fetch available units for each drug
   useEffect(() => {
@@ -163,16 +198,50 @@ export default function Basket({ items, onUpdateItem, onRemoveItem, onClear, onE
 
                       {/* Premium Metadata Badges */}
                       <div className="flex flex-wrap gap-1.5 mt-1.5">
-                        {/* Batch */}
-                        <button
-                          onClick={() => onEditBatch && onEditBatch(item, index)}
-                          className={`flex items-center gap-1 px-1.5 py-0.5 border rounded text-[10px] font-medium transition-colors hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700 cursor-pointer ${!item.batchId ? 'bg-red-50 border-red-200 text-red-700' : 'bg-gray-100 border-gray-200 text-gray-600'}`}
-                          title="Click to change batch"
-                        >
-                          <span className="opacity-70">Batch:</span>
-                          <span className="text-gray-900 font-bold">{item.batchNumber || (item.batchId ? '...' + item.batchId.slice(-4) : 'MISSING')}</span>
-                          <FiChevronDown className="w-3 h-3 ml-0.5" />
-                        </button>
+                        {/* Batch Dropdown */}
+                        <div className="relative">
+                          <button
+                            onClick={() => handleBatchOpen(item, index)}
+                            className={`flex items-center gap-1 px-1.5 py-0.5 border rounded text-[10px] font-medium transition-colors hover:bg-blue-50 hover:border-blue-200 hover:text-blue-700 cursor-pointer ${!item.batchId ? 'bg-red-50 border-red-200 text-red-700' : 'bg-gray-100 border-gray-200 text-gray-600'}`}
+                            title="Click to change batch"
+                          >
+                            <span className="opacity-70">Batch:</span>
+                            <span className="text-gray-900 font-bold">{item.batchNumber || (item.batchId ? '...' + item.batchId.slice(-4) : 'MISSING')}</span>
+                            <span className="opacity-50 mx-0.5">•</span>
+                            <span className="opacity-70">Qty:</span>
+                            <span className="text-gray-900 font-bold">{item.qty || 1}</span>
+                            <FiChevronDown className={`w-3 h-3 ml-0.5 transition-transform ${openBatchIndex === index ? 'rotate-180' : ''}`} />
+                          </button>
+
+                          {openBatchIndex === index && (
+                            <div className="absolute left-0 top-full mt-1 w-64 bg-white border border-gray-200 rounded-lg shadow-xl z-50 max-h-60 overflow-y-auto">
+                              {isLoadingBatches ? (
+                                <div className="p-3 text-center text-xs text-gray-500 animate-pulse">Loading batches...</div>
+                              ) : batchOptions.length === 0 ? (
+                                <div className="p-3 text-center text-xs text-gray-500">No other batches found</div>
+                              ) : (
+                                <div className="py-1">
+                                  {batchOptions.map((batch) => (
+                                    <button
+                                      key={batch.id}
+                                      onClick={() => selectBatch(index, batch)}
+                                      className={`w-full text-left px-3 py-2 text-xs hover:bg-emerald-50 transition-colors border-b last:border-0 border-gray-100 ${batch.id === item.batchId ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-gray-700'}`}
+                                    >
+                                      <div className="flex justify-between items-center">
+                                        <span>{batch.batchNumber}</span>
+                                        <span className="font-bold">₹{batch.mrp}</span>
+                                      </div>
+                                      <div className="flex justify-between items-center mt-0.5 opacity-70">
+                                        <span>Exp: {new Date(batch.expiryDate).toLocaleDateString('en-US', { month: '2-digit', year: 'numeric' })}</span>
+                                        <span>Stock: {batch.baseUnitQuantity}</span>
+                                      </div>
+                                    </button>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
 
                         {/* Location */}
                         {item.location && (
@@ -296,93 +365,86 @@ export default function Basket({ items, onUpdateItem, onRemoveItem, onClear, onE
 
                   {expandedItem === index && (
                     <div className="mt-3 pt-3 border-t border-[#e2e8f0] space-y-2">
-                      {/* Item Discount */}
-                      <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs text-[#64748b]">Item Discount</span>
-                          <div className="flex gap-1">
-                            <button
-                              onClick={() => onUpdateItem(index, { discountType: 'amount' })}
-                              className={`px-2 py-0.5 text-xs rounded ${(item.discountType || 'percentage') === 'amount' ? 'bg-[#0ea5a3] text-white' : 'bg-[#f1f5f9] text-[#64748b]'}`}
-                            >
-                              ₹
-                            </button>
-                            <button
-                              onClick={() => onUpdateItem(index, { discountType: 'percentage' })}
-                              className={`px-2 py-0.5 text-xs rounded ${(item.discountType || 'percentage') === 'percentage' ? 'bg-[#0ea5a3] text-white' : 'bg-[#f1f5f9] text-[#64748b]'}`}
-                            >
-                              %
-                            </button>
+                      {/* Discount and GST Side by Side */}
+                      <div className="grid grid-cols-2 gap-3">
+                        {/* Item Discount */}
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs text-[#64748b]">Discount</span>
+                            <div className="flex gap-0.5">
+                              <button
+                                onClick={() => onUpdateItem(index, { discountType: 'amount' })}
+                                className={`px-1.5 py-0.5 text-[10px] rounded ${(item.discountType || 'percentage') === 'amount' ? 'bg-[#0ea5a3] text-white' : 'bg-[#f1f5f9] text-[#64748b]'}`}
+                              >
+                                ₹
+                              </button>
+                              <button
+                                onClick={() => onUpdateItem(index, { discountType: 'percentage' })}
+                                className={`px-1.5 py-0.5 text-[10px] rounded ${(item.discountType || 'percentage') === 'percentage' ? 'bg-[#0ea5a3] text-white' : 'bg-[#f1f5f9] text-[#64748b]'}`}
+                              >
+                                %
+                              </button>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <input
+                              type="number"
+                              placeholder="0"
+                              value={item.discountValue || ''}
+                              onChange={(e) => {
+                                const value = parseFloat(e.target.value) || 0;
+                                const discountType = item.discountType || 'percentage';
+                                const lineTotal = item.qty * unitPrice;
+
+                                let discountAmount = 0;
+                                if (discountType === 'percentage') {
+                                  discountAmount = (lineTotal * value) / 100;
+                                } else {
+                                  discountAmount = value;
+                                }
+
+                                if (discountAmount > lineTotal) {
+                                  toast.error('Discount cannot exceed item total');
+                                  return;
+                                }
+
+                                onUpdateItem(index, {
+                                  discountValue: value,
+                                  discount: discountAmount
+                                });
+                              }}
+                              className="w-full px-2 py-1.5 text-xs border border-[#cbd5e1] rounded focus:outline-none focus:ring-1 focus:ring-[#0ea5a3]"
+                            />
                           </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                          <input
-                            type="number"
-                            placeholder="0"
-                            value={item.discountValue || ''}
-                            onChange={(e) => {
-                              const value = parseFloat(e.target.value) || 0;
-                              const discountType = item.discountType || 'percentage';
-                              const lineTotal = item.qty * unitPrice;
 
-                              console.log('🏷️ [DISCOUNT] Applying discount:', { value, discountType, lineTotal, unitPrice, qty: item.qty });
-
-                              let discountAmount = 0;
-                              if (discountType === 'percentage') {
-                                discountAmount = (lineTotal * value) / 100;
-                              } else {
-                                discountAmount = value;
-                              }
-
-                              console.log('🏷️ [DISCOUNT] Calculated discount amount:', discountAmount);
-
-                              // Cap discount at line total
-                              if (discountAmount > lineTotal) {
-                                toast.error('Discount cannot exceed item total');
-                                return;
-                              }
-
-                              console.log('🏷️ [DISCOUNT] Updating item with:', { discountValue: value, discount: discountAmount });
-
-                              onUpdateItem(index, {
-                                discountValue: value,
-                                discount: discountAmount
-                              });
-                            }}
-                            className="flex-1 px-2 py-1.5 text-sm border border-[#cbd5e1] rounded focus:outline-none focus:ring-1 focus:ring-[#0ea5a3]"
-                          />
-                          <span className="text-sm font-medium text-[#ef4444] min-w-[60px] text-right">
-                            -₹{(item.discount || 0).toFixed(2)}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* GST Edit */}
-                      <div>
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs text-[#64748b]">GST %</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <select
-                            value={item.gstRate || 0}
-                            onChange={(e) => onUpdateItem(index, { gstRate: Number(e.target.value) })}
-                            className="w-full px-2 py-1.5 text-sm border border-[#cbd5e1] rounded focus:outline-none focus:ring-1 focus:ring-[#0ea5a3] bg-white"
-                          >
-                            <option value="0">0% (Exempt)</option>
-                            <option value="5">5%</option>
-                            <option value="12">12%</option>
-                            <option value="18">18%</option>
-                            <option value="28">28%</option>
-                          </select>
+                        {/* GST Edit */}
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <span className="text-xs text-[#64748b]">GST %</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <select
+                              value={item.gstRate || 0}
+                              onChange={(e) => onUpdateItem(index, { gstRate: Number(e.target.value) })}
+                              className="w-full px-2 py-1.5 text-xs border border-[#cbd5e1] rounded focus:outline-none focus:ring-1 focus:ring-[#0ea5a3] bg-white"
+                            >
+                              <option value="0">0%</option>
+                              <option value="5">5%</option>
+                              <option value="12">12%</option>
+                              <option value="18">18%</option>
+                              <option value="28">28%</option>
+                            </select>
+                          </div>
                         </div>
                       </div>
 
                       {/* Stock Info */}
                       <div className="bg-gray-50 px-3 py-2 rounded border border-gray-100 flex items-center justify-between w-full">
-                        <span className="text-xs text-[#64748b]">Available Stock</span>
+                        <span className="text-xs text-[#64748b]">In Stock</span>
                         <span className="text-xs font-semibold text-[#0f172a]">
                           {renderStockQuantity({
-                            baseUnitQuantity: item.stock || item.totalStock || item.baseUnitQuantity || 0,
+                            baseUnitQuantity: item.totalStock || item.stock || item.baseUnitQuantity || 0,
                             baseUnit: item.baseUnit,
                             displayUnit: item.displayUnit || item.unit,
                             drug: {

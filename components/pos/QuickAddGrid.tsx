@@ -1,7 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { FiEdit2, FiX, FiPlus } from 'react-icons/fi';
+import { useState, useEffect, useRef } from 'react';
+import { FiEdit2, FiX, FiPlus, FiSearch } from 'react-icons/fi';
+import { toast } from 'sonner';
+import { formatStockQuantity } from '@/lib/utils/stock-display';
 
 interface QuickAddProduct {
   id: string;
@@ -10,10 +12,13 @@ interface QuickAddProduct {
   mrp: number;
   stock: number;
   batchId: string;
+  batchNumber?: string;
+  expiryDate?: string;
   gstRate: number;
   baseUnit?: string;
   displayUnit?: string;
   unitConfigurations?: any[];
+  manufacturer?: string;
 }
 
 interface QuickAddGridProps {
@@ -24,8 +29,12 @@ interface QuickAddGridProps {
 export default function QuickAddGrid({ onAddProduct, storeId }: QuickAddGridProps) {
   const [quickAddProducts, setQuickAddProducts] = useState<(QuickAddProduct | null)[]>([null, null, null, null]);
   const [isEditMode, setIsEditMode] = useState(false);
-  const [showProductSelector, setShowProductSelector] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Load from localStorage on mount
   useEffect(() => {
@@ -41,26 +50,135 @@ export default function QuickAddGrid({ onAddProduct, storeId }: QuickAddGridProp
     }
   }, [storeId]);
 
-  // Save to localStorage whenever products change
+  // Real-time stock refresh for slots
+  useEffect(() => {
+    const refreshStock = async () => {
+      const activeProducts = quickAddProducts.filter(p => p !== null) as QuickAddProduct[];
+      if (activeProducts.length === 0) return;
+
+      try {
+        const drugIds = activeProducts.map(p => p.id);
+        const { apiClient } = await import('@/lib/api/client');
+        const response = await apiClient.post('/inventory/pos/stock-refresh', { drugIds });
+
+        if (response.success && response.data) {
+          const stockMap = response.data;
+          const updated = quickAddProducts.map(p => {
+            if (p && stockMap[p.id]) {
+              return {
+                ...p,
+                stock: stockMap[p.id].stock,
+                totalStock: stockMap[p.id].totalStock,
+                mrp: stockMap[p.id].mrp || p.mrp,
+                baseUnit: stockMap[p.id].baseUnit || p.baseUnit,
+                displayUnit: stockMap[p.id].displayUnit || p.displayUnit,
+                unitConfigurations: stockMap[p.id].unitConfigurations || p.unitConfigurations
+              };
+            }
+            return p;
+          });
+
+          // Only update if something changed to avoid re-renders
+          if (JSON.stringify(updated) !== JSON.stringify(quickAddProducts)) {
+            setQuickAddProducts(updated);
+            // Also sync back to localStorage so the splash/loading screen shows newer data next time
+            const storageKey = `quickAddProducts_${storeId}`;
+            localStorage.setItem(storageKey, JSON.stringify(updated));
+          }
+        }
+      } catch (error) {
+        console.error('Failed to refresh quick add stock:', error);
+      }
+    };
+
+    if (quickAddProducts.some(p => p !== null)) {
+      refreshStock();
+    }
+  }, [quickAddProducts.length, storeId]);
+
+  // Save to localStorage
   const saveProducts = (products: (QuickAddProduct | null)[]) => {
     const storageKey = `quickAddProducts_${storeId}`;
     localStorage.setItem(storageKey, JSON.stringify(products));
     setQuickAddProducts(products);
   };
 
-  const handleSlotClick = (index: number) => {
+  // Close search on click outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setSelectedSlot(null);
+      }
+    };
+    if (selectedSlot !== null) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [selectedSlot]);
+
+  const handleSlotClick = async (index: number) => {
     if (isEditMode) {
-      // In edit mode, remove product
       const updated = [...quickAddProducts];
       updated[index] = null;
       saveProducts(updated);
     } else if (quickAddProducts[index]) {
-      // Add to cart
-      onAddProduct(quickAddProducts[index]);
+      // Fetch fresh batch data to avoid non-existing batch errors
+      const product = quickAddProducts[index]!; // Assert not null since we checked condition
+      try {
+        const { inventoryApi } = await import('@/lib/api/inventory');
+
+        // 1. If we have a stored Batch ID, try to fetch/refresh THAT specific batch
+        if (product.batchId) {
+          try {
+            const batchResponse = await inventoryApi.getBatchById(product.batchId);
+            // Check strictly for stock > 0
+            if (batchResponse && Number(batchResponse.baseUnitQuantity) > 0) {
+              // Batch is valid and has stock!
+              onAddProduct({
+                ...product,
+                stock: batchResponse.baseUnitQuantity,
+                totalStock: batchResponse.baseUnitQuantity,
+                expiryDate: batchResponse.expiryDate,
+                batchNumber: batchResponse.batchNumber
+              });
+              return;
+            }
+            // If batch not found or out of stock, fall through to finding a substitute batch
+            toast.info(`Saved batch ${product.batchNumber || '...'} is out of stock. Finding best available batch...`);
+          } catch (ignore) {
+            // Batch likely deleted or not found
+            console.warn('Saved batch not found:', product.batchId);
+          }
+        }
+
+        // 2. Fallback: Find best available batch (FEFO)
+        const batchesResponse = await inventoryApi.getBatchesWithSuppliers(product.id);
+        if (batchesResponse.success && batchesResponse.data && batchesResponse.data.length > 0) {
+          const latestBatch = batchesResponse.data[0];
+          const enrichedProduct = {
+            ...product, // product has aggregated stock from refresh!
+            // Overwrite with specific batch details
+            batchId: latestBatch.id,
+            batchNumber: latestBatch.batchNumber,
+            expiryDate: latestBatch.expiryDate,
+            stock: latestBatch.baseUnitQuantity,
+            totalStock: latestBatch.baseUnitQuantity
+          };
+          onAddProduct(enrichedProduct);
+          toast.success(`Used batch ${latestBatch.batchNumber} (Best Available)`);
+        } else {
+          // No batches found at all
+          toast.error("Product is out of stock!");
+        }
+      } catch (error) {
+        console.error('Error fetching batch data:', error);
+        // Last resort fallback
+        onAddProduct(product);
+      }
     } else {
-      // Open product selector
       setSelectedSlot(index);
-      setShowProductSelector(true);
+      setSearchQuery('');
+      setSearchResults([]);
     }
   };
 
@@ -74,102 +192,37 @@ export default function QuickAddGrid({ onAddProduct, storeId }: QuickAddGridProp
         mrp: product.mrp,
         stock: product.totalStock || product.stock,
         batchId: product.batchId,
+        batchNumber: product.batchNumber, // EXPLICITLY SAVE BATCH NUMBER
+        expiryDate: product.expiryDate,
         gstRate: product.gstRate,
         baseUnit: product.baseUnit,
         displayUnit: product.displayUnit,
         unitConfigurations: product.unitConfigurations,
+        manufacturer: product.manufacturer,
       };
       saveProducts(updated);
-      setShowProductSelector(false);
       setSelectedSlot(null);
+      setSearchQuery('');
+      setSearchResults([]);
+      toast.success(`Slot ${selectedSlot + 1} updated`);
     }
   };
 
-  return (
-    <>
-      <div className="p-4 bg-[#f8fafc] border-b border-[#e2e8f0]">
-        <div className="flex items-center justify-between mb-2">
-          <div className="text-xs font-medium text-[#64748b]">Quick Add</div>
-          <button
-            onClick={() => setIsEditMode(!isEditMode)}
-            className={`p-1.5 rounded-lg transition-colors ${isEditMode
-              ? 'bg-[#0ea5a3] text-white'
-              : 'text-[#64748b] hover:bg-[#e2e8f0]'
-              }`}
-            title={isEditMode ? 'Done editing' : 'Edit quick add products'}
-          >
-            {isEditMode ? <FiX className="w-4 h-4" /> : <FiEdit2 className="w-4 h-4" />}
-          </button>
-        </div>
-        <div className="grid grid-cols-4 gap-2">
-          {quickAddProducts.map((product, index) => (
-            <button
-              key={index}
-              onClick={() => handleSlotClick(index)}
-              className={`p-2 border rounded-lg text-left transition-all ${product
-                ? 'bg-white border-[#e2e8f0] hover:border-[#0ea5a3] hover:bg-[#f0fdfa]'
-                : 'bg-white border-dashed border-[#cbd5e1] hover:border-[#0ea5a3] hover:bg-[#f0fdfa]'
-                } ${isEditMode && product ? 'ring-2 ring-red-200' : ''}`}
-            >
-              {product ? (
-                <>
-                  <div className="text-xs font-medium text-[#0f172a] truncate">
-                    {product.name}
-                  </div>
-                  <div className="text-xs text-[#64748b] mt-0.5">₹{product.mrp}</div>
-                  {isEditMode && (
-                    <div className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-0.5">
-                      <FiX className="w-3 h-3" />
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div className="flex flex-col items-center justify-center py-2">
-                  <FiPlus className="w-5 h-5 text-[#94a3b8] mb-1" />
-                  <div className="text-xs text-[#94a3b8]">Add</div>
-                </div>
-              )}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Product Selector Modal */}
-      {showProductSelector && (
-        <ProductSelectorModal
-          onSelect={handleProductSelect}
-          onClose={() => {
-            setShowProductSelector(false);
-            setSelectedSlot(null);
-          }}
-        />
-      )}
-    </>
-  );
-}
-
-// Simple product selector modal
-function ProductSelectorModal({ onSelect, onClose }: any) {
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-
+  // Search logic
   useEffect(() => {
     const searchProducts = async () => {
-      if (query.length < 2) {
-        setResults([]);
+      if (searchQuery.length < 2) {
+        setSearchResults([]);
         return;
       }
 
       setIsLoading(true);
       try {
         const { inventoryApi } = await import('@/lib/api/inventory');
-        const response = await inventoryApi.searchForPOS(query);
-        if (response.success) {
-          setResults(response.data || []);
-        }
+        const response = await inventoryApi.searchForPOS(searchQuery);
+        setSearchResults(response?.data || response || []);
       } catch (error) {
-        console.error('Failed to search:', error);
+        console.error('Search failed:', error);
       } finally {
         setIsLoading(false);
       }
@@ -177,50 +230,140 @@ function ProductSelectorModal({ onSelect, onClose }: any) {
 
     const timer = setTimeout(searchProducts, 300);
     return () => clearTimeout(timer);
-  }, [query]);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (selectedSlot !== null) {
+      // Small delay to ensure input is rendered
+      setTimeout(() => searchInputRef.current?.focus(), 50);
+    }
+  }, [selectedSlot]);
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-md m-4" onClick={(e) => e.stopPropagation()}>
-        <div className="p-4 border-b border-gray-200">
-          <h3 className="text-lg font-semibold text-gray-900">Select Product</h3>
-        </div>
-        <div className="p-4">
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search products..."
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0ea5a3]"
-            autoFocus
-          />
-          <div className="mt-4 max-h-64 overflow-y-auto">
-            {isLoading && <div className="text-center text-gray-500">Searching...</div>}
-            {!isLoading && results.length === 0 && query.length >= 2 && (
-              <div className="text-center text-gray-500">No products found</div>
-            )}
-            {results.map((product) => (
-              <button
-                key={product.id}
-                onClick={() => onSelect(product)}
-                className="w-full p-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-0"
-              >
-                <div className="font-medium text-gray-900">{product.name}</div>
-                <div className="text-sm text-gray-500">
-                  ₹{product.mrp} • Stock: {product.totalStock}
+    <div className="p-4 bg-[#f8fafc] border-b border-[#e2e8f0]">
+      <div className="flex items-center justify-between mb-2">
+        <div className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Quick Actions</div>
+        <button
+          onClick={() => {
+            setIsEditMode(!isEditMode);
+            setSelectedSlot(null); // Close any open search
+          }}
+          className={`flex items-center gap-1.5 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wide transition-all ${isEditMode
+            ? 'bg-red-500 text-white shadow-md'
+            : 'bg-white border border-gray-200 text-gray-500 hover:border-emerald-500 hover:text-emerald-600'
+            }`}
+        >
+          {isEditMode ? <><FiX className="w-3 h-3" /> Finish</> : <><FiEdit2 className="w-3 h-3" /> Edit Grid</>}
+        </button>
+      </div>
+
+      <div className="grid grid-cols-4 gap-2">
+        {quickAddProducts.map((product, index) => (
+          <div key={index} className="relative">
+            <button
+              onClick={() => handleSlotClick(index)}
+              disabled={isEditMode && !product}
+              className={`group relative p-3 border-2 rounded-xl text-left transition-all duration-200 h-20 w-full flex flex-col justify-between overflow-hidden ${product
+                ? isEditMode
+                  ? 'border-red-100 bg-red-50 hover:border-red-300'
+                  : 'bg-white border-white shadow-sm hover:shadow-md hover:border-emerald-500/30'
+                : selectedSlot === index
+                  ? 'border-[#0ea5a3] bg-white ring-2 ring-emerald-100'
+                  : 'bg-gray-50/50 border-dashed border-gray-200 hover:bg-emerald-50 hover:border-emerald-200'
+                }`}
+            >
+              {selectedSlot === index ? (
+                <div className="flex items-center h-full w-full">
+                  <FiSearch className="absolute left-2 text-emerald-500 w-3 h-3" />
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search..."
+                    className="w-full pl-6 pr-1 py-1 text-[11px] font-bold bg-transparent focus:outline-none placeholder:text-gray-300"
+                    onClick={(e) => e.stopPropagation()}
+                  />
                 </div>
-              </button>
-            ))}
+              ) : product ? (
+                <>
+                  <div className="text-[11px] font-bold text-gray-900 line-clamp-2 leading-tight">
+                    {product.name}
+                  </div>
+                  <div className="flex items-end justify-between mt-1">
+                    <div className="flex flex-col">
+                      <div className="text-[10px] font-bold text-emerald-600">₹{Number(product.mrp).toFixed(0)}</div>
+                      <div className={`text-[9px] font-bold ${Number(product.stock) <= 5 ? 'text-orange-500' : 'text-gray-400'}`}>
+                        {formatStockQuantity({
+                          baseUnitQuantity: product.stock,
+                          baseUnit: product.baseUnit,
+                          displayUnit: product.displayUnit,
+                          unitConfigurations: product.unitConfigurations
+                        }, { showUnit: true, preferDisplayUnit: true })} in stock
+                      </div>
+                    </div>
+                    <div className="text-[10px] text-gray-300 font-medium">#{index + 1}</div>
+                  </div>
+                  {isEditMode && (
+                    <div className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 shadow-lg ring-2 ring-white z-10">
+                      <FiX className="w-2 h-2" />
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-2 h-full w-full">
+                  <FiPlus className="w-4 h-4 text-gray-300 group-hover:text-emerald-500 transition-colors" />
+                  <div className="text-[10px] font-bold text-gray-300 group-hover:text-emerald-600 uppercase mt-1 tracking-tighter">Add</div>
+                </div>
+              )}
+            </button>
+
+            {/* In-place Search Results Dropdown */}
+            {selectedSlot === index && (
+              <div
+                ref={dropdownRef}
+                className="absolute left-0 top-full mt-1 w-72 bg-white border border-gray-200 rounded-lg shadow-2xl z-[100] max-h-48 overflow-y-auto animate-in fade-in zoom-in-95 duration-100"
+              >
+                {isLoading ? (
+                  <div className="p-3 text-center text-[10px] text-gray-400 animate-pulse">Searching...</div>
+                ) : searchQuery.length >= 2 && searchResults.length === 0 ? (
+                  <div className="p-3 text-center text-[10px] text-gray-400">No matches</div>
+                ) : searchResults.length > 0 ? (
+                  <div className="py-1">
+                    {searchResults.map((p) => (
+                      <button
+                        key={p.id}
+                        onClick={() => handleProductSelect(p)}
+                        className="w-full px-3 py-2 text-left hover:bg-emerald-50 border-b last:border-0 border-gray-50 flex flex-col"
+                      >
+                        <div className="text-[11px] font-bold text-gray-900 truncate">{p.name}</div>
+                        <div className="flex justify-between items-baseline mt-0.5">
+                          <div className="flex flex-col">
+                            <span className="text-[10px] text-gray-500 truncate max-w-[120px]">{p.manufacturer || 'General'}</span>
+                            <span className="text-[9px] text-[#0ea5a3] font-medium">Batch: {p.batchNumber} • Exp: {p.expiryDate ? new Date(p.expiryDate).toLocaleDateString() : 'N/A'}</span>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-[11px] font-bold text-emerald-600">₹{Number(p.mrp).toFixed(2)}</div>
+                            <div className="text-[9px] text-gray-400 font-bold">
+                              Stock: {formatStockQuantity({
+                                baseUnitQuantity: p.totalStock || 0,
+                                baseUnit: p.baseUnit,
+                                displayUnit: p.displayUnit || p.unit,
+                                unitConfigurations: p.unitConfigurations
+                              }, { showUnit: true, preferDisplayUnit: true })}
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="p-3 text-center text-[10px] text-gray-400 italic">Type to search...</div>
+                )}
+              </div>
+            )}
           </div>
-        </div>
-        <div className="p-4 border-t border-gray-200">
-          <button
-            onClick={onClose}
-            className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
-          >
-            Cancel
-          </button>
-        </div>
+        ))}
       </div>
     </div>
   );

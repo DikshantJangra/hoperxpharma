@@ -56,7 +56,10 @@ class SaleRefundService {
             }
 
             // 2. Calculate Refund Amount for this item
-            const unitPrice = Number(saleItem.lineTotal) / saleItem.quantity;
+            // Safety Check: Refund should never exceed MRP (Maximum Retail Price)
+            // Legacy sales might have lineTotal > mrp * quantity due to tax-exclusive bug
+            const calculatedUnitPrice = Number(saleItem.lineTotal) / saleItem.quantity;
+            const unitPrice = Math.min(calculatedUnitPrice, Number(saleItem.mrp));
             const itemRefundAmount = unitPrice * item.quantity;
 
             // Only accumulate if frontend didn't provide total
@@ -109,6 +112,31 @@ class SaleRefundService {
             refundId: refund.id,
             batchId: refundItemsData[idx].batchId
         })), storeId);
+
+        // Update original sale status
+        const allRefunds = await prisma.saleRefund.findMany({
+            where: { originalSaleId: saleId, status: 'APPROVED' },
+            include: { items: true }
+        });
+
+        // Calculate total returned quantity for each item
+        const returnedQuantities = {};
+        allRefunds.forEach(r => {
+            r.items.forEach(ri => {
+                returnedQuantities[ri.saleItemId] = (returnedQuantities[ri.saleItemId] || 0) + ri.quantity;
+            });
+        });
+
+        const isFullyRefunded = sale.items.every(si =>
+            returnedQuantities[si.id] >= si.quantity
+        );
+
+        await prisma.sale.update({
+            where: { id: saleId },
+            data: {
+                status: isFullyRefunded ? 'REFUNDED' : 'PARTIALLY_REFUNDED'
+            }
+        });
 
         // Handle credit note if needed
         if (refundType === 'STORE_CREDIT') {
@@ -177,12 +205,40 @@ class SaleRefundService {
             await creditNoteService.issueCreditNote({
                 storeId: refund.storeId,
                 amount: Number(refund.refundAmount),
-                issuedToId: refund.originalSale.customerId || undefined,
+                issuedToId: refund.originalSale.patientId || undefined,
                 issuedById: approverId,
                 refundId: refund.id, // Link to this refund
                 notes: `Refund for Sale #${refund.originalSale.invoiceNumber}`
             });
         }
+
+        // 3. Update original sale status
+        const allRefunds = await prisma.saleRefund.findMany({
+            where: { originalSaleId: refund.originalSaleId, status: 'APPROVED' },
+            include: { items: true }
+        });
+
+        const saleItems = await prisma.saleItem.findMany({
+            where: { saleId: refund.originalSaleId }
+        });
+
+        const returnedQuantities = {};
+        allRefunds.forEach(r => {
+            r.items.forEach(ri => {
+                returnedQuantities[ri.saleItemId] = (returnedQuantities[ri.saleItemId] || 0) + ri.quantity;
+            });
+        });
+
+        const isFullyRefunded = saleItems.every(si =>
+            returnedQuantities[si.id] >= si.quantity
+        );
+
+        await prisma.sale.update({
+            where: { id: refund.originalSaleId },
+            data: {
+                status: isFullyRefunded ? 'REFUNDED' : 'PARTIALLY_REFUNDED'
+            }
+        });
 
         const updatedRefund = await prisma.saleRefund.update({
             where: { id: refundId },
