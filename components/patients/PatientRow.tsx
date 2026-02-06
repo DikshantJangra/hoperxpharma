@@ -1,15 +1,15 @@
 import React from "react";
 import { useRouter } from "next/navigation";
-import { FiEye, FiRefreshCw, FiMessageSquare, FiMoreVertical, FiCheckCircle } from "react-icons/fi";
+import { FiEye, FiMessageSquare, FiRefreshCw, FiChevronRight, FiEdit2, FiPhone, FiCalendar } from "react-icons/fi";
 import PatientAvatar from "./PatientAvatar";
 import MaskedValue from "./MaskedValue";
-import { usePremiumTheme } from '@/lib/hooks/usePremiumTheme';
+import { motion } from "framer-motion";
 
 interface PatientRowProps {
   patient: any;
   selected: boolean;
   onSelect: () => void;
-  onView?: () => void; // Made optional since we'll use router
+  onView?: () => void;
   onEdit: () => void;
   onRefill: () => void;
   onMessage: () => void;
@@ -17,135 +17,141 @@ interface PatientRowProps {
 
 export default function PatientRow({ patient, selected, onSelect, onView, onEdit, onRefill, onMessage }: PatientRowProps) {
   const router = useRouter();
-  const { isPremium } = usePremiumTheme();
 
-  // Construct full name from firstName and lastName
   const fullName = `${patient.firstName || ''} ${patient.lastName || ''}`.trim() || 'Unknown Patient';
 
-  const handleViewClick = () => {
-    // Navigate to profile page
+  const handleRowClick = (e: React.MouseEvent) => {
+    // Prevent navigation if clicking checkbox or buttons
+    if ((e.target as HTMLElement).closest('button, input')) return;
     router.push(`/patients/${patient.id}`);
   };
 
+  const statusLabel = patient.lifecycleStage?.replace('_', ' ') || 'New';
+
   return (
-    <div className={`flex items-center gap-4 px-4 py-3 transition-all duration-200 group border-b border-transparent ${selected
-        ? isPremium ? 'bg-emerald-50/80 border-emerald-100' : 'bg-teal-50'
-        : isPremium ? 'hover:bg-white hover:shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] hover:border-emerald-500/10 hover:scale-[1.002] hover:-translate-y-[1px]' : 'hover:bg-gray-50'
-      }`}>
-      {/* Checkbox */}
-      <input
-        type="checkbox"
-        checked={selected}
-        onChange={onSelect}
-        className="rounded text-teal-600 focus:ring-teal-500"
-      />
-
-      {/* Patient Info */}
-      <div className="flex-1 flex items-center gap-3">
-        <div className={isPremium ? 'ring-2 ring-offset-2 ring-emerald-500/10 rounded-full' : ''}>
-          <PatientAvatar name={fullName} />
+    <motion.div
+      initial={{ opacity: 0, y: 5 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileHover={{ y: -2 }}
+      onClick={handleRowClick}
+      className={`group relative flex items-center gap-6 px-8 py-5 transition-all cursor-pointer border-b border-gray-50 bg-white hover:bg-teal-50/10 ${selected ? 'bg-teal-50/30' : ''
+        }`}
+    >
+      <div className="flex items-center gap-6 flex-1 min-w-0">
+        {/* Checkbox */}
+        <div className="relative flex items-center justify-center">
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={onSelect}
+            className="w-5 h-5 rounded-lg border-gray-200 text-teal-600 focus:ring-teal-500 transition-all opacity-0 group-hover:opacity-100 checked:opacity-100"
+          />
         </div>
-        <div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleViewClick}
-              className="text-sm font-medium text-gray-900 hover:text-teal-600"
-            >
+
+        {/* Patient Identity */}
+        <div className="flex items-center gap-4 min-w-[280px]">
+          <div className="relative">
+            <PatientAvatar name={fullName} src={patient.avatarUrl} />
+            <div className={`absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-white shadow-sm ${patient.isActive ? 'bg-green-500' : 'bg-gray-300'
+              }`} />
+          </div>
+          <div className="min-w-0">
+            <h4 className="text-sm font-black text-gray-900 group-hover:text-teal-600 transition-colors truncate tracking-tight">
               {fullName}
-            </button>
-            <span className="text-xs text-gray-500">
-              {patient.age || '—'} • {patient.gender || patient.sex || '—'}
-            </span>
-            {patient.tags?.length > 0 && (
-              <span className="px-2 py-0.5 text-xs bg-yellow-100 text-yellow-800 rounded">
-                {patient.tags[0]}
+            </h4>
+            <div className="flex items-center gap-2 mt-0.5 whitespace-nowrap">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest whitespace-nowrap">
+                {patient.mrn || `#${patient.id.slice(-6).toUpperCase()}`}
               </span>
-            )}
+              <span className="text-gray-300">•</span>
+              <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">
+                {patient.age || '—'}Y • {patient.gender?.[0] || '—'}
+              </span>
+            </div>
           </div>
-          <div className="text-xs text-gray-500 mt-0.5">
-            {patient.mrn || patient.id}
+        </div>
+
+        {/* Quick Lifecycle Badge */}
+        <div className="w-32 hidden lg:block">
+          <span className={`px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border ${patient.lifecycleStage === 'CREDIT_ELIGIBLE' ? 'bg-purple-50 text-purple-600 border-purple-100' :
+            patient.lifecycleStage === 'TRUSTED' ? 'bg-green-50 text-green-600 border-green-100' :
+              'bg-gray-50 text-gray-500 border-gray-100'
+            }`}>
+            {statusLabel}
+          </span>
+        </div>
+
+        {/* Contact Info */}
+        <div className="w-40 hidden md:block">
+          <div className="flex items-center gap-2 text-gray-400 mb-0.5">
+            <FiPhone size={10} />
+            <span className="text-[9px] font-black uppercase tracking-widest">Phone</span>
           </div>
+          <div className="text-sm font-semibold text-gray-700">
+            <MaskedValue
+              value={patient.phoneNumber || patient.primaryPhone}
+              masked={patient.maskedPhone}
+              verified={patient.phoneVerified}
+            />
+          </div>
+        </div>
+
+        {/* Last Interaction */}
+        <div className="w-32 hidden xl:block">
+          <div className="flex items-center gap-2 text-gray-400 mb-0.5">
+            <FiCalendar size={10} />
+            <span className="text-[9px] font-black uppercase tracking-widest">Last Visit</span>
+          </div>
+          <p className="text-sm font-semibold text-gray-700">
+            {patient.lastVisitAt ? new Date(patient.lastVisitAt).toLocaleDateString("en-IN", { day: "numeric", month: "short" }) : "Never"}
+          </p>
+        </div>
+
+        {/* Financial Context */}
+        <div className="w-32 hidden 2xl:block">
+          <div className="flex items-center gap-2 text-gray-400 mb-0.5">
+            <span className="text-[9px] font-black uppercase tracking-widest">Bill Vol</span>
+          </div>
+          <p className="text-sm font-black text-gray-900 leading-none">
+            ₹{Math.round(patient.avgBillAmount || 0).toLocaleString()}
+            <span className="text-[10px] text-gray-400 font-bold ml-1">avg</span>
+          </p>
         </div>
       </div>
 
-      {/* Contact */}
-      <div className="w-32">
-        <MaskedValue
-          value={patient.phoneNumber || patient.primaryPhone}
-          masked={patient.maskedPhone}
-          verified={patient.phoneVerified}
-        />
-      </div>
-
-      {/* Last Visit */}
-      <div className="w-24 text-sm text-gray-600">
-        {patient.lastVisit ? new Date(patient.lastVisit).toLocaleDateString("en-IN", { day: "numeric", month: "short" }) : "—"}
-      </div>
-
-      {/* Status Badges */}
-      <div className="w-32 flex items-center gap-2">
-        {patient.allergies?.length > 0 && (
-          <span className="px-2 py-1 text-xs bg-red-100 text-red-700 rounded" title={patient.allergies.join(", ")}>
-            {patient.allergies.length} allergy
-          </span>
-        )}
-        {patient.pendingRefillsCount > 0 && (
-          <span className="px-2 py-1 text-xs bg-orange-100 text-orange-700 rounded">
-            {patient.pendingRefillsCount} refill
-          </span>
-        )}
-        {patient.activeMedsCount > 0 && (
-          <span className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded">
-            {patient.activeMedsCount} meds
-          </span>
-        )}
-      </div>
-
-      {/* Actions */}
-      <div className={`w-40 flex items-center gap-2 ${isPremium ? 'opacity-80 group-hover:opacity-100 transition-opacity' : ''}`}>
+      {/* Floating Action Menu */}
+      <div className="flex items-center justify-end gap-2 pr-2">
         <button
-          onClick={handleViewClick}
-          className={`p-2 rounded-lg transition-colors ${isPremium
-              ? 'text-emerald-600/70 hover:text-emerald-700 hover:bg-emerald-50 hover:shadow-sm'
-              : 'text-gray-400 hover:text-teal-600 hover:bg-teal-50'
-            }`}
-          title="View details"
+          onClick={onMessage}
+          className="w-10 h-10 flex items-center justify-center rounded-xl transition-all text-gray-400 hover:text-blue-600 hover:bg-blue-50"
+          title="Message"
         >
-          <FiEye size={16} />
-        </button>
-        <button
-          onClick={onEdit}
-          className={`px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${isPremium
-              ? 'text-emerald-700 border-emerald-200/50 hover:bg-emerald-50 hover:border-emerald-200 shadow-sm bg-white'
-              : 'text-gray-700 hover:text-teal-600 hover:bg-teal-50 border-gray-200'
-            }`}
-          title="Edit patient"
-        >
-          Edit
+          <FiMessageSquare size={18} />
         </button>
         {patient.pendingRefillsCount > 0 && (
           <button
             onClick={onRefill}
-            className={`p-2 rounded-lg transition-colors ${isPremium
-                ? 'text-amber-600/70 hover:text-amber-700 hover:bg-amber-50 hover:shadow-sm'
-                : 'text-gray-400 hover:text-orange-600 hover:bg-orange-50'
-              }`}
-            title="Start refill"
+            className="w-10 h-10 flex items-center justify-center rounded-xl transition-all text-gray-400 hover:text-amber-600 hover:bg-amber-50"
+            title="Refill"
           >
-            <FiRefreshCw size={16} />
+            <FiRefreshCw size={18} />
           </button>
         )}
         <button
-          onClick={onMessage}
-          className={`p-2 rounded-lg transition-colors ${isPremium
-              ? 'text-blue-600/70 hover:text-blue-700 hover:bg-blue-50 hover:shadow-sm'
-              : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
-            }`}
-          title="Send message"
+          onClick={onEdit}
+          className="w-10 h-10 flex items-center justify-center rounded-xl transition-all text-gray-400 hover:text-teal-600 hover:bg-teal-50"
+          title="Edit"
         >
-          <FiMessageSquare size={16} />
+          <FiEdit2 size={16} />
+        </button>
+        <div className="w-[1px] h-6 bg-gray-100 mx-1" />
+        <button
+          onClick={() => router.push(`/patients/${patient.id}`)}
+          className="w-10 h-10 flex items-center justify-center rounded-xl transition-all bg-gray-50 text-gray-400 group-hover:bg-teal-600 group-hover:text-white group-hover:shadow-lg group-hover:shadow-teal-100"
+        >
+          <FiChevronRight size={20} />
         </button>
       </div>
-    </div>
+    </motion.div>
   );
 }

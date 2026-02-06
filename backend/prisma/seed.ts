@@ -187,6 +187,14 @@ async function main() {
         }
     })
 
+    await prisma.storeCreditPolicy.upsert({
+        where: { storeId: demoStore.id },
+        update: {},
+        create: {
+            storeId: demoStore.id
+        }
+    })
+
     // Add subscription to demo store
     const trialEndsAt = new Date()
     trialEndsAt.setDate(trialEndsAt.getDate() + 14)

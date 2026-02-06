@@ -4,6 +4,7 @@ const prescriptionService = require('../prescriptions/prescriptionService');
 const refillService = require('../prescriptions/refillService');
 const versionService = require('../prescriptions/versionService');
 const dispenseService = require('../prescriptions/dispenseService');
+const patientService = require('../patients/patientService'); // CUSTOMER ANALYTICS: Auto-trigger analytics
 const logger = require('../../config/logger');
 const ApiError = require('../../utils/ApiError');
 const { PrismaClient } = require('@prisma/client');
@@ -191,6 +192,13 @@ class SaleService {
                 logger.error('[Margin] Failed to init margin calc', e);
             }
 
+            // 8. Recalculate Patient Analytics (Customer Profile System)
+            if (prescription.patientId) {
+                patientService.recalculatePatientAnalytics(prescription.patientId, saleInfo.storeId)
+                    .catch(err => logger.error(`[Analytics] Failed to recalculate for patient ${prescription.patientId}`, err));
+                logger.info(`[Analytics] Recalculation triggered for patient: ${prescription.patientId}`);
+            }
+
             // 7. Create audit log for Sale/Dispense (showing deviations)
             try {
                 const deviations = items.filter(i =>
@@ -271,33 +279,25 @@ class SaleService {
 
             logger.info('createQuickSale: Starting quick sale creation', { storeId: saleInfo.storeId, userId, itemCount: items.length });
 
-            // 1. Get or create patient (outside transaction - can be cached)
-            let actualPatientId = patientId;
-            if (!actualPatientId) {
-                // Find or create a single walk-in patient per store (reuse existing)
-                let walkInPatient = await prisma.patient.findFirst({
-                    where: {
-                        storeId: saleInfo.storeId,
-                        phoneNumber: 'WALKIN-CUSTOMER',
-                        deletedAt: null
-                    }
-                });
+            // 1. Patient handling (no auto-created walk-ins)
+            let actualPatientId = patientId || null;
+            const hasCreditPayment = (paymentSplits || []).some(p => p.paymentMethod === 'CREDIT')
+                || saleInfo.paymentMethod === 'CREDIT'
+                || !!saleInfo.expectedPaymentDate;
 
-                if (!walkInPatient) {
-                    walkInPatient = await prisma.patient.create({
-                        data: {
-                            storeId: saleInfo.storeId,
-                            firstName: 'Walk-in',
-                            lastName: 'Customer',
-                            phoneNumber: 'WALKIN-CUSTOMER'
-                        }
-                    });
-                    logger.info('Created new walk-in patient', { patientId: walkInPatient.id, storeId: saleInfo.storeId });
-                } else {
-                    logger.info('Reusing existing walk-in patient', { patientId: walkInPatient.id, storeId: saleInfo.storeId });
+            if (hasCreditPayment && !actualPatientId) {
+                throw ApiError.badRequest('Customer is required for Pay Later');
+            }
+
+            if (hasCreditPayment && actualPatientId) {
+                const patientService = require('../patients/patientService');
+                const saleTotal = Number(saleInfo.total || 0);
+                const assessment = await patientService.getCreditAssessment(actualPatientId, saleInfo.storeId, saleTotal);
+                if (!assessment.canUseCredit) {
+                    throw ApiError.badRequest(
+                        assessment.blockers?.[0]?.label || 'Credit not allowed for this customer'
+                    );
                 }
-
-                actualPatientId = walkInPatient.id;
             }
 
             // 2. Validate Stock & Prepare Items
@@ -403,6 +403,13 @@ class SaleService {
             const marginService = require('../../services/margin/marginService');
             marginService.calculateAndRecordSaleMargin(result.sale.id, saleInfo.storeId)
                 .catch(err => logger.error(`[Margin] Failed to record margin for sale ${result.sale.id}`, err));
+
+            // 10. Recalculate Patient Analytics (Customer Profile System)
+            if (actualPatientId) {
+                patientService.recalculatePatientAnalytics(actualPatientId, saleInfo.storeId)
+                    .catch(err => logger.error(`[Analytics] Failed to recalculate for patient ${actualPatientId}`, err));
+                logger.info(`[Analytics] Recalculation triggered for patient: ${actualPatientId}`);
+            }
 
             return {
                 ...result.sale,

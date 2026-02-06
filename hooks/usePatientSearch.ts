@@ -79,11 +79,11 @@ export function usePatientSearch(options: UsePatientSearchOptions = {}): UsePati
                 limit: 20,
             });
 
-            setPatients(response.patients || []);
+            setPatients(response.data || []);
 
             // Update cache with results
-            if (enableCache && response.patients && response.patients.length > 0) {
-                await patientCache.updateCache(response.patients, primaryStore?.id || '');
+            if (enableCache && response.data && response.data.length > 0) {
+                await patientCache.updateCache(response.data, primaryStore?.id || '');
                 const stats = await patientCache.getStats();
                 setCacheStats(stats);
             }
@@ -107,11 +107,11 @@ export function usePatientSearch(options: UsePatientSearchOptions = {}): UsePati
                 limit: 100, // Fetch more for cache
             });
 
-            setPatients(response.patients || []);
+            setPatients(response.data || []);
 
             // Update cache
-            if (enableCache && response.patients && response.patients.length > 0) {
-                await patientCache.updateCache(response.patients, primaryStore?.id || '');
+            if (enableCache && response.data && response.data.length > 0) {
+                await patientCache.updateCache(response.data, primaryStore?.id || '');
                 const stats = await patientCache.getStats();
                 setCacheStats(stats);
             }

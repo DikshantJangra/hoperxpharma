@@ -393,23 +393,42 @@ class SaleRefundService {
         const today = new Date();
         const prefix = `RFD${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}`;
 
-        const lastRefund = await prisma.saleRefund.findFirst({
-            where: {
-                storeId,
-                refundNumber: {
-                    startsWith: prefix,
-                },
-            },
-            orderBy: { createdAt: 'desc' },
-        });
+        let attempts = 0;
+        const maxAttempts = 10;
 
-        let sequence = 1;
-        if (lastRefund) {
-            const lastSequence = parseInt(lastRefund.refundNumber.slice(-4));
-            sequence = lastSequence + 1;
+        while (attempts < maxAttempts) {
+            const lastRefund = await prisma.saleRefund.findFirst({
+                where: {
+                    storeId,
+                    refundNumber: {
+                        startsWith: prefix,
+                    },
+                },
+                orderBy: { createdAt: 'desc' },
+            });
+
+            let sequence = 1;
+            if (lastRefund) {
+                const lastSequence = parseInt(lastRefund.refundNumber.slice(-4));
+                sequence = lastSequence + 1;
+            }
+
+            const refundNumber = `${prefix}${String(sequence).padStart(4, '0')}`;
+
+            // Check if this number already exists
+            const existing = await prisma.saleRefund.findUnique({
+                where: { refundNumber }
+            });
+
+            if (!existing) {
+                return refundNumber;
+            }
+
+            attempts++;
         }
 
-        return `${prefix}${String(sequence).padStart(4, '0')}`;
+        // Fallback: use timestamp
+        return `${prefix}${Date.now().toString().slice(-4)}`;
     }
 }
 

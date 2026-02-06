@@ -110,6 +110,50 @@ export default function FiltersPanel({ filters, onChange }: FiltersPanelProps) {
           </select>
         </div>
 
+        {/* Lifecycle Stage - NEW */}
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-2">Lifecycle Stage</label>
+          <select
+            value={filters.lifecycleStage || ""}
+            onChange={(e) => updateFilter("lifecycleStage", e.target.value)}
+            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+          >
+            <option value="">All</option>
+            <option value="IDENTIFIED">Identified</option>
+            <option value="ESTABLISHED">Established</option>
+            <option value="TRUSTED">Trusted</option>
+            <option value="CREDIT_ELIGIBLE">Credit-Eligible</option>
+          </select>
+        </div>
+
+        {/* Risk Level - NEW */}
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-2">Risk Level</label>
+          <select
+            value={filters.riskLevel || ""}
+            onChange={(e) => updateFilter("riskLevel", e.target.value)}
+            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500"
+          >
+            <option value="">All</option>
+            <option value="LOW">Low Risk</option>
+            <option value="MEDIUM">Medium Risk</option>
+            <option value="ELEVATED">Elevated Risk</option>
+          </select>
+        </div>
+
+        {/* Credit Status - NEW */}
+        <div>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={filters.creditEnabled || false}
+              onChange={(e) => updateFilter("creditEnabled", e.target.checked)}
+              className="rounded text-teal-600 focus:ring-teal-500"
+            />
+            <span className="text-sm text-gray-700">Credit Enabled</span>
+          </label>
+        </div>
+
         {/* Consent Status */}
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-2">Consent</label>

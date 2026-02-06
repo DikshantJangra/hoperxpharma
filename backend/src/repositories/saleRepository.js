@@ -213,6 +213,13 @@ class SaleRepository {
                 },
             });
 
+            if (saleData.patientId) {
+                await tx.patient.update({
+                    where: { id: saleData.patientId },
+                    data: { lastVisitAt: sale.createdAt }
+                });
+            }
+
             // Batch create sale items (parallel)
             // NOTE: createMany only accepts flat scalar data, not relations
             // Strip out relation objects (drug, batch) that frontend may include

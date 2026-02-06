@@ -22,6 +22,9 @@ import PrescriptionImportPanel from '@/components/pos/PrescriptionImportPanel';
 import SubstituteFinder from '@/components/pos/SubstituteFinder';
 import { inventoryApi } from '@/lib/api/inventory';
 import { useBarcodeScanner } from '@/hooks/useBarcodeScanner';
+import { patientsApi } from '@/lib/api/patients';
+import CreditAssessmentPanel from '@/components/pos/CreditAssessmentPanel';
+import PatientFormDrawer from '@/components/patients/PatientFormDrawer';
 // import { useMedicineMaster } from '@/contexts/MedicineMasterContext'; // Removed legacy lookup
 import { scanApi } from '@/lib/api/scan';
 // import { useKeyboardCommand } from '@/hooks/useKeyboardCommand'; // (kept as is)
@@ -32,6 +35,7 @@ const BarcodeScannerModal = dynamic(() => import('@/components/pos/BarcodeScanne
 
 export default function NewSalePage() {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const [basketItems, setBasketItems] = useState<any[]>([]);
     const [customer, setCustomer] = useState<any>(null);
     const [showShortcuts, setShowShortcuts] = useState(false);
@@ -65,6 +69,10 @@ export default function NewSalePage() {
     const [showSubstituteFinder, setShowSubstituteFinder] = useState(false);
     const [substituteForItem, setSubstituteForItem] = useState<any>(null);
     const [substituteItemIndex, setSubstituteItemIndex] = useState<number | null>(null);
+    const [creditAssessment, setCreditAssessment] = useState<any>(null);
+    const [isLoadingCredit, setIsLoadingCredit] = useState(false);
+    const [showPatientDrawer, setShowPatientDrawer] = useState(false);
+    const [editingPatient, setEditingPatient] = useState<any>(null);
 
     // Barcode Scanner Integration
     // const { lookupByBarcode } = useMedicineMaster(); // Deprecated
@@ -276,7 +284,6 @@ export default function NewSalePage() {
     const [importStatus, setImportStatus] = useState<string | null>(null);
 
     // Handle Import from URL (Redirect from Prescriptions page)
-    const searchParams = useSearchParams();
     const hasImportedRef = useRef(false);
 
     useEffect(() => {
@@ -744,6 +751,12 @@ export default function NewSalePage() {
         // Default Dispense For to "Self" (Patient = Customer)
         if (selectedCustomer) {
             setDispenseFor(selectedCustomer);
+            // Fetch credit assessment if customer has credit enabled
+            if (selectedCustomer.creditEnabled) {
+                fetchCreditAssessment(selectedCustomer.id);
+            } else {
+                setCreditAssessment(null);
+            }
         }
         setShowCustomerModal(false);
     };
@@ -1190,6 +1203,34 @@ export default function NewSalePage() {
 
     const totals = calculateTotals();
 
+    // Fetch credit assessment for customer with Pay Later
+    const fetchCreditAssessment = async (customerId: string) => {
+        if (!customerId) return;
+
+        try {
+            setIsLoadingCredit(true);
+            const response = await patientsApi.getCreditAssessment(customerId, totals.total);
+            setCreditAssessment(response);
+        } catch (error) {
+            console.error('Failed to fetch credit assessment:', error);
+            setCreditAssessment(null);
+        } finally {
+            setIsLoadingCredit(false);
+        }
+    };
+
+    // Auto-refresh credit assessment when basket total changes
+    useEffect(() => {
+        if (customer?.id && customer?.creditEnabled && basketItems.length > 0) {
+            const debounceTimer = setTimeout(() => {
+                fetchCreditAssessment(customer.id);
+            }, 500);
+            return () => clearTimeout(debounceTimer);
+        } else {
+            setCreditAssessment(null);
+        }
+    }, [totals.total, customer?.id, customer?.creditEnabled, basketItems.length]);
+
     const handleFinalize = async (paymentMethod: string = 'CASH', splits?: any, invoiceType: string = 'RECEIPT', expectedPaymentDate?: string) => {
         if (basketItems.length === 0) {
             toast.error('Please add items to the basket');
@@ -1437,12 +1478,21 @@ export default function NewSalePage() {
 
                         {/* Right Panel - 35% */}
                         <div className="w-[35%] bg-white flex flex-col min-h-0 relative overflow-hidden" data-tour="pos-payment">
+
+
                             <PaymentPanel
                                 basketItems={basketItems}
                                 customer={customer}
                                 onCustomerChange={setCustomer}
                                 onFinalize={(method: string, splits?: any, invoiceType?: string, expectedDate?: string) => handleFinalize(method, splits, invoiceType, expectedDate)}
-                                onOpenCustomer={() => setShowCustomerModal(true)}
+                                onOpenCustomer={(patientToEdit?: any) => {
+                                    if (patientToEdit) {
+                                        setEditingPatient(patientToEdit);
+                                        setShowPatientDrawer(true);
+                                    } else {
+                                        setShowCustomerModal(true);
+                                    }
+                                }}
                                 onOpenLedger={() => customer ? setShowLedgerModal(true) : toast.error("Select a customer first")}
                                 onSplitPayment={() => setShowSplitPayment(true)}
                                 onClear={clearBasket}
@@ -1528,6 +1578,22 @@ export default function NewSalePage() {
                         }}
                     />
                 )}
+                <PatientFormDrawer
+                    isOpen={showPatientDrawer}
+                    onClose={() => {
+                        setShowPatientDrawer(false);
+                        setEditingPatient(null);
+                    }}
+                    initialData={editingPatient}
+                    onSaved={(updatedPatient) => {
+                        // If the updated patient is the current customer, update it
+                        if (customer && customer.id === updatedPatient.id) {
+                            setCustomer(updatedPatient);
+                            // Refresh credit assessment
+                            fetchCreditAssessment(updatedPatient.id);
+                        }
+                    }}
+                />
             </div>
         </div>
     );

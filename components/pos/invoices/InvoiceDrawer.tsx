@@ -303,8 +303,19 @@ export default function InvoiceDrawer({ invoice, onClose, isLoading, startInRetu
         <div className="flex-1 overflow-y-auto p-4 md:p-5 space-y-4">
           {/* Status Badges */}
           <div className="flex flex-wrap items-center gap-2">
-            <span className="px-3 py-1.5 bg-[#d1fae5] text-[#065f46] text-xs md:text-sm font-medium rounded-full whitespace-nowrap">
-              {invoice.status}
+            <span className={`px-3 py-1.5 text-xs md:text-sm font-medium rounded-full whitespace-nowrap ${invoice.status === 'REFUNDED'
+              ? 'bg-red-100 text-red-700'
+              : invoice.status === 'PARTIALLY_REFUNDED'
+                ? 'bg-amber-100 text-amber-700'
+                : invoice.status === 'PAY LATER'
+                  ? 'bg-blue-100 text-blue-700'
+                  : invoice.status === 'PENDING'
+                    ? 'bg-yellow-100 text-yellow-700'
+                    : invoice.status === 'PAID'
+                      ? 'bg-green-100 text-green-700'
+                      : 'bg-[#d1fae5] text-[#065f46]'
+              }`}>
+              {invoice.status.replace('_', ' ')}
             </span>
             {invoice.type === 'GST' && (
               <span className="px-3 py-1.5 bg-[#fef3c7] text-[#92400e] text-xs md:text-sm font-medium rounded-full whitespace-nowrap">

@@ -261,9 +261,31 @@ model Store {
   payments            Payment[]
   marginLedger        MarginLedger[]
   storeOverlays       StoreOverlay[]
+  creditPolicy        StoreCreditPolicy?
 
   @@index([email])
   @@index([deletedAt])
+}
+
+model StoreCreditPolicy {
+  id                     String         @id @default(cuid())
+  storeId                String         @unique
+  maxCreditIdentified    Decimal        @default(0.00) @db.Decimal(10, 2)
+  maxCreditEstablished   Decimal        @default(500.00) @db.Decimal(10, 2)
+  maxCreditTrusted       Decimal        @default(1500.00) @db.Decimal(10, 2)
+  gracePeriodDays        Int            @default(3)
+  lateAfterDays          Int            @default(7)
+  autoSuspendAfterLates  Int            @default(3)
+  minOnTimeRate          Float          @default(0.7)
+  minVisitsEstablished   Int            @default(2)
+  minVisitsTrusted       Int            @default(6)
+  minDaysSinceFirstVisit Int            @default(30)
+  riskTolerance          RiskTolerance  @default(MEDIUM)
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
+  store                 Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId])
 }
 
 model StoreLicense {
@@ -502,6 +524,12 @@ model Patient {
   updatedAt             DateTime           @updatedAt
   deletedAt             DateTime?
   deletedBy             String?
+  lifecycleStage        PatientLifecycleStage @default(IDENTIFIED)
+  manualTrustLevel      TrustLevel?
+  creditEnabled         Boolean            @default(false)
+  creditSuspendedAt     DateTime?
+  profileStrength       Int                @default(0)
+  lastVisitAt           DateTime?
   creditLimit           Decimal            @default(0.00) @db.Decimal(10, 2)
   currentBalance        Decimal            @default(0.00) @db.Decimal(10, 2)
   relatedTo             PatientRelation[]  @relation("SourcePatient")
@@ -3244,6 +3272,25 @@ enum PaymentStatus {
   OVERDUE
 }
 
+enum PatientLifecycleStage {
+  IDENTIFIED
+  ESTABLISHED
+  TRUSTED
+  CREDIT_ELIGIBLE
+}
+
+enum TrustLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum RiskTolerance {
+  LOW
+  MEDIUM
+  HIGH
+}
+
 enum InvoiceType {
   RECEIPT
   GST_INVOICE
@@ -3476,5 +3523,3 @@ enum ImageType {
   BOX
   OTHER
 }
-
-

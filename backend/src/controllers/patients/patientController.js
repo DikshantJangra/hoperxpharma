@@ -62,6 +62,25 @@ const getPatientById = asyncHandler(async (req, res) => {
 });
 
 /**
+ * Get patient insights (decision surface)
+ */
+const getPatientInsights = asyncHandler(async (req, res) => {
+    const insights = await patientService.getPatientInsights(req.params.id, req.storeId);
+    const response = ApiResponse.success(insights);
+    res.status(response.statusCode).json(response);
+});
+
+/**
+ * Get credit assessment for POS
+ */
+const getCreditAssessment = asyncHandler(async (req, res) => {
+    const saleTotal = req.query.saleTotal ? Number(req.query.saleTotal) : 0;
+    const assessment = await patientService.getCreditAssessment(req.params.id, req.storeId, saleTotal);
+    const response = ApiResponse.success(assessment);
+    res.status(response.statusCode).json(response);
+});
+
+/**
  * Create patient
  */
 const createPatient = asyncHandler(async (req, res) => {
@@ -151,6 +170,24 @@ const getPatientStats = asyncHandler(async (req, res) => {
     const stats = await patientService.getPatientStats(req.storeId);
 
     const response = ApiResponse.success(stats);
+    res.status(response.statusCode).json(response);
+});
+
+/**
+ * Get store credit policy
+ */
+const getStoreCreditPolicy = asyncHandler(async (req, res) => {
+    const policy = await patientService.getStoreCreditPolicy(req.storeId);
+    const response = ApiResponse.success(policy);
+    res.status(response.statusCode).json(response);
+});
+
+/**
+ * Update store credit policy
+ */
+const updateStoreCreditPolicy = asyncHandler(async (req, res) => {
+    const policy = await patientService.updateStoreCreditPolicy(req.storeId, req.body);
+    const response = ApiResponse.success(policy, 'Credit policy updated');
     res.status(response.statusCode).json(response);
 });
 
@@ -305,6 +342,8 @@ module.exports = {
     getPatients,
     searchPatients,
     getPatientById,
+    getPatientInsights,
+    getCreditAssessment,
     createPatient,
     updatePatient,
     deletePatient,
@@ -314,6 +353,8 @@ module.exports = {
     createInsurance,
     updateInsurance,
     getPatientStats,
+    getStoreCreditPolicy,
+    updateStoreCreditPolicy,
     getPatientHistory,
     getRefillsDue,
     processRefill,

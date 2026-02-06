@@ -233,6 +233,7 @@ export default function CustomerLedgerPanel({
 
             // Refresh data
             await fetchData();
+            queryClient.invalidateQueries({ queryKey: ['patient', customerId] });
             setSelectedInvoiceIds(new Set()); // Clear selection
 
             // Notify parent
@@ -700,10 +701,10 @@ export default function CustomerLedgerPanel({
                                                                 (entry.referenceType === 'RETURN' || entry.referenceType === 'REFUND') ? 'bg-orange-50 text-orange-700 border-orange-100' :
                                                                     isDebit ? 'bg-red-50 text-red-700 border-red-100' : 'bg-gray-50 text-gray-700 border-gray-100'
                                                             }`}>
-                                                            {entry.referenceType === 'SALE' ? 'Purchase' :
-                                                                entry.referenceType === 'PAYMENT' ? 'Payment' :
+                                                            {entry.referenceType === 'SALE' ? 'Credit Purchase' :
+                                                                entry.referenceType === 'PAYMENT' ? 'Payment Received' :
                                                                     entry.referenceType === 'RETURN' ? 'Return' :
-                                                                        entry.referenceType === 'REFUND' ? 'Refund' :
+                                                                        entry.referenceType === 'REFUND' ? 'Refunded' :
                                                                             entry.referenceType === 'ADJUSTMENT' ? 'Adjust' :
                                                                                 entry.referenceType === 'OPENING_BALANCE' ? 'Opening' :
                                                                                     isDebit ? 'Debit' : 'Credit'}

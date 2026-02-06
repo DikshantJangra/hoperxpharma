@@ -42,6 +42,10 @@ const patientCreateSchema = z.object({
     chronicConditions: z.array(z.string()).optional(),
     emergencyContactName: z.string().optional(),
     emergencyContactPhone: z.string().optional(),
+    lifecycleStage: z.enum(['IDENTIFIED', 'ESTABLISHED', 'TRUSTED', 'CREDIT_ELIGIBLE']).optional(),
+    manualTrustLevel: z.enum(['LOW', 'MEDIUM', 'HIGH']).optional(),
+    creditEnabled: z.boolean().optional(),
+    creditLimit: z.number().nonnegative().optional(),
 });
 
 /**
@@ -50,7 +54,7 @@ const patientCreateSchema = z.object({
 const patientUpdateSchema = z.object({
     firstName: z.string().min(1).optional(),
     middleName: z.string().optional(),
-    lastName: z.string().min(1).optional(),
+    lastName: z.string().optional(),
     dateOfBirth: z.string()
         .optional()
         .transform((val) => {
@@ -67,12 +71,12 @@ const patientUpdateSchema = z.object({
             if (!val) return undefined;
             // Normalize to proper case
             const normalized = val.toLowerCase();
-            if (normalized === 'male') return 'Male';
-            if (normalized === 'female') return 'Female';
-            if (normalized === 'other') return 'Other';
+            if (normalized === 'male') return 'MALE';
+            if (normalized === 'female') return 'FEMALE';
+            if (normalized === 'other') return 'OTHER';
             return val;
         })
-        .pipe(z.enum(['Male', 'Female', 'Other']).optional()),
+        .pipe(z.enum(['MALE', 'FEMALE', 'OTHER']).optional()),
     phoneNumber: z.string().regex(/^[6-9]\d{9}$/).optional(),
     email: z.string().email().optional(),
     addressLine1: z.string().optional(),
@@ -85,6 +89,10 @@ const patientUpdateSchema = z.object({
     chronicConditions: z.array(z.string()).optional(),
     emergencyContactName: z.string().optional(),
     emergencyContactPhone: z.string().optional(),
+    lifecycleStage: z.enum(['IDENTIFIED', 'ESTABLISHED', 'TRUSTED', 'CREDIT_ELIGIBLE']).optional(),
+    manualTrustLevel: z.enum(['LOW', 'MEDIUM', 'HIGH']).optional(),
+    creditEnabled: z.boolean().optional(),
+    creditLimit: z.number().nonnegative().optional(),
 });
 
 /**
@@ -119,10 +127,25 @@ const patientQuerySchema = z.object({
     search: z.string().optional(),
 });
 
+const creditPolicyUpdateSchema = z.object({
+    maxCreditIdentified: z.number().nonnegative().optional(),
+    maxCreditEstablished: z.number().nonnegative().optional(),
+    maxCreditTrusted: z.number().nonnegative().optional(),
+    gracePeriodDays: z.number().int().nonnegative().optional(),
+    lateAfterDays: z.number().int().nonnegative().optional(),
+    autoSuspendAfterLates: z.number().int().nonnegative().optional(),
+    minOnTimeRate: z.number().min(0).max(1).optional(),
+    minVisitsEstablished: z.number().int().nonnegative().optional(),
+    minVisitsTrusted: z.number().int().nonnegative().optional(),
+    minDaysSinceFirstVisit: z.number().int().nonnegative().optional(),
+    riskTolerance: z.enum(['LOW', 'MEDIUM', 'HIGH']).optional(),
+});
+
 module.exports = {
     patientCreateSchema,
     patientUpdateSchema,
     consentCreateSchema,
     insuranceCreateSchema,
     patientQuerySchema,
+    creditPolicyUpdateSchema,
 };

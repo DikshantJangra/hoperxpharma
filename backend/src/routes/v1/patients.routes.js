@@ -11,6 +11,7 @@ const {
     consentCreateSchema,
     insuranceCreateSchema,
     patientQuerySchema,
+    creditPolicyUpdateSchema,
 } = require('../../validators/patient.validator');
 
 const router = express.Router();
@@ -27,6 +28,8 @@ router.get('/search', patientController.searchPatients);
 router.get('/', validate(patientQuerySchema, 'query'), patientController.getPatients);
 router.get('/stats', patientController.getPatientStats);
 router.get('/debtors', patientController.getDebtors);
+router.get('/credit-policy', patientController.getStoreCreditPolicy);
+router.put('/credit-policy', requirePharmacist, validate(creditPolicyUpdateSchema), patientController.updateStoreCreditPolicy);
 
 /**
  * Refills routes (MUST be before /:id to avoid conflict)
@@ -54,6 +57,8 @@ router.put('/insurance/:id', patientController.updateInsurance);
  * Patient-specific routes (parameterized - MUST come after specific routes)
  */
 router.get('/:id', patientController.getPatientById);
+router.get('/:id/insights', patientController.getPatientInsights);
+router.get('/:id/credit-assessment', patientController.getCreditAssessment);
 router.put('/:id', requirePharmacist, validate(patientUpdateSchema), auditLogger.logActivity('PATIENT_UPDATED', 'patient'), patientController.updatePatient);
 router.delete('/:id', requirePharmacist, auditLogger.logActivity('PATIENT_DELETED', 'patient'), patientController.deletePatient);
 router.get('/:id/history', patientController.getPatientHistory);
@@ -71,6 +76,7 @@ router.post('/:id/payments', requirePharmacist, auditLogger.logActivity('CUSTOME
  */
 router.post('/:id/relations', patientRelationController.addRelation);
 router.get('/:id/relations', patientRelationController.getRelations);
+router.patch('/:id/relations/:relatedPatientId', patientRelationController.updateRelation);
 router.delete('/:id/relations/:relatedPatientId', patientRelationController.removeRelation);
 
 // Create patient (after specific routes)

@@ -330,9 +330,9 @@ export default function QuickAddGrid({ onAddProduct, storeId }: QuickAddGridProp
                   <div className="p-3 text-center text-[10px] text-gray-400">No matches</div>
                 ) : searchResults.length > 0 ? (
                   <div className="py-1">
-                    {searchResults.map((p) => (
+                    {searchResults.map((p, idx) => (
                       <button
-                        key={p.id}
+                        key={`${p.id}-${p.batchId}-${idx}`}
                         onClick={() => handleProductSelect(p)}
                         className="w-full px-3 py-2 text-left hover:bg-emerald-50 border-b last:border-0 border-gray-50 flex flex-col"
                       >

@@ -15,7 +15,7 @@ const patientSchema = z.object({
     fullName: z.string().min(2, "Name must be at least 2 characters"),
     phone: z.string().regex(/^\d{10}$/, "Phone number must be exactly 10 digits"),
     dateOfBirth: z.string().min(1, "Date of birth is required"),
-    gender: z.enum(['male', 'female', 'other']),
+    gender: z.enum(['MALE', 'FEMALE', 'OTHER']),
     email: z.string().email("Invalid email address").optional().or(z.literal('')),
     address: z.string().optional(),
     city: z.string().optional(),
@@ -30,6 +30,9 @@ const patientSchema = z.object({
     insuranceNumber: z.string().optional(),
     consentSms: z.boolean().optional(),
     consentData: z.boolean().optional(),
+    creditEnabled: z.boolean().optional(),
+    creditLimit: z.string().optional(),
+    manualTrustLevel: z.enum(['LOW', 'MEDIUM', 'HIGH']).optional(),
 });
 
 type PatientFormValues = z.infer<typeof patientSchema>;
@@ -79,12 +82,14 @@ export default function PatientFormDrawer({
     useEffect(() => {
         if (isOpen && initialData) {
             // Transform API data to form data
-            const fullName = `${initialData.firstName} ${initialData.lastName}`.trim();
+            const fullName = [initialData.firstName, initialData.middleName, initialData.lastName].filter(Boolean).join(' ');
+            const primaryInsurance = initialData.insurance?.[0];
+
             reset({
                 fullName,
                 phone: initialData.phoneNumber || '',
                 dateOfBirth: initialData.dateOfBirth ? initialData.dateOfBirth.split('T')[0] : '',
-                gender: initialData.gender || undefined,
+                gender: (initialData.gender as string)?.toUpperCase() as any || undefined,
                 email: initialData.email || '',
                 address: initialData.addressLine1 || '',
                 city: initialData.city || '',
@@ -95,16 +100,21 @@ export default function PatientFormDrawer({
                 chronicConditions: initialData.chronicConditions?.join(', ') || '',
                 emergencyContactName: initialData.emergencyContactName || '',
                 emergencyContactPhone: initialData.emergencyContactPhone || '',
-                insuranceProvider: '',
-                insuranceNumber: '',
+                insuranceProvider: primaryInsurance?.provider || '',
+                insuranceNumber: primaryInsurance?.policyNumber || '',
                 consentSms: true,
                 consentData: false,
+                creditEnabled: initialData.creditEnabled || false,
+                creditLimit: initialData.creditLimit ? String(initialData.creditLimit) : '',
+                manualTrustLevel: initialData.manualTrustLevel || undefined,
             });
         } else if (isOpen && !initialData) {
             reset({
                 consentSms: true,
                 consentData: false,
                 gender: undefined,
+                creditEnabled: false,
+                creditLimit: '',
             });
         }
         setActiveTab('basic');
@@ -124,9 +134,9 @@ export default function PatientFormDrawer({
 
     // Transform form data to API format
     const transformToApiFormat = (data: PatientFormValues) => {
-        const nameParts = data.fullName.trim().split(' ');
+        const nameParts = data.fullName.trim().split(/\s+/);
         const firstName = nameParts[0];
-        const lastName = nameParts.slice(1).join(' ') || nameParts[0];
+        const lastName = nameParts.slice(1).join(' ') || '';
 
         return {
             storeId: primaryStore?.id,
@@ -145,6 +155,9 @@ export default function PatientFormDrawer({
             chronicConditions: data.chronicConditions ? data.chronicConditions.split(',').map(c => c.trim()).filter(Boolean) : [],
             emergencyContactName: data.emergencyContactName || undefined,
             emergencyContactPhone: data.emergencyContactPhone || undefined,
+            creditEnabled: data.creditEnabled || false,
+            creditLimit: data.creditLimit ? Number(data.creditLimit) : undefined,
+            manualTrustLevel: data.manualTrustLevel || undefined,
         };
     };
 
@@ -235,7 +248,7 @@ export default function PatientFormDrawer({
 
     return (
         <Transition.Root show={isOpen} as={Fragment}>
-            <Dialog as="div" className="relative z-50" onClose={handleClose}>
+            <Dialog as="div" className="relative z-[9999]" onClose={handleClose}>
                 {/* Backdrop with Blur */}
                 <Transition.Child
                     as={Fragment}
@@ -246,12 +259,12 @@ export default function PatientFormDrawer({
                     leaveFrom="opacity-100"
                     leaveTo="opacity-0"
                 >
-                    <div className="fixed inset-0 bg-gray-900/40 backdrop-blur-sm transition-opacity" />
+                    <div className="fixed inset-0 bg-gray-900/40 transition-opacity" />
                 </Transition.Child>
 
                 <div className="fixed inset-0 overflow-hidden">
                     <div className="absolute inset-0 overflow-hidden">
-                        <div className="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10">
+                        <div className="pointer-events-none fixed inset-y-0 right-0 flex max-w-full">
                             <Transition.Child
                                 as={Fragment}
                                 enter="transform transition ease-in-out duration-300"
@@ -261,7 +274,7 @@ export default function PatientFormDrawer({
                                 leaveFrom="translate-x-0"
                                 leaveTo="translate-x-full"
                             >
-                                <Dialog.Panel className="pointer-events-auto w-screen max-w-2xl">
+                                <Dialog.Panel className="pointer-events-auto w-screen max-w-2xl h-full">
                                     <form onSubmit={handleSubmit(onSubmit)} className="flex h-full flex-col bg-white shadow-2xl">
 
                                         {/* --- Header --- */}
@@ -383,7 +396,7 @@ export default function PatientFormDrawer({
                                                             Gender <span className="text-red-500">*</span>
                                                         </label>
                                                         <div className="flex gap-3">
-                                                            {['male', 'female', 'other'].map((g) => (
+                                                            {['MALE', 'FEMALE', 'OTHER'].map((g) => (
                                                                 <label key={g} className="flex-1 cursor-pointer">
                                                                     <input
                                                                         type="radio"
@@ -392,7 +405,7 @@ export default function PatientFormDrawer({
                                                                         className="peer sr-only"
                                                                     />
                                                                     <div className="rounded-lg border border-gray-200 py-2 text-center text-sm font-medium text-gray-600 hover:bg-gray-50 peer-checked:border-emerald-600 peer-checked:bg-emerald-50 peer-checked:text-emerald-700 transition-all capitalize">
-                                                                        {g}
+                                                                        {g.toLowerCase()}
                                                                     </div>
                                                                 </label>
                                                             ))}
@@ -414,6 +427,44 @@ export default function PatientFormDrawer({
                                                         {errors.email && (
                                                             <p className="mt-1 text-xs text-red-500">{errors.email.message}</p>
                                                         )}
+                                                    </div>
+
+                                                    {/* Credit & Trust */}
+                                                    <div className="rounded-lg border border-emerald-100 bg-emerald-50/40 p-4 space-y-4">
+                                                        <div className="flex items-center justify-between">
+                                                            <div>
+                                                                <p className="text-sm font-semibold text-emerald-900">Credit & Trust</p>
+                                                                <p className="text-xs text-emerald-700">Enable pay-later only for trusted customers.</p>
+                                                            </div>
+                                                            <label className="inline-flex items-center gap-2 text-sm text-emerald-900">
+                                                                <input type="checkbox" {...register('creditEnabled')} className="rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500" />
+                                                                Enable credit
+                                                            </label>
+                                                        </div>
+                                                        <div className="grid grid-cols-2 gap-4">
+                                                            <div>
+                                                                <label className="block text-xs font-medium text-emerald-800">Credit limit</label>
+                                                                <input
+                                                                    {...register('creditLimit')}
+                                                                    type="number"
+                                                                    min={0}
+                                                                    className="mt-1 block w-full rounded-md border-emerald-200 bg-white shadow-sm focus:border-emerald-500 focus:ring-emerald-500 sm:text-sm py-2.5 px-3 border"
+                                                                    placeholder="0"
+                                                                />
+                                                            </div>
+                                                            <div>
+                                                                <label className="block text-xs font-medium text-emerald-800">Manual trust</label>
+                                                                <select
+                                                                    {...register('manualTrustLevel')}
+                                                                    className="mt-1 block w-full rounded-md border-emerald-200 bg-white shadow-sm focus:border-emerald-500 focus:ring-emerald-500 sm:text-sm py-2.5 px-3 border"
+                                                                >
+                                                                    <option value="">Not set</option>
+                                                                    <option value="LOW">Low</option>
+                                                                    <option value="MEDIUM">Medium</option>
+                                                                    <option value="HIGH">High</option>
+                                                                </select>
+                                                            </div>
+                                                        </div>
                                                     </div>
 
                                                     {/* Address */}
@@ -618,6 +669,6 @@ export default function PatientFormDrawer({
                     </div>
                 </div>
             </Dialog>
-        </Transition.Root>
+        </Transition.Root >
     );
 }

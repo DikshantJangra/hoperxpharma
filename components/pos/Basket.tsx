@@ -26,6 +26,7 @@ export default function Basket({ items, onUpdateItem, onRemoveItem, onClear, onE
   const [openBatchIndex, setOpenBatchIndex] = useState<number | null>(null);
   const [batchOptions, setBatchOptions] = useState<any[]>([]);
   const [isLoadingBatches, setIsLoadingBatches] = useState(false);
+  const [detailedStock, setDetailedStock] = useState<Record<number, boolean>>({});
 
   const handleBatchOpen = async (item: any, index: number) => {
     if (openBatchIndex === index) {
@@ -207,11 +208,36 @@ export default function Basket({ items, onUpdateItem, onRemoveItem, onClear, onE
                           >
                             <span className="opacity-70">Batch:</span>
                             <span className="text-gray-900 font-bold">{item.batchNumber || (item.batchId ? '...' + item.batchId.slice(-4) : 'MISSING')}</span>
-                            <span className="opacity-50 mx-0.5">•</span>
-                            <span className="opacity-70">Qty:</span>
-                            <span className="text-gray-900 font-bold">{item.qty || 1}</span>
                             <FiChevronDown className={`w-3 h-3 ml-0.5 transition-transform ${openBatchIndex === index ? 'rotate-180' : ''}`} />
                           </button>
+
+                          {/* Quick Stock Badge - Total Stock Display */}
+                          <div
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDetailedStock(prev => ({ ...prev, [index]: !prev[index] }));
+                            }}
+                            className={`flex items-center gap-1 px-1.5 py-0.5 border rounded text-[10px] font-medium transition-all cursor-pointer hover:shadow-sm active:scale-95 ${(item.stock || item.totalStock) > 0 ? 'bg-emerald-50 border-emerald-100 text-emerald-700 hover:bg-emerald-100' : 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100'}`}
+                            title="Click to toggle detailed stock view"
+                          >
+                            <span className="opacity-70">Stock:</span>
+                            <span className="font-bold">
+                              {renderStockQuantity({
+                                baseUnitQuantity: item.totalStock || item.stock || item.baseUnitQuantity || 0,
+                                baseUnit: item.baseUnit,
+                                displayUnit: detailedStock[index] ? (item.displayUnit || item.unit) : item.baseUnit,
+                                drug: {
+                                  baseUnit: item.baseUnit,
+                                  displayUnit: detailedStock[index] ? (item.displayUnit || item.unit) : item.baseUnit,
+                                  unitConfigurations: item.unitConfigurations
+                                },
+                                // When showing base unit, we force conversion factor to 1
+                                tabletsPerStrip: detailedStock[index] ? (item.tabletsPerStrip || item.conversionFactor) : 1,
+                                conversionFactor: detailedStock[index] ? (item.conversionFactor || item.tabletsPerStrip) : 1,
+                                conversion: detailedStock[index] ? item.conversionFactor : 1
+                              }, { forceBoth: !!detailedStock[index] })}
+                            </span>
+                          </div>
 
                           {openBatchIndex === index && (
                             <div className="absolute left-0 top-full mt-1 w-64 bg-white border border-gray-200 rounded-lg shadow-xl z-50 max-h-60 overflow-y-auto">
@@ -496,8 +522,7 @@ export default function Basket({ items, onUpdateItem, onRemoveItem, onClear, onE
             <span>Clear Sale</span>
           </button>
         </div>
-      )
-      }
+      )}
 
       <ConfirmDialog
         isOpen={showClearDialog}

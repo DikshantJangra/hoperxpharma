@@ -99,6 +99,32 @@ class PatientRelationController {
         }
     }
 
+    // Update relation type
+    async updateRelation(req, res) {
+        try {
+            const { id, relatedPatientId } = req.params;
+            const { relationType } = z.object({ relationType: z.string() }).parse(req.body);
+
+            const updated = await prisma.patientRelation.update({
+                where: {
+                    patientId_relatedPatientId: {
+                        patientId: id,
+                        relatedPatientId: relatedPatientId
+                    }
+                },
+                data: { relationType }
+            });
+
+            res.json({ success: true, data: updated, message: "Relation updated" });
+        } catch (error) {
+            logger.error('Update Relation Error:', error);
+            if (error.code === 'P2025') {
+                return res.status(404).json({ success: false, message: "Relation not found" });
+            }
+            res.status(500).json({ success: false, message: "Internal server error" });
+        }
+    }
+
     // Remove connection
     async removeRelation(req, res) {
         try {

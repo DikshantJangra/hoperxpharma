@@ -1,6 +1,7 @@
 const prisma = require('../db/prisma');
 const logger = require('../config/logger');
 const { buildOrderBy } = require('../utils/queryParser');
+const { Prisma } = require('@prisma/client');
 
 /**
  * Patient Repository - Data access layer for patient operations
@@ -15,6 +16,7 @@ class PatientRepository {
         const where = {
             storeId,
             deletedAt: null,
+            phoneNumber: { not: 'WALKIN-CUSTOMER' },
             ...(search && {
                 OR: [
                     { firstName: { contains: search, mode: 'insensitive' } },
@@ -44,12 +46,64 @@ class PatientRepository {
                     dateOfBirth: true,
                     gender: true,
                     createdAt: true,
+                    lifecycleStage: true,
+                    manualTrustLevel: true,
+                    creditEnabled: true,
+                    creditLimit: true,
+                    currentBalance: true,
+                    profileStrength: true,
+                    lastVisitAt: true,
                 },
             }),
             prisma.patient.count({ where }),
         ]);
 
-        return { patients, total };
+        if (patients.length === 0) {
+            return { patients, total };
+        }
+
+        const patientIds = patients.map(p => p.id);
+
+        const aggregates = await prisma.$queryRaw`
+            SELECT 
+                "patientId",
+                MAX("createdAt") as "lastVisitAt",
+                MIN("createdAt") as "firstVisitAt",
+                COUNT(*)::int as "visitCount",
+                COALESCE(AVG("total"), 0)::float as "avgBill",
+                SUM(CASE WHEN "paymentStatus" IN ('UNPAID','PARTIAL','OVERDUE') THEN 1 ELSE 0 END)::int as "lateCount"
+            FROM "Sale"
+            WHERE "patientId" IN (${Prisma.join(patientIds)})
+              AND "deletedAt" IS NULL
+            GROUP BY "patientId"
+        `;
+
+        const aggregateMap = new Map();
+        for (const row of aggregates) {
+            aggregateMap.set(row.patientId, {
+                lastVisitAt: row.lastVisitAt,
+                firstVisitAt: row.firstVisitAt,
+                visitCount: Number(row.visitCount || 0),
+                avgBill: Number(row.avgBill || 0),
+                lateCount: Number(row.lateCount || 0),
+            });
+        }
+
+        const enriched = patients.map(patient => {
+            const agg = aggregateMap.get(patient.id) || {};
+            return {
+                ...patient,
+                creditLimit: Number(patient.creditLimit || 0),
+                currentBalance: Number(patient.currentBalance || 0),
+                lastVisitAt: patient.lastVisitAt || agg.lastVisitAt || null,
+                firstVisitAt: agg.firstVisitAt || null,
+                visitCount: agg.visitCount || 0,
+                avgBill: agg.avgBill || 0,
+                lateCount: agg.lateCount || 0
+            };
+        });
+
+        return { patients: enriched, total };
     }
 
     /**
@@ -62,6 +116,7 @@ class PatientRepository {
             storeId,
             deletedAt: null,
             currentBalance: { gt: 0 }, // Only those who owe money
+            phoneNumber: { not: 'WALKIN-CUSTOMER' },
             ...(search && {
                 OR: [
                     { firstName: { contains: search, mode: 'insensitive' } },
@@ -140,10 +195,12 @@ class PatientRepository {
                 insurance: true,
                 prescriptions: {
                     take: 5,
+                    include: { prescriptionItems: { include: { drug: true } }, prescriber: true },
                     orderBy: { createdAt: 'desc' },
                 },
                 sales: {
                     take: 5,
+                    include: { items: { include: { batch: { include: { drug: true } } } }, paymentSplits: true },
                     orderBy: { createdAt: 'desc' },
                 },
                 creditNotes: {
@@ -228,10 +285,11 @@ class PatientRepository {
      * Search patients (for autocomplete) - returns limited results
      */
     async searchPatients(storeId, query) {
-        return await prisma.patient.findMany({
+        const patients = await prisma.patient.findMany({
             where: {
                 storeId,
                 deletedAt: null,
+                phoneNumber: { not: 'WALKIN-CUSTOMER' },
                 OR: [
                     { firstName: { contains: query, mode: 'insensitive' } },
                     { lastName: { contains: query, mode: 'insensitive' } },
@@ -246,6 +304,11 @@ class PatientRepository {
                 dateOfBirth: true,
                 allergies: true,
                 chronicConditions: true,
+                lifecycleStage: true,
+                manualTrustLevel: true,
+                creditEnabled: true,
+                creditLimit: true,
+                currentBalance: true,
             },
             take: 10, // Limit to 10 results for autocomplete
             orderBy: { createdAt: 'desc' },
@@ -265,11 +328,13 @@ class PatientRepository {
         // Add walletBalance to each patient
         return patients.map(p => {
             const walletBalance = p.creditNotes
-                ? p.creditNotes.reduce((sum, cn) => sum + Number(cn.balance), 0)
+                ? p.creditNotes.reduce((sum, cn) => sum + Number(cn.balance || 0), 0)
                 : 0;
             return {
                 ...p,
-                walletBalance: Number(walletBalance.toFixed(2))
+                walletBalance: Number(walletBalance.toFixed(2)),
+                creditLimit: Number(p.creditLimit || 0),
+                currentBalance: Number(p.currentBalance || 0)
             };
         });
     }
@@ -362,8 +427,8 @@ class PatientRepository {
       SELECT 
         COUNT(*) as "totalPatients",
         COUNT(CASE WHEN "createdAt" >= NOW() - INTERVAL '30 days' THEN 1 END) as "newPatientsThisMonth",
-        COUNT(CASE WHEN "gender" = 'Male' THEN 1 END) as "maleCount",
-        COUNT(CASE WHEN "gender" = 'Female' THEN 1 END) as "femaleCount"
+        COUNT(CASE WHEN UPPER("gender") = 'MALE' THEN 1 END) as "maleCount",
+        COUNT(CASE WHEN UPPER("gender") = 'FEMALE' THEN 1 END) as "femaleCount"
       FROM "Patient"
       WHERE "storeId" = ${storeId}
         AND "deletedAt" IS NULL
@@ -395,14 +460,17 @@ class PatientRepository {
             eventType === 'all' || eventType === 'prescription'
                 ? prisma.prescription.findMany({
                     where: { patientId, ...whereDate },
-                    include: { prescriber: true, items: { include: { drug: true } } },
+                    include: { prescriber: true, prescriptionItems: { include: { drug: true } } },
                     orderBy: { createdAt: 'desc' },
                 })
                 : [],
             eventType === 'all' || eventType === 'sale'
                 ? prisma.sale.findMany({
                     where: { patientId, ...whereDate },
-                    include: { items: { include: { batch: { include: { drug: true } } } } },
+                    include: {
+                        items: { include: { batch: { include: { drug: true } } } },
+                        paymentSplits: true
+                    },
                     orderBy: { createdAt: 'desc' },
                 })
                 : [],
@@ -937,6 +1005,238 @@ class PatientRepository {
 
             return ledgerEntry;
         });
+    }
+
+    /**
+     * Get or create store credit policy
+     */
+    async getStoreCreditPolicy(storeId) {
+        let policy = await prisma.storeCreditPolicy.findUnique({
+            where: { storeId }
+        });
+
+        if (!policy) {
+            policy = await prisma.storeCreditPolicy.create({
+                data: { storeId }
+            });
+        }
+
+        return policy;
+    }
+
+    /**
+     * Update store credit policy
+     */
+    async updateStoreCreditPolicy(storeId, data) {
+        return await prisma.storeCreditPolicy.upsert({
+            where: { storeId },
+            update: data,
+            create: { storeId, ...data }
+        });
+    }
+
+    /**
+     * Get patient aggregate metrics for insights
+     */
+    async getPatientMetrics(patientId, storeId) {
+        const [summary] = await prisma.$queryRaw`
+            SELECT 
+                COUNT(*)::int as "visitCount",
+                COALESCE(SUM("total"), 0)::float as "totalSpent",
+                COALESCE(AVG("total"), 0)::float as "avgBill",
+                MIN("createdAt") as "firstVisitAt",
+                MAX("createdAt") as "lastVisitAt"
+            FROM "Sale"
+            WHERE "patientId" = ${patientId}
+              AND "storeId" = ${storeId}
+              AND "deletedAt" IS NULL
+        `;
+
+        return {
+            visitCount: Number(summary?.visitCount || 0),
+            totalSpent: Number(summary?.totalSpent || 0),
+            avgBill: Number(summary?.avgBill || 0),
+            firstVisitAt: summary?.firstVisitAt || null,
+            lastVisitAt: summary?.lastVisitAt || null
+        };
+    }
+
+    /**
+     * Credit-related metrics for patient
+     */
+    async getPatientCreditMetrics(patientId, storeId) {
+        const [creditStats] = await prisma.$queryRaw`
+            SELECT 
+                COUNT(*)::int as "creditSalesCount",
+                SUM(
+                    CASE 
+                        WHEN "expectedPaymentDate" IS NOT NULL 
+                         AND "expectedPaymentDate" < NOW()
+                         AND "paymentStatus" != 'PAID'
+                        THEN 1 ELSE 0 END
+                )::int as "overdueCount",
+                SUM(CASE WHEN "paymentStatus" = 'PAID' THEN 1 ELSE 0 END)::int as "paidCount",
+                SUM(
+                    CASE 
+                        WHEN "paymentStatus" = 'PAID' 
+                         AND ("expectedPaymentDate" IS NULL OR "expectedPaymentDate" >= "updatedAt") 
+                        THEN 1 ELSE 0 END
+                )::int as "onTimeCount"
+            FROM "Sale" s
+            WHERE s."patientId" = ${patientId}
+              AND s."storeId" = ${storeId}
+              AND s."deletedAt" IS NULL
+              AND (
+                s."expectedPaymentDate" IS NOT NULL
+                OR s."paymentStatus" IN ('UNPAID','PARTIAL','OVERDUE')
+                OR EXISTS (
+                    SELECT 1 FROM "PaymentSplit" ps
+                    WHERE ps."saleId" = s."id" AND ps."paymentMethod" = 'CREDIT'
+                )
+              )
+        `;
+
+        const [creditTrend] = await prisma.$queryRaw`
+            SELECT 
+                SUM(CASE WHEN s."createdAt" >= NOW() - INTERVAL '90 days' THEN 1 ELSE 0 END)::int as "recentCreditSales",
+                SUM(CASE WHEN s."createdAt" < NOW() - INTERVAL '90 days' AND s."createdAt" >= NOW() - INTERVAL '180 days' THEN 1 ELSE 0 END)::int as "priorCreditSales"
+            FROM "Sale" s
+            WHERE s."patientId" = ${patientId}
+              AND s."storeId" = ${storeId}
+              AND s."deletedAt" IS NULL
+              AND (
+                s."expectedPaymentDate" IS NOT NULL
+                OR s."paymentStatus" IN ('UNPAID','PARTIAL','OVERDUE')
+                OR EXISTS (
+                    SELECT 1 FROM "PaymentSplit" ps
+                    WHERE ps."saleId" = s."id" AND ps."paymentMethod" = 'CREDIT'
+                )
+              )
+        `;
+
+        return {
+            creditSalesCount: Number(creditStats?.creditSalesCount || 0),
+            overdueCount: Number(creditStats?.overdueCount || 0),
+            paidCount: Number(creditStats?.paidCount || 0),
+            recentCreditSales: Number(creditTrend?.recentCreditSales || 0),
+            priorCreditSales: Number(creditTrend?.priorCreditSales || 0)
+        };
+    }
+
+    /**
+     * Refund ratio stats
+     */
+    async getPatientRefundStats(patientId, storeId) {
+        const [refundStats] = await prisma.$queryRaw`
+            SELECT COUNT(*)::int as "refundCount"
+            FROM "SaleRefund" r
+            JOIN "Sale" s ON s."id" = r."originalSaleId"
+            WHERE s."patientId" = ${patientId}
+              AND s."storeId" = ${storeId}
+              AND s."deletedAt" IS NULL
+        `;
+
+        return {
+            refundCount: Number(refundStats?.refundCount || 0)
+        };
+    }
+
+    /**
+     * Count shared phone number occurrences
+     */
+    async getPhoneShareCount(storeId, phoneNumber, excludePatientId) {
+        const count = await prisma.patient.count({
+            where: {
+                storeId,
+                phoneNumber,
+                deletedAt: null,
+                ...(excludePatientId ? { id: { not: excludePatientId } } : {}),
+            }
+        });
+
+        return count;
+    }
+
+    /**
+     * Get aggregated family metrics
+     */
+    async getPatientFamilyMetrics(patientId, storeId) {
+        // 1. Find all related patient IDs
+        const relations = await prisma.patientRelation.findMany({
+            where: {
+                OR: [
+                    { patientId: patientId },
+                    { relatedPatientId: patientId }
+                ]
+            },
+            include: {
+                patient: { select: { id: true, firstName: true, lastName: true, currentBalance: true, creditLimit: true } },
+                relatedPatient: { select: { id: true, firstName: true, lastName: true, currentBalance: true, creditLimit: true } }
+            }
+        });
+
+        if (relations.length === 0) {
+            return {
+                familySize: 1, // Self
+                familyTotalSpent: 0,
+                familyOverdueCount: 0,
+                familyMembers: []
+            };
+        }
+
+        const familyIds = new Set();
+        const familyDetails = [];
+
+        relations.forEach(r => {
+            const p1 = r.patient;
+            const p2 = r.relatedPatient;
+
+            // Add the "other" person in the relationship
+            if (p1.id !== patientId) {
+                familyIds.add(p1.id);
+                familyDetails.push({ ...p1, relation: r.relationType });
+            }
+            if (p2.id !== patientId) {
+                familyIds.add(p2.id);
+                familyDetails.push({ ...p2, relation: r.relationType });
+            }
+        });
+
+        const distinctFamilyIds = Array.from(familyIds);
+
+        if (distinctFamilyIds.length === 0) {
+            return { familySize: 1, familyTotalSpent: 0, familyOverdueCount: 0, familyMembers: [] };
+        }
+
+        // 2. Aggregate metrics for these IDs
+        const [aggregate] = await prisma.$queryRaw`
+            SELECT 
+                COALESCE(SUM("total"), 0)::float as "totalSpent",
+                SUM(
+                    CASE 
+                        WHEN "expectedPaymentDate" IS NOT NULL 
+                         AND "expectedPaymentDate" < NOW()
+                         AND "paymentStatus" != 'PAID'
+                        THEN 1 ELSE 0 END
+                )::int as "overdueCount"
+            FROM "Sale"
+            WHERE "patientId" IN (${Prisma.join(distinctFamilyIds)})
+              AND "storeId" = ${storeId}
+              AND "deletedAt" IS NULL
+        `;
+
+        // 3. Current credit position of family
+        const familyBalance = familyDetails.reduce((sum, m) => sum + Number(m.currentBalance || 0), 0);
+        const familyLimit = familyDetails.reduce((sum, m) => sum + Number(m.creditLimit || 0), 0);
+
+        return {
+            familySize: distinctFamilyIds.length + 1, // +1 for self
+            familyTotalSpent: Number(aggregate?.totalSpent || 0),
+            familyOverdueCount: Number(aggregate?.overdueCount || 0),
+            familyBalance,
+            familyLimit,
+            familyMembers: familyDetails
+        };
     }
 }
 

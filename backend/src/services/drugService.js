@@ -330,7 +330,7 @@ class DrugService {
                     const currentDrug = await prisma.drug.findUnique({
                         where: { id: update.drugId },
                         include: {
-                            drugSaltLinks: {
+                            saltLinks: {
                                 include: {
                                     salt: true
                                 }
@@ -342,7 +342,7 @@ class DrugService {
                         throw new Error('Drug not found');
                     }
 
-                    const oldValue = currentDrug.drugSaltLinks.map(link => ({
+                    const oldValue = currentDrug.saltLinks.map(link => ({
                         saltId: link.saltId,
                         strengthValue: link.strengthValue,
                         strengthUnit: link.strengthUnit
@@ -406,7 +406,7 @@ class DrugService {
         const drug = await prisma.drug.findUnique({
             where: { id: drugId },
             include: {
-                drugSaltLinks: {
+                saltLinks: {
                     include: {
                         salt: true
                     },
@@ -437,11 +437,10 @@ class DrugService {
         return await prisma.drug.findMany({
             where: {
                 storeId,
-                ingestionStatus: status,
-                deletedAt: null
+                ingestionStatus: status
             },
             include: {
-                drugSaltLinks: {
+                saltLinks: {
                     include: {
                         salt: true
                     }

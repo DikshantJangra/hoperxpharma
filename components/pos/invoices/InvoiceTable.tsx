@@ -126,7 +126,8 @@ export default function InvoiceTable({ searchQuery, onSelectInvoice, onInitiateR
     id: invoice.invoiceNumber,
     date: formatDate(invoice.createdAt),
     time: formatTime(invoice.createdAt),
-    status: invoice.paymentStatus === 'UNPAID' ? 'PENDING' : invoice.paymentStatus === 'PARTIAL' ? 'PARTIAL' : invoice.status,
+    itemCount: invoice.items?.length || 0,
+    status: invoice.paymentStatus === 'UNPAID' ? 'PAY LATER' : invoice.paymentStatus === 'PARTIAL' ? 'PARTIAL' : invoice.paymentStatus === 'PAID' ? 'PAID' : invoice.status,
     paymentStatus: invoice.paymentStatus,
     hasRefunds: invoice.refunds && invoice.refunds.length > 0,
     refunds: invoice.refunds || [],
@@ -144,7 +145,7 @@ export default function InvoiceTable({ searchQuery, onSelectInvoice, onInitiateR
       phone: invoice.dispenseForPatient.phoneNumber
     } : null,
     paymentModes: invoice.paymentSplits?.map((split: any) => ({
-      mode: split.paymentMethod,
+      mode: split.paymentMethod === 'CREDIT' ? 'Pay Later' : split.paymentMethod,
       amount: split.amount
     })) || [],
     items: invoice.items?.map((item: any) => ({
@@ -256,7 +257,13 @@ export default function InvoiceTable({ searchQuery, onSelectInvoice, onInitiateR
                     ? 'bg-red-100 text-red-700'
                     : invoice.status === 'PARTIALLY_REFUNDED'
                       ? 'bg-amber-100 text-amber-700'
-                      : 'bg-green-100 text-green-700'
+                      : invoice.status === 'PAY LATER'
+                        ? 'bg-blue-100 text-blue-700'
+                        : invoice.status === 'PENDING'
+                          ? 'bg-yellow-100 text-yellow-700'
+                          : invoice.status === 'PAID'
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-emerald-100 text-emerald-700'
                     }`}>
                     {invoice.status.replace('_', ' ')}
                   </span>

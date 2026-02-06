@@ -22,6 +22,8 @@ export default function PatientConnectionsTab({ patient, onUpdate }: PatientConn
     const [isSearching, setIsSearching] = useState(false);
     const [selectedPatient, setSelectedPatient] = useState<any>(null);
     const [relationType, setRelationType] = useState("FAMILY");
+    const [editingConnection, setEditingConnection] = useState<any>(null);
+    const [editRelationType, setEditRelationType] = useState("");
 
     useEffect(() => {
         loadConnections();
@@ -106,6 +108,37 @@ export default function PatientConnectionsTab({ patient, onUpdate }: PatientConn
         }
     };
 
+    const handleUpdateConnection = async () => {
+        if (!editingConnection || !editRelationType) return;
+
+        try {
+            setSaving(true);
+            const response = await fetch(`/api/v1/patients/${patient.id}/relations/${editingConnection.id}`, {
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                    relationType: editRelationType
+                })
+            });
+
+            if (response.ok) {
+                toast.success("Connection updated");
+                setEditingConnection(null);
+                loadConnections();
+            } else {
+                toast.error("Failed to update connection");
+            }
+        } catch (error) {
+            console.error("Update connection error:", error);
+            toast.error("Failed to update connection");
+        } finally {
+            setSaving(false);
+        }
+    };
+
     const handleRemoveConnection = async (relatedPatientId: string) => {
         if (!confirm("Are you sure you want to remove this connection?")) return;
 
@@ -128,144 +161,168 @@ export default function PatientConnectionsTab({ patient, onUpdate }: PatientConn
     };
 
     return (
-        <div className="space-y-6">
-            <div className="bg-white rounded-lg shadow-sm p-6">
-                <div className="flex justify-between items-center mb-6">
-                    <h3 className="font-semibold text-gray-900 flex items-center gap-2">
-                        <FiUsers className="w-5 h-5 text-teal-600" />
-                        Family & Connections
-                    </h3>
+        <div className="max-w-3xl space-y-8">
+            {/* Header & Add Trigger */}
+            <div className="flex items-center justify-between">
+                <div>
+                    <h3 className="text-lg font-bold text-gray-900">Family & Connections</h3>
+                    <p className="text-xs text-gray-500 font-medium">Link family members to share credit and health records.</p>
+                </div>
+                {!showAddForm && (
                     <button
                         onClick={() => setShowAddForm(true)}
-                        className="text-sm bg-teal-50 text-teal-700 px-3 py-1.5 rounded-lg border border-teal-100 hover:bg-teal-100 flex items-center gap-2 font-medium"
+                        className="h-9 px-4 bg-teal-50 text-teal-700 text-[10px] font-bold uppercase tracking-widest rounded-xl border border-teal-100 hover:bg-teal-100 transition-all flex items-center gap-2"
                     >
-                        <FiPlus className="w-4 h-4" />
-                        Add Connection
+                        <FiPlus /> Add Member
                     </button>
-                </div>
-
-                {showAddForm && (
-                    <div className="mb-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
-                        <div className="flex justify-between items-start mb-4">
-                            <h4 className="text-sm font-semibold text-gray-800">Add New Connection</h4>
-                            <button onClick={() => setShowAddForm(false)} className="text-gray-400 hover:text-gray-600">
-                                <FiX />
-                            </button>
-                        </div>
-
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-xs font-medium text-gray-700 mb-1">Search Patient</label>
-                                <div className="relative">
-                                    <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                                    <input
-                                        type="text"
-                                        value={searchQuery}
-                                        onChange={(e) => handleSearch(e.target.value)}
-                                        placeholder="Search by name or phone..."
-                                        className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-md focus:ring-teal-500 focus:border-teal-500"
-                                    />
-                                    {searchResults.length > 0 && (
-                                        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
-                                            {searchResults.map(p => (
-                                                <div
-                                                    key={p.id}
-                                                    onClick={() => {
-                                                        setSelectedPatient(p);
-                                                        setSearchQuery(`${p.firstName} ${p.lastName}`);
-                                                        setSearchResults([]);
-                                                    }}
-                                                    className="p-2 hover:bg-teal-50 cursor-pointer text-sm"
-                                                >
-                                                    <div className="font-medium">{p.firstName} {p.lastName}</div>
-                                                    <div className="text-xs text-gray-500">{p.phoneNumber}</div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-
-                            {selectedPatient && (
-                                <div className="p-3 bg-white border border-teal-100 rounded-md mb-2">
-                                    <div className="text-sm font-medium text-teal-900">Selected: {selectedPatient.firstName} {selectedPatient.lastName}</div>
-                                    <div className="text-xs text-gray-500">{selectedPatient.phoneNumber}</div>
-                                </div>
-                            )}
-
-                            <div>
-                                <label className="block text-xs font-medium text-gray-700 mb-1">Relationship</label>
-                                <select
-                                    value={relationType}
-                                    onChange={(e) => setRelationType(e.target.value)}
-                                    className="w-full p-2 text-sm border border-gray-300 rounded-md focus:ring-teal-500"
-                                >
-                                    <option value="FAMILY">Family Member</option>
-                                    <option value="PARENT">Parent</option>
-                                    <option value="CHILD">Child</option>
-                                    <option value="SPOUSE">Spouse</option>
-                                    <option value="BROTHER">Brother</option>
-                                    <option value="SISTER">Sister</option>
-                                    <option value="SIBLING">Sibling</option>
-                                    <option value="GRANDPARENT">Grandparent</option>
-                                    <option value="GRANDCHILD">Grandchild</option>
-                                    <option value="FRIEND">Friend</option>
-                                    <option value="OTHER">Other</option>
-                                </select>
-                            </div>
-
-                            <div className="flex justify-end pt-2">
-                                <button
-                                    onClick={handleAddConnection}
-                                    disabled={!selectedPatient || saving}
-                                    className="px-4 py-2 bg-teal-600 text-white text-sm rounded-md hover:bg-teal-700 disabled:opacity-50 flex items-center gap-2"
-                                >
-                                    {saving && <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />}
-                                    {saving ? 'Saving...' : 'Save Connection'}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )}
-
-                {loading ? (
-                    <div className="text-center py-8 text-gray-500 text-sm">Loading connections...</div>
-                ) : connections.length > 0 ? (
-                    <div className="grid grid-cols-1 gap-4">
-                        {connections.map((conn) => (
-                            <div key={conn.id} className="flex items-center justify-between p-4 border border-gray-100 rounded-lg bg-gray-50 hover:bg-white hover:shadow-sm transition-all group">
-                                <div className="flex items-center gap-4">
-                                    <div className="w-10 h-10 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center font-bold">
-                                        {conn.firstName[0]}
-                                    </div>
-                                    <div>
-                                        <h4 className="text-sm font-semibold text-gray-900">{conn.firstName} {conn.lastName}</h4>
-                                        <div className="flex items-center gap-2 text-xs text-gray-500">
-                                            <span className="font-medium px-2 py-0.5 bg-gray-200 rounded text-gray-700 uppercase">{conn.relationType}</span>
-                                            <span>•</span>
-                                            <span>{conn.phoneNumber}</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <button
-                                    onClick={() => handleRemoveConnection(conn.id)}
-                                    className="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-2"
-                                    title="Remove Connection"
-                                >
-                                    <FiTrash2 />
-                                </button>
-                            </div>
-                        ))}
-                    </div>
-                ) : (
-                    <div className="text-center py-12 bg-gray-50 rounded-lg border border-dashed border-gray-200">
-                        <FiUsers className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-                        <p className="text-gray-500 font-medium">No connections found</p>
-                        <p className="text-xs text-gray-400 mt-1">Add family members to manage their prescriptions easily</p>
-                    </div>
                 )}
             </div>
+
+            {/* Inline Add Form */}
+            {showAddForm && (
+                <div className="bg-gray-50/50 border border-gray-100 rounded-2xl p-6 space-y-4 animate-in slide-in-from-top-2 duration-200">
+                    <div className="grid grid-cols-2 gap-4">
+                        <div className="relative">
+                            <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                            <input
+                                type="text"
+                                value={searchQuery}
+                                onChange={(e) => handleSearch(e.target.value)}
+                                placeholder="Search by name or phone..."
+                                className="w-full h-11 pl-10 pr-4 bg-white border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-teal-500/10 focus:border-teal-500 outline-none transition-all"
+                            />
+                            {searchResults.length > 0 && (
+                                <div className="absolute z-10 w-full mt-2 bg-white border border-gray-200 rounded-2xl shadow-xl overflow-hidden py-2">
+                                    {searchResults.map(p => (
+                                        <button
+                                            key={p.id}
+                                            onClick={() => {
+                                                setSelectedPatient(p);
+                                                setSearchQuery(`${p.firstName} ${p.lastName}`);
+                                                setSearchResults([]);
+                                            }}
+                                            className="w-full px-4 py-2 hover:bg-gray-50 flex flex-col items-start transition-colors"
+                                        >
+                                            <span className="text-sm font-bold text-gray-900">{p.firstName} {p.lastName}</span>
+                                            <span className="text-[10px] text-gray-500 font-medium">{p.phoneNumber}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        <select
+                            value={relationType}
+                            onChange={(e) => setRelationType(e.target.value)}
+                            className="h-11 px-4 bg-white border border-gray-200 rounded-xl text-sm font-bold text-gray-700 outline-none focus:ring-2 focus:ring-teal-500/10"
+                        >
+                            <option value="FAMILY">Family Member</option>
+                            <option value="PARENT">Parent</option>
+                            <option value="CHILD">Child</option>
+                            <option value="SPOUSE">Spouse</option>
+                            <option value="SIBLING">Sibling</option>
+                            <option value="FRIEND">Friend</option>
+                            <option value="OTHER">Other</option>
+                        </select>
+                    </div>
+
+                    <div className="flex justify-end gap-3">
+                        <button
+                            onClick={() => {
+                                setShowAddForm(false);
+                                setSelectedPatient(null);
+                                setSearchQuery("");
+                            }}
+                            className="h-10 px-6 text-gray-500 text-[10px] font-bold uppercase hover:bg-gray-100 rounded-xl transition-all"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            onClick={handleAddConnection}
+                            disabled={!selectedPatient || saving}
+                            className="h-10 px-6 bg-teal-600 text-white text-[10px] font-bold uppercase rounded-xl shadow-lg shadow-teal-100 hover:bg-teal-700 disabled:opacity-50 transition-all"
+                        >
+                            {saving ? "Saving..." : "Confirm Link"}
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* Connections List */}
+            {loading ? (
+                <div className="space-y-4">
+                    {[1, 2].map(i => <div key={i} className="h-20 bg-gray-50 rounded-2xl animate-pulse" />)}
+                </div>
+            ) : connections.length > 0 ? (
+                <div className="space-y-3">
+                    {connections.map((conn) => (
+                        <div key={conn.id} className="group relative bg-white border border-gray-100 rounded-2xl p-5 hover:border-teal-200 hover:shadow-sm transition-all flex items-center justify-between">
+                            <div className="flex items-center gap-4">
+                                <div className="w-12 h-12 bg-gray-50 border border-gray-100 rounded-2xl flex items-center justify-center text-teal-600 font-black text-lg">
+                                    {conn.firstName[0]}
+                                </div>
+                                <div>
+                                    <h4 className="font-bold text-gray-900 leading-tight">
+                                        {conn.firstName} {conn.lastName}
+                                    </h4>
+                                    <div className="flex items-center gap-2 mt-1">
+                                        {editingConnection?.id === conn.id ? (
+                                            <div className="flex items-center gap-2">
+                                                <select
+                                                    value={editRelationType}
+                                                    onChange={(e) => setEditRelationType(e.target.value)}
+                                                    className="text-[10px] font-bold uppercase bg-teal-50 text-teal-700 rounded-lg px-2 py-0.5 outline-none border border-teal-100"
+                                                    autoFocus
+                                                >
+                                                    <option value="FAMILY">FAMILY</option>
+                                                    <option value="PARENT">PARENT</option>
+                                                    <option value="CHILD">CHILD</option>
+                                                    <option value="SPOUSE">SPOUSE</option>
+                                                    <option value="SIBLING">SIBLING</option>
+                                                    <option value="FRIEND">FRIEND</option>
+                                                    <option value="OTHER">OTHER</option>
+                                                </select>
+                                                <button onClick={handleUpdateConnection} className="text-teal-600 hover:text-teal-800 text-[10px] font-black uppercase">Save</button>
+                                                <button onClick={() => setEditingConnection(null)} className="text-gray-400 hover:text-gray-600 text-[10px] font-black uppercase">Cancel</button>
+                                            </div>
+                                        ) : (
+                                            <span
+                                                onClick={() => {
+                                                    setEditingConnection(conn);
+                                                    setEditRelationType(conn.relationType);
+                                                }}
+                                                className="px-2 py-0.5 bg-gray-50 text-gray-500 text-[9px] font-black uppercase tracking-wider rounded border border-gray-100 cursor-pointer hover:bg-teal-50 hover:text-teal-600 hover:border-teal-100 transition-colors"
+                                            >
+                                                {conn.relationType}
+                                            </span>
+                                        )}
+                                        <span className="text-gray-300 ml-1">•</span>
+                                        <span className="text-[11px] font-medium text-gray-500">{conn.phoneNumber}</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button
+                                    onClick={() => handleRemoveConnection(conn.id)}
+                                    className="p-2.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all"
+                                    title="Unlink Member"
+                                >
+                                    <FiTrash2 className="w-4 h-4" />
+                                </button>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                <div className="bg-gray-50/50 border border-dashed border-gray-200 rounded-3xl p-12 text-center">
+                    <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-sm">
+                        <FiUsers className="w-6 h-6 text-gray-300" />
+                    </div>
+                    <h4 className="text-md font-bold text-gray-900">No linked members</h4>
+                    <p className="text-sm text-gray-500 mt-1 max-w-[240px] mx-auto">Connecting family members helps you easily manage group bills and records.</p>
+                </div>
+            )}
         </div>
     );
 }

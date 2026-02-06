@@ -21,6 +21,11 @@ export interface Patient {
     storeId?: string;
     currentBalance?: number;
     creditLimit?: number;
+    lifecycleStage?: 'IDENTIFIED' | 'ESTABLISHED' | 'TRUSTED' | 'CREDIT_ELIGIBLE';
+    manualTrustLevel?: 'LOW' | 'MEDIUM' | 'HIGH';
+    creditEnabled?: boolean;
+    profileStrength?: number;
+    lastVisitAt?: string;
     createdAt: string;
     updatedAt: string;
 }
@@ -74,6 +79,40 @@ export const patientsApi = {
      */
     async getPatientById(id: string) {
         const response = await apiClient.get(`/patients/${id}`);
+        return response.data;
+    },
+
+    async getPatientInsights(id: string) {
+        const response = await apiClient.get(`/patients/${id}/insights`);
+        return response.data;
+    },
+
+    async getCreditAssessment(id: string, saleTotal?: number) {
+        const query = new URLSearchParams();
+        if (saleTotal !== undefined) query.append('saleTotal', saleTotal.toString());
+        const response = await apiClient.get(`/patients/${id}/credit-assessment?${query.toString()}`);
+        return response.data;
+    },
+
+    async getCreditPolicy() {
+        const response = await apiClient.get('/patients/credit-policy');
+        return response.data;
+    },
+
+    async updateCreditPolicy(data: {
+        maxCreditIdentified?: number;
+        maxCreditEstablished?: number;
+        maxCreditTrusted?: number;
+        gracePeriodDays?: number;
+        lateAfterDays?: number;
+        autoSuspendAfterLates?: number;
+        minOnTimeRate?: number;
+        minVisitsEstablished?: number;
+        minVisitsTrusted?: number;
+        minDaysSinceFirstVisit?: number;
+        riskTolerance?: 'LOW' | 'MEDIUM' | 'HIGH';
+    }) {
+        const response = await apiClient.put('/patients/credit-policy', data);
         return response.data;
     },
 

@@ -262,9 +262,31 @@ model Store {
   creditNotes         CreditNote[]
   marginLedger        MarginLedger[]
   storeOverlays       StoreOverlay[]
+  creditPolicy        StoreCreditPolicy?
 
   @@index([email])
   @@index([deletedAt])
+}
+
+model StoreCreditPolicy {
+  id                     String        @id @default(cuid())
+  storeId                String        @unique
+  maxCreditIdentified    Decimal       @default(0.00) @db.Decimal(10, 2)
+  maxCreditEstablished   Decimal       @default(500.00) @db.Decimal(10, 2)
+  maxCreditTrusted       Decimal       @default(1500.00) @db.Decimal(10, 2)
+  gracePeriodDays        Int           @default(3)
+  lateAfterDays          Int           @default(7)
+  autoSuspendAfterLates  Int           @default(3)
+  minOnTimeRate          Float         @default(0.7)
+  minVisitsEstablished   Int           @default(2)
+  minVisitsTrusted       Int           @default(6)
+  minDaysSinceFirstVisit Int           @default(30)
+  riskTolerance          RiskTolerance @default(MEDIUM)
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
+  store                  Store         @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId])
 }
 
 model StoreLicense {
@@ -479,45 +501,59 @@ model IdempotencyCache {
 }
 
 model Patient {
-  id                    String             @id @default(cuid())
-  storeId               String
-  firstName             String
-  middleName            String?
-  lastName              String
-  dateOfBirth           DateTime?
-  gender                String?
-  photoUrl              String?
-  phoneNumber           String
-  email                 String?
-  addressLine1          String?
-  addressLine2          String?
-  city                  String?
-  state                 String?
-  pinCode               String?
-  bloodGroup            String?
-  allergies             String[]
-  chronicConditions     String[]
-  emergencyContactName  String?
-  emergencyContactPhone String?
-  createdAt             DateTime           @default(now())
-  updatedAt             DateTime           @updatedAt
-  deletedAt             DateTime?
-  deletedBy             String?
-  creditLimit           Decimal            @default(0.00) @db.Decimal(10, 2)
-  currentBalance        Decimal            @default(0.00) @db.Decimal(10, 2)
-  relatedTo             PatientRelation[]  @relation("SourcePatient")
-  relatedFrom           PatientRelation[]  @relation("RelatedPatient")
-  store                 Store              @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  prescriptions         Prescription[]
-  sales                 Sale[]
-  dispensedSales        Sale[]             @relation("DispenseFor")
-  consents              PatientConsent[]
-  insurance             PatientInsurance[]
-  adherence             PatientAdherence[]
-  auditLogs             PatientAudit[]
-  ledger                CustomerLedger[]
-  creditNotes           CreditNote[]
-  loyaltyProfile        LoyaltyProfile?
+  id                      String                @id @default(cuid())
+  storeId                 String
+  firstName               String
+  middleName              String?
+  lastName                String
+  dateOfBirth             DateTime?
+  gender                  String?
+  photoUrl                String?
+  phoneNumber             String
+  email                   String?
+  addressLine1            String?
+  addressLine2            String?
+  city                    String?
+  state                   String?
+  pinCode                 String?
+  bloodGroup              String?
+  allergies               String[]
+  chronicConditions       String[]
+  emergencyContactName    String?
+  emergencyContactPhone   String?
+  createdAt               DateTime              @default(now())
+  updatedAt               DateTime              @updatedAt
+  deletedAt               DateTime?
+  deletedBy               String?
+  lifecycleStage          PatientLifecycleStage @default(IDENTIFIED)
+  manualTrustLevel        TrustLevel?
+  creditEnabled           Boolean               @default(false)
+  creditSuspendedAt       DateTime?
+  profileStrength         Int                   @default(0)
+  lastVisitAt             DateTime?
+  creditLimit             Decimal               @default(0.00) @db.Decimal(10, 2)
+  currentBalance          Decimal               @default(0.00) @db.Decimal(10, 2)
+  // Analytics Cache Fields (for fast list views)
+  visitCount              Int                   @default(0)
+  firstVisitAt            DateTime?
+  avgBillAmount           Decimal?              @db.Decimal(10, 2)
+  onTimePaymentRate       Decimal?              @db.Decimal(5, 4)
+  systemTrustLevel        TrustLevel?
+  riskLevel               RiskLevel?
+  profileLastCalculatedAt DateTime?
+  relatedTo               PatientRelation[]     @relation("SourcePatient")
+  relatedFrom             PatientRelation[]     @relation("RelatedPatient")
+  store                   Store                 @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  prescriptions           Prescription[]
+  sales                   Sale[]
+  dispensedSales          Sale[]                @relation("DispenseFor")
+  consents                PatientConsent[]
+  insurance               PatientInsurance[]
+  adherence               PatientAdherence[]
+  auditLogs               PatientAudit[]
+  ledger                  CustomerLedger[]
+  creditNotes             CreditNote[]
+  loyaltyProfile          LoyaltyProfile?
 
   @@index([storeId, phoneNumber])
   @@index([storeId, email])
@@ -3056,6 +3092,31 @@ enum PaymentStatus {
   PARTIAL
   UNPAID
   OVERDUE
+}
+
+enum PatientLifecycleStage {
+  IDENTIFIED
+  ESTABLISHED
+  TRUSTED
+  CREDIT_ELIGIBLE
+}
+
+enum TrustLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum RiskTolerance {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  ELEVATED
 }
 
 enum InvoiceType {

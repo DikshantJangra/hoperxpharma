@@ -1,12 +1,20 @@
 import React from "react";
 
 interface PatientAvatarProps {
-  name?: string; // Make name optional
+  name?: string;
+  src?: string;
 }
 
-export default function PatientAvatar({ name }: PatientAvatarProps) {
-  // Handle undefined/null names
+export default function PatientAvatar({ name, src }: PatientAvatarProps) {
   const safeName = name || "Unknown";
+
+  if (src) {
+    return (
+      <div className="w-10 h-10 rounded-full overflow-hidden border border-gray-100 shadow-sm">
+        <img src={src} alt={safeName} className="w-full h-full object-cover" />
+      </div>
+    );
+  }
 
   const initials = safeName
     .split(" ")
@@ -24,10 +32,10 @@ export default function PatientAvatar({ name }: PatientAvatarProps) {
     "bg-teal-500"
   ];
 
-  const colorIndex = safeName.charCodeAt(0) % colors.length;
+  const colorIndex = safeName.length > 0 ? safeName.charCodeAt(0) % colors.length : 0;
 
   return (
-    <div className={`w-10 h-10 rounded-full ${colors[colorIndex]} flex items-center justify-center text-white text-sm font-medium`}>
+    <div className={`w-10 h-10 rounded-full ${colors[colorIndex]} flex items-center justify-center text-white text-xs font-black tracking-tighter shadow-inner`}>
       {initials}
     </div>
   );

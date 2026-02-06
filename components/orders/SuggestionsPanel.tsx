@@ -80,8 +80,11 @@ export default function SuggestionsPanel({ suggestions, isLoading = false, onAdd
   const loadCatalog = async () => {
     setLoading(true);
     try {
-      const result = await apiClient.get(`/drugs?limit=50`);
-      // Handle both { data: [...] } envelope and raw [...] array
+      const params = new URLSearchParams({
+        limit: '50',
+        ...(storeId ? { storeId: storeId } : {})
+      });
+      const result = await apiClient.get(`/drugs?${params.toString()}`);
       const responseData = result.data;
       const drugs = Array.isArray(responseData) ? responseData : (responseData?.data || []);
       setCatalogItems(drugs);
