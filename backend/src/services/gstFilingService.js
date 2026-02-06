@@ -138,6 +138,72 @@ class GSTFilingService {
             throw error;
         }
     }
+
+    /**
+     * Generate GSTR-3B Data (Summary)
+     * @param {string} storeId 
+     * @param {string} month YYYY-MM
+     */
+    async generateGSTR3B(storeId, month) {
+        try {
+            const [year, m] = month.split('-');
+            const startDate = new Date(year, m - 1, 1);
+            const endDate = new Date(year, m, 0, 23, 59, 59);
+
+            // Fetch Sales and Purchases
+            const entries = await prisma.gSTLedgerEntry.findMany({
+                where: {
+                    storeId,
+                    date: { gte: startDate, lte: endDate }
+                }
+            });
+
+            const summary = {
+                outwardSupplies: { taxableValue: 0, cgst: 0, sgst: 0, igst: 0, cess: 0 },
+                interStateSupplies: { taxableValue: 0, igst: 0 },
+                inputTaxCredit: { cgst: 0, sgst: 0, igst: 0, cess: 0, note: 'From Purchase Entries' },
+                taxPayable: { cgst: 0, sgst: 0, igst: 0, cess: 0 }, // Net = Output - Input
+                period: { from: startDate, to: endDate }
+            };
+
+            for (const entry of entries) {
+                if (entry.eventType === 'SALE') {
+                    // 3.1 Outward Taxable Supplies
+                    summary.outwardSupplies.taxableValue += Number(entry.taxableValue);
+                    summary.outwardSupplies.cgst += Number(entry.cgstAmount);
+                    summary.outwardSupplies.sgst += Number(entry.sgstAmount);
+                    summary.outwardSupplies.igst += Number(entry.igstAmount);
+                    summary.outwardSupplies.cess += Number(entry.cessAmount);
+
+                    // 3.2 Inter-State
+                    if (Number(entry.igstAmount) > 0) {
+                        summary.interStateSupplies.taxableValue += Number(entry.taxableValue);
+                        summary.interStateSupplies.igst += Number(entry.igstAmount);
+                    }
+                } else if (entry.eventType === 'PURCHASE') {
+                    // 4. ITC Available
+                    if (entry.itcEligible && (entry.itcStatus === 'PROVISIONAL' || entry.itcStatus === 'CONFIRMED')) {
+                        summary.inputTaxCredit.cgst += Number(entry.cgstAmount);
+                        summary.inputTaxCredit.sgst += Number(entry.sgstAmount);
+                        summary.inputTaxCredit.igst += Number(entry.igstAmount);
+                        summary.inputTaxCredit.cess += Number(entry.cessAmount);
+                    }
+                }
+            }
+
+            // Calculate Net Payable
+            summary.taxPayable.cgst = Math.max(0, summary.outwardSupplies.cgst - summary.inputTaxCredit.cgst);
+            summary.taxPayable.sgst = Math.max(0, summary.outwardSupplies.sgst - summary.inputTaxCredit.sgst);
+            summary.taxPayable.igst = Math.max(0, summary.outwardSupplies.igst - summary.inputTaxCredit.igst);
+            summary.taxPayable.cess = Math.max(0, summary.outwardSupplies.cess - summary.inputTaxCredit.cess);
+
+            return summary;
+
+        } catch (error) {
+            logger.error('[GSTFilingService] Failed to generate GSTR-3B', error);
+            throw error;
+        }
+    }
 }
 
 module.exports = new GSTFilingService();
