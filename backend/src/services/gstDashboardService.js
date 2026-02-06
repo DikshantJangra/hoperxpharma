@@ -1,7 +1,7 @@
 
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
-const logger = require('../../config/logger');
+const logger = require('../config/logger');
 const gstRiskService = require('./gstRiskService');
 
 class GSTDashboardService {
@@ -93,6 +93,7 @@ class GSTDashboardService {
             };
 
         } catch (error) {
+            console.error('[GSTDashboardService] getDashboardMetrics Error:', error);
             logger.error('[GSTDashboardService] Failed to get metrics', error);
             throw error;
         }

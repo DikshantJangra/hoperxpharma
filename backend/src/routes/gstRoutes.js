@@ -29,6 +29,10 @@ router.delete('/hsn-codes/:id', gstController.deleteHsnCode);
 router.get('/gstr1-summary', gstReportController.getGSTR1Summary);
 router.get('/gstr3b-summary', gstReportController.getGSTR3BSummary);
 router.get('/trends', gstReportController.getMonthlyTrend);
+router.post('/reconcile', gstReportController.reconcile);
+router.get('/ledger', gstReportController.getLedger);
+router.post('/filing/freeze', gstReportController.freezeFiling);
+router.post('/invoices/:id/void', gstReportController.voidInvoice);
 
 // Utilities
 router.post('/seed-defaults', gstController.seedDefaults);

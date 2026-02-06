@@ -155,10 +155,11 @@ export const sidebarConfig: SidebarSection[] = [
                 requiredPermission: "report.financial",
                 gatedFeature: Feature.REPORTS,
                 subItems: [
-                    { label: "Dashboard", path: "/gst" },
-                    { label: "Invoices", path: "/gst/invoices" },
-                    { label: "GSTR Filing", path: "/gst/returns" }
-                    // Removed extra GST items as requested
+                    { label: "Compliance Hub", path: "/gst" },
+                    { label: "Filing Center", path: "/gst/filings" },
+                    { label: "Reconciliation", path: "/gst/reconciliation" },
+                    { label: "Tax Ledger", path: "/gst/ledger" },
+                    { label: "Invoice Checker", path: "/gst/invoice-check" }
                 ]
             },
             {

@@ -220,6 +220,12 @@ class InventoryRepository {
             },
             include: {
                 unitConfigurations: true,
+                saltLinks: {
+                    include: {
+                        salt: true
+                    },
+                    orderBy: { order: 'asc' }
+                },
                 inventory: {
                     where: {
                         storeId,
@@ -538,6 +544,12 @@ SUM(ib."baseUnitQuantity" * ib."purchasePrice") as "totalValue",
             orderBy: { name: 'asc' },
             include: {
                 unitConfigurations: true,
+                saltLinks: {
+                    include: {
+                        salt: true
+                    },
+                    orderBy: { order: 'asc' }
+                },
                 inventory: {
                     where: {
                         baseUnitQuantity: { gt: 0 },

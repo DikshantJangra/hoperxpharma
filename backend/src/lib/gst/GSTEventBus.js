@@ -31,6 +31,26 @@ class GSTEventBus extends EventEmitter {
                 logger.error(`[GST] Error processing Purchase Event: ${event.eventId}`, error);
             }
         });
+
+        // Sale Return (Credit Note) -> Process GST
+        this.on(GSTEventType.SALE_RETURN, async (event) => {
+            try {
+                logger.info(`[GST] Processing Sale Return Event: ${event.eventId}`);
+                await GSTEngine.processReturn(event);
+            } catch (error) {
+                logger.error(`[GST] Error processing Sale Return Event: ${event.eventId}`, error);
+            }
+        });
+
+        // Stock Write-off -> Process GST (ITC Reversal)
+        this.on(GSTEventType.WRITEOFF, async (event) => {
+            try {
+                logger.info(`[GST] Processing Write-off Event: ${event.eventId}`);
+                await GSTEngine.processWriteOff(event);
+            } catch (error) {
+                logger.error(`[GST] Error processing Write-off Event: ${event.eventId}`, error);
+            }
+        });
     }
 
     /**

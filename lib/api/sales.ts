@@ -209,7 +209,7 @@ export const salesApi = {
         if (params.status) query.append('status', params.status);
 
         const response = await apiClient.get(`/sales/refunds?${query.toString()}`);
-        return response.data;
+        return response;
     },
 
     /**

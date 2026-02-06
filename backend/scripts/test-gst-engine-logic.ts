@@ -1,6 +1,5 @@
-
-import { GSTEngine } from '../lib/gst/GSTEngine';
-import { GSTSaleEvent, GSTEventType } from '../lib/gst/types';
+import { GSTEngine } from '../src/lib/gst/GSTEngine';
+import { GSTSaleEvent, GSTEventType } from '../src/lib/gst/types';
 import { Decimal } from '@prisma/client/runtime/library';
 
 async function main() {

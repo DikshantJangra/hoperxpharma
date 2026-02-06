@@ -47,7 +47,7 @@ export default function POSRefundsPage() {
                 params.status = filter.toUpperCase();
             }
             const response = await salesApi.getRefunds(params);
-            setRefunds(response.data || []);
+            setRefunds(response.refunds || []);
         } catch (err: any) {
             console.error('Error fetching refunds:', err);
             setError(err.message || 'Failed to load refunds');
@@ -175,8 +175,8 @@ export default function POSRefundsPage() {
                                     key={status}
                                     onClick={() => setFilter(status)}
                                     className={`px-4 py-2 rounded-lg font-medium transition-colors ${filter === status
-                                            ? "bg-[#0ea5a3] text-white"
-                                            : "bg-[#f8fafc] text-[#64748b] hover:bg-[#e2e8f0]"
+                                        ? "bg-[#0ea5a3] text-white"
+                                        : "bg-[#f8fafc] text-[#64748b] hover:bg-[#e2e8f0]"
                                         }`}
                                 >
                                     {status.charAt(0).toUpperCase() + status.slice(1)}

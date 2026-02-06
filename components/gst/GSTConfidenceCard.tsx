@@ -5,13 +5,23 @@ import { AiOutlineSafetyCertificate, AiOutlineWarning, AiOutlineCheckCircle } fr
 
 interface GSTConfidenceCardProps {
     score: number;
+    status?: string;
+    loading?: boolean;
 }
 
-export function GSTConfidenceCard({ score }: GSTConfidenceCardProps) {
+export function GSTConfidenceCard({ score, status, loading }: GSTConfidenceCardProps) {
+    if (loading) return (
+        <Card className="animate-pulse bg-muted/20 h-[140px]">
+            <CardContent className="h-full">
+                <div />
+            </CardContent>
+        </Card>
+    );
+
     let color = 'text-green-500';
-    let label = 'Excellent';
+    let label = status || 'Excellent';
     let Icon = AiOutlineCheckCircle;
-    let progressColor = 'bg-green-500';
+    let progressColor = 'bg-primary';
 
     if (score < 50) {
         color = 'text-red-500';

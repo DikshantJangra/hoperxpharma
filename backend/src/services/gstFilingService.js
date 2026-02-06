@@ -1,7 +1,7 @@
 
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
-const logger = require('../../config/logger');
+const logger = require('../config/logger');
 
 class GSTFilingService {
 
@@ -134,6 +134,7 @@ class GSTFilingService {
             };
 
         } catch (error) {
+            console.error('[GSTFilingService] generateGSTR1 Error:', error);
             logger.error('[GSTFilingService] Failed to generate GSTR-1', error);
             throw error;
         }
@@ -200,7 +201,61 @@ class GSTFilingService {
             return summary;
 
         } catch (error) {
+            console.error('[GSTFilingService] generateGSTR3B Error:', error);
             logger.error('[GSTFilingService] Failed to generate GSTR-3B', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Freeze Period Data (Create Snapshot)
+     * To be called when filing is finalized
+     * @param {string} storeId 
+     * @param {string} month YYYY-MM
+     */
+    async freezePeriod(storeId, month) {
+        try {
+            // Check if already frozen
+            const existing = await prisma.gSTPeriodSnapshot.findFirst({
+                where: { storeId, period: month }
+            });
+
+            if (existing && existing.status === 'FILED') {
+                throw new Error('Period is already filed and locked.');
+            }
+
+            // Generate Data
+            const gstr1 = await this.generateGSTR1(storeId, month);
+            const gstr3b = await this.generateGSTR3B(storeId, month);
+
+            // Create or Update Snapshot
+            if (existing) {
+                return await prisma.gSTPeriodSnapshot.update({
+                    where: { id: existing.id },
+                    data: {
+                        gstr1Data: gstr1,
+                        gstr3bData: gstr3b,
+                        version: { increment: 1 },
+                        lockedAt: new Date(),
+                        status: 'FILED'
+                    }
+                });
+            } else {
+                return await prisma.gSTPeriodSnapshot.create({
+                    data: {
+                        storeId,
+                        period: month,
+                        gstr1Data: gstr1,
+                        gstr3bData: gstr3b,
+                        version: 1,
+                        lockedAt: new Date(),
+                        status: 'FILED'
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('[GSTFilingService] freezePeriod Error:', error);
+            logger.error('[GSTFilingService] Failed to freeze period', error);
             throw error;
         }
     }

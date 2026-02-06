@@ -1,7 +1,7 @@
 
 const { PrismaClient } = require('@prisma/client');
 const prisma = new PrismaClient();
-const logger = require('../../config/logger');
+const logger = require('../config/logger');
 
 class GSTRiskService {
     /**
@@ -17,8 +17,8 @@ class GSTRiskService {
             // Factor 1: HSN Compliance
             // Check count of items without HSN code or with "General" code if invalid
             // For now, we check if any HSN code is missing Tax Rate
-            const invalidHsnCount = await prisma.hsnCode.count({
-                where: { storeId, isActive: true, taxSlabId: null }
+            const invalidHsnCount = await prisma.drug.count({
+                where: { storeId, isActive: true, hsnCodeId: null }
             });
 
             if (invalidHsnCount > 0) {
@@ -62,6 +62,7 @@ class GSTRiskService {
             };
 
         } catch (error) {
+            console.error('[GSTRiskService] calculateConfidence Error:', error);
             logger.error('[GSTRiskService] Failed to calculate score', error);
             return { score: 0, risks: [{ type: 'SYSTEM_ERROR', message: 'Failed to calculate score' }] };
         }

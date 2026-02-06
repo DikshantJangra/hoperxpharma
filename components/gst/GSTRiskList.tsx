@@ -12,9 +12,10 @@ interface RiskItem {
 
 interface GSTRiskListProps {
     risks: RiskItem[];
+    onResolve?: (id: string) => void;
 }
 
-export function GSTRiskList({ risks }: GSTRiskListProps) {
+export function GSTRiskList({ risks, onResolve }: GSTRiskListProps) {
     if (!risks || risks.length === 0) return null;
 
     return (

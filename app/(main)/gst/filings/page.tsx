@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -5,271 +6,214 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { getGSTR1Summary, getGSTR3BSummary, type GSTR1Summary, type GSTR3BSummary } from '@/lib/api/gst';
-import { AiOutlineLoading3Quarters, AiOutlineDownload } from 'react-icons/ai';
+import { apiClient } from '@/lib/api/client';
+import { AiOutlineDownload, AiOutlineLoading3Quarters, AiOutlineFileText, AiOutlineCheckCircle } from 'react-icons/ai';
 
 export default function GSTFilingsPage() {
-    const [loading, setLoading] = useState(true);
+    const [month, setMonth] = useState<string>(new Date().toISOString().slice(0, 7)); // YYYY-MM
+    const [loading, setLoading] = useState(false);
     const [gstr1, setGstr1] = useState<GSTR1Summary | null>(null);
     const [gstr3b, setGstr3b] = useState<GSTR3BSummary | null>(null);
-    const [selectedMonth, setSelectedMonth] = useState('');
 
     useEffect(() => {
-        loadSummaries();
-    }, [selectedMonth]);
+        loadData();
+    }, [month]);
 
-    const loadSummaries = async () => {
+    const loadData = async () => {
+        setLoading(true);
         try {
-            setLoading(true);
-            const [gstr1Data, gstr3bData] = await Promise.all([
-                getGSTR1Summary(selectedMonth || undefined),
-                getGSTR3BSummary(selectedMonth || undefined)
+            const [r1, r3b] = await Promise.all([
+                getGSTR1Summary(month),
+                getGSTR3BSummary(month)
             ]);
-            setGstr1(gstr1Data);
-            setGstr3b(gstr3bData);
+            setGstr1(r1);
+            setGstr3b(r3b);
         } catch (error) {
-            console.error('Failed to load GSTR summaries:', error);
+            console.error('Failed to load filing data:', error);
         } finally {
             setLoading(false);
         }
     };
 
-    if (loading) {
-        return (
-            <div className="flex items-center justify-center min-h-screen">
-                <AiOutlineLoading3Quarters className="h-8 w-8 animate-spin" />
-            </div>
-        );
-    }
+    const downloadGSTR1Json = () => {
+        if (!gstr1) return;
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(gstr1, null, 2));
+        const downloadAnchorNode = document.createElement('a');
+        downloadAnchorNode.setAttribute("href", dataStr);
+        downloadAnchorNode.setAttribute("download", `GSTR1_${month}.json`);
+        document.body.appendChild(downloadAnchorNode);
+        downloadAnchorNode.click();
+        downloadAnchorNode.remove();
+    };
+
+    const handleFreeze = async () => {
+        if (!confirm('Are you sure you want to FREEZE this period? This will lock the data for filing.')) return;
+        setLoading(true);
+        try {
+            const response = await apiClient.post('/gst/filing/freeze', { month });
+            if (response.data.success) {
+                alert('Period Filed & Locked Successfully!');
+                loadData(); // Reload to reflect status
+            }
+        } catch (error: any) {
+            alert('Failed to freeze period: ' + (error.response?.data?.message || error.message));
+        } finally {
+            setLoading(false);
+        }
+    };
 
     return (
         <div className="p-6 space-y-6">
             <div className="flex justify-between items-center">
                 <div>
-                    <h1 className="text-3xl font-bold">GSTR Filing Summaries</h1>
-                    <p className="text-muted-foreground">
-                        View and download GST return summaries for filing
-                    </p>
+                    <h1 className="text-3xl font-bold">GST Filing Center</h1>
+                    <p className="text-muted-foreground">Manage your monthly returns and download filing payloads</p>
                 </div>
                 <div className="flex gap-2">
                     <input
                         type="month"
-                        value={selectedMonth}
-                        onChange={(e) => setSelectedMonth(e.target.value)}
+                        value={month}
+                        onChange={(e) => setMonth(e.target.value)}
                         className="px-3 py-2 border rounded-md"
                     />
+                    <Button onClick={loadData} disabled={loading} variant="outline">
+                        {loading ? <AiOutlineLoading3Quarters className="animate-spin" /> : 'Refresh'}
+                    </Button>
+                    <Button onClick={handleFreeze} disabled={loading || !gstr1} className="bg-green-600 hover:bg-green-700">
+                        <AiOutlineCheckCircle className="mr-2" /> Lock & File Period
+                    </Button>
                 </div>
             </div>
 
-            <Tabs defaultValue="gstr1" className="space-y-4">
+            <Tabs defaultValue="gstr1" className="w-full">
                 <TabsList>
-                    <TabsTrigger value="gstr1">GSTR-1</TabsTrigger>
-                    <TabsTrigger value="gstr3b">GSTR-3B</TabsTrigger>
+                    <TabsTrigger value="gstr1">GSTR-1 (Outward)</TabsTrigger>
+                    <TabsTrigger value="gstr3b">GSTR-3B (Summary)</TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="gstr1" className="space-y-4">
-                    {gstr1 && (
-                        <>
-                            {/* B2B Section */}
-                            <Card>
-                                <CardHeader>
-                                    <div className="flex justify-between items-center">
-                                        <div>
-                                            <CardTitle>B2B Supplies</CardTitle>
-                                            <p className="text-sm text-muted-foreground">{gstr1.b2b.count} invoices with GSTIN</p>
-                                        </div>
-                                        <Button variant="outline" size="sm">
-                                            <AiOutlineDownload className="h-4 w-4 mr-2" />
-                                            Download
-                                        </Button>
-                                    </div>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="text-sm font-medium mb-2">
-                                        Total Value: ₹{gstr1.b2b.totalValue.toLocaleString('en-IN')}
-                                    </div>
-                                    {gstr1.b2b.invoices.length > 0 ? (
-                                        <div className="overflow-x-auto">
-                                            <table className="w-full text-sm">
-                                                <thead>
-                                                    <tr className="border-b">
-                                                        <th className="text-left p-2">Invoice No.</th>
-                                                        <th className="text-left p-2">GSTIN</th>
-                                                        <th className="text-right p-2">Taxable</th>
-                                                        <th className="text-right p-2">CGST</th>
-                                                        <th className="text-right p-2">SGST</th>
-                                                        <th className="text-right p-2">IGST</th>
-                                                        <th className="text-right p-2">Total</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {gstr1.b2b.invoices.slice(0, 10).map((inv) => (
-                                                        <tr key={inv.invoiceNumber} className="border-b">
-                                                            <td className="p-2">{inv.invoiceNumber}</td>
-                                                            <td className="p-2 font-mono text-xs">{inv.buyerGstin}</td>
-                                                            <td className="p-2 text-right">₹{inv.taxableValue.toFixed(2)}</td>
-                                                            <td className="p-2 text-right">₹{inv.cgst.toFixed(2)}</td>
-                                                            <td className="p-2 text-right">₹{inv.sgst.toFixed(2)}</td>
-                                                            <td className="p-2 text-right">₹{inv.igst.toFixed(2)}</td>
-                                                            <td className="p-2 text-right font-medium">₹{inv.invoiceValue.toFixed(2)}</td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    ) : (
-                                        <p className="text-muted-foreground text-sm">No B2B invoices for this period</p>
-                                    )}
-                                </CardContent>
-                            </Card>
+                    <div className="flex justify-end">
+                        <Button variant="outline" onClick={downloadGSTR1Json} disabled={!gstr1}>
+                            <AiOutlineDownload className="mr-2" /> Download GSTR-1 JSON
+                        </Button>
+                    </div>
 
-                            {/* B2C Small Section */}
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>B2C Small (≤ ₹2.5L per invoice)</CardTitle>
-                                    <p className="text-sm text-muted-foreground">Aggregate summary</p>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
-                                        <div>
-                                            <p className="text-muted-foreground">Invoices</p>
-                                            <p className="font-medium">{gstr1.b2cSmall.count}</p>
-                                        </div>
-                                        <div>
-                                            <p className="text-muted-foreground">Taxable Value</p>
-                                            <p className="font-medium">₹{gstr1.b2cSmall.taxableValue.toFixed(2)}</p>
-                                        </div>
-                                        <div>
-                                            <p className="text-muted-foreground">CGST</p>
-                                            <p className="font-medium">₹{gstr1.b2cSmall.cgst.toFixed(2)}</p>
-                                        </div>
-                                        <div>
-                                            <p className="text-muted-foreground">SGST</p>
-                                            <p className="font-medium">₹{gstr1.b2cSmall.sgst.toFixed(2)}</p>
-                                        </div>
-                                        <div>
-                                            <p className="text-muted-foreground">Total</p>
-                                            <p className="font-medium">₹{gstr1.b2cSmall.totalValue.toFixed(2)}</p>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
+                    {gstr1 ? (
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <SummaryCard title="B2B Invoices" count={gstr1.b2b.count} value={gstr1.b2b.totalValue} />
+                            <SummaryCard title="B2C Large" count={gstr1.b2cLarge.count} value={gstr1.b2cLarge.totalValue} />
+                            <SummaryCard title="B2C Small" count={gstr1.b2cSmall.count} value={gstr1.b2cSmall.totalValue} />
+                        </div>
+                    ) : (
+                        <div className="text-center p-8 text-muted-foreground">No Data Available</div>
+                    )}
 
-                            {/* HSN Summary */}
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>HSN-wise Summary</CardTitle>
-                                    <p className="text-sm text-muted-foreground">Product classification breakdown</p>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full text-sm">
-                                            <thead>
-                                                <tr className="border-b">
-                                                    <th className="text-left p-2">HSN Code</th>
-                                                    <th className="text-left p-2">Description</th>
-                                                    <th className="text-right p-2">Quantity</th>
-                                                    <th className="text-right p-2">Taxable Value</th>
-                                                    <th className="text-right p-2">Total Tax</th>
+                    {gstr1?.hsnSummary && (
+                        <Card>
+                            <CardHeader><CardTitle>HSN Summary</CardTitle></CardHeader>
+                            <CardContent>
+                                <div className="rounded-md border">
+                                    <table className="w-full text-sm">
+                                        <thead className="bg-muted/50">
+                                            <tr className="text-left border-b">
+                                                <th className="p-3">HSN</th>
+                                                <th className="p-3">Taxable Value</th>
+                                                <th className="p-3">IGST</th>
+                                                <th className="p-3">CGST</th>
+                                                <th className="p-3">SGST</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {gstr1.hsnSummary.map((hsn, i) => (
+                                                <tr key={i} className="border-b last:border-0 hover:bg-muted/10">
+                                                    <td className="p-3 font-medium">{hsn.hsnCode}</td>
+                                                    <td className="p-3">₹{hsn.taxableValue}</td>
+                                                    <td className="p-3">₹{hsn.igst}</td>
+                                                    <td className="p-3">₹{hsn.cgst}</td>
+                                                    <td className="p-3">₹{hsn.sgst}</td>
                                                 </tr>
-                                            </thead>
-                                            <tbody>
-                                                {gstr1.hsnSummary.map((hsn) => (
-                                                    <tr key={hsn.hsnCode} className="border-b">
-                                                        <td className="p-2 font-mono">{hsn.hsnCode}</td>
-                                                        <td className="p-2">{hsn.description}</td>
-                                                        <td className="p-2 text-right">{hsn.totalQuantity}</td>
-                                                        <td className="p-2 text-right">₹{hsn.taxableValue.toFixed(2)}</td>
-                                                        <td className="p-2 text-right">₹{(hsn.cgst + hsn.sgst + hsn.igst).toFixed(2)}</td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </CardContent>
+                        </Card>
                     )}
                 </TabsContent>
 
-                <TabsContent value="gstr3b" className="space-y-4">
-                    {gstr3b && (
-                        <>
+                <TabsContent value="gstr3b">
+                    {gstr3b ? (
+                        <div className="space-y-6">
                             <Card>
-                                <CardHeader>
-                                    <div className="flex justify-between items-center">
-                                        <div>
-                                            <CardTitle>GSTR-3B Summary</CardTitle>
-                                            <p className="text-sm text-muted-foreground">Tax liability summary</p>
-                                        </div>
-                                        <Button variant="outline" size="sm">
-                                            <AiOutlineDownload className="h-4 w-4 mr-2" />
-                                            Download
-                                        </Button>
-                                    </div>
-                                </CardHeader>
-                                <CardContent className="space-y-6">
-                                    {/* Outward Supplies */}
-                                    <div>
-                                        <h3 className="font-semibold mb-3">3.1 Outward Supplies</h3>
-                                        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
-                                            <div>
-                                                <p className="text-muted-foreground">Taxable Value</p>
-                                                <p className="font-medium">₹{gstr3b.outwardSupplies.taxableValue.toFixed(2)}</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-muted-foreground">CGST</p>
-                                                <p className="font-medium">₹{gstr3b.outwardSupplies.cgst.toFixed(2)}</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-muted-foreground">SGST</p>
-                                                <p className="font-medium">₹{gstr3b.outwardSupplies.sgst.toFixed(2)}</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-muted-foreground">IGST</p>
-                                                <p className="font-medium">₹{gstr3b.outwardSupplies.igst.toFixed(2)}</p>
-                                            </div>
-                                            <div>
-                                                <p className="text-muted-foreground">Cess</p>
-                                                <p className="font-medium">₹{gstr3b.outwardSupplies.cess.toFixed(2)}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Tax Payable */}
-                                    <div>
-                                        <h3 className="font-semibold mb-3">Tax Payable</h3>
-                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                                            <div className="bg-muted p-3 rounded">
-                                                <p className="text-muted-foreground">CGST</p>
-                                                <p className="font-bold text-lg">₹{gstr3b.taxPayable.cgst.toFixed(2)}</p>
-                                            </div>
-                                            <div className="bg-muted p-3 rounded">
-                                                <p className="text-muted-foreground">SGST</p>
-                                                <p className="font-bold text-lg">₹{gstr3b.taxPayable.sgst.toFixed(2)}</p>
-                                            </div>
-                                            <div className="bg-muted p-3 rounded">
-                                                <p className="text-muted-foreground">IGST</p>
-                                                <p className="font-bold text-lg">₹{gstr3b.taxPayable.igst.toFixed(2)}</p>
-                                            </div>
-                                            <div className="bg-muted p-3 rounded">
-                                                <p className="text-muted-foreground">Cess</p>
-                                                <p className="font-bold text-lg">₹{gstr3b.taxPayable.cess.toFixed(2)}</p>
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* ITC Note */}
-                                    <div className="bg-yellow-50 dark:bg-yellow-900/20 p-4 rounded border border-yellow-200 dark:border-yellow-800">
-                                        <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                                            <strong>Note:</strong> {gstr3b.inputTaxCredit.note}
-                                        </p>
+                                <CardHeader><CardTitle>Tax Liability (Outward Supplies)</CardTitle></CardHeader>
+                                <CardContent>
+                                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                                        <StatBox label="Taxable Value" value={gstr3b.outwardSupplies.taxableValue} />
+                                        <StatBox label="IGST" value={gstr3b.outwardSupplies.igst} />
+                                        <StatBox label="CGST" value={gstr3b.outwardSupplies.cgst} />
+                                        <StatBox label="SGST" value={gstr3b.outwardSupplies.sgst} />
+                                        <StatBox label="CESS" value={gstr3b.outwardSupplies.cess} />
                                     </div>
                                 </CardContent>
                             </Card>
-                        </>
+
+                            <Card>
+                                <CardHeader><CardTitle>Input Tax Credit (ITC Available)</CardTitle></CardHeader>
+                                <CardContent>
+                                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                                        <div className="p-3"></div>
+                                        <StatBox label="IGST" value={gstr3b.inputTaxCredit.igst} color="text-green-600" />
+                                        <StatBox label="CGST" value={gstr3b.inputTaxCredit.cgst} color="text-green-600" />
+                                        <StatBox label="SGST" value={gstr3b.inputTaxCredit.sgst} color="text-green-600" />
+                                        <StatBox label="CESS" value={gstr3b.inputTaxCredit.cess} color="text-green-600" />
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            <Card className="border-blue-200 bg-blue-50/50">
+                                <CardHeader><CardTitle className="text-blue-900">Net Tax Payable (Cash Ledger)</CardTitle></CardHeader>
+                                <CardContent>
+                                    <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                                        <div className="p-3"></div>
+                                        <StatBox label="IGST" value={gstr3b.taxPayable.igst} bold />
+                                        <StatBox label="CGST" value={gstr3b.taxPayable.cgst} bold />
+                                        <StatBox label="SGST" value={gstr3b.taxPayable.sgst} bold />
+                                        <StatBox label="CESS" value={gstr3b.taxPayable.cess} bold />
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </div>
+                    ) : (
+                        <div>No Data</div>
                     )}
                 </TabsContent>
             </Tabs>
+        </div>
+    );
+}
+
+function SummaryCard({ title, count, value }: { title: string, count: number, value: number }) {
+    return (
+        <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">{title}</CardTitle>
+                <AiOutlineFileText className="text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+                <div className="text-2xl font-bold">{count}</div>
+                <p className="text-xs text-muted-foreground">Total Value: ₹{value.toLocaleString()}</p>
+            </CardContent>
+        </Card>
+    );
+}
+
+function StatBox({ label, value, color, bold }: { label: string, value: number, color?: string, bold?: boolean }) {
+    return (
+        <div className={`p-3 rounded-md bg-background border ${bold ? 'border-primary/20 shadow-sm' : ''}`}>
+            <p className="text-xs text-muted-foreground">{label}</p>
+            <p className={`text-lg ${bold ? 'font-bold' : 'font-medium'} ${color || ''}`}>
+                ₹{value.toLocaleString('en-IN')}
+            </p>
         </div>
     );
 }

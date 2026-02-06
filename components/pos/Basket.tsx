@@ -197,6 +197,17 @@ export default function Basket({ items, onUpdateItem, onRemoveItem, onClear, onE
                         )}
                       </div>
 
+                      {/* Chemical Composition (Molecule) */}
+                      {item.saltLinks && item.saltLinks.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {item.saltLinks.map((salt: any, i: number) => (
+                            <span key={i} className="inline-block px-1.5 py-0.5 bg-blue-50 text-blue-600 text-[9px] font-medium rounded border border-blue-100">
+                              {salt.salt?.name || salt.name} {salt.strengthValue || salt.strength || ''}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
                       {/* Premium Metadata Badges */}
                       <div className="flex flex-wrap gap-1.5 mt-1.5">
                         {/* Batch Dropdown */}
@@ -299,12 +310,23 @@ export default function Basket({ items, onUpdateItem, onRemoveItem, onClear, onE
                       const stockVal = Number(item.stock) || Number(item.totalStock) || Number(item.baseUnitQuantity) || 0;
                       if (isNaN(stockVal) || stockVal <= 0) {
                         return (
-                          <div className="mt-2 p-2 bg-red-50 border border-red-300 rounded-lg flex items-center gap-2">
-                            <FiAlertCircle className="w-4 h-4 text-red-600 shrink-0" />
-                            <div className="flex-1">
-                              <p className="text-xs font-semibold text-red-700">Out of Stock!</p>
-                              <p className="text-xs text-red-600">Please change the batch to continue</p>
+                          <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded-lg flex flex-col gap-2">
+                            <div className="flex items-center gap-2">
+                              <FiAlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                              <div className="flex-1">
+                                <p className="text-[10px] font-bold text-red-700 uppercase">Out of Stock!</p>
+                                <p className="text-[10px] text-red-600">Change batch or find substitute</p>
+                              </div>
                             </div>
+                            {onFindSubstitute && (
+                              <button
+                                onClick={() => onFindSubstitute(item, index)}
+                                className="w-full py-1.5 bg-white border border-red-200 text-red-600 rounded text-[10px] font-bold hover:bg-red-50 transition-colors flex items-center justify-center gap-1.5 shadow-sm"
+                              >
+                                <FiRefreshCw className="w-3 h-3" />
+                                Find Alternative Molecule
+                              </button>
+                            )}
                           </div>
                         );
                       }

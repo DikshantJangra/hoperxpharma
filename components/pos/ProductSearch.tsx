@@ -6,7 +6,7 @@ import { BsUpcScan } from 'react-icons/bs';
 import dynamic from 'next/dynamic';
 
 // Dynamic import for panels
-const SaltAlternativesPanel = dynamic(() => import('./SaltAlternativesPanel'), { ssr: false });
+const SubstituteFinder = dynamic(() => import('./SubstituteFinder'), { ssr: false });
 import { usePremiumTheme } from '@/lib/hooks/usePremiumTheme';
 import { formatStockQuantity, renderStockQuantity } from '@/lib/utils/stock-display';
 
@@ -27,6 +27,8 @@ interface Product {
   baseUnit?: string;
   displayUnit?: string;
   unitConfigurations?: any[];
+  saltLinks?: any[];
+  storeId?: string;
 }
 
 const ProductSkeleton = () => (
@@ -45,12 +47,13 @@ const ProductSkeleton = () => (
   </div>
 )
 
-export default function ProductSearch({ onAddProduct, searchFocus, setSearchFocus, onManualScan, onScanClick }: {
+export default function ProductSearch({ onAddProduct, searchFocus, setSearchFocus, onManualScan, onScanClick, storeId = 'default' }: {
   onAddProduct: (product: any) => void;
   searchFocus?: boolean;
   setSearchFocus?: (focus: boolean) => void;
   onManualScan?: (barcode: string) => void;
   onScanClick?: () => void;
+  storeId?: string;
 }) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<Product[]>([]);
@@ -134,7 +137,12 @@ export default function ProductSearch({ onAddProduct, searchFocus, setSearchFocu
       setSelectedIndex(prev => Math.max(prev - 1, 0));
     } else if (e.key === 'Enter' && results.length > 0) {
       e.preventDefault();
-      handleAddProduct(results[selectedIndex]);
+      const selectedProduct = results[selectedIndex];
+      if (selectedProduct.totalStock > 0) {
+        handleAddProduct(selectedProduct);
+      } else {
+        setSelectedForAlternatives(selectedProduct);
+      }
     } else if (e.key === 'Escape') {
       setQuery('');
       setResults([]);
@@ -227,11 +235,25 @@ export default function ProductSearch({ onAddProduct, searchFocus, setSearchFocu
       {/* Internal Modal has been removed */}
 
       {selectedForAlternatives && (
-        <SaltAlternativesPanel
-          originalDrug={selectedForAlternatives}
-          storeId="default"
-          onSelectAlternative={(alt) => {
-            handleAddProduct(alt);
+        <SubstituteFinder
+          drugId={selectedForAlternatives.id}
+          drugName={selectedForAlternatives.name}
+          storeId={storeId}
+          onSelect={(drug, batch) => {
+            onAddProduct({
+              ...drug,
+              stock: batch.currentQuantity,
+              batches: drug.batches?.length || 1,
+              baseUnit: drug.baseUnit,
+              displayUnit: drug.displayUnit,
+              conversionFactor: drug.conversionFactor || 1,
+              batchId: batch.id,
+              batchNumber: batch.batchNumber,
+              expiryDate: batch.expiryDate,
+              mrp: batch.mrp,
+              type: drug.requiresPrescription ? 'RX' : 'OTC',
+              unitConfigurations: drug.unitConfigurations
+            });
             setSelectedForAlternatives(null);
           }}
           onClose={() => setSelectedForAlternatives(null)}
@@ -250,7 +272,7 @@ export default function ProductSearch({ onAddProduct, searchFocus, setSearchFocu
         <div className={`mt-2 rounded-lg shadow-lg max-h-[300px] overflow-y-auto border ${isPremium ? 'bg-white/95 backdrop-blur-xl border-emerald-500/20 shadow-emerald-900/5' : 'bg-white border-[#e2e8f0]'}`}>
           {results.map((product, index) => (
             <div
-              key={product.id}
+              key={product.batchId ? `${product.id}-${product.batchId}` : product.id}
               onClick={() => {
                 if (product.totalStock > 0) {
                   handleAddProduct(product);
@@ -271,6 +293,15 @@ export default function ProductSearch({ onAddProduct, searchFocus, setSearchFocu
                   <div className="text-sm text-[#64748b] mt-0.5">
                     {product.manufacturer} • Batch: {product.batchNumber}
                   </div>
+                  {product.saltLinks && product.saltLinks.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {product.saltLinks.map((salt: any, i: number) => (
+                        <span key={i} className="inline-block px-1.5 py-0.5 bg-blue-50 text-blue-600 text-[10px] font-medium rounded border border-blue-100">
+                          {salt.salt?.name || salt.name} {salt.strengthValue || salt.strength || ''}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div className="text-right ml-4">
                   <div className="font-semibold text-[#0f172a]">₹{Number(product.mrp).toFixed(2)}</div>

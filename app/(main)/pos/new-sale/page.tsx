@@ -31,6 +31,7 @@ import { scanApi } from '@/lib/api/scan';
 import { useKeyboardCommand } from '@/hooks/useKeyboardCommand';
 import dynamic from 'next/dynamic';
 
+import { useAuthStore } from '@/lib/store/auth-store';
 const BarcodeScannerModal = dynamic(() => import('@/components/pos/BarcodeScannerModal'), { ssr: false });
 
 export default function NewSalePage() {
@@ -53,7 +54,8 @@ export default function NewSalePage() {
     const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
     const [showDraftRestore, setShowDraftRestore] = useState(false);
     const [pendingDraft, setPendingDraft] = useState<any>(null);
-    const storeId = 'default';
+    const { primaryStore } = useAuthStore();
+    const storeId = primaryStore?.id || 'default';
     const [showImportPanel, setShowImportPanel] = useState(false);
     const [linkedPrescriptionId, setLinkedPrescriptionId] = useState<string | undefined>(undefined);
     const [activePrescription, setActivePrescription] = useState<any>(null);
@@ -562,9 +564,11 @@ export default function NewSalePage() {
             // Check if item with same Drug ID AND Batch ID AND Unit exists
             const existingIndex = prev.findIndex(item => {
                 const itemUnit = (item.unit || item.displayUnit || 'unit').toLowerCase();
-                return item.id === product.id &&
+                const productUnit = (product.unit || product.displayUnit || 'unit').toLowerCase();
+                // Match ID (drugId) AND BatchId AND Unit
+                return (item.id === product.id || item.drugId === product.id) &&
                     item.batchId === targetBatchId &&
-                    itemUnit === initialUnit;
+                    itemUnit === productUnit;
             });
 
             if (existingIndex >= 0) {
@@ -573,9 +577,9 @@ export default function NewSalePage() {
                 const newItems = [...prev];
                 newItems[existingIndex] = {
                     ...newItems[existingIndex],
-                    qty: newItems[existingIndex].qty + 1
+                    qty: newItems[existingIndex].qty + (product.qty || 1)
                 };
-                toast.success(`Added another unit of ${product.name}`);
+                toast.success(`Updated quantity for ${product.name}`);
                 return newItems;
             }
 
@@ -587,7 +591,7 @@ export default function NewSalePage() {
                 batchId: product.batchId || targetBatchId,
                 batchNumber: product.batchNumber || (targetBatchId === product.batchList?.[0]?.id ? product.batchList?.[0]?.batchNumber : undefined),
                 unit: initialUnit, // Store normalized unit
-                qty: 1,
+                qty: product.qty || 1,
                 gstRate: product.gstRate ? Number(product.gstRate) : 5
             };
 
@@ -1477,6 +1481,7 @@ export default function NewSalePage() {
                                     setSearchFocus={setSearchFocus}
                                     onManualScan={handleScan}
                                     onScanClick={() => setShowScanner(true)}
+                                    storeId={storeId}
                                 />
                             </div>
                             <QuickAddGrid onAddProduct={addToBasket} storeId={storeId} />

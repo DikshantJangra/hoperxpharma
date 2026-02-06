@@ -121,10 +121,6 @@ exports.searchSalts = async (req, res, next) => {
     }
 };
 
-/**
- * Get all salts with pagination
- * @route GET /api/v1/salt
- */
 exports.getAllSalts = async (req, res, next) => {
     try {
         const { page = 1, limit = 100, category } = req.query;
@@ -643,9 +639,6 @@ exports.getAlternatives = async (req, res, next) => {
         const {
             drugId,
             storeId,
-            strengthValue,
-            strengthUnit,
-            form,
             minStock = 1
         } = req.query;
 
@@ -653,6 +646,8 @@ exports.getAlternatives = async (req, res, next) => {
         if (!drugId || !storeId) {
             throw ApiError.badRequest('drugId and storeId are required');
         }
+
+        console.log(`📡 [SALT REQUEST] /alternatives - Drug: ${drugId}, Store: ${storeId}, MinStock: ${minStock}`);
 
         // Step 1: Get original drug with its salt composition
         const originalDrug = await prisma.drug.findUnique({
@@ -671,6 +666,7 @@ exports.getAlternatives = async (req, res, next) => {
                     },
                     select: {
                         baseUnitQuantity: true,
+                        mrp: true
                     }
                 }
             }
@@ -680,16 +676,25 @@ exports.getAlternatives = async (req, res, next) => {
             throw ApiError.notFound('Drug not found');
         }
 
-        // Calculate total stock
+        // Calculate total stock of original
         const totalStock = originalDrug.inventory.reduce(
             (sum, batch) => sum + (Number(batch.baseUnitQuantity) || 0),
             0
         );
 
-        // Extract salt IDs from original drug
-        const saltIds = originalDrug.saltLinks.map(link => link.saltId);
+        // Extract salt names from original drug (using normalized names for robustness)
+        const sourceSalts = originalDrug.saltLinks.map(link => ({
+            name: link.salt.name.toLowerCase().trim(),
+            strengthValue: parseFloat(link.strengthValue),
+            strengthUnit: (link.strengthUnit || '').toLowerCase().trim(),
+            id: link.saltId
+        }));
 
-        if (saltIds.length === 0) {
+        console.log(`🧪 [SALT DEBUG] Finding alternatives for Drug: "${originalDrug.name}" (${drugId})`);
+        console.log(`🧪 [SALT DEBUG] Source Salts Count: ${sourceSalts.length}`);
+        sourceSalts.forEach(s => console.log(`   - ${s.name} ${s.strengthValue} ${s.strengthUnit}`));
+
+        if (sourceSalts.length === 0) {
             return res.json({
                 success: true,
                 data: {
@@ -702,24 +707,31 @@ exports.getAlternatives = async (req, res, next) => {
                         totalStock
                     },
                     alternatives: [],
-                    warnings: ['Original drug has no salt composition mapped'],
+                    warnings: ['Requested medicine has no salt composition mapped'],
                     totalAlternatives: 0
                 }
             });
         }
 
-        // Step 2: Find other drugs with the SAME salt composition
-        // For simplicity, we match drugs that have ALL the same salts
+        // Search for all drugs in the store that have at least one of these salts
+        // We look for ANY drug that shares at least one salt ID or name
+        const saltIds = sourceSalts.map(s => s.id);
+        const saltNames = sourceSalts.map(s => s.name);
+
+        console.log(`🧪 [SALT DEBUG] Querying candidates with SaltNames: ${JSON.stringify(saltNames)} OR SaltIds: ${JSON.stringify(saltIds)}`);
         const alternativeDrugs = await prisma.drug.findMany({
             where: {
                 storeId,
                 id: { not: drugId }, // Exclude original drug
                 saltLinks: {
                     some: {
-                        saltId: { in: saltIds }
+                        OR: [
+                            { saltId: { in: saltIds } },
+                            { salt: { name: { in: saltNames, mode: 'insensitive' } } }
+                        ]
                     }
                 },
-                ...(form && { form })
+                ingestionStatus: { in: ['ACTIVE', 'SALT_PENDING'] }
             },
             include: {
                 saltLinks: {
@@ -740,49 +752,62 @@ exports.getAlternatives = async (req, res, next) => {
                 }
             }
         });
+        console.log(`🧪 [SALT DEBUG] Found ${alternativeDrugs.length} candidate drugs after DB search`);
 
-        // Step 3: Filter and enrich alternatives
+        // Step 3: Match, score and enrich alternatives
         const alternatives = [];
 
         for (const drug of alternativeDrugs) {
-            // Check if salt composition EXACTLY matches
-            const drugSaltIds = drug.saltLinks.map(l => l.saltId).sort();
-            const originalSaltIds = saltIds.sort();
+            const drugSalts = drug.saltLinks.map(l => ({
+                name: l.salt.name.toLowerCase().trim(),
+                strengthValue: parseFloat(l.strengthValue),
+                strengthUnit: (l.strengthUnit || '').toLowerCase().trim()
+            }));
 
-            if (JSON.stringify(drugSaltIds) !== JSON.stringify(originalSaltIds)) {
-                continue; // Skip if salt composition doesn't match exactly
+            // Check if salt composition matches
+            // Rule: Every salt in source must exist in drug, and vice versa (Exact Composition)
+
+            const matchesAllSource = sourceSalts.every(source =>
+                drugSalts.some(target => target.name === source.name)
+            );
+
+            const hasOnlySourceSalts = drugSalts.every(target =>
+                sourceSalts.some(source => source.name === target.name)
+            );
+
+            // We only show "Exact Composition" matches by default
+            if (!matchesAllSource || !hasOnlySourceSalts) {
+                console.log(`🧪 [SALT DEBUG] SKIPPED "${drug.name}": Composition mismatch. Candidate salts: ${JSON.stringify(drugSalts.map(s => s.name))}`);
+                continue;
             }
 
-            // Calculate total stock
+            // Calculate total stock for alternative
             const drugTotalStock = drug.inventory.reduce(
                 (sum, batch) => sum + (Number(batch.baseUnitQuantity) || 0),
                 0
             );
 
             if (drugTotalStock < parseInt(minStock)) {
-                continue; // Skip if insufficient stock
+                console.log(`🧪 [SALT DEBUG] SKIPPED "${drug.name}": Insufficient stock (${drugTotalStock} < ${minStock})`);
+                continue;
             }
 
-            // Check strength match
-            let strengthMatch = 'UNKNOWN';
-            const originalStrength = originalDrug.saltLinks[0];
-            const altStrength = drug.saltLinks[0];
+            console.log(`🧪 [SALT DEBUG] MATCH FOUND: "${drug.name}" with ${drugTotalStock} units`);
 
-            if (originalStrength && altStrength) {
-                if (
-                    parseFloat(originalStrength.strengthValue) === parseFloat(altStrength.strengthValue) &&
-                    originalStrength.strengthUnit === altStrength.strengthUnit
-                ) {
-                    strengthMatch = 'EXACT';
-                } else {
+            // Calculate Strength Match
+            // EXACT if all matching salts have same strength
+            let strengthMatch = 'EXACT';
+            for (const source of sourceSalts) {
+                const target = drugSalts.find(t => t.name === source.name);
+                if (target && (target.strengthValue !== source.strengthValue || target.strengthUnit !== source.strengthUnit)) {
                     strengthMatch = 'DIFFERENT';
+                    break;
                 }
             }
 
-            // Check form match
             const formMatch = originalDrug.form === drug.form;
 
-            // Calculate price difference
+            // Price comparison (use first batch MRP or 0)
             const originalPrice = originalDrug.inventory[0]?.mrp || 0;
             const altPrice = drug.inventory[0]?.mrp || 0;
             const priceDifference = altPrice - originalPrice;
@@ -793,20 +818,25 @@ exports.getAlternatives = async (req, res, next) => {
             alternatives.push({
                 drugId: drug.id,
                 name: drug.name,
-                manufacturer: drug.manufacturer,
-                form: drug.form,
+                manufacturer: drug.manufacturer || 'Unknown',
+                form: drug.form || 'Unknown',
+                isGeneric: drug.name.toLowerCase().includes('generic') || !!drug.genericName,
                 salts: drug.saltLinks.map(link => ({
                     name: link.salt.name,
-                    strength: `${link.strengthValue} ${link.strengthUnit}`
+                    strength: `${parseFloat(link.strengthValue)} ${link.strengthUnit}`
                 })),
                 mrp: altPrice,
                 totalStock: drugTotalStock,
+                displayUnit: drug.displayUnit || 'Unit',
+                baseUnit: drug.baseUnit || 'Tablet',
                 batches: drug.inventory.map(batch => ({
                     id: batch.id,
                     batchNumber: batch.batchNumber,
-                    quantity: batch.baseUnitQuantity,
+                    baseUnitQuantity: batch.baseUnitQuantity,
                     expiryDate: batch.expiryDate,
-                    location: batch.location
+                    location: batch.location,
+                    mrp: batch.mrp,
+                    purchaseRate: batch.purchasePrice || 0
                 })),
                 strengthMatch,
                 formMatch,
@@ -815,11 +845,17 @@ exports.getAlternatives = async (req, res, next) => {
             });
         }
 
-        // Step 4: Sort alternatives (exact matches first, then by price)
+        // Sort: Exact Strength -> Cheaper Price -> Higher Stock
         alternatives.sort((a, b) => {
             if (a.strengthMatch === 'EXACT' && b.strengthMatch !== 'EXACT') return -1;
             if (a.strengthMatch !== 'EXACT' && b.strengthMatch === 'EXACT') return 1;
-            return a.mrp - b.mrp;
+
+            // If both are same match type, prefer cheaper
+            const priceDiff = a.mrp - b.mrp;
+            if (Math.abs(priceDiff) > 0.01) return priceDiff;
+
+            // Then higher stock
+            return b.totalStock - a.totalStock;
         });
 
         res.json({
@@ -828,16 +864,16 @@ exports.getAlternatives = async (req, res, next) => {
                 originalDrug: {
                     id: originalDrug.id,
                     name: originalDrug.name,
+                    manufacturer: originalDrug.manufacturer,
                     form: originalDrug.form,
                     salts: originalDrug.saltLinks.map(link => ({
                         name: link.salt.name,
-                        strength: `${link.strengthValue} ${link.strengthUnit}`
+                        strength: `${parseFloat(link.strengthValue)} ${link.strengthUnit}`
                     })),
                     available: totalStock > 0,
                     totalStock
                 },
                 alternatives,
-                warnings: [],
                 totalAlternatives: alternatives.length
             }
         });
