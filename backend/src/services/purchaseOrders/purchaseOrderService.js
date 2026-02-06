@@ -2,6 +2,9 @@ const purchaseOrderRepository = require('../../repositories/purchaseOrderReposit
 const ApiError = require('../../utils/ApiError');
 const logger = require('../../config/logger');
 const { normalizeGSTRate } = require('../../utils/gst-utils');
+const { GSTEventType } = require('../../lib/gst/GSTEngine');
+const gstEventBus = require('../../lib/gst/GSTEventBus');
+const drugRepository = require('../../repositories/drugRepository');
 
 /**
  * Purchase Order Service - Business logic for PO management
@@ -208,6 +211,34 @@ class PurchaseOrderService {
 
         const receipt = await purchaseOrderRepository.createReceipt(enrichedReceiptData);
         logger.info(`PO receipt created for ${po.poNumber}`);
+
+        // Emit GST Event (Async)
+        try {
+            const items = enrichedReceiptData.itemsReceived;
+            // Fetch relevant drugs to get HSN codes
+            const drugProms = items.map(item => drugRepository.findDrugById(item.drugId));
+            const drugs = await Promise.all(drugProms);
+            const drugMap = {};
+            drugs.forEach(d => { if (d) drugMap[d.id] = d; });
+
+            const gstPayload = {
+                eventId: receipt.id,
+                storeId: po.storeId,
+                date: new Date(), // Receipt Date
+                eventType: GSTEventType.PURCHASE,
+                supplierState: po.supplier?.state || po.store.state, // Fallback if supplier state missing
+                items: items.map(item => ({
+                    itemId: item.batchNumber,
+                    hsnCode: drugMap[item.drugId]?.hsnCode || '3004', // Default HSN if missing
+                    taxableValue: item.quantityReceived * item.purchasePrice,
+                    eligibility: 'ELIGIBLE'
+                }))
+            };
+
+            gstEventBus.emitEvent(GSTEventType.PURCHASE, gstPayload);
+        } catch (error) {
+            logger.error(`[GST] Failed to emit purchase event for receipt ${receipt.id}`, error);
+        }
 
         return receipt;
     }

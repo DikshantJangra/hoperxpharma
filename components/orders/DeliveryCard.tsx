@@ -19,18 +19,18 @@ export default function DeliveryCard({
   onNotesChange,
 }: DeliveryCardProps) {
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-      <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
-        <h3 className="text-sm font-medium text-gray-800 flex items-center gap-2">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+      <div className="px-5 py-3 border-b border-gray-200 bg-gray-50 flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
           <MdLocationOn className="h-4 w-4" />
           Delivery Details
         </h3>
-        <span className="text-xs font-medium text-emerald-600 bg-emerald-50 px-2 py-1 rounded">
+        <span className="text-xs font-medium text-emerald-700 bg-emerald-50 px-2 py-1 rounded-md whitespace-nowrap shrink-0">
           Fixed - Store Address
         </span>
       </div>
 
-      <div className="p-4 space-y-4">
+      <div className="p-5 space-y-4">
         <div>
           <label className="block text-xs font-medium text-gray-700 mb-1">
             Delivery Address

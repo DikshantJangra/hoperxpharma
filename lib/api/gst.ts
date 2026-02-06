@@ -119,6 +119,13 @@ export interface GSTDashboardData {
     b2bCount: number;
     b2cCount: number;
     categoryBreakdown: Record<string, number>;
+    confidenceScore: number;
+    risks: Array<{
+        type: string;
+        severity: 'HIGH' | 'MEDIUM' | 'LOW';
+        message: string;
+        deduction: number;
+    }>;
 }
 
 export interface GSTR1Summary {

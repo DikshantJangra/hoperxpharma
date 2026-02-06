@@ -191,6 +191,22 @@ class GSTController {
             next(error);
         }
     }
+    async getDashboard(req, res, next) {
+        try {
+            const { storeId } = req.user;
+            const { month } = req.query;
+            const gstDashboardService = require('../services/gstDashboardService');
+
+            const data = await gstDashboardService.getDashboardMetrics(storeId, month);
+
+            res.json({
+                success: true,
+                data
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
 }
 
 module.exports = new GSTController();

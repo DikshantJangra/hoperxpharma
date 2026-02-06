@@ -92,7 +92,7 @@ export default function LineItemTable({
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-      <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
+      <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between bg-gray-50/50">
         <h3 className="font-semibold text-gray-800 flex items-center gap-2">
           <MdShoppingCart className="text-emerald-600" />
           Order Items

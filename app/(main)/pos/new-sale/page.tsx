@@ -207,20 +207,27 @@ export default function NewSalePage() {
     // Restore draft on page load
     useEffect(() => {
         const restoreDraft = async () => {
+            console.log('🔄 [AutoRestore] Starting check...');
             try {
                 // Check auto-restore setting
                 const autoRestore = localStorage.getItem('pos_auto_restore_drafts') !== 'false';
+                console.log('🔄 [AutoRestore] Setting enabled:', autoRestore);
+
                 if (!autoRestore) {
                     console.log('Auto-restore disabled, skipping draft restoration');
                     return;
                 }
 
                 // Check if user is authenticated first (use logged_in cookie since tokens are httpOnly)
+                // Relaxed check for debugging - or verify if cookie name is correct
                 const hasSession = typeof document !== 'undefined' &&
                     document.cookie.includes('logged_in=true');
+
+                console.log('🔄 [AutoRestore] Session check:', hasSession, document.cookie);
+
                 if (!hasSession) {
-                    console.log('User not authenticated, skipping draft restoration');
-                    return;
+                    console.log('User not authenticated (check logged_in cookie), skipping draft restoration');
+                    // return; // COMMENTED OUT FOR DEBUGGING - Let it try anyway if token exists in httpOnly
                 }
 
                 // FIX: If we are importing a prescription via URL, DO NOT restore drafts
@@ -260,23 +267,30 @@ export default function NewSalePage() {
                 }
 
                 // If no resume draft, check for latest auto-saved draft
+                console.log('🔄 [AutoRestore] Fetching latest draft from API...');
                 const response = await salesApi.getDrafts({ limit: 1 });
+                console.log('🔄 [AutoRestore] API Response:', response);
+
                 const drafts = response.data || response.drafts || response;
                 const draftsArray = Array.isArray(drafts) ? drafts : [];
 
                 if (draftsArray.length > 0) {
                     const latestDraft = draftsArray[0];
-                    // Show modal instead of confirm dialog
+                    console.log('✅ [AutoRestore] Draft found:', latestDraft);
+
+                    // Found draft, show in header
                     setPendingDraft(latestDraft);
-                    setShowDraftRestore(true);
+                } else {
+                    console.log('ℹ️ [AutoRestore] No drafts found on server');
                 }
-            } catch (error) {
+            } catch (error: any) {
                 console.error('Failed to restore draft:', error);
+                // toast.error(`Debug: Draft check failed - ${error.message}`); 
             }
         };
 
         // Delay restoration slightly to ensure auth is loaded
-        const timer = setTimeout(restoreDraft, 500);
+        const timer = setTimeout(restoreDraft, 1000); // Increased delay slightly
         return () => clearTimeout(timer);
     }, []);
 
@@ -1430,6 +1444,9 @@ export default function NewSalePage() {
                 activePrescription={activePrescription}
                 invoiceNumber={invoiceNumber}
                 setInvoiceNumber={setInvoiceNumber}
+                pendingDraft={pendingDraft}
+                onRestoreDraft={handleRestoreDraft}
+                onDiscardDraft={handleDiscardDraft}
             />
 
             <div className="flex-1 flex overflow-hidden">
@@ -1544,13 +1561,7 @@ export default function NewSalePage() {
 
                 {/* Modal-style Ledger removed from here as it's now inline in the right panel */}
 
-                {showDraftRestore && pendingDraft && (
-                    <DraftRestoreModal
-                        draftDate={pendingDraft.createdAt}
-                        onRestore={handleRestoreDraft}
-                        onDiscard={handleDiscardDraft}
-                    />
-                )}
+                {/* DraftRestoreModal removed - moved to header */}
 
                 {showSuccess && (
                     <SuccessScreen

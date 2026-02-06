@@ -144,10 +144,10 @@ export default function SupplierSelect({ value, onChange }: SupplierSelectProps)
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="relative w-64 bg-white border border-gray-300 rounded-md shadow-sm pl-3 pr-10 py-2 text-left cursor-default focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500"
+        className="relative w-64 h-10 bg-white border border-gray-300 rounded-lg shadow-sm pl-3 pr-10 text-left text-sm text-gray-700 cursor-default hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
       >
-        <span className="block truncate">
-          {value ? value.name : 'Search supplier name or GSTIN...'}
+        <span className={`block truncate ${value ? 'text-gray-900' : 'text-gray-500'}`}>
+          {value ? value.name : 'Select supplier...'}
         </span>
         <span className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
           <HiOutlineChevronDown className="h-5 w-5 text-gray-400" />

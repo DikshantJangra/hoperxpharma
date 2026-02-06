@@ -7,6 +7,9 @@ const { authenticate } = require('../middlewares/auth');
 // All routes require authentication
 router.use(authenticate);
 
+// Dashboard
+router.get('/dashboard', gstController.getDashboard);
+
 // Tax Slabs
 router.post('/tax-slabs', gstController.createTaxSlab);
 router.get('/tax-slabs', gstController.getTaxSlabs);
@@ -22,7 +25,7 @@ router.put('/hsn-codes/:id', gstController.updateHsnCode);
 router.delete('/hsn-codes/:id', gstController.deleteHsnCode);
 
 // Reporting & Dashboard
-router.get('/dashboard', gstReportController.getDashboard);
+// router.get('/dashboard', gstReportController.getDashboard); // Specific dashboard endpoint moved to gstController
 router.get('/gstr1-summary', gstReportController.getGSTR1Summary);
 router.get('/gstr3b-summary', gstReportController.getGSTR3BSummary);
 router.get('/trends', gstReportController.getMonthlyTrend);

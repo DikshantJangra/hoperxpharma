@@ -51,7 +51,7 @@ export const sidebarConfig: SidebarSection[] = [
             {
                 icon: <MdDashboard size={18} />,
                 label: "Dashboard",
-                requiredPermission: null, // Dashboard is public - everyone can see it
+                requiredPermission: null,
                 subItems: [
                     { label: "Overview", path: "/dashboard/overview" },
                     { label: "Alerts", path: "/dashboard/alerts" },
@@ -65,26 +65,9 @@ export const sidebarConfig: SidebarSection[] = [
                 requiredPermission: "prescription.read",
                 subItems: [
                     { label: "All Prescriptions", path: "/prescriptions/all-prescriptions" },
-                    { label: "Workbench", path: "/prescriptions/workbench" }
+                    { label: "Prescribers", path: "/prescribers", requiredPermission: "prescriber.read" }
                 ]
             },
-            /*
-            {
-                icon: <RiCapsuleLine size={18} />,
-                label: "Dispense",
-                requiredPermission: "prescription.fulfill",
-                featureCode: "dispense",
-                businessTypes: ["Retail Pharmacy", "Hospital-based Pharmacy", "Multi-store Chain"],
-                subItems: [
-                    { label: "Queue", path: "/dispense/queue" },
-                    { label: "Verify", path: "/dispense/verify" },
-                    { label: "Fill", path: "/dispense/fill" },
-                    { label: "Label", path: "/dispense/label" },
-                    { label: "Check", path: "/dispense/check" },
-                    { label: "Dispense", path: "/dispense/dispense" }
-                ]
-            },
-            */
             {
                 icon: <MdPeople size={18} />,
                 label: "Patients",
@@ -93,18 +76,8 @@ export const sidebarConfig: SidebarSection[] = [
                 businessTypes: ["Retail Pharmacy", "Hospital-based Pharmacy", "Multi-store Chain"],
                 subItems: [
                     { label: "List", path: "/patients/list", requiredPermission: "patient.read" },
-                    { label: "Refills", path: "/patients/refills", requiredPermission: "prescription.refill" },
-                    { label: "Consents", path: "/patients/consents", requiredPermission: "patient.read" }
-                ]
-            },
-            {
-                icon: <MdLocalHospital size={18} />,
-                label: "Prescribers",
-                requiredPermission: "prescriber.read",
-                featureCode: "prescribers",
-                businessTypes: ["Retail Pharmacy", "Hospital-based Pharmacy", "Multi-store Chain"],
-                subItems: [
-                    { label: "All Prescribers", path: "/prescribers" }
+                    { label: "Refills", path: "/patients/refills", requiredPermission: "prescription.refill" }
+                    // Consents removed as requested
                 ]
             }
         ]
@@ -115,7 +88,7 @@ export const sidebarConfig: SidebarSection[] = [
             {
                 icon: <MdInventory size={18} />,
                 label: "Inventory",
-                path: "/inventory/stock", // Default landing - hub page
+                path: "/inventory/stock",
                 requiredPermission: "inventory.read",
                 subItems: [
                     { label: "Overview", path: "/inventory/stock", requiredPermission: "inventory.read" },
@@ -128,7 +101,7 @@ export const sidebarConfig: SidebarSection[] = [
                 icon: <FiPackage size={18} />,
                 label: "Purchase Orders",
                 requiredPermission: "po.read",
-                path: "/orders/pending", // Default landing page is "To Receive"
+                path: "/orders/pending",
                 subItems: [
                     { label: "New PO", path: "/orders/new-po", requiredPermission: "po.create" },
                     { label: "To Receive", path: "/orders/pending", requiredPermission: "po.read" },
@@ -137,19 +110,12 @@ export const sidebarConfig: SidebarSection[] = [
                 ]
             },
             {
-                icon: <FiDollarSign size={18} />,
-                label: "Accounts",
-                requiredPermission: "po.read",
-                subItems: [
-                    { label: "Supplier Invoices", path: "/supplier-invoices", requiredPermission: "po.read" }
-                ]
-            },
-            {
                 icon: <FiUsers size={18} />,
                 label: "Suppliers",
                 requiredPermission: "po.read",
                 subItems: [
                     { label: "Overview", path: "/suppliers" },
+                    { label: "Invoices", path: "/supplier-invoices", requiredPermission: "po.read" }, // Consolidated here
                     { label: "Payables", path: "/suppliers/payables" },
                     { label: "Compliance", path: "/suppliers/compliance" },
                     { label: "Analytics", path: "/suppliers/analytics" }
@@ -191,16 +157,13 @@ export const sidebarConfig: SidebarSection[] = [
                 subItems: [
                     { label: "Dashboard", path: "/gst" },
                     { label: "Invoices", path: "/gst/invoices" },
-                    { label: "GSTR Filing", path: "/gst/returns" },
-                    { label: "Tax Slabs", path: "/gst/tax-slabs" },
-                    { label: "HSN Codes", path: "/gst/hsn-codes" },
-                    { label: "Mismatches", path: "/gst/mismatches" },
-                    { label: "Exports", path: "/gst/exports" }
+                    { label: "GSTR Filing", path: "/gst/returns" }
+                    // Removed extra GST items as requested
                 ]
             },
             {
                 icon: <FiDollarSign size={18} />,
-                label: "Finance",
+                label: "Accounts", // Renamed from Finance
                 requiredPermission: "report.financial",
                 subItems: [
                     { label: "Credit / Dues", path: "/finance/credit", requiredPermission: "report.financial" },
@@ -354,7 +317,7 @@ export const sidebarConfig: SidebarSection[] = [
             {
                 icon: <FiBook size={18} />,
                 label: "Knowledge",
-                requiredPermission: null, // Public - everyone needs drug info
+                requiredPermission: null,
                 subItems: [
                     { label: "Drug Info", path: "/knowledge/drug-info" },
                     { label: "Interactions", path: "/knowledge/interactions" },
@@ -364,11 +327,11 @@ export const sidebarConfig: SidebarSection[] = [
             {
                 icon: <FiHelpCircle size={18} />,
                 label: "Help",
-                requiredPermission: null, // Public - everyone can access help
+                requiredPermission: null,
                 subItems: [
                     { label: "Chat", path: "/help/chat" },
                     { label: "Docs", path: "/help/docs" },
-                    { label: "Updates", path: "/help/updates" },
+                    { label: "Updates", path: "/help/updates" }, // Restored Updates
                     { label: "Feedback", path: "/help/feedback" }
                 ]
             }

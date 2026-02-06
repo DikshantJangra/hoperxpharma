@@ -13,6 +13,7 @@ const loyaltyService = require('../loyaltyService');
 const configService = require('../configService');
 const gstCalculator = require('../../utils/gstCalculator'); // CRITICAL FIX: Add missing import
 const gstRepository = require('../../repositories/gstRepository'); // CRITICAL FIX: For HSN code lookups
+const gstEventBus = require('../../lib/gst/GSTEventBus'); // GST Event Pipeline integration
 
 // Extracted services
 const gstCalculationService = require('./gstCalculationService');
@@ -167,7 +168,30 @@ class SaleService {
 
             logger.info(`Sale created from dispense: ${invoiceNumber} - Dispense: ${dispenseId}`);
 
-            // 6. Track loyalty event (async, don't block sale completion)
+            // 6. Emit GST Event (Async - Headless Engine)
+            try {
+                const { GSTEventType } = require('../../lib/gst/GSTEngine');
+                gstEventBus.emitEvent(GSTEventType.SALE, {
+                    eventId: result.sale.id,
+                    storeId: saleInfo.storeId,
+                    date: result.sale.createdAt,
+                    eventType: GSTEventType.SALE,
+                    customerState: saleData.customerState, // Assuming passed in saleData
+                    items: items.map(item => ({
+                        itemId: item.drugId, // Or saleItemId if available
+                        hsnCode: item.hsnCode || '3004', // Fallback or fetch
+                        taxableValue: item.taxableAmount,
+                        quantity: item.quantity,
+                        discountAmount: item.discount || 0,
+                        isService: false
+                    }))
+                });
+                logger.info(`[GST] Emitted SALE_CREATED event for ${result.sale.id}`);
+            } catch (gstError) {
+                logger.error('[GST] Failed to emit SALE_CREATED event', gstError);
+            }
+
+            // 7. Track loyalty event (async, don't block sale completion)
             if (prescription.patientId) {
                 loyaltyService.processPurchase(
                     result.sale.id,
@@ -374,7 +398,30 @@ class SaleService {
 
             logger.info('createQuickSale: Sale created successfully', { saleId: result.sale.id, invoiceNumber });
 
-            // 8. Update prescription status if linked
+            // 8. Emit GST Event (Async - Headless Engine)
+            try {
+                const { GSTEventType } = require('../../lib/gst/GSTEngine');
+                gstEventBus.emitEvent(GSTEventType.SALE, {
+                    eventId: result.sale.id,
+                    storeId: saleInfo.storeId,
+                    date: result.sale.createdAt,
+                    eventType: GSTEventType.SALE,
+                    customerState: saleData.customerState,
+                    items: items.map(item => ({
+                        itemId: item.drugId, // Or saleItemId if available
+                        hsnCode: item.hsnCode || '3004', // Fallback or fetch
+                        taxableValue: item.taxableAmount || (item.price * item.quantity), // fallback
+                        quantity: item.quantity,
+                        discountAmount: (item.discount || 0),
+                        isService: false
+                    }))
+                });
+                logger.info(`[GST] Emitted SALE_CREATED event for ${result.sale.id}`);
+            } catch (gstError) {
+                logger.error('[GST] Failed to emit SALE_CREATED event', gstError);
+            }
+
+            // 9. Update prescription status if linked
             if (saleData.prescriptionId) {
                 try {
                     const prescriptionService = require('../prescriptions/prescriptionService');

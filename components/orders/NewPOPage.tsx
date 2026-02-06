@@ -238,12 +238,12 @@ export default function NewPOPage({ storeId, poId }: NewPOPageProps) {
     <div className={`flex flex-col min-h-screen transition-colors ${isPremium ? 'bg-slate-50' : 'bg-gray-50/50'}`}>
       <div className="flex-1 p-6 max-w-[1800px] mx-auto w-full pb-24">
         {/* Header */}
-        <div className="mb-6 flex items-center justify-between">
+        <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">New Purchase Order</h1>
             <p className="text-sm text-gray-500 mt-1">Create and send orders to suppliers</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {(po.lines.length > 0 || po.supplier) && (
               <button
                 onClick={handleClearDraft}
@@ -280,9 +280,9 @@ export default function NewPOPage({ storeId, poId }: NewPOPageProps) {
           </div>
         )}
 
-        <div className="flex gap-6 items-start">
+        <div className="grid grid-cols-12 gap-6 items-start">
           {/* Main Content (Left) */}
-          <div className="flex-1 min-w-0 space-y-6">
+          <div className={`col-span-12 min-w-0 space-y-6 ${showSuggestions ? 'xl:col-span-9' : 'xl:col-span-12'}`}>
             {/* Line Items Table - Primary Focus */}
             <LineItemTable
               lines={po.lines}
@@ -326,21 +326,22 @@ export default function NewPOPage({ storeId, poId }: NewPOPageProps) {
           </div>
 
           {/* Suggestions Panel (Right) */}
-          <div className={`transition-all duration-300 ease-in-out shrink-0 ${showSuggestions ? 'w-80 opacity-100' : 'w-0 opacity-0 overflow-hidden'
-            }`}>
-            <div className="w-80 sticky top-6">
-              <SuggestionsPanel
-                suggestions={suggestions}
-                isLoading={suggestionsLoading}
-                onAddItem={addLine}
-                storeId={storeId}
-                onRefresh={() => {
-                  setSuggestionsLoading(true);
-                  loadSuggestions().finally(() => setSuggestionsLoading(false));
-                }}
-              />
+          {showSuggestions && (
+            <div className="col-span-12 xl:col-span-3">
+              <div className="xl:sticky xl:top-6">
+                <SuggestionsPanel
+                  suggestions={suggestions}
+                  isLoading={suggestionsLoading}
+                  onAddItem={addLine}
+                  storeId={storeId}
+                  onRefresh={() => {
+                    setSuggestionsLoading(true);
+                    loadSuggestions().finally(() => setSuggestionsLoading(false));
+                  }}
+                />
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </div>
 

@@ -1,10 +1,21 @@
-'use client';
 import { useState, useEffect } from 'react';
-import { FiEdit2, FiCheck, FiX } from 'react-icons/fi';
+import { useRouter } from 'next/navigation';
+import { FiEdit2, FiCheck, FiX, FiFileText } from 'react-icons/fi';
 import { usePremiumTheme } from '@/lib/hooks/usePremiumTheme';
 
-export default function POSHeader({ saleId, onOpenCustomer, onOpenPrescription, activePrescription, invoiceNumber, setInvoiceNumber }: any) {
+export default function POSHeader({
+  saleId,
+  onOpenCustomer,
+  onOpenPrescription,
+  activePrescription,
+  invoiceNumber,
+  setInvoiceNumber,
+  pendingDraft,
+  onRestoreDraft,
+  onDiscardDraft
+}: any) {
   const { isPremium } = usePremiumTheme();
+  const router = useRouter();
   const [syncStatus, setSyncStatus] = useState<'synced' | 'syncing' | 'offline'>('synced');
   const [isEditingInvoice, setIsEditingInvoice] = useState(false);
   const [tempInvoiceNumber, setTempInvoiceNumber] = useState('');
@@ -14,6 +25,11 @@ export default function POSHeader({ saleId, onOpenCustomer, onOpenPrescription, 
       setTempInvoiceNumber(invoiceNumber);
     }
   }, [invoiceNumber]);
+
+  // Debug Draft State
+  useEffect(() => {
+    console.log('🛒 [POSHeader] Pending Draft Prop:', pendingDraft);
+  }, [pendingDraft]);
 
   const handleSaveInvoice = () => {
     if (tempInvoiceNumber.trim()) {
@@ -29,8 +45,8 @@ export default function POSHeader({ saleId, onOpenCustomer, onOpenPrescription, 
 
   return (
     <div className={`px-3 sm:px-6 py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 z-10 relative transition-colors ${isPremium
-        ? 'bg-white/80 backdrop-blur-md border-b border-emerald-500/10 shadow-sm'
-        : 'bg-white border-b border-[#e2e8f0] shadow-sm'
+      ? 'bg-white/80 backdrop-blur-md border-b border-emerald-500/10 shadow-sm'
+      : 'bg-white border-b border-[#e2e8f0] shadow-sm'
       }`}>
       <div className="flex items-center gap-4">
         {/* Branch / Context */}
@@ -62,8 +78,8 @@ export default function POSHeader({ saleId, onOpenCustomer, onOpenPrescription, 
         <button
           onClick={onOpenPrescription}
           className={`ml-2 flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors border uppercase tracking-wide ${isPremium
-              ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
-              : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200'
+            ? 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'
+            : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border-blue-200'
             }`}
           title="Import Verified Prescription (F6)"
         >
@@ -71,6 +87,44 @@ export default function POSHeader({ saleId, onOpenCustomer, onOpenPrescription, 
           <kbd className={`hidden sm:inline-block px-1 py-0.5 rounded border text-[10px] font-mono ${isPremium ? 'bg-emerald-100 border-emerald-200 text-emerald-800' : 'bg-white border-blue-200'
             }`}>F6</kbd>
         </button>
+
+        {/* Drafts Section - Always Visible */}
+        {pendingDraft ? (
+          <div className={`ml-2 flex items-center gap-2 px-3 py-1.5 rounded-lg border animate-in slide-in-from-left-2 ${isPremium
+            ? 'bg-amber-50 border-amber-200 text-amber-800'
+            : 'bg-orange-50 border-orange-200 text-orange-800'
+            }`}>
+            <span className="text-xs font-medium whitespace-nowrap">
+              Draft Found ({new Date(pendingDraft.updatedAt || pendingDraft.createdAt || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })})
+            </span>
+            <div className="h-4 w-px bg-current opacity-20 mx-1" />
+            <button
+              onClick={onRestoreDraft}
+              className="text-xs font-bold hover:underline underline-offset-2"
+            >
+              Resume
+            </button>
+            <button
+              onClick={onDiscardDraft}
+              className="ml-1 p-0.5 hover:bg-black/5 rounded-full hover:text-red-600 transition-colors"
+              title="Dismiss"
+            >
+              <FiX size={14} />
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => router.push('/pos/drafts')}
+            className={`ml-2 flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors border uppercase tracking-wide ${isPremium
+              ? 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+              : 'bg-white text-gray-600 hover:bg-gray-50 border-gray-200'
+              }`}
+            title="View All Saved Drafts"
+          >
+            <FiFileText size={14} />
+            <span>Drafts</span>
+          </button>
+        )}
       </div>
 
       <div className="flex items-center">

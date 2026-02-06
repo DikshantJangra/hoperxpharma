@@ -263,6 +263,9 @@ model Store {
   marginLedger        MarginLedger[]
   storeOverlays       StoreOverlay[]
   creditPolicy        StoreCreditPolicy?
+  gstLedgerEntries    GSTLedgerEntry[]
+  gstSnapshots        GSTPeriodSnapshot[]
+  gstErrorLogs        GSTErrorLog[]
 
   @@index([email])
   @@index([deletedAt])
@@ -2029,32 +2032,122 @@ model WebhookLog {
   @@index([gatewayId, createdAt])
 }
 
-model GSTReturn {
-  id         String    @id @default(cuid())
-  storeId    String
-  returnType String
-  period     String
-  status     String
-  filedAt    DateTime?
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+model GSTLedgerEntry {
+  id              String         @id @default(cuid())
+  storeId         String
+  date            DateTime       @default(now())
+  
+  // Linkage
+  eventId         String         // The ID of the source event (Sale/Purchase/Return)
+  eventType       GSTEventType
+  
+  // Tax Details
+  hsnCode         String
+  taxableValue    Decimal        @db.Decimal(12, 2)
+  cgstAmount      Decimal        @default(0) @db.Decimal(10, 2)
+  sgstAmount      Decimal        @default(0) @db.Decimal(10, 2)
+  igstAmount      Decimal        @default(0) @db.Decimal(10, 2)
+  cessAmount      Decimal        @default(0) @db.Decimal(10, 2)
+  
+  // ITC Fields (Input Tax Credit)
+  itcEligible     Boolean        @default(false)
+  itcStatus       GSTItcStatus   @default(INELIGIBLE)
+  
+  // Location Logic
+  placeOfSupply   String?
+  
+  // Audit & Filing
+  reconciled      Boolean        @default(false)
+  periodSnapshotId String?
+  
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  
+  store           Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  snapshot        GSTPeriodSnapshot? @relation(fields: [periodSnapshotId], references: [id])
 
-  @@index([storeId, period])
+  @@index([storeId, date])
+  @@index([eventId, eventType])
+  @@index([hsnCode])
+  @@index([itcStatus])
+  @@map("gst_ledger_entries")
 }
 
-model GSTTransaction {
-  id              String   @id @default(cuid())
+model GSTPeriodSnapshot {
+  id              String         @id @default(cuid())
   storeId         String
-  transactionType String
-  referenceId     String
-  gstin           String?
-  taxableValue    Decimal  @db.Decimal(12, 2)
-  cgst            Decimal  @db.Decimal(10, 2)
-  sgst            Decimal  @db.Decimal(10, 2)
-  igst            Decimal  @db.Decimal(10, 2)
-  createdAt       DateTime @default(now())
+  period          String         // Format: "YYYY-MM"
+  version         Int            @default(1)
+  
+  // Filing Data
+  gstr1Data       Json?          // Cached GSTR-1 Payload
+  gstr3bData      Json?          // Cached GSTR-3B Summary
+  
+  // Status
+  status          GSTFilingStatus @default(DRAFT)
+  lockedAt        DateTime?
+  filedAt         DateTime?
+  ackNumber       String?        // ARN from portal
+  
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  
+  store           Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  ledgerEntries   GSTLedgerEntry[]
 
-  @@index([storeId, transactionType])
+  @@unique([storeId, period, version])
+  @@index([storeId, status])
+  @@map("gst_period_snapshots")
+}
+
+model GSTErrorLog {
+  id              String         @id @default(cuid())
+  storeId         String
+  severity        String         @default("ERROR") // ERROR, WARNING
+  errorCode       String
+  errorMessage    String
+  
+  // Context
+  eventId         String?
+  entityType      String?        // Sale, Purchase, etc.
+  requestPayload  Json?
+  
+  resolved        Boolean        @default(false)
+  resolvedAt      DateTime?
+  resolutionNotes String?
+  
+  createdAt       DateTime       @default(now())
+  
+  store           Store          @relation(fields: [storeId], references: [id], onDelete: Cascade)
+
+  @@index([storeId, resolved])
+  @@index([errorCode])
+  @@map("gst_error_logs")
+}
+
+enum GSTEventType {
+  SALE
+  PURCHASE
+  SALE_RETURN
+  PURCHASE_RETURN
+  EXPENSE
+  STOCK_TRANSFER
+  WRITEOFF
+}
+
+enum GSTItcStatus {
+  INELIGIBLE
+  PROVISIONAL    // Claimed but not verified
+  CONFIRMED      // Matched with GSTR-2B
+  REVERSED       // Reversal due to return/rule
+  BLOCKED        // 17(5) blocked credit
+}
+
+enum GSTFilingStatus {
+  DRAFT
+  GENERATED
+  VALIDATED
+  FILED
 }
 
 model IRN {

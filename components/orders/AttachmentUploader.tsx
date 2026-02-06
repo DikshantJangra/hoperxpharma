@@ -288,15 +288,15 @@ export default function AttachmentUploader({
   };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200">
-      <div className="px-4 py-3 border-b border-gray-200">
-        <h3 className="text-sm font-medium text-gray-800 flex items-center gap-2">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+      <div className="px-5 py-3 border-b border-gray-200 bg-gray-50">
+        <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
           <MdAttachFile className="h-4 w-4" />
           Attachments
         </h3>
       </div>
 
-      <div className="p-4">
+      <div className="p-5">
         {/* Upload Area */}
         <div
           onDrop={handleDrop}

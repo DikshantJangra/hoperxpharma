@@ -180,8 +180,8 @@ export default function SuggestionsPanel({ suggestions, isLoading = false, onAdd
   return (
     <div className="space-y-6">
       {/* Suggestions Section */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div className="p-4 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="px-5 py-3 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
           <h3 className="text-sm font-semibold text-gray-900">Smart Suggestions</h3>
           <div className="flex items-center gap-2">
             {onRefresh && (
@@ -213,7 +213,7 @@ export default function SuggestionsPanel({ suggestions, isLoading = false, onAdd
           <div>
             {lowStockItems.length > 0 && (
               <div>
-                <div className="px-4 py-2 bg-red-50 border-b border-red-100 flex items-center justify-between">
+                <div className="px-5 py-2 bg-red-50 border-b border-red-100 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <HiOutlineExclamationTriangle className="h-4 w-4 text-red-600" />
                     <span className="text-xs font-medium text-red-900">Low Stock ({lowStockItems.length})</span>
@@ -230,7 +230,7 @@ export default function SuggestionsPanel({ suggestions, isLoading = false, onAdd
 
             {forecastItems.length > 0 && (
               <div>
-                <div className="px-4 py-2 bg-blue-50 border-b border-blue-100 flex items-center justify-between">
+                <div className="px-5 py-2 bg-blue-50 border-b border-blue-100 flex items-center justify-between">
                   <span className="text-xs font-medium text-blue-900">Forecast ({forecastItems.length})</span>
                   <button onClick={() => forecastItems.forEach(i => onAddItem(convertSuggestion(i)))} className="text-xs text-blue-600 hover:underline">Add All</button>
                 </div>
@@ -254,9 +254,9 @@ export default function SuggestionsPanel({ suggestions, isLoading = false, onAdd
       </div>
 
       {/* Quick Actions Section */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div className="px-4 py-3 border-b border-gray-200 bg-gray-50">
-          <h3 className="text-sm font-medium text-gray-800">Quick Actions</h3>
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        <div className="px-5 py-3 border-b border-gray-200 bg-gray-50">
+          <h3 className="text-sm font-semibold text-gray-900">Quick Actions</h3>
         </div>
 
         <div className="divide-y divide-gray-100">
@@ -264,7 +264,7 @@ export default function SuggestionsPanel({ suggestions, isLoading = false, onAdd
           <div>
             <button
               onClick={() => toggleSection('recent')}
-              className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors text-sm text-gray-700"
+              className="w-full px-5 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors text-sm text-gray-700"
             >
               <div className="flex items-center gap-2">
                 <HiOutlineClock className="w-4 h-4 text-blue-500" />
@@ -274,7 +274,7 @@ export default function SuggestionsPanel({ suggestions, isLoading = false, onAdd
             </button>
 
             {expandedSection === 'recent' && (
-              <div className="px-4 pb-4 animate-in slide-in-from-top-2 duration-200">
+              <div className="px-5 pb-5 animate-in slide-in-from-top-2 duration-200">
                 {loading ? (
                   <div className="text-center py-2 text-xs text-gray-500">Loading...</div>
                 ) : recentPOs.length === 0 ? (
@@ -311,7 +311,7 @@ export default function SuggestionsPanel({ suggestions, isLoading = false, onAdd
           <div>
             <button
               onClick={() => toggleSection('catalog')}
-              className="w-full px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors text-sm text-gray-700"
+              className="w-full px-5 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors text-sm text-gray-700"
             >
               <div className="flex items-center gap-2">
                 <HiOutlineBookOpen className="w-4 h-4 text-purple-500" />
@@ -321,7 +321,7 @@ export default function SuggestionsPanel({ suggestions, isLoading = false, onAdd
             </button>
 
             {expandedSection === 'catalog' && (
-              <div className="px-4 pb-4 animate-in slide-in-from-top-2 duration-200">
+              <div className="px-5 pb-5 animate-in slide-in-from-top-2 duration-200">
                 <div className="relative mb-2">
                   <HiOutlineSearch className="absolute left-2 top-2 text-gray-400 w-3 h-3" />
                   <input
@@ -360,7 +360,7 @@ export default function SuggestionsPanel({ suggestions, isLoading = false, onAdd
           </div>
 
           {/* Import Template Actions */}
-          <div className="p-4 bg-gray-50 text-center">
+          <div className="p-5 bg-gray-50 text-center">
             <p className="text-xs text-gray-500 mb-2 font-medium">Bulk Import Items</p>
             <div className="flex gap-2 justify-center">
               <button
@@ -410,7 +410,7 @@ function SuggestionItem({ item, onAdd, variant }: SuggestionItemProps) {
   const isUrgent = variant === 'urgent';
 
   return (
-    <div className="px-4 py-3 border-b border-gray-100 last:border-b-0 hover:bg-gray-50">
+    <div className="px-5 py-3 border-b border-gray-100 last:border-b-0 hover:bg-gray-50">
       <div className="flex items-start justify-between">
         <div className="flex-1 min-w-0">
           <div className="text-sm font-medium text-gray-900 truncate">

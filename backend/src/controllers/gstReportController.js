@@ -30,7 +30,8 @@ class GSTReportController {
             const { storeId } = req.user;
             const { month } = req.query;
 
-            const summary = await gstReportService.getGSTR1Summary(storeId, month);
+            const gstFilingService = require('../services/gstFilingService');
+            const summary = await gstFilingService.generateGSTR1(storeId, month);
 
             res.json({
                 success: true,
